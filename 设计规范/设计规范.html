@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mandao GRC · 前端设计规范（多主题）</title>
+<style>
+  /* ===== 设计令牌（与 tokens.css 同源；此处内联以便单文件预览） ===== */
+  :root{
+    --danger:#c0392b;--danger-tint:#f8e8e6;--warning:#c2902f;--warning-tint:#f7eed9;--success:#2f7a52;--success-tint:#e7f1ea;--info:#2e6da4;--info-tint:#e7eff7;--plum:#7c63c4;--plum-tint:#ece6f7;
+    --font-sans:"Inter",-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;--font-serif:"Georgia","Songti SC","Source Han Serif SC","SimSun",serif;--font-mono:"SFMono-Regular",Consolas,monospace;
+    --space-1:4px;--space-2:8px;--space-3:12px;--space-4:16px;--space-5:20px;--space-6:24px;--space-7:32px;--space-8:40px;
+    --ease-emphasized:cubic-bezier(.22,.61,.36,1);--dur-fast:.2s;--dur-base:.3s;--dur-slow:.6s;--dur-count:1.1s;--dur-chart:1.2s;
+    --bg:#f3f1ea;--surface:#ffffff;--surface-border:#e8e3d8;--blur:none;--gloss:0;--side-bg:linear-gradient(180deg,#a81e22,#7e1216);--topbar-bg:#ffffff;--accent-gold:#bd9436;
+    --text-1:#23211c;--text-2:#5b574e;--text-3:#8a857a;--text-4:#b0a99c;--border:#e8e3d8;--border-subtle:#f0ece2;
+    --accent:#b21d22;--accent-strong:#8a1419;--accent-weak:#f8e8e8;--accent-tint:rgba(178,29,34,.06);--accent-bright:#c8343a;
+    --safe:#2e6da4;--safe-weak:#e7eff7;
+    --radius-sm:4px;--radius-md:6px;--radius-lg:8px;
+    --shadow-1:0 1px 2px rgba(70,50,30,.05);--shadow-2:0 1px 2px rgba(70,50,30,.05),0 8px 18px rgba(70,50,30,.07);
+    --font-display:var(--font-sans);--aurora-op:0;--aurora-1:#e8c9c9;--aurora-2:#e6d9c0;--aurora-3:#d9e0ea;
+  }
+  body.t-sand{--bg:#f3efe7;--surface:#fcfaf5;--surface-border:#e7e1d6;--blur:none;--gloss:0;--side-bg:#f7f4ed;--topbar-bg:rgba(247,244,237,.92);--text-1:#26221c;--text-2:#6b6358;--text-3:#9a9286;--text-4:#bcb4a8;--border:#e7e1d6;--border-subtle:#efe9de;--accent:#1f6b54;--accent-strong:#16513f;--accent-weak:#e4efe9;--accent-tint:rgba(31,107,84,.08);--accent-bright:#4f9173;--safe:#4f9173;--safe-weak:#e4efe9;--radius-sm:8px;--radius-md:10px;--radius-lg:14px;--shadow-1:0 1px 2px rgba(60,48,30,.05);--shadow-2:0 1px 2px rgba(60,48,30,.04),0 8px 20px rgba(60,48,30,.07);--aurora-op:0}
+  body.t-glass{--bg:#eef3f6;--surface:rgba(255,255,255,.7);--surface-border:rgba(255,255,255,.75);--blur:blur(20px) saturate(135%);--gloss:1;--side-bg:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.25));--topbar-bg:rgba(244,248,251,.55);--text-1:#1a2530;--text-2:#566472;--text-3:#8896a4;--text-4:#aab6c2;--border:rgba(40,70,100,.10);--border-subtle:rgba(40,70,100,.06);--accent:#1f9aa6;--accent-strong:#147884;--accent-weak:#dff1f3;--accent-tint:rgba(31,154,166,.09);--accent-bright:#39c0cb;--safe:#39c0cb;--safe-weak:#dff1f3;--radius-sm:10px;--radius-md:14px;--radius-lg:21px;--shadow-1:0 1px 1px rgba(30,60,90,.04),0 8px 20px rgba(30,60,90,.08),0 24px 48px rgba(30,60,90,.07);--shadow-2:0 4px 10px rgba(30,60,90,.07),0 18px 40px rgba(30,60,90,.13);--aurora-op:.6;--aurora-1:#bfe6ef;--aurora-2:#d3cdf3;--aurora-3:#c7ecd6}
+  body.t-emerald{--bg:#f1f3f7;--surface:#ffffff;--surface-border:#e6e9ef;--blur:none;--gloss:0;--side-bg:#ffffff;--topbar-bg:rgba(255,255,255,.92);--text-1:#0f172a;--text-2:#475569;--text-3:#7c8aa0;--text-4:#a3aec0;--border:#e6e9ef;--border-subtle:#eef1f5;--accent:#0c9d6e;--accent-strong:#067a55;--accent-weak:#dcf5ec;--accent-tint:#f0faf6;--accent-bright:#16a34a;--safe:#16a34a;--safe-weak:#dcf5ec;--radius-sm:8px;--radius-md:10px;--radius-lg:14px;--shadow-1:0 1px 2px rgba(15,23,42,.05);--shadow-2:0 1px 3px rgba(15,23,42,.06),0 10px 22px rgba(15,23,42,.08);--aurora-op:0}
+  body.t-editorial{--bg:#f7f4ec;--surface:#fffdf7;--surface-border:#e4e2d6;--blur:none;--gloss:0;--side-bg:#faf8f1;--topbar-bg:rgba(250,248,241,.92);--text-1:#22251f;--text-2:#5c5f55;--text-3:#8c8f83;--text-4:#b3b6aa;--border:#e4e2d6;--border-subtle:#edebe0;--accent:#285c3f;--accent-strong:#1d4730;--accent-weak:#e5ede7;--accent-tint:rgba(40,92,63,.07);--accent-bright:#5a8a6b;--safe:#5a8a6b;--safe-weak:#e5ede7;--radius-sm:4px;--radius-md:5px;--radius-lg:7px;--shadow-1:0 1px 2px rgba(50,45,25,.05);--shadow-2:0 2px 4px rgba(50,45,25,.05),0 10px 22px rgba(50,45,25,.08);--aurora-op:0;--font-display:var(--font-serif)}
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-sans);color:var(--text-1);background:var(--bg);font-size:13px;-webkit-font-smoothing:antialiased;min-height:100vh;transition:background .4s}
+  .num{font-variant-numeric:tabular-nums}
+  .aurora{position:fixed;inset:-20% -10% -10% -10%;z-index:-2;pointer-events:none;filter:blur(40px);opacity:var(--aurora-op);transition:opacity .4s}
+  .aurora span{position:absolute;border-radius:50%}
+  .a1{width:46vw;height:46vw;left:-6%;top:-12%;background:radial-gradient(circle at 30% 30%,var(--aurora-1),transparent 65%);animation:d1 26s ease-in-out infinite}
+  .a2{width:40vw;height:40vw;right:-8%;top:-6%;background:radial-gradient(circle at 60% 40%,var(--aurora-2),transparent 64%);animation:d2 32s ease-in-out infinite}
+  .a3{width:42vw;height:42vw;left:30%;bottom:-22%;background:radial-gradient(circle at 50% 50%,var(--aurora-3),transparent 64%);animation:d1 30s ease-in-out infinite reverse}
+  @keyframes d1{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(6%,5%) scale(1.12)}}
+  @keyframes d2{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(-7%,6%) scale(1.08)}}
+
+  /* layout */
+  .wrap{max-width:1100px;margin:0 auto;padding:0 28px 80px}
+  .top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;padding:18px 28px;margin:0 -28px 8px;background:var(--topbar-bg);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);border-bottom:1px solid var(--border)}
+  .top .logo{width:34px;height:34px;border-radius:var(--radius-md);background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .top h1{font-size:16px;font-weight:720;font-family:var(--font-display)}.top h1 span{font-size:11px;color:var(--text-3);font-weight:400;margin-left:8px}
+  .top .sp{flex:1}
+  /* theme selector */
+  .themesel{position:relative}
+  .themesel .tbtn{display:flex;align-items:center;gap:8px;height:42px;padding:0 13px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--surface-border);box-shadow:var(--shadow-1);backdrop-filter:var(--blur);cursor:pointer;font-size:12.5px;color:var(--text-2)}
+  .themesel .tbtn .dot{width:14px;height:14px;border-radius:5px}
+  .themesel .tbtn b{color:var(--text-1);font-weight:600}
+  .themesel .tbtn svg{color:var(--text-3);transition:transform .2s}.themesel.open .tbtn svg{transform:rotate(180deg)}
+  .themesel .menu{position:absolute;top:50px;right:0;width:252px;border-radius:16px;padding:7px;background:var(--surface);border:1px solid var(--surface-border);box-shadow:var(--shadow-2);backdrop-filter:blur(18px);z-index:70;opacity:0;transform:translateY(-8px) scale(.98);transform-origin:top right;pointer-events:none;transition:.22s var(--ease-emphasized)}
+  .themesel.open .menu{opacity:1;transform:none;pointer-events:auto}
+  .themesel .mhd{font-size:10.5px;color:var(--text-4);font-weight:700;letter-spacing:1px;padding:7px 10px 6px}
+  .themesel .mi{display:flex;align-items:center;gap:11px;padding:9px 10px;border-radius:10px;cursor:pointer}
+  .themesel .mi:hover{background:var(--accent-tint)}
+  .themesel .mi .sw{width:24px;height:24px;border-radius:8px;flex-shrink:0}
+  .themesel .mi .nm{font-size:13px;font-weight:600;color:var(--text-1)}.themesel .mi .ds{font-size:11px;color:var(--text-3)}
+  .themesel .mi .ck{margin-left:auto;color:var(--accent);font-weight:800;opacity:0}.themesel .mi.on .ck{opacity:1}
+
+  section{margin-top:38px}
+  .sechd{display:flex;align-items:baseline;gap:12px;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+  .sechd h2{font-size:18px;font-weight:740;font-family:var(--font-display)}
+  .sechd .en{font-size:11px;letter-spacing:2px;color:var(--text-4);text-transform:uppercase;font-weight:700}
+  .sechd p{margin-left:auto;font-size:12px;color:var(--text-3)}
+  .card{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);backdrop-filter:var(--blur);-webkit-backdrop-filter:var(--blur);position:relative;padding:22px}
+  .card.glosson::before{content:"";position:absolute;top:0;left:0;right:0;height:46%;border-radius:inherit;background:linear-gradient(rgba(255,255,255,.5),transparent);pointer-events:none;opacity:var(--gloss)}
+
+  /* theme overview */
+  .themes{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .tcard{border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--border);cursor:pointer;background:var(--surface);box-shadow:var(--shadow-1);transition:transform .25s var(--ease-emphasized),box-shadow .25s}
+  .tcard:hover{transform:translateY(-4px);box-shadow:var(--shadow-2)}
+  .tcard .prev{height:74px;display:flex;align-items:center;justify-content:center;gap:6px}
+  .tcard .prev i{width:22px;height:22px;border-radius:7px}
+  .tcard .body{padding:12px 13px}
+  .tcard .nm{font-size:13.5px;font-weight:700}.tcard .ds{font-size:11px;color:var(--text-3);margin-top:3px}
+  .tcard .var{font-size:10.5px;color:var(--text-4);font-family:var(--font-mono);margin-top:7px}
+
+  /* swatches */
+  .swgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+  .sw{border-radius:var(--radius-md);overflow:hidden;border:1px solid var(--border);background:var(--surface)}
+  .sw .chip{height:54px}
+  .sw .meta{padding:9px 11px}
+  .sw .t{font-size:12px;font-weight:600}
+  .sw .v{font-size:10.5px;color:var(--text-3);font-family:var(--font-mono);margin-top:2px}
+
+  /* type */
+  .typerow{display:flex;align-items:baseline;gap:16px;padding:11px 0;border-bottom:1px solid var(--border-subtle)}
+  .typerow .tk{width:160px;flex-shrink:0;font-family:var(--font-mono);font-size:11px;color:var(--text-3)}
+  .typerow .sample{flex:1}
+  .d-display{font-family:var(--font-display);font-size:24px;font-weight:740;letter-spacing:-.5px}
+  .d-h1{font-family:var(--font-display);font-size:19px;font-weight:720}
+  .d-h2{font-size:15px;font-weight:700}.d-body{font-size:13px}.d-sm{font-size:12px;color:var(--text-2)}.d-xs{font-size:11px;color:var(--text-3)}
+
+  /* spacing & radius */
+  .scale{display:flex;align-items:flex-end;gap:14px;flex-wrap:wrap}
+  .sp{ text-align:center}
+  .sp .bar{background:var(--accent);border-radius:4px;width:26px}
+  .sp .l{font-size:10.5px;color:var(--text-3);font-family:var(--font-mono);margin-top:7px}
+  .radii{display:flex;gap:16px}
+  .rad{text-align:center}.rad .box{width:74px;height:60px;background:var(--accent-weak);border:1.5px solid var(--accent);}
+  .rad .l{font-size:10.5px;color:var(--text-3);font-family:var(--font-mono);margin-top:8px}
+
+  /* elevation */
+  .elev{display:flex;gap:18px;flex-wrap:wrap}
+  .elbox{width:170px;height:90px;border-radius:var(--radius-lg);background:var(--surface);border:1px solid var(--surface-border);display:flex;align-items:center;justify-content:center;font-size:11.5px;color:var(--text-2);font-family:var(--font-mono)}
+
+  /* motion */
+  .motion{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .demo{display:flex;align-items:center;gap:16px}
+  .demo .num-big{font-size:34px;font-weight:790;font-family:var(--font-display)}
+  .track{height:11px;background:var(--accent-tint);border-radius:8px;overflow:hidden;flex:1}
+  .track i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent-bright),var(--accent));border-radius:8px;transition:width var(--dur-chart) var(--ease-emphasized)}
+  .btn{display:inline-flex;align-items:center;gap:7px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:0;border-radius:var(--radius-md);padding:9px 15px;font-size:12.5px;font-weight:600;cursor:pointer;box-shadow:0 6px 14px rgba(10,94,81,.2)}
+  .btn.ghost{background:var(--surface);color:var(--text-2);border:1px solid var(--surface-border);box-shadow:var(--shadow-1)}
+  .mtoken{font-family:var(--font-mono);font-size:11px;color:var(--text-3);margin-top:8px}
+
+  /* components */
+  .comps{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+  .comp{padding:18px}
+  .comp h4{font-size:12px;color:var(--text-3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px}
+  .row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .tag{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700}.tag::before{content:"";width:6px;height:6px;border-radius:50%}
+  .tag.h{background:var(--danger-tint);color:var(--danger)}.tag.h::before{background:var(--danger)}
+  .tag.m{background:var(--warning-tint);color:#b07916}.tag.m::before{background:var(--warning)}
+  .tag.l{background:var(--safe-weak);color:var(--safe)}.tag.l::before{background:var(--safe)}
+  .pill{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:600;background:rgba(120,120,120,.1);color:var(--text-2)}
+  .pill.teal{background:var(--accent-weak);color:var(--accent-strong)}.pill.blue{background:var(--info-tint);color:var(--info)}.pill.violet{background:var(--plum-tint);color:var(--plum)}
+  .st{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:var(--text-2)}.st .d{width:8px;height:8px;border-radius:50%}
+  .st.ok{color:var(--success)}.st.ok .d{background:var(--success)} .st.over{color:var(--danger)}.st.over .d{background:var(--danger)} .st.doing{color:var(--accent-strong)}.st.doing .d{background:var(--accent)} .st.wait .d{background:var(--text-3)}
+  .input{display:flex;align-items:center;gap:9px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:9px 13px;color:var(--text-3);box-shadow:var(--shadow-1)}
+  .input input{border:0;background:none;outline:none;font-size:12.5px;color:var(--text-1);flex:1}
+  .seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:4px;box-shadow:var(--shadow-1)}
+  .seg button{border:0;background:none;padding:7px 13px;font-size:12px;color:var(--text-2);border-radius:var(--radius-sm);cursor:pointer}
+  .seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}
+  .ic2{width:38px;height:38px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;background:var(--accent-weak);color:var(--accent)}.ic2 svg{width:19px;height:19px}
+  .kpi{padding:18px}.kpi .lab{font-size:12px;color:var(--text-2);margin-top:12px}.kpi .val{font-size:28px;font-weight:790;font-family:var(--font-display);letter-spacing:-1px;margin-top:5px}
+  .miniprog{height:7px;width:120px;background:rgba(120,120,120,.13);border-radius:5px;overflow:hidden}.miniprog i{display:block;height:100%;width:72%;background:linear-gradient(90deg,var(--accent-bright),var(--accent));border-radius:5px}
+  table.demo-t{width:100%;border-collapse:collapse}
+  table.demo-t th{text-align:left;font-size:11px;color:var(--text-3);font-weight:600;padding:0 0 10px}
+  table.demo-t td{padding:11px 0;border-top:1px solid var(--border-subtle);font-size:12.5px}
+  .code{font-weight:700;color:var(--accent-strong);font-variant-numeric:tabular-nums}
+
+  .note{font-size:12.5px;color:var(--text-2);line-height:1.7;background:var(--accent-tint);border:1px solid var(--accent-weak);border-radius:var(--radius-md);padding:14px 18px}
+  .note code{font-family:var(--font-mono);background:rgba(120,120,120,.12);padding:1px 6px;border-radius:5px;font-size:11.5px}
+  @media (prefers-reduced-motion: reduce){*,*::before,*::after{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+</style>
+</head>
+<body class="t-gov">
+<div class="aurora"><span class="a1"></span><span class="a2"></span><span class="a3"></span></div>
+
+<header class="top">
+  <div class="logo">G</div>
+  <h1>Mandao GRC 设计规范<span>多主题 · Design System v1.0</span></h1>
+  <div class="sp"></div>
+  <div class="themesel" id="themesel">
+    <button class="tbtn" id="tbtn"><span class="dot" id="tdot" style="background:#b21d22"></span>主题：<b id="tname">朱砂</b><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m6 9 6 6 6-6"/></svg></button>
+    <div class="menu">
+      <div class="mhd">设计语言主题（5 套全部保留）</div>
+      <div class="mi on" data-theme="t-gov" data-name="朱砂" data-dot="#b21d22"><span class="sw" style="background:linear-gradient(145deg,#c8343a,#7e1216)"></span><div><div class="nm">朱砂</div><div class="ds">政务党政 · 庄重权威</div></div><span class="ck">✓</span></div>
+      <div class="mi" data-theme="t-sand" data-name="砂岩" data-dot="#1f6b54"><span class="sw" style="background:linear-gradient(145deg,#d9cdb6,#1f6b54)"></span><div><div class="nm">砂岩</div><div class="ds">暖砂中性 · 沉稳高级</div></div><span class="ck">✓</span></div>
+      <div class="mi" data-theme="t-glass" data-name="晴空" data-dot="#1f9aa6"><span class="sw" style="background:linear-gradient(145deg,#7fd6e0,#147884)"></span><div><div class="nm">晴空</div><div class="ds">通透柔光 · 轻盈空间</div></div><span class="ck">✓</span></div>
+      <div class="mi" data-theme="t-emerald" data-name="苍翠" data-dot="#0c9d6e"><span class="sw" style="background:linear-gradient(145deg,#3ddca3,#067a55)"></span><div><div class="nm">苍翠</div><div class="ds">翡翠冷石板 · 清晰利落</div></div><span class="ck">✓</span></div>
+      <div class="mi" data-theme="t-editorial" data-name="宣纸" data-dot="#285c3f"><span class="sw" style="background:linear-gradient(145deg,#cdb88a,#285c3f)"></span><div><div class="nm">宣纸</div><div class="ds">编辑暖白 · 衬线雅致</div></div><span class="ck">✓</span></div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="note" style="margin-top:18px">本规范的所有颜色 / 圆角 / 阴影 / 字体随<b>当前主题</b>实时变化——切换右上角主题即可看到同一套组件在 5 套设计语言下的呈现。组件代码只引用语义令牌（如 <code>var(--accent)</code>、<code>var(--surface)</code>），<b>切主题零改组件</b>。完整令牌定义见同目录 <code>tokens.css</code>。</div>
+
+  <!-- 1. 主题总览 -->
+  <section>
+    <div class="sechd"><span class="en">Themes</span><h2>五套主题</h2><p>全部保留，运行时可自由切换</p></div>
+    <div class="themes">
+      <div class="tcard" data-theme="t-gov" data-name="朱砂" data-dot="#b21d22"><div class="prev" style="background:#f3f1ea"><i style="background:#b21d22"></i><i style="background:#bd9436"></i><i style="background:#2e6da4"></i></div><div class="body"><div class="nm">朱砂</div><div class="ds">政务党政 · 庄重权威</div><div class="var">.t-gov</div></div></div>
+      <div class="tcard" data-theme="t-sand" data-name="砂岩" data-dot="#1f6b54"><div class="prev" style="background:#f3efe7"><i style="background:#d9cdb6"></i><i style="background:#1f6b54"></i><i style="background:#b5623f"></i></div><div class="body"><div class="nm">砂岩</div><div class="ds">暖砂中性 · 沉稳高级</div><div class="var">.t-sand</div></div></div>
+      <div class="tcard" data-theme="t-glass" data-name="晴空" data-dot="#1f9aa6"><div class="prev" style="background:#eef3f6"><i style="background:#7fd6e0"></i><i style="background:#1f9aa6"></i><i style="background:#d3cdf3"></i></div><div class="body"><div class="nm">晴空</div><div class="ds">通透柔光 · 轻盈空间</div><div class="var">.t-glass</div></div></div>
+      <div class="tcard" data-theme="t-emerald" data-name="苍翠" data-dot="#0c9d6e"><div class="prev" style="background:#f1f3f7"><i style="background:#16a34a"></i><i style="background:#0c9d6e"></i><i style="background:#0f172a"></i></div><div class="body"><div class="nm">苍翠</div><div class="ds">翡翠冷石板 · 清晰利落</div><div class="var">.t-emerald</div></div></div>
+      <div class="tcard" data-theme="t-editorial" data-name="宣纸" data-dot="#285c3f"><div class="prev" style="background:#f7f4ec"><i style="background:#cdb88a"></i><i style="background:#285c3f"></i><i style="background:#9a7b32"></i></div><div class="body"><div class="nm">宣纸</div><div class="ds">编辑暖白 · 衬线雅致</div><div class="var">.t-editorial</div></div></div>
+    </div>
+  </section>
+
+  <!-- 2. 色彩 -->
+  <section>
+    <div class="sechd"><span class="en">Color</span><h2>色彩令牌</h2><p>下方数值随当前主题实时解析</p></div>
+    <h4 style="font-size:12px;color:var(--text-3);font-weight:700;margin:0 0 12px">强调色 Accent</h4>
+    <div class="swgrid" style="margin-bottom:22px">
+      <div class="sw"><div class="chip" data-bg="--accent-bright"></div><div class="meta"><div class="t">accent-bright</div><div class="v" data-token="--accent-bright"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--accent"></div><div class="meta"><div class="t">accent</div><div class="v" data-token="--accent"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--accent-strong"></div><div class="meta"><div class="t">accent-strong</div><div class="v" data-token="--accent-strong"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--accent-weak"></div><div class="meta"><div class="t">accent-weak</div><div class="v" data-token="--accent-weak"></div></div></div>
+    </div>
+    <h4 style="font-size:12px;color:var(--text-3);font-weight:700;margin:0 0 12px">状态色 Status（跨主题恒定）</h4>
+    <div class="swgrid" style="margin-bottom:22px">
+      <div class="sw"><div class="chip" data-bg="--danger"></div><div class="meta"><div class="t">danger 危险/高风险</div><div class="v" data-token="--danger"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--warning"></div><div class="meta"><div class="t">warning 中风险</div><div class="v" data-token="--warning"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--success"></div><div class="meta"><div class="t">success 通过</div><div class="v" data-token="--success"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--info"></div><div class="meta"><div class="t">info 信息/等保</div><div class="v" data-token="--info"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--plum"></div><div class="meta"><div class="t">plum KRI/AI</div><div class="v" data-token="--plum"></div></div></div>
+    </div>
+    <h4 style="font-size:12px;color:var(--text-3);font-weight:700;margin:0 0 12px">文字 / 描边 / 表面 Neutrals</h4>
+    <div class="swgrid">
+      <div class="sw"><div class="chip" data-bg="--text-1"></div><div class="meta"><div class="t">text-1 主文字</div><div class="v" data-token="--text-1"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--text-2"></div><div class="meta"><div class="t">text-2 次文字</div><div class="v" data-token="--text-2"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--text-3"></div><div class="meta"><div class="t">text-3 辅助</div><div class="v" data-token="--text-3"></div></div></div>
+      <div class="sw"><div class="chip" data-bg="--bg" style="border-bottom:1px solid var(--border)"></div><div class="meta"><div class="t">bg 页面底</div><div class="v" data-token="--bg"></div></div></div>
+    </div>
+  </section>
+
+  <!-- 3. 字体 -->
+  <section>
+    <div class="sechd"><span class="en">Typography</span><h2>字体与排版</h2><p>宣纸主题标题/数字自动切换为衬线</p></div>
+    <div class="card glosson">
+      <div class="typerow"><div class="tk">--fs-display · 24/740</div><div class="sample d-display">合规态势总览 248</div></div>
+      <div class="typerow"><div class="tk">--fs-h1 · 19/720</div><div class="sample d-h1">各子公司风险等级分布</div></div>
+      <div class="typerow"><div class="tk">--fs-h2 · 15/700</div><div class="sample d-h2">重点整改任务</div></div>
+      <div class="typerow"><div class="tk">--fs-body · 13/400</div><div class="sample d-body">核心支付网关风险评估已提交，待信息安全负责人审批。</div></div>
+      <div class="typerow"><div class="tk">--fs-sm · 12</div><div class="sample d-sm">数据截止 2026-06-22 09:30 · 准实时</div></div>
+      <div class="typerow" style="border:0"><div class="tk">--fs-xs · 11</div><div class="sample d-xs">法规更新 · 2 小时前</div></div>
+    </div>
+  </section>
+
+  <!-- 4. 间距 + 圆角 -->
+  <section>
+    <div class="sechd"><span class="en">Spacing & Radius</span><h2>间距与圆角</h2><p>圆角随主题变化（宣纸最锐、晴空最圆）</p></div>
+    <div class="card glosson" style="margin-bottom:16px">
+      <div class="scale">
+        <div class="sp"><div class="bar" style="height:4px"></div><div class="l">1 · 4</div></div>
+        <div class="sp"><div class="bar" style="height:8px"></div><div class="l">2 · 8</div></div>
+        <div class="sp"><div class="bar" style="height:12px"></div><div class="l">3 · 12</div></div>
+        <div class="sp"><div class="bar" style="height:16px"></div><div class="l">4 · 16</div></div>
+        <div class="sp"><div class="bar" style="height:20px"></div><div class="l">5 · 20</div></div>
+        <div class="sp"><div class="bar" style="height:24px"></div><div class="l">6 · 24</div></div>
+        <div class="sp"><div class="bar" style="height:32px"></div><div class="l">7 · 32</div></div>
+        <div class="sp"><div class="bar" style="height:40px"></div><div class="l">8 · 40</div></div>
+      </div>
+    </div>
+    <div class="card glosson">
+      <div class="radii">
+        <div class="rad"><div class="box" style="border-radius:var(--radius-sm)"></div><div class="l">--radius-sm</div></div>
+        <div class="rad"><div class="box" style="border-radius:var(--radius-md)"></div><div class="l">--radius-md</div></div>
+        <div class="rad"><div class="box" style="border-radius:var(--radius-lg)"></div><div class="l">--radius-lg</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 阴影/材质 -->
+  <section>
+    <div class="sechd"><span class="en">Elevation & Material</span><h2>阴影与材质</h2><p>玻璃主题模糊背景，扁平主题实底</p></div>
+    <div class="elev">
+      <div class="elbox" style="box-shadow:var(--shadow-1)">--shadow-1</div>
+      <div class="elbox" style="box-shadow:var(--shadow-2)">--shadow-2</div>
+      <div class="elbox card glosson" style="border:1px solid var(--surface-border)">毛玻璃 surface<br>--surface / --blur</div>
+    </div>
+  </section>
+
+  <!-- 6. 动效 -->
+  <section>
+    <div class="sechd"><span class="en">Motion</span><h2>动效令牌</h2><p><button class="btn ghost" id="replay">▶ 重放演示</button></p></div>
+    <div class="motion">
+      <div class="card glosson"><div class="demo"><div class="num-big num" id="d-count" data-target="92.3" data-dec="1" data-suffix="%">0</div><div><div style="font-weight:600">数字滚动</div><div class="mtoken">--dur-count 1.1s · --ease-emphasized</div></div></div></div>
+      <div class="card glosson"><div class="demo"><div class="track"><i id="d-bar"></i></div></div><div style="font-weight:600;margin-top:12px">柱/进度生长</div><div class="mtoken">--dur-chart 1.2s · --ease-emphasized</div></div>
+      <div class="card glosson"><div class="demo" style="gap:20px"><div class="donut"><svg width="76" height="76" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)"><circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.12)" stroke-width="6"/><circle id="d-ring" class="ring" cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--accent)" stroke-width="6" stroke-dasharray="0 100" data-dash="69 31" stroke-linecap="round" style="transition:stroke-dasharray var(--dur-chart) var(--ease-emphasized)"/></g></svg></div><div><div style="font-weight:600">环形绘制</div><div class="mtoken">--dur-chart · stroke-dasharray</div></div></div></div>
+      <div class="card glosson hovercard" style="transition:transform var(--dur-base) var(--ease-emphasized),box-shadow var(--dur-base)"><div style="font-weight:600">悬浮抬升（移上来试试）</div><div class="mtoken">--dur-base .3s · translateY(-4px) + --shadow-2</div></div>
+    </div>
+  </section>
+
+  <!-- 7. 组件 -->
+  <section>
+    <div class="sechd"><span class="en">Components</span><h2>核心组件</h2><p>统一引用语义令牌</p></div>
+    <div class="comps">
+      <div class="card glosson comp"><h4>按钮 Buttons</h4><div class="row"><button class="btn">主要按钮</button><button class="btn ghost">次要按钮</button></div></div>
+      <div class="card glosson comp"><h4>分段控件 / 输入</h4><div class="row"><div class="seg"><button class="on">全集团</button><button>支付科技</button><button>数据科技</button></div></div><div class="input" style="margin-top:12px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="搜索制度、评估、任务…"></div></div>
+      <div class="card glosson comp"><h4>风险等级标签 / 体系标记</h4><div class="row"><span class="tag h">高</span><span class="tag m">中</span><span class="tag l">低</span><span class="pill teal">ISO27001</span><span class="pill blue">等保三级</span><span class="pill violet">PIPL</span></div></div>
+      <div class="card glosson comp"><h4>状态 Status</h4><div class="row" style="gap:18px"><span class="st doing"><span class="d"></span>处理中</span><span class="st over"><span class="d"></span>已逾期</span><span class="st wait"><span class="d"></span>待处理</span><span class="st ok"><span class="d"></span>已验证</span></div></div>
+      <div class="card glosson comp kpi" style="padding:18px"><h4 style="margin:0">KPI 卡片</h4><div class="ic2" style="margin-top:8px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg></div><div class="lab">在管风险项</div><div class="val num">248</div></div>
+      <div class="card glosson comp"><h4>表格 / 进度</h4><table class="demo-t"><thead><tr><th>编号</th><th>对象</th><th>等级</th><th>签署</th></tr></thead><tbody><tr><td class="code">TASK-0418</td><td>核心支付网关</td><td><span class="tag h">高</span></td><td><span class="miniprog"><i></i></span></td></tr><tr><td class="code">RA-2026-025</td><td>数据仓库平台</td><td><span class="tag m">中</span></td><td><span class="miniprog"><i style="width:100%"></i></span></td></tr></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- 7.5 质感规范 -->
+  <section>
+    <div class="sechd"><span class="en">Visual Quality</span><h2>质感规范</h2><p>让画面“看起来更贵”的硬性要求</p></div>
+    <div class="note" style="line-height:1.95">
+      <b>1. 色块用渐变，不平涂</b>：KPI 图标底、进度条、图表色段用同色系线性渐变（亮→深），如 <code>linear-gradient(var(--accent-bright),var(--accent))</code>，增加体积感。<br>
+      <b>2. 描边 + 阴影叠加</b>：卡片用「1px 半透描边 + 分层柔阴影」组合（Stripe 手法）；<code>--shadow-1</code> 为 2–3 层叠加，不用单层硬阴影。<br>
+      <b>3. 玻璃主题三要素</b>：半透表面 <code>--surface</code> + <code>backdrop-filter:var(--blur)</code> + 顶部高光 <code>::before</code>（受 <code>--gloss</code>）；文字须位于不透明蒙版之上保证可读。扁平/政务主题则用实底 + 细描边 + 克制阴影。<br>
+      <b>4. 数字等宽对齐</b>：所有数据用 <code>font-variant-numeric:tabular-nums</code>；KPI 数值用 <code>--font-display</code> + 790 字重 + 负字距。<br>
+      <b>5. 图标 tint 块</b>：图标置于浅色块（<code>--accent-weak</code> 或状态 tint）中，加 <code>inset</code> 顶部高光。<br>
+      <b>6. 悬浮反馈</b>：卡片 hover <code>translateY(-4px)</code> + 阴影升至 <code>--shadow-2</code>，玻璃主题可叠加流光 sheen。<br>
+      <b>7. 留白与节奏</b>：间距走 4 倍数阶梯，卡片内边距 18–22px；信息密度高但不拥挤。<br>
+      <b>8. 三忌</b>：忌纯黑文字（用 <code>--text-1</code> 近黑）、忌纯白生硬底（用淡化中性 <code>--bg</code>）、忌大面积纯色平涂。
+    </div>
+  </section>
+
+  <!-- 8. 架构说明 -->
+  <section>
+    <div class="sechd"><span class="en">Architecture</span><h2>主题架构 & 落地</h2></div>
+    <div class="note" style="line-height:1.8">
+      <b>1. 单一真源</b>：所有令牌定义在 <code>tokens.css</code>，<code>:root</code> 为基础令牌 + 默认主题（朱砂），其余主题以 <code>body.t-*</code> 覆盖。<br>
+      <b>2. 组件零耦合</b>：组件只引用语义令牌（<code>--accent</code>/<code>--surface</code>/<code>--radius-lg</code>…），从不写死颜色；切主题只换 <code>body</code> 类名。<br>
+      <b>3. 切换方式</b>：<code>document.body.className = 't-sand'</code>，5 套全部保留，可做成用户偏好持久化（localStorage）。<br>
+      <b>4. 新增主题</b>：复制一个 <code>body.t-*</code> 块，改令牌值即可，无需改任何组件。<br>
+      <b>5. 无障碍</b>：状态色跨主题恒定；已内置 <code>prefers-reduced-motion</code> 降级；玻璃主题文字均位于不透明蒙版之上保证对比度。
+    </div>
+  </section>
+</div>
+
+<script>
+(function(){
+  var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function refresh(){
+    var cs=getComputedStyle(document.body);
+    document.querySelectorAll('[data-bg]').forEach(function(el){el.style.background='var('+el.dataset.bg+')';});
+    document.querySelectorAll('[data-token]').forEach(function(el){el.textContent=cs.getPropertyValue(el.dataset.token).trim()||'—';});
+  }
+  // theme selector
+  var tsel=document.getElementById('themesel');
+  function applyTheme(theme,name,dot){
+    document.body.className=theme;
+    document.getElementById('tname').textContent=name;
+    document.getElementById('tdot').style.background=dot;
+    tsel.querySelectorAll('.mi').forEach(function(x){x.classList.toggle('on',x.dataset.theme===theme);});
+    refresh(); demo();
+  }
+  document.getElementById('tbtn').addEventListener('click',function(e){e.stopPropagation();tsel.classList.toggle('open');});
+  tsel.querySelectorAll('.mi').forEach(function(mi){mi.addEventListener('click',function(){applyTheme(mi.dataset.theme,mi.dataset.name,mi.dataset.dot);tsel.classList.remove('open');});});
+  document.querySelectorAll('.tcard').forEach(function(tc){tc.addEventListener('click',function(){applyTheme(tc.dataset.theme,tc.dataset.name,tc.dataset.dot);});});
+  document.addEventListener('click',function(e){if(!e.target.closest('#themesel'))tsel.classList.remove('open');});
+  // motion demos
+  function easeOut(t){return 1-Math.pow(1-t,3);}
+  function demo(){
+    var c=document.getElementById('d-count');var tgt=parseFloat(c.dataset.target),dec=1,suf='%';
+    if(reduce){c.textContent=tgt.toFixed(dec)+suf;}else{var s=performance.now();(function st(n){var p=Math.min((n-s)/1100,1);c.textContent=(easeOut(p)*tgt).toFixed(dec)+suf;if(p<1)requestAnimationFrame(st);})(performance.now());}
+    var bar=document.getElementById('d-bar');bar.style.width='0';setTimeout(function(){bar.style.width='72%';},80);
+    var ring=document.getElementById('d-ring');ring.setAttribute('stroke-dasharray','0 100');setTimeout(function(){ring.setAttribute('stroke-dasharray',ring.dataset.dash);},120);
+  }
+  document.getElementById('replay').addEventListener('click',demo);
+  refresh(); demo();
+})();
+</script>
+</body>
+</html>
