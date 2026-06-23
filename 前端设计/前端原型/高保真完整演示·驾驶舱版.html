@@ -70,6 +70,14 @@
   .lang button.on{background:var(--accent);color:#fff;font-weight:600}
   .search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:8px 12px;width:180px;color:var(--text-3);box-shadow:var(--shadow-1)}
   .search input{border:0;background:none;outline:none;font-size:12.5px;flex:1;color:var(--text-1)}
+  .searchwrap{position:relative}
+  .sresults{position:absolute;top:46px;right:0;width:380px;max-height:440px;overflow-y:auto;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);box-shadow:var(--shadow-2);z-index:60;display:none;padding:6px}
+  .sresults.open{display:block}
+  .sresults .scat{font-size:10px;color:var(--text-4);font-weight:700;letter-spacing:1px;padding:8px 10px 4px}
+  .sresults .sr{display:flex;gap:9px;padding:8px 10px;border-radius:8px;cursor:pointer}
+  .sresults .sr:hover{background:var(--accent-tint)}
+  .sresults .sr .si{font-size:9.5px;font-weight:700;color:var(--accent-strong);background:var(--accent-weak);border-radius:5px;padding:2px 6px;flex-shrink:0;align-self:flex-start}
+  .sresults .sr .st2{font-size:12px}.sresults .sr .sm{font-size:10.5px;color:var(--text-3);margin-top:1px}
   .ico{width:40px;height:40px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--surface-border);display:flex;align-items:center;justify-content:center;color:var(--text-2);position:relative;box-shadow:var(--shadow-1)}
   .ico .dot{position:absolute;top:9px;right:10px;width:7px;height:7px;background:var(--danger);border-radius:50%;border:2px solid var(--surface)}
   .av{width:40px;height:40px;border-radius:var(--radius-md);background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
@@ -286,7 +294,21 @@
           <button class="tp" data-theme="t-emerald" style="--c:#0c9d6e"><i></i>苍翠</button>
           <button class="tp" data-theme="t-editorial" style="--c:#285c3f"><i></i>宣纸</button>
         </div>
-        <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="搜索…"></div>
+        <div class="searchwrap">
+          <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input id="gsearch" placeholder="搜索…（试试 TLS1.1）"></div>
+          <div class="sresults" id="sresults">
+            <div class="scat">法规 / 制度</div>
+            <div class="sr" data-go="law"><span class="si">法规</span><div><div class="st2">支付机构条例 §41 · 交易日志留存</div><div class="sm">命中"留存/加密" · 待复核</div></div></div>
+            <div class="sr" data-go="policy"><span class="si">制度</span><div><div class="st2">数据传输加密规范 4.2</div><div class="sm">引用 CTL-019</div></div></div>
+            <div class="scat">控件 / 评估 / 审计</div>
+            <div class="sr" data-go="risk"><span class="si">控件</span><div><div class="st2">CTL-019 数据传输加密 TLS1.2+</div><div class="sm">覆盖 等保/PCI · 部分不符</div></div></div>
+            <div class="sr" data-go="assess-report"><span class="si">评估</span><div><div class="st2">RA-2026-028 风险点：部分 TLS1.1</div><div class="sm">商户结算系统 · 高</div></div></div>
+            <div class="sr" data-go="extaudit"><span class="si">外审</span><div><div class="st2">EF-031 持卡人数据传输未全程加密</div><div class="sm">PCI · 极高</div></div></div>
+            <div class="scat">整改 / 证据</div>
+            <div class="sr" data-go="risk"><span class="si">整改</span><div><div class="st2">TASK-0451 升级 TLS1.2+</div><div class="sm">责任人 张伟 · 整改中</div></div></div>
+            <div class="sr" data-go="board"><span class="si">证据</span><div><div class="st2">EV-10238 评估报告 PDF</div><div class="sm">SHA256 ✓</div></div></div>
+          </div>
+        </div>
         <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span class="dot"></span></div>
         <div class="av">陈</div>
       </div>
@@ -297,7 +319,7 @@
       <section class="view active" id="view-dashboard">
         <div class="phead"><div><div class="kqt">Group Overview · 2026 Q2</div><h1>合规态势 <small>全集团 · 数据截至 06-22 09:00 · 准实时</small></h1></div><div class="sp"></div><div class="seg"><button class="on">全集团</button><button>支付科技</button><button>消费金融</button><button>数科</button></div><button class="btn ghost" id="dashEdit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加组件</button></div>
         <div class="kpibar">
-          <div class="kc"><div class="l">综合风险指数</div><div class="v">62.4 <span class="dn">▲3.1</span></div><div class="s">较上季上升·中高位</div><div class="pb"><i style="width:62%;background:var(--warning)"></i></div></div>
+          <div class="kc"><div class="l">综合风险指数</div><div class="v">62.4 <span class="dn">▲3.1</span></div><div class="s"><span class="more" data-go="riskindex" style="cursor:pointer">构成与归因 →</span></div><div class="pb"><i style="width:62%;background:var(--warning)"></i></div></div>
           <div class="kc"><div class="l">高风险项(未关闭)</div><div class="v" style="color:var(--danger)">37 <span class="dn">▲5</span></div><div class="s">含逾期整改 12 项</div><div class="pb"><i style="width:48%;background:var(--danger)"></i></div></div>
           <div class="kc"><div class="l">整改完成率</div><div class="v" style="color:var(--success)">78.6<small>%</small> <span class="up">▲4.2</span></div><div class="s">本季关闭 184/234</div><div class="pb"><i style="width:78%;background:var(--success)"></i></div></div>
           <div class="kc"><div class="l">KRI 超阈值</div><div class="v" style="color:var(--warning)">6 <small>/24</small></div><div class="s">2 紧急·SIEM/日志/漏洞</div><div class="pb"><i style="width:25%;background:var(--warning)"></i></div></div>
@@ -355,6 +377,32 @@
             <div class="it"><span class="tm">昨日</span><span class="bd rev">复评</span><span class="tx">供应商「云擎科技」被曝数据泄露，自动触发非计划性复评任务</span></div>
           </div></div>
         </div>
+      </section>
+
+      <!-- ===== 风险指数构成 ===== -->
+      <section class="view" id="view-riskindex">
+        <div class="phead"><div><span class="bk" data-go="dashboard">← 返回合规态势</span><div class="kqt">综合风险指数 · 构成与归因</div><h1>综合风险指数 62.4 <small>全集团 · 较上季 ▲3.1</small></h1></div></div>
+        <div class="kpibar k4"><div class="kc"><div class="l">当前指数</div><div class="v" style="color:var(--warning)">62.4</div><div class="s">中高位(0–100)</div></div><div class="kc"><div class="l">环比</div><div class="v" style="color:var(--danger)">▲3.1</div></div><div class="kc"><div class="l">最高风险域</div><div class="v">监管合规</div><div class="s">贡献 18.2</div></div><div class="kc"><div class="l">数据时点</div><div class="v">06-22</div><div class="s">09:00 准实时</div></div></div>
+        <div class="g g-16-1">
+          <div class="card"><div class="ch"><h3>按风险域构成（加权贡献）</h3><span class="sub">权重 × 域风险</span></div><div class="cb"><div class="bars">
+            <div class="bar-row"><div class="hd"><span class="nm">监管合规（权重 25%）</span><b>18.2</b></div><div class="track"><div class="seg2 h" style="width:100%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">信息安全（权重 25%）</span><b>16.0</b></div><div class="track"><div class="seg2 h" style="width:88%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">数据合规（权重 20%）</span><b>12.1</b></div><div class="track"><div class="seg2 m" style="width:66%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">第三方（权重 15%）</span><b>9.4</b></div><div class="track"><div class="seg2 m" style="width:52%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">业务连续（权重 10%）</span><b>4.2</b></div><div class="track"><div class="seg2 l" style="width:23%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">内控（权重 5%）</span><b>2.5</b></div><div class="track"><div class="seg2 l" style="width:14%"></div></div></div>
+          </div></div></div>
+          <div>
+            <div class="card"><div class="ch"><h3>环比归因</h3><span class="sub">为何 ▲3.1</span></div><div class="cb"><div class="kri">
+              <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">漏洞修复时效恶化</div><div class="src">信息安全</div></span><span class="val" style="color:var(--danger)">+1.8</span></div>
+              <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">新增监管处罚约谈</div><div class="src">监管合规</div></span><span class="val" style="color:var(--danger)">+1.2</span></div>
+              <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">越权拦截上升</div><div class="src">信息安全</div></span><span class="val" style="color:var(--danger)">+0.9</span></div>
+              <div class="ki"><span class="dt" style="background:var(--success)"></span><span class="nm"><div class="t">整改完成率改善</div><div class="src">全域</div></span><span class="val" style="color:var(--success)">-0.8</span></div>
+            </div></div></div>
+            <div class="card"><div class="ch"><h3>近 6 季趋势</h3></div><div class="cb"><svg width="100%" height="56" viewBox="0 0 280 56" preserveAspectRatio="none"><polyline points="0,38 56,36 112,32 168,28 224,25 280,21" fill="none" stroke="var(--warning)" stroke-width="2"/></svg><div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-3)"><span>Q1'25</span><span>Q2'25</span><span>Q3'25</span><span>Q4'25</span><span>Q1'26</span><span>Q2'26</span></div></div></div>
+          </div>
+        </div>
+        <div class="card"><div class="ch"><h3>计算口径</h3></div><div class="cb" style="font-size:12px;color:var(--text-2);line-height:1.8">综合风险指数 = Σ(风险域权重 × 域风险得分)；域风险得分由该域下高/中/低风险项加权与 KRI 偏离度合成，权重可由信息安全负责人在后台配置。各子公司指数按其评估/审计/整改/KRI 汇总，集团指数为加权汇总。数据时点：2026-06-22 09:00。</div></div>
       </section>
 
       <!-- ===== 我的待办工作台 ===== -->
@@ -972,7 +1020,7 @@
       <!-- ===== BOARD ===== -->
       <section class="view" id="view-board">
         <div class="phead"><div><div class="kqt">M9 · 看板与留痕</div><h1>管理看板与证据留痕库</h1></div><div class="sp"></div><div class="seg"><button class="on">季度</button><button>年度</button></div></div>
-        <div class="tabbar" data-tabs="board"><button class="on" data-tab="b1">管理看板</button><button data-tab="b2">证据留痕库</button></div>
+        <div class="tabbar" data-tabs="board"><button class="on" data-tab="b1">管理看板</button><button data-tab="b3">跨子公司对比</button><button data-tab="b2">证据留痕库</button><button data-tab="b4">操作审计日志</button></div>
         <div class="tabpane show" data-pane="b1">
           <div class="kpibar k4"><div class="kc"><div class="l">整改完成率</div><div class="v" style="color:var(--success)">78.5<small>%</small></div><div class="s">▲4.2%</div></div><div class="kc"><div class="l">逾期率</div><div class="v" style="color:var(--danger)">12<small>%</small></div></div><div class="kc"><div class="l">审计发现(季)</div><div class="v">23</div></div><div class="kc"><div class="l">通知送达率</div><div class="v" style="color:var(--success)">99.4<small>%</small></div></div></div>
           <div class="g g-2">
@@ -992,6 +1040,29 @@
             <tr><td class="code">EV-10238</td><td>RA-2026-028 报告</td><td><span class="pill">ISO A.9 · 等保8.1.4</span></td><td>PDF</td><td style="font-family:var(--font-mono)">7e0d…41aa ✓</td><td class="num">06-20 16:30</td><td class="num">2036-06</td></tr>
             <tr><td class="code">EV-10230</td><td>保密协议签署</td><td><span class="pill">PIPL§51</span></td><td>记录</td><td style="font-family:var(--font-mono)">c92f…83de ✓</td><td class="num">06-19 09:00</td><td class="num">2046-06</td></tr>
           </tbody></table></div></div>
+        </div>
+        <div class="tabpane" data-pane="b3">
+          <div class="card"><div class="ch"><h3>各子公司 × 体系 · 合规达成度对比</h3><span class="sub">控制点覆盖率</span></div><div class="cb" style="overflow-x:auto"><table class="matrix"><thead><tr><th>子公司 \ 体系</th><th>ISO27001</th><th>等保三级</th><th>PBOC</th><th>PIPL</th><th>PCI</th></tr></thead><tbody>
+            <tr><td>支付科技</td><td><span style="color:var(--warning)">88%</span></td><td><span style="color:var(--warning)">82%</span></td><td><span style="color:var(--danger)">76%</span></td><td><span style="color:var(--warning)">80%</span></td><td><span style="color:var(--danger)">71%</span></td></tr>
+            <tr><td>消费金融</td><td><span style="color:var(--success)">91%</span></td><td><span style="color:var(--warning)">85%</span></td><td><span style="color:var(--warning)">79%</span></td><td><span style="color:var(--warning)">83%</span></td><td><span style="color:var(--text-3)">—</span></td></tr>
+            <tr><td>数据科技</td><td><span style="color:var(--warning)">86%</span></td><td><span style="color:var(--danger)">74%</span></td><td><span style="color:var(--text-3)">—</span></td><td><span style="color:var(--danger)">72%</span></td><td><span style="color:var(--text-3)">—</span></td></tr>
+            <tr><td>财富管理</td><td><span style="color:var(--success)">93%</span></td><td><span style="color:var(--success)">90%</span></td><td><span style="color:var(--warning)">84%</span></td><td><span style="color:var(--warning)">88%</span></td><td><span style="color:var(--text-3)">—</span></td></tr>
+            <tr><td>集团总部</td><td><span style="color:var(--success)">95%</span></td><td><span style="color:var(--success)">92%</span></td><td><span style="color:var(--warning)">86%</span></td><td><span style="color:var(--success)">90%</span></td><td><span style="color:var(--warning)">82%</span></td></tr>
+          </tbody></table></div></div>
+          <div class="card"><div class="ch"><h3>同类问题 · 各子公司复发次数</h3></div><div class="cb" style="overflow-x:auto"><table class="matrix"><thead><tr><th>问题类别 \ 子公司</th><th>支付科技</th><th>消费金融</th><th>数据科技</th><th>财富管理</th></tr></thead><tbody>
+            <tr><td>访问控制类</td><td><span style="color:var(--danger)">4</span></td><td>2</td><td><span style="color:var(--warning)">3</span></td><td>0</td></tr>
+            <tr><td>日志审计类</td><td><span style="color:var(--warning)">3</span></td><td>1</td><td>2</td><td>1</td></tr>
+            <tr><td>数据保护类</td><td>2</td><td><span style="color:var(--warning)">3</span></td><td>0</td><td>0</td></tr>
+          </tbody></table></div></div>
+        </div>
+        <div class="tabpane" data-pane="b4">
+          <div class="card"><div class="ch"><h3>平台操作审计日志</h3><span class="sub">不可篡改 · 独立存储</span></div><table><thead><tr><th>时间</th><th>操作人</th><th>操作</th><th>对象</th><th>来源 IP</th></tr></thead><tbody>
+            <tr><td class="num">06-22 09:30</td><td>李强</td><td><span class="pill">修改 KRI 阈值</span></td><td>漏洞修复时效 15→20</td><td class="num">10.20.3.11</td></tr>
+            <tr><td class="num">06-22 08:50</td><td>王芳</td><td><span class="pill blue">导出数据</span></td><td>消费金融评估明细</td><td class="num">10.20.5.2</td></tr>
+            <tr><td class="num">06-21 17:12</td><td>陈明远</td><td><span class="pill">权限授予</span></td><td>授予 u_sun 审计执行人</td><td class="num">10.20.1.9</td></tr>
+            <tr><td class="num">06-21 14:05</td><td>张伟</td><td><span class="pill">发布制度</span></td><td>数据出境管理办法 V2.5</td><td class="num">10.20.3.7</td></tr>
+            <tr><td class="num">06-20 11:33</td><td>李娜</td><td><span class="pill violet">AI 问答</span></td><td>查询商户服务高风险项</td><td class="num">10.20.4.4</td></tr>
+          </tbody></table></div>
         </div>
       </section>
 
@@ -1045,7 +1116,7 @@
 <script>
 (function(){
   var lang='zh';
-  var crumb={dashboard:[['概览','合规态势'],['Overview','Compliance Posture']],todo:[['概览','我的待办'],['Overview','My Tasks']],extaudit:[['业务','外部审计'],['Business','External Audit']],policy:[['业务','制度体系'],['Business','Policies']],'policy-detail':[['业务','制度详情'],['Business','Policy Detail']],risk:[['业务','风险评估'],['Business','Risk Assessment']],'assess-fill':[['业务','风险自评填写'],['Business','Self-Assessment']],'assess-report':[['业务','评估报告'],['Business','Assessment Report']],'template-config':[['业务','模板配置器'],['Business','Template Builder']],audit:[['业务','内部审计'],['Business','Internal Audit']],law:[['业务','法规跟踪'],['Business','Regulatory Tracking']],regaffairs:[['业务','监管事项'],['Business','Regulatory Affairs']],ai:[['业务','AI 智能问答'],['Business','AI Assistant']],vendor:[['业务','第三方供应商'],['Business','Third-Party']],'vendor-detail':[['业务','供应商详情'],['Business','Vendor Detail']],org:[['资产与组织','组织与资产'],['Assets & Org','Org & Assets']],notify:[['系统管理','通知中心'],['Administration','Notifications']],perm:[['系统管理','权限与审批'],['Administration','Access & Approval']],board:[['系统管理','看板与留痕'],['Administration','Dashboard & Evidence']]};
+  var crumb={dashboard:[['概览','合规态势'],['Overview','Compliance Posture']],riskindex:[['概览','综合风险指数构成'],['Overview','Risk Index Breakdown']],todo:[['概览','我的待办'],['Overview','My Tasks']],extaudit:[['业务','外部审计'],['Business','External Audit']],policy:[['业务','制度体系'],['Business','Policies']],'policy-detail':[['业务','制度详情'],['Business','Policy Detail']],risk:[['业务','风险评估'],['Business','Risk Assessment']],'assess-fill':[['业务','风险自评填写'],['Business','Self-Assessment']],'assess-report':[['业务','评估报告'],['Business','Assessment Report']],'template-config':[['业务','模板配置器'],['Business','Template Builder']],audit:[['业务','内部审计'],['Business','Internal Audit']],law:[['业务','法规跟踪'],['Business','Regulatory Tracking']],regaffairs:[['业务','监管事项'],['Business','Regulatory Affairs']],ai:[['业务','AI 智能问答'],['Business','AI Assistant']],vendor:[['业务','第三方供应商'],['Business','Third-Party']],'vendor-detail':[['业务','供应商详情'],['Business','Vendor Detail']],org:[['资产与组织','组织与资产'],['Assets & Org','Org & Assets']],notify:[['系统管理','通知中心'],['Administration','Notifications']],perm:[['系统管理','权限与审批'],['Administration','Access & Approval']],board:[['系统管理','看板与留痕'],['Administration','Dashboard & Evidence']]};
   var I18N={grp:{zh:['概览','业务','资产与组织','系统管理'],en:['Overview','Business','Assets & Org','Administration']},nav:{dashboard:['合规态势','Compliance Posture'],todo:['我的待办','My Tasks'],extaudit:['外部审计','External Audit'],audit:['内部审计','Internal Audit'],risk:['风险评估','Risk Assessment'],law:['法规跟踪','Regulatory Tracking'],policy:['制度体系','Policies'],ai:['AI 智能问答','AI Assistant'],vendor:['第三方供应商','Third-Party'],org:['组织与资产','Org & Assets'],notify:['通知中心','Notifications'],perm:['权限与审批','Access & Approval'],board:['看板与留痕','Dashboard & Evidence']}};
   var navV={dashboard:1,todo:1,extaudit:1,policy:1,risk:1,audit:1,law:1,regaffairs:1,ai:1,vendor:1,org:1,notify:1,perm:1,board:1};
   function show(v){
@@ -1106,6 +1177,7 @@
     "登记监管事项":"Register Item","本月待报送":"Due This Month","逾期报送":"Overdue Reports","未结问询":"Open Inquiries","处罚整改未闭环":"Open Penalty Fixes","重大事件报送":"Major Incident Report","报送日历":"Reporting Calendar","监管问询":"Inquiries","处罚与约谈":"Penalties & Talks","监管报送日历":"Reporting Calendar","报送事项":"Report Item","监管机构":"Regulator","法定时限":"Statutory Deadline","月报":"Monthly","季报":"Quarterly","年报":"Annual","编制中":"Drafting","待编制":"To Draft","已报送":"Submitted","报送达成（本年）":"Reporting (YTD)","按时报送率":"On-time Rate","临近报送":"Upcoming","登记问询":"Add Inquiry","事项":"Subject","收文日":"Received","答复期限":"Reply Due","答复留痕":"Reply Record","答复编制中":"Drafting Reply","已答复·留痕":"Replied · Logged","待监管反馈":"Awaiting Feedback","已办结":"Closed","处罚与约谈台账":"Penalty & Talk Register","事由":"Reason","整改要求":"Remediation Req.","回函状态":"Reply Status","约谈":"Talk","行政处罚":"Penalty","整改中·待回函":"Remediating · Reply Due","已回函·监管办结":"Replied · Closed","本季无重大事件报送":"No major incidents this quarter","含数据/合规属性":"with Data/Compliance Attrs","数据分级":"Data Class.","个人信息":"Personal Info","跨境":"Cross-border","等保定级":"MLPS Level","持卡人数据":"CHD","敏感":"Sensitive","内部":"Internal","三级":"L3","二级":"L2","跨境清算接口":"Cross-border Clearing","数据仓库平台":"Data Warehouse","登记":"Register",
     "添加组件":"Add Widget","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
     "权限审阅(UAR)":"Access Review (UAR)","越权与特权明细":"Violations & Privileges","本期应审阅角色":"Roles to Review","已审阅":"Reviewed","特权账号":"Privileged Accts","本期已回收":"Revoked","待复核":"To Recheck","权限审阅活动（季度）":"Access Reviews (Qtr)","发起审阅":"Start Review","审阅活动":"Review","范围":"Scope","复核人":"Reviewer","保留/回收":"Keep/Revoke","已完成·签认":"Done · Signed","越权拦截明细":"Blocked Access Detail","账号":"Account","尝试访问":"Attempted","拒绝原因":"Reason","跨子公司越权":"Cross-sub violation","角色不足":"Insufficient role","越权导出":"Unauthorized export","特权账号清单":"Privileged Accounts","系统":"System","最近审查":"Last Review","待审查":"To Review","风险处置与残余风险":"Risk Treatment & Residual","风险点":"Risk Item","固有风险":"Inherent","处置决策":"Decision","处置措施":"Action","残余风险":"Residual","责任人接受":"Owner Acceptance","降低":"Mitigate","接受":"Accept","待签认":"Pending Sign","管理层已接受":"Mgmt Accepted",
+    "构成与归因 →":"Breakdown →","综合风险指数 · 构成与归因":"Risk Index · Breakdown","当前指数":"Current Index","环比":"QoQ","最高风险域":"Top Domain","数据时点":"As of","按风险域构成（加权贡献）":"By Domain (weighted)","环比归因":"QoQ Attribution","近 6 季趋势":"6-Qtr Trend","计算口径":"Methodology","各子公司 × 体系 · 合规达成度对比":"Subsidiary × Framework Compliance","同类问题 · 各子公司复发次数":"Recurring by Subsidiary","平台操作审计日志":"Platform Audit Log","操作人":"Actor","操作":"Action","来源 IP":"Source IP","修改 KRI 阈值":"Edit KRI threshold","导出数据":"Export data","权限授予":"Grant permission","发布制度":"Publish policy","跨子公司对比":"Cross-Subsidiary","操作审计日志":"Audit Log","← 返回合规态势":"← Back to Posture","← 返回评估任务":"← Back to Assessments","← 返回模板库":"← Back to Templates","← 返回供应商台账":"← Back to Vendors","← 返回制度台账":"← Back to Policies",
     "采集健康监控":"Collection Health"
   };
   var RDICT={};for(var dk in DICT){RDICT[DICT[dk]]=dk;}
@@ -1128,6 +1200,13 @@
   document.getElementById('drawerClose').addEventListener('click',function(){drToggle(false);});
   drm.addEventListener('click',function(){drToggle(false);});
   dr.addEventListener('click',function(e){var c=e.target.closest('.wc');if(!c||c.classList.contains('added'))return;c.classList.add('added');var a=c.querySelector('.add');if(a)a.textContent='✓ 已添加';});
+  // 全文检索（跨模块溯源）
+  var gs=document.getElementById('gsearch'),srp=document.getElementById('sresults');
+  if(gs){
+    gs.addEventListener('focus',function(){srp.classList.add('open');});
+    gs.addEventListener('blur',function(){setTimeout(function(){srp.classList.remove('open');},150);});
+    srp.addEventListener('mousedown',function(e){var r=e.target.closest('.sr');if(r&&r.dataset.go){e.preventDefault();show(r.dataset.go);srp.classList.remove('open');gs.blur();}});
+  }
 })();
 </script>
 </body>
