@@ -98,6 +98,7 @@
   /* btn */
   .btn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:0;border-radius:var(--radius-md);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-1)}
   .btn.ghost{background:var(--surface);color:var(--text-2);border:1px solid var(--surface-border)}
+  .btn.ghost.primary{background:var(--accent-tint);color:var(--accent-strong);border-color:var(--accent)}
   .seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:3px;box-shadow:var(--shadow-1)}
   .seg button{border:0;background:none;padding:6px 12px;font-size:11.5px;color:var(--text-2);border-radius:var(--radius-sm);cursor:pointer}
   .seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}
@@ -110,6 +111,27 @@
   /* layout grids */
   .g{display:grid;gap:14px;margin-bottom:14px}
   .g-6-3-3{grid-template-columns:1.7fr 1fr 1fr}.g-2{grid-template-columns:1fr 1fr}.g-4-4-4{grid-template-columns:1fr 1fr 1fr}.g-main-side{grid-template-columns:1fr 300px;align-items:start}.g-16-1{grid-template-columns:1.6fr 1fr}
+  /* 可编辑大屏栅格（12 列 · 拖拽排序 · 边缘缩放 · 自适应回流） */
+  .dgrid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px;margin-bottom:14px;grid-auto-flow:row dense}
+  .dgrid .gi{grid-column:span var(--w,6);min-width:0;margin-bottom:0;position:relative;transition:box-shadow .15s}
+  .dgrid.editing{outline:1.5px dashed var(--accent-weak);outline-offset:7px;border-radius:12px}
+  .dgrid.editing .gi{cursor:grab;box-shadow:0 0 0 1px var(--accent-weak)}
+  .dgrid.editing .gi:hover{box-shadow:0 0 0 1px var(--accent-bright)}
+  .dgrid.editing .gi.drag{opacity:.45}
+  .dgrid.editing .gi.over{outline:2px dashed var(--accent);outline-offset:2px}
+  .gtools{display:none}
+  .dgrid.editing .gtools{display:flex;position:absolute;top:8px;right:8px;z-index:6;gap:5px}
+  .gtools button{width:24px;height:24px;border:1px solid var(--border);background:var(--surface);border-radius:6px;display:grid;place-items:center;cursor:pointer;color:var(--text-2);font-size:13px;line-height:1;box-shadow:var(--shadow-1);padding:0}
+  .gtools button:hover{border-color:var(--accent);color:var(--accent)}
+  .gtools .gmove{cursor:grab}
+  .gi .rsz{display:none}
+  .dgrid.editing .gi .rsz{display:block;position:absolute;top:0;right:-3px;width:14px;height:100%;cursor:col-resize;z-index:5}
+  .dgrid.editing .gi .rsz::after{content:"";position:absolute;top:50%;right:4px;transform:translateY(-50%);width:4px;height:36px;border-radius:3px;background:var(--accent);opacity:.5}
+  .dgrid.editing .gi .rsz:hover::after{opacity:.95}
+  .wbadge{display:none}
+  .dgrid.editing .wbadge{display:block;position:absolute;bottom:9px;right:11px;z-index:6;font-size:11px;color:var(--accent-strong);background:var(--accent-weak);border-radius:5px;padding:2px 7px;font-weight:650}
+  @media(max-width:1180px){.dgrid .gi{grid-column:span 6 !important}}
+  @media(max-width:820px){.dgrid .gi{grid-column:span 12 !important}}
   /* KPI bar */
   .kpibar{display:grid;grid-template-columns:repeat(8,1fr);gap:11px;margin-bottom:14px}
   .kpibar.k5{grid-template-columns:repeat(5,1fr)}.kpibar.k4{grid-template-columns:repeat(4,1fr)}
@@ -317,7 +339,7 @@
 
       <!-- ===== DASHBOARD (L1) ===== -->
       <section class="view active" id="view-dashboard">
-        <div class="phead"><div><div class="kqt">Group Overview · 2026 Q2</div><h1>合规态势 <small>全集团 · 数据截至 06-22 09:00 · 准实时</small></h1></div><div class="sp"></div><div class="seg"><button class="on">全集团</button><button>支付科技</button><button>消费金融</button><button>数科</button></div><button class="btn ghost" id="dashEdit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加组件</button></div>
+        <div class="phead"><div><div class="kqt">Group Overview · 2026 Q2</div><h1>合规态势 <small>全集团 · 数据截至 06-22 09:00 · 准实时</small></h1></div><div class="sp"></div><div class="seg"><button class="on">全集团</button><button>支付科技</button><button>消费金融</button><button>数科</button></div><button class="btn ghost" id="dashLayout"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span class="lbl">编辑布局</span></button><button class="btn ghost" id="dashEdit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加组件</button></div>
         <div class="kpibar">
           <div class="kc"><div class="l">综合风险指数</div><div class="v">62.4 <span class="dn">▲3.1</span></div><div class="s"><span class="more" data-go="riskindex" style="cursor:pointer">构成与归因 →</span></div><div class="pb"><i style="width:62%;background:var(--warning)"></i></div></div>
           <div class="kc"><div class="l">高风险项(未关闭)</div><div class="v" style="color:var(--danger)">37 <span class="dn">▲5</span></div><div class="s">含逾期整改 12 项</div><div class="pb"><i style="width:48%;background:var(--danger)"></i></div></div>
@@ -328,8 +350,8 @@
           <div class="kc"><div class="l">进行中评估/审计</div><div class="v">23</div><div class="s">评估 14 · 审计 9</div><div class="pb"><i style="width:40%;background:var(--accent)"></i></div></div>
           <div class="kc"><div class="l">供应商高风险</div><div class="v" style="color:var(--danger)">4 <span class="dn">▲1</span></div><div class="s">1 起事件触发复评</div><div class="pb"><i style="width:33%;background:var(--danger)"></i></div></div>
         </div>
-        <div class="g g-6-3-3">
-          <div class="card"><div class="ch"><h3>子公司 × 风险域 · 热力矩阵</h3><span class="sub">综合风险值 0–100</span></div><div class="cb">
+        <div class="dgrid" id="dashGrid">
+          <div class="card gi" style="--w:6"><div class="ch"><h3>子公司 × 风险域 · 热力矩阵</h3><span class="sub">综合风险值 0–100</span></div><div class="cb">
             <table class="heat"><thead><tr><th></th><th>信息安全</th><th>数据合规</th><th>业务连续</th><th>第三方</th><th>监管合规</th><th>内控</th></tr></thead><tbody>
               <tr><td class="lbl">集团总部</td><td class="cell" style="background:#dfb84d">41</td><td class="cell" style="background:#9cbf6e">33</td><td class="cell" style="background:#7fa76a">28</td><td class="cell" style="background:#e0a93f">52</td><td class="cell" style="background:#cdbf57">38</td><td class="cell" style="background:#86ab69">30</td></tr>
               <tr><td class="lbl">支付子公司</td><td class="cell" style="background:#c0392b">78</td><td class="cell" style="background:#cf6233">71</td><td class="cell" style="background:#e0a93f">55</td><td class="cell" style="background:#d4853a">68</td><td class="cell" style="background:#c0392b">82</td><td class="cell" style="background:#dba148">49</td></tr>
@@ -339,7 +361,7 @@
               <tr><td class="lbl">保理子公司</td><td class="cell" style="background:#dba148">48</td><td class="cell" style="background:#d6aa49">44</td><td class="cell" style="background:#d99845">62</td><td class="cell" style="background:#e0a93f">51</td><td class="cell" style="background:#dba148">49</td><td class="cell" style="background:#cdbf57">41</td></tr>
             </tbody></table>
           </div></div>
-          <div class="card"><div class="ch"><h3>整改完成率 · 分子公司</h3></div><div class="cb"><div class="bars">
+          <div class="card gi" style="--w:3"><div class="ch"><h3>整改完成率 · 分子公司</h3></div><div class="cb"><div class="bars">
             <div class="bar-row"><div class="hd"><span class="nm">集团总部</span><span><b>88%</b> <span class="ov">逾期1</span></span></div><div class="track"><div class="seg2 g" style="width:88%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">支付子公司</span><span><b>64%</b> <span class="ov">逾期7</span></span></div><div class="track"><div class="seg2 h" style="width:64%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">消费金融</span><span><b>73%</b> <span class="ov">逾期3</span></span></div><div class="track"><div class="seg2 m" style="width:73%"></div></div></div>
@@ -347,29 +369,27 @@
             <div class="bar-row"><div class="hd"><span class="nm">数科子公司</span><span><b>91%</b></span></div><div class="track"><div class="seg2 g" style="width:91%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">保理子公司</span><span><b>82%</b></span></div><div class="track"><div class="seg2 m" style="width:82%"></div></div></div>
           </div></div></div>
-          <div class="card"><div class="ch"><h3>KRI 持续监控</h3><span class="sub">SIEM/日志/漏洞</span></div><div class="cb"><div class="kri">
+          <div class="card gi" style="--w:3"><div class="ch"><h3>KRI 持续监控</h3><span class="sub">SIEM/日志/漏洞</span></div><div class="cb"><div class="kri">
             <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">高危漏洞修复时效(天)</div><div class="src">漏洞管理 · 阈值≤15</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,14 11,12 22,13 33,8 44,6 54,3" fill="none" stroke="var(--danger)" stroke-width="1.5"/></svg><span class="val" style="color:var(--danger)">23.4<div class="th">超标 56%</div></span></div>
             <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">特权账号未审查数</div><div class="src">SIEM · 阈值=0</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,15 11,13 22,14 33,10 44,7 54,5" fill="none" stroke="var(--danger)" stroke-width="1.5"/></svg><span class="val" style="color:var(--danger)">7<div class="th">紧急</div></span></div>
             <div class="ki"><span class="dt" style="background:var(--success)"></span><span class="nm"><div class="t">日志留存周期(天)</div><div class="src">日志平台 · 阈值≥180</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,9 11,10 22,8 33,9 44,8 54,8" fill="none" stroke="var(--success)" stroke-width="1.5"/></svg><span class="val">162<div class="th">达标</div></span></div>
             <div class="ki"><span class="dt" style="background:var(--warning)"></span><span class="nm"><div class="t">第三方接口异常率</div><div class="src">SIEM · 阈值≤0.5%</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,12 11,9 22,13 33,8 44,11 54,7" fill="none" stroke="var(--warning)" stroke-width="1.5"/></svg><span class="val" style="color:var(--warning)">0.71%<div class="th">超标</div></span></div>
             <div class="ki"><span class="dt" style="background:var(--success)"></span><span class="nm"><div class="t">数据导出审批合规率</div><div class="src">日志平台 · 阈值≥99%</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,5 11,6 22,4 33,5 44,4 54,3" fill="none" stroke="var(--success)" stroke-width="1.5"/></svg><span class="val">99.6%<div class="th">正常</div></span></div>
           </div></div></div>
-        </div>
-        <div class="g g-4-4-4">
-          <div class="card"><div class="ch"><h3>体系合规达成度</h3><span class="sub">控制点覆盖率</span></div><div class="cb"><div class="bars">
+          <div class="card gi" style="--w:4"><div class="ch"><h3>体系合规达成度</h3><span class="sub">控制点覆盖率</span></div><div class="cb"><div class="bars">
             <div class="bar-row"><div class="hd"><span class="nm">ISO 27001</span><b>92%</b></div><div class="track"><div class="seg2 g" style="width:92%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">等保三级</span><b>86%</b></div><div class="track"><div class="seg2 a" style="width:86%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">PBOC 支付监管</span><b>78%</b></div><div class="track"><div class="seg2 m" style="width:78%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">PIPL 个人信息</span><b>81%</b></div><div class="track"><div class="seg2 m" style="width:81%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">PCI DSS</span><b>74%</b></div><div class="track"><div class="seg2 h" style="width:74%"></div></div></div>
           </div></div></div>
-          <div class="card"><div class="ch"><h3>待我审批</h3><span class="more" data-go="todo">全部 4 →</span></div><div class="cb"><div class="wl">
+          <div class="card gi" style="--w:4"><div class="ch"><h3>待我审批</h3><span class="more" data-go="todo">全部 4 →</span></div><div class="cb"><div class="wl">
             <div class="wi"><span class="tp2">报告签批</span><div class="ti"><div class="t">支付核心系统等保测评报告</div><div class="m">起敏 · 信息安全负责人</div></div><span class="due">待处理 2h</span></div>
             <div class="wi"><span class="tp2">评估确认</span><div class="ti"><div class="t">消费金融季度评估表单确认</div><div class="m">王建国 · 部门负责人</div></div><span class="due">待处理 6h</span></div>
             <div class="wi"><span class="tp2">制度发布</span><div class="ti"><div class="t">《数据出境管理办法 v2.5》发布</div><div class="m">李强 · 制度发布审批人</div></div><span class="due ov">逾期 1d</span></div>
             <div class="wi"><span class="tp2">复评审批</span><div class="ti"><div class="t">云擎科技非计划性复评结论</div><div class="m">陈伟 · 集团管理层</div></div><span class="due">待处理 3h</span></div>
           </div></div></div>
-          <div class="card" style="padding:0"><div class="ch" style="padding:14px 18px 8px"><h3>重点关注 · 实时事件流</h3></div><div class="feed">
+          <div class="card gi" style="--w:4;padding:0"><div class="ch" style="padding:14px 18px 8px"><h3>重点关注 · 实时事件流</h3></div><div class="feed">
             <div class="it"><span class="tm">08:52</span><span class="bd over">逾期</span><span class="tx">支付子公司「特权账号定期审查」整改逾期 3 天，已升级至直属上级</span></div>
             <div class="it"><span class="tm">08:31</span><span class="bd kri">KRI</span><span class="tx">漏洞修复时效超阈值(23.4&gt;15 天)，触发预警并推送运维负责人</span></div>
             <div class="it"><span class="tm">07:40</span><span class="bd law">法规</span><span class="tx">人民银行发布支付机构监管条例实施细则，命中 4 条制度待复核</span></div>
@@ -1179,8 +1199,15 @@
     var sc=e.target.closest('.score .s'); if(sc){sc.parentElement.querySelectorAll('.s').forEach(function(o){o.classList.remove('sel');});sc.classList.add('sel');}
     var ci=e.target.closest('.ctree .ci'); if(ci){document.querySelectorAll('.ctree .ci').forEach(function(o){o.classList.remove('on');});ci.classList.add('on');}
   });
-  // theme pills
-  document.getElementById('themesel').addEventListener('click',function(e){var b=e.target.closest('.tp');if(!b)return;document.body.className=b.dataset.theme;document.querySelectorAll('#themesel .tp').forEach(function(x){x.classList.toggle('on',x===b);});});
+  // theme pills（与登录页共用 localStorage('grc-theme')：默认朱砂，否则沿用上次选择）
+  var TKEY='grc-theme';
+  (function initTheme(){
+    var t=localStorage.getItem(TKEY)||'t-gov';
+    if(!/^t-(gov|sand|glass|emerald|editorial)$/.test(t))t='t-gov';
+    document.body.className=t;
+    document.querySelectorAll('#themesel .tp').forEach(function(x){x.classList.toggle('on',x.dataset.theme===t);});
+  })();
+  document.getElementById('themesel').addEventListener('click',function(e){var b=e.target.closest('.tp');if(!b)return;document.body.className=b.dataset.theme;localStorage.setItem(TKEY,b.dataset.theme);document.querySelectorAll('#themesel .tp').forEach(function(x){x.classList.toggle('on',x===b);});});
   // AI
   var fab=document.getElementById('aiFab'),panel=document.getElementById('aiPanel');
   fab.addEventListener('click',function(){panel.classList.toggle('open');var b=fab.querySelector('.badge');if(b)b.style.display='none';});
@@ -1218,7 +1245,7 @@
     "下载正文":"Download","发起修订":"Revise","版本历史":"Version History","引用关系":"References","元数据":"Metadata","所属体系":"Framework","生效日期":"Effective Date","核心制度":"Core Policy","应确认":"Required","已确认":"Confirmed","逾期未确认":"Overdue","关系":"Relation","条款":"Clause","下位引用":"Refers to","上位依据":"Based on",
     "导入":"Import","新建制度":"New Policy","查看范围默认仅限本子公司。C=创建　R=查看　U=修改　A=审批":"Scope defaults to own subsidiary. C=Create R=Read U=Update A=Approve",
     "登记监管事项":"Register Item","本月待报送":"Due This Month","逾期报送":"Overdue Reports","未结问询":"Open Inquiries","处罚整改未闭环":"Open Penalty Fixes","重大事件报送":"Major Incident Report","报送日历":"Reporting Calendar","监管问询":"Inquiries","处罚与约谈":"Penalties & Talks","监管报送日历":"Reporting Calendar","报送事项":"Report Item","监管机构":"Regulator","法定时限":"Statutory Deadline","月报":"Monthly","季报":"Quarterly","年报":"Annual","编制中":"Drafting","待编制":"To Draft","已报送":"Submitted","报送达成（本年）":"Reporting (YTD)","按时报送率":"On-time Rate","临近报送":"Upcoming","登记问询":"Add Inquiry","事项":"Subject","收文日":"Received","答复期限":"Reply Due","答复留痕":"Reply Record","答复编制中":"Drafting Reply","已答复·留痕":"Replied · Logged","待监管反馈":"Awaiting Feedback","已办结":"Closed","处罚与约谈台账":"Penalty & Talk Register","事由":"Reason","整改要求":"Remediation Req.","回函状态":"Reply Status","约谈":"Talk","行政处罚":"Penalty","整改中·待回函":"Remediating · Reply Due","已回函·监管办结":"Replied · Closed","本季无重大事件报送":"No major incidents this quarter","含数据/合规属性":"with Data/Compliance Attrs","数据分级":"Data Class.","个人信息":"Personal Info","跨境":"Cross-border","等保定级":"MLPS Level","持卡人数据":"CHD","敏感":"Sensitive","内部":"Internal","三级":"L3","二级":"L2","跨境清算接口":"Cross-border Clearing","数据仓库平台":"Data Warehouse","登记":"Register",
-    "添加组件":"Add Widget","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
+    "添加组件":"Add Widget","编辑布局":"Edit Layout","完成布局":"Done","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
     "权限审阅(UAR)":"Access Review (UAR)","越权与特权明细":"Violations & Privileges","本期应审阅角色":"Roles to Review","已审阅":"Reviewed","特权账号":"Privileged Accts","本期已回收":"Revoked","待复核":"To Recheck","权限审阅活动（季度）":"Access Reviews (Qtr)","发起审阅":"Start Review","审阅活动":"Review","范围":"Scope","复核人":"Reviewer","保留/回收":"Keep/Revoke","已完成·签认":"Done · Signed","越权拦截明细":"Blocked Access Detail","账号":"Account","尝试访问":"Attempted","拒绝原因":"Reason","跨子公司越权":"Cross-sub violation","角色不足":"Insufficient role","越权导出":"Unauthorized export","特权账号清单":"Privileged Accounts","系统":"System","最近审查":"Last Review","待审查":"To Review","风险处置与残余风险":"Risk Treatment & Residual","风险点":"Risk Item","固有风险":"Inherent","处置决策":"Decision","处置措施":"Action","残余风险":"Residual","责任人接受":"Owner Acceptance","降低":"Mitigate","接受":"Accept","待签认":"Pending Sign","管理层已接受":"Mgmt Accepted",
     "构成与归因 →":"Breakdown →","综合风险指数 · 构成与归因":"Risk Index · Breakdown","当前指数":"Current Index","环比":"QoQ","最高风险域":"Top Domain","数据时点":"As of","按风险域构成（加权贡献）":"By Domain (weighted)","环比归因":"QoQ Attribution","近 6 季趋势":"6-Qtr Trend","计算口径":"Methodology","各子公司 × 体系 · 合规达成度对比":"Subsidiary × Framework Compliance","同类问题 · 各子公司复发次数":"Recurring by Subsidiary","平台操作审计日志":"Platform Audit Log","操作人":"Actor","操作":"Action","来源 IP":"Source IP","修改 KRI 阈值":"Edit KRI threshold","导出数据":"Export data","权限授予":"Grant permission","发布制度":"Publish policy","跨子公司对比":"Cross-Subsidiary","操作审计日志":"Audit Log","← 返回合规态势":"← Back to Posture","← 返回评估任务":"← Back to Assessments","← 返回模板库":"← Back to Templates","← 返回供应商台账":"← Back to Vendors","← 返回制度台账":"← Back to Policies",
     "评估闭环":"Assessment Loop","首次(准入)评估":"Initial (Onboarding)","定期评估(本年)":"Periodic (YTD)","未闭环整改":"Open Remediation","按时复评率":"On-time Rate","供应商评估记录":"Vendor Assessments","评估类型":"Type","发现":"Findings","准入(首次)":"Onboarding","年度定期":"Annual","续约评估":"Renewal","已闭环":"Closed","评估闭环漏斗":"Assessment Funnel","已评估":"Assessed","有发现":"With Findings","定期评估计划":"Periodic Plan","本月到期复评":"Due This Month","技术安全与合规评估":"Technical Security & Compliance","维度":"Dimension","情况":"Status","触达持卡人数据(PCI)":"Touches CHD (PCI)","自身认证":"Own Certs","再委托(四方)":"Subprocessors","数据处理协议(DPA)":"Data Processing Agreement (DPA)","已签署":"Signed","资产 - 威胁 - 脆弱性建模":"Asset-Threat-Vulnerability","资产":"Asset","威胁源":"Threat","脆弱性":"Vulnerability","可能性":"Likelihood","影响":"Impact","个人信息处理活动(ROPA)":"Processing Activities (ROPA)","个人信息处理活动记录（ROPA）":"Records of Processing (ROPA)","处理活动":"Activity","处理目的":"Purpose","个人信息类型":"PI Type","数据量级":"Volume","敏感":"Sensitive","出境":"Cross-border","保留期":"Retention","新增活动":"Add Activity","年度合规计划":"Annual Compliance Plan","年度合规事项":"Annual Items","2026 年度合规计划":"2026 Compliance Plan","新增事项":"Add Item","测评":"Assessment","培训":"Training","检查":"Inspection","自评":"Self-Assess","计划完成":"Target","管理层回应":"Mgmt Response","接受风险":"Accept Risk","已接受·签认":"Accepted · Signed","生成本季度合规自评报告初稿":"Draft quarterly self-assessment",
@@ -1237,13 +1264,81 @@
     var av=document.querySelector('.view.active');if(av){var cc=crumb[av.id.replace('view-','')]||[['',''],['','']];var c=cc[lang==='en'?1:0];document.getElementById('crumb').innerHTML=c[0]+' / <b>'+c[1]+'</b>';}
   }
   document.getElementById('lang').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;if(b.dataset.l===lang)return;lang=b.dataset.l;this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});applyLang();});
+  // ===== 可编辑大屏：拖拽排序 + 边缘缩放(吸附 12 栅格) + 自适应回流 + 记忆布局 =====
+  var dgrid=document.getElementById('dashGrid'),editing=false,LAYKEY='grc-dash-layout';
+  function giList(){return Array.prototype.slice.call(dgrid.querySelectorAll('.gi'));}
+  function keyOf(gi){var h=gi.querySelector('h3');return h?h.textContent.trim():'';}
+  function curW(gi){return parseInt(gi.style.getPropertyValue('--w'),10)||6;}
+  function ensureChrome(gi){
+    if(gi.querySelector('.gtools'))return;
+    var t=document.createElement('div');t.className='gtools';
+    t.innerHTML='<button class="gmove" title="拖动排序" draggable="false">⠿</button>'+
+      '<button class="gnar" title="收窄">－</button><button class="gwide" title="加宽">＋</button>'+
+      '<button class="gdel" title="移除组件">✕</button>';
+    gi.appendChild(t);
+    var r=document.createElement('div');r.className='rsz';r.title='拖动缩放';gi.appendChild(r);
+    var w=document.createElement('div');w.className='wbadge';w.textContent=curW(gi)+'/12';gi.appendChild(w);
+  }
+  function setW(gi,w){w=Math.max(3,Math.min(12,w));gi.style.setProperty('--w',w);var b=gi.querySelector('.wbadge');if(b)b.textContent=w+'/12';saveLayout();}
+  function saveLayout(){try{localStorage.setItem(LAYKEY,JSON.stringify(giList().map(function(gi){return{k:keyOf(gi),w:curW(gi)};})));}catch(e){}}
+  function restoreLayout(){
+    var raw;try{raw=localStorage.getItem(LAYKEY);}catch(e){return;}if(!raw)return;
+    var arr;try{arr=JSON.parse(raw);}catch(e){return;}
+    var map={};giList().forEach(function(gi){map[keyOf(gi)]=gi;});
+    arr.forEach(function(it){var gi=map[it.k];if(gi){gi.style.setProperty('--w',it.w);dgrid.appendChild(gi);}});
+  }
+  function toggleEdit(on){
+    editing=on;dgrid.classList.toggle('editing',on);
+    giList().forEach(function(gi){ensureChrome(gi);gi.draggable=on;var b=gi.querySelector('.wbadge');if(b)b.textContent=curW(gi)+'/12';});
+    var btn=document.getElementById('dashLayout'),lbl=btn.querySelector('.lbl');
+    if(lbl)lbl.textContent=on?(lang==='en'?'Done':'完成布局'):(lang==='en'?'Edit Layout':'编辑布局');
+    btn.classList.toggle('primary',on);
+  }
+  document.getElementById('dashLayout').addEventListener('click',function(){toggleEdit(!editing);});
+  // 编辑态拦截卡片内导航
+  dgrid.addEventListener('click',function(e){if(editing&&e.target.closest('[data-go]')&&!e.target.closest('.gtools')){e.stopPropagation();e.preventDefault();}},true);
+  // 工具按钮
+  dgrid.addEventListener('click',function(e){
+    if(!editing)return;var gi=e.target.closest('.gi');if(!gi)return;
+    if(e.target.closest('.gwide'))setW(gi,curW(gi)+1);
+    else if(e.target.closest('.gnar'))setW(gi,curW(gi)-1);
+    else if(e.target.closest('.gdel')){gi.remove();saveLayout();}
+  });
+  // 拖拽排序
+  var dragEl=null;
+  dgrid.addEventListener('dragstart',function(e){if(!editing){e.preventDefault();return;}var gi=e.target.closest('.gi');if(!gi)return;dragEl=gi;gi.classList.add('drag');e.dataTransfer.effectAllowed='move';try{e.dataTransfer.setData('text','x');}catch(_){}});
+  dgrid.addEventListener('dragover',function(e){if(!editing||!dragEl)return;e.preventDefault();var gi=e.target.closest('.gi');giList().forEach(function(g){g.classList.toggle('over',g===gi&&g!==dragEl);});});
+  dgrid.addEventListener('drop',function(e){if(!editing||!dragEl)return;e.preventDefault();var gi=e.target.closest('.gi');if(gi&&gi!==dragEl){var r=gi.getBoundingClientRect();dgrid.insertBefore(dragEl,(e.clientX-r.left)>r.width/2?gi.nextSibling:gi);}});
+  dgrid.addEventListener('dragend',function(){if(dragEl)dragEl.classList.remove('drag');giList().forEach(function(g){g.classList.remove('over');});dragEl=null;saveLayout();});
+  // 边缘缩放（吸附到列）
+  dgrid.addEventListener('pointerdown',function(e){
+    if(!editing)return;var h=e.target.closest('.rsz');if(!h)return;e.preventDefault();
+    var gi=h.closest('.gi'),colW=dgrid.clientWidth/12,sx=e.clientX,sw=curW(gi);gi.draggable=false;
+    function mv(ev){setW(gi,sw+Math.round((ev.clientX-sx)/colW));}
+    function up(){document.removeEventListener('pointermove',mv);document.removeEventListener('pointerup',up);gi.draggable=editing;}
+    document.addEventListener('pointermove',mv);document.addEventListener('pointerup',up);
+  });
+  restoreLayout();
+
   // 大屏自定义组件抽屉
   var dr=document.getElementById('widgetDrawer'),drm=document.getElementById('drawerMask');
   function drToggle(open){dr.classList.toggle('open',open);drm.classList.toggle('open',open);}
   document.getElementById('dashEdit').addEventListener('click',function(){drToggle(true);});
   document.getElementById('drawerClose').addEventListener('click',function(){drToggle(false);});
   drm.addEventListener('click',function(){drToggle(false);});
-  dr.addEventListener('click',function(e){var c=e.target.closest('.wc');if(!c||c.classList.contains('added'))return;c.classList.add('added');var a=c.querySelector('.add');if(a)a.textContent='✓ 已添加';});
+  dr.addEventListener('click',function(e){
+    var c=e.target.closest('.wc');if(!c||c.classList.contains('added'))return;
+    c.classList.add('added');var a=c.querySelector('.add');if(a)a.textContent='✓ 已添加';
+    // 真正在大屏落位一块新组件（默认 4/12，可在「编辑布局」中拖动与缩放）
+    var wn=c.querySelector('.wn').textContent,wd=c.querySelector('.wd').textContent;
+    var gi=document.createElement('div');gi.className='card gi';gi.style.setProperty('--w',4);
+    gi.innerHTML='<div class="ch"><h3>'+wn+'</h3><span class="sub">'+wd+'</span></div>'+
+      '<div class="cb" style="padding:26px 18px;color:var(--text-3);font-size:12.5px;line-height:1.7">'+
+      (lang==='en'?'Widget added. Use “Edit Layout” to drag, reorder and resize.':'组件已添加到大屏，进入「编辑布局」可拖动排序与自由缩放。')+'</div>';
+    dgrid.appendChild(gi);
+    if(editing){ensureChrome(gi);gi.draggable=true;}
+    saveLayout();
+  });
   // 全文检索（跨模块溯源）
   var gs=document.getElementById('gsearch'),srp=document.getElementById('sresults');
   if(gs){
