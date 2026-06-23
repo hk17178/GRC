@@ -532,6 +532,11 @@
           </tbody></table></div>
           <div class="card"><div class="ch"><h3>等级分布</h3></div><div class="cb"><div class="donut-wrap"><svg width="90" height="90" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)"><circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.12)" stroke-width="6"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--safe)" stroke-width="6" stroke-dasharray="50 50" stroke-dashoffset="-50"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--warning)" stroke-width="6" stroke-dasharray="21 79" stroke-dashoffset="-29"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--danger)" stroke-width="6" stroke-dasharray="29 71"/></g></svg><div class="dlbl"><div class="li"><span class="k"><i style="background:var(--danger)"></i>高</span><b>4</b></div><div class="li"><span class="k"><i style="background:var(--warning)"></i>中</span><b>3</b></div><div class="li"><span class="k"><i style="background:var(--safe)"></i>低</span><b>7</b></div></div></div></div></div>
         </div>
+        <div class="card"><div class="ch"><h3>风险处置与残余风险</h3></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:740px"><thead><tr><th>风险点</th><th>固有风险</th><th>处置决策</th><th>处置措施</th><th>残余风险</th><th>责任人接受</th></tr></thead><tbody>
+          <tr><td>结算接口共享账号</td><td><span class="tag h">高·16</span></td><td><span class="pill blue">降低</span></td><td>启用个人账号+审计</td><td><span class="tag m">中·8</span></td><td><span class="st wait"><span class="d"></span>待签认</span></td></tr>
+          <tr><td>部分 TLS1.1</td><td><span class="tag h">高·15</span></td><td><span class="pill blue">降低</span></td><td>Q3 升级 TLS1.2+</td><td><span class="tag m">中·7</span></td><td><span class="st wait"><span class="d"></span>待签认</span></td></tr>
+          <tr><td>老旧备份介质</td><td><span class="tag m">中·9</span></td><td><span class="pill">接受</span></td><td>限期至下次评估复核</td><td><span class="tag m">中·9</span></td><td><span class="st ok"><span class="d"></span>管理层已接受</span></td></tr>
+        </tbody></table></div></div>
       </section>
       <section class="view" id="view-template-config">
         <div class="phead"><div><span class="bk" data-go="risk">← 返回模板库</span><div class="kqt">等保三级测评 · V2.2（草稿）</div><h1>模板配置器</h1></div><div class="sp"></div><button class="btn ghost">发布前预览测试</button><button class="btn">发布生效</button></div>
@@ -919,7 +924,7 @@
       <!-- ===== PERM ===== -->
       <section class="view" id="view-perm">
         <div class="phead"><div><div class="kqt">M8 · 权限与审批</div><h1>统一权限与审批流</h1></div></div>
-        <div class="tabbar" data-tabs="perm"><button class="on" data-tab="pm1">角色权限矩阵</button><button data-tab="pm2">角色管理</button><button data-tab="pm3">审批流配置</button></div>
+        <div class="tabbar" data-tabs="perm"><button class="on" data-tab="pm1">角色权限矩阵</button><button data-tab="pm2">角色管理</button><button data-tab="pm3">审批流配置</button><button data-tab="pm4">权限审阅(UAR)</button><button data-tab="pm5">越权与特权明细</button></div>
         <div class="tabpane show" data-pane="pm1">
           <div class="kpibar k5"><div class="kc"><div class="l">角色数</div><div class="v">20</div></div><div class="kc"><div class="l">授权用户</div><div class="v">983</div></div><div class="kc"><div class="l">待审批</div><div class="v" style="color:var(--warning)">14</div></div><div class="kc"><div class="l">超时审批</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">越权拦截(本月)</div><div class="v" style="color:var(--success)">128</div></div></div>
           <div class="infoline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>查看范围默认仅限本子公司。C=创建　R=查看　U=修改　A=审批</div>
@@ -939,6 +944,28 @@
         </tbody></table></div></div>
         <div class="tabpane" data-pane="pm3">
           <div class="card"><div class="ch"><h3>风险评估报告 · 审批流</h3></div><div class="cb"><div class="flow"><div class="node done"><div class="r">发起人提交</div><div class="s">业务责任人</div></div><span class="arr">→</span><div class="node done"><div class="r">部门审核</div><div class="s">部门审核人</div></div><span class="arr">→</span><div class="node cur"><div class="r">安全审批</div><div class="s">信息安全负责人</div></div><span class="arr">→</span><div class="node"><div class="r">集团审批</div><div class="s">集团管理层(高风险)</div></div></div></div></div>
+        </div>
+        <div class="tabpane" data-pane="pm4">
+          <div class="kpibar k5"><div class="kc"><div class="l">本期应审阅角色</div><div class="v">9</div></div><div class="kc"><div class="l">已审阅</div><div class="v" style="color:var(--success)">6</div></div><div class="kc"><div class="l">特权账号</div><div class="v" style="color:var(--warning)">42</div></div><div class="kc"><div class="l">本期已回收</div><div class="v">11</div></div><div class="kc"><div class="l">待复核</div><div class="v" style="color:var(--danger)">7</div></div></div>
+          <div class="card"><div class="ch"><h3>权限审阅活动（季度）</h3><span class="more">＋ 发起审阅</span></div><table><thead><tr><th>审阅活动</th><th>范围</th><th>复核人</th><th>进度</th><th>保留/回收</th><th>状态</th></tr></thead><tbody>
+            <tr><td>特权账号季度审阅</td><td>支付科技·核心系统</td><td><span class="av-s">张</span>张伟</td><td><span class="prog"><i style="width:70%"></i></span>70%</td><td>保留 28 / 回收 6</td><td><span class="st doing"><span class="d"></span>进行中</span></td></tr>
+            <tr><td>第三方接入账号审阅</td><td>集团</td><td><span class="av-s">王</span>王芳</td><td><span class="prog"><i style="width:100%"></i></span>100%</td><td>保留 9 / 回收 3</td><td><span class="st ok"><span class="d"></span>已完成·签认</span></td></tr>
+            <tr><td>离职/调岗权限复核</td><td>全集团</td><td><span class="av-s">李</span>李娜</td><td><span class="prog"><i style="width:40%"></i></span>40%</td><td>—</td><td><span class="st over"><span class="d"></span>逾期</span></td></tr>
+          </tbody></table></div>
+        </div>
+        <div class="tabpane" data-pane="pm5">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>越权拦截明细</h3><span class="sub">本月 128 次</span></div><table><thead><tr><th>时间</th><th>账号</th><th>尝试访问</th><th>拒绝原因</th><th>子公司</th></tr></thead><tbody>
+              <tr><td class="num">06-22 09:14</td><td>u_zhao</td><td>B 子公司评估 RA-2026-028</td><td><span class="tag h">跨子公司越权</span></td><td>支付科技→商户服务</td></tr>
+              <tr><td class="num">06-21 16:02</td><td>u_sun</td><td>模板结构修改</td><td><span class="tag m">角色不足</span></td><td>消费金融</td></tr>
+              <tr><td class="num">06-20 11:30</td><td>u_api7</td><td>批量导出敏感数据</td><td><span class="tag h">越权导出</span></td><td>数据科技</td></tr>
+            </tbody></table></div>
+            <div class="card"><div class="ch"><h3>特权账号清单</h3></div><table><thead><tr><th>账号</th><th>系统</th><th>最近审查</th><th>状态</th></tr></thead><tbody>
+              <tr><td>root@gw</td><td>核心支付网关</td><td class="num">超 90 天</td><td><span class="st over"><span class="d"></span>待审查</span></td></tr>
+              <tr><td>dba@dw</td><td>数据仓库</td><td class="num">30 天</td><td><span class="st ok"><span class="d"></span>正常</span></td></tr>
+              <tr><td>admin@aml</td><td>反洗钱平台</td><td class="num">超 90 天</td><td><span class="st over"><span class="d"></span>待审查</span></td></tr>
+            </tbody></table></div>
+          </div>
         </div>
       </section>
 
@@ -1078,6 +1105,7 @@
     "导入":"Import","新建制度":"New Policy","查看范围默认仅限本子公司。C=创建　R=查看　U=修改　A=审批":"Scope defaults to own subsidiary. C=Create R=Read U=Update A=Approve",
     "登记监管事项":"Register Item","本月待报送":"Due This Month","逾期报送":"Overdue Reports","未结问询":"Open Inquiries","处罚整改未闭环":"Open Penalty Fixes","重大事件报送":"Major Incident Report","报送日历":"Reporting Calendar","监管问询":"Inquiries","处罚与约谈":"Penalties & Talks","监管报送日历":"Reporting Calendar","报送事项":"Report Item","监管机构":"Regulator","法定时限":"Statutory Deadline","月报":"Monthly","季报":"Quarterly","年报":"Annual","编制中":"Drafting","待编制":"To Draft","已报送":"Submitted","报送达成（本年）":"Reporting (YTD)","按时报送率":"On-time Rate","临近报送":"Upcoming","登记问询":"Add Inquiry","事项":"Subject","收文日":"Received","答复期限":"Reply Due","答复留痕":"Reply Record","答复编制中":"Drafting Reply","已答复·留痕":"Replied · Logged","待监管反馈":"Awaiting Feedback","已办结":"Closed","处罚与约谈台账":"Penalty & Talk Register","事由":"Reason","整改要求":"Remediation Req.","回函状态":"Reply Status","约谈":"Talk","行政处罚":"Penalty","整改中·待回函":"Remediating · Reply Due","已回函·监管办结":"Replied · Closed","本季无重大事件报送":"No major incidents this quarter","含数据/合规属性":"with Data/Compliance Attrs","数据分级":"Data Class.","个人信息":"Personal Info","跨境":"Cross-border","等保定级":"MLPS Level","持卡人数据":"CHD","敏感":"Sensitive","内部":"Internal","三级":"L3","二级":"L2","跨境清算接口":"Cross-border Clearing","数据仓库平台":"Data Warehouse","登记":"Register",
     "添加组件":"Add Widget","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
+    "权限审阅(UAR)":"Access Review (UAR)","越权与特权明细":"Violations & Privileges","本期应审阅角色":"Roles to Review","已审阅":"Reviewed","特权账号":"Privileged Accts","本期已回收":"Revoked","待复核":"To Recheck","权限审阅活动（季度）":"Access Reviews (Qtr)","发起审阅":"Start Review","审阅活动":"Review","范围":"Scope","复核人":"Reviewer","保留/回收":"Keep/Revoke","已完成·签认":"Done · Signed","越权拦截明细":"Blocked Access Detail","账号":"Account","尝试访问":"Attempted","拒绝原因":"Reason","跨子公司越权":"Cross-sub violation","角色不足":"Insufficient role","越权导出":"Unauthorized export","特权账号清单":"Privileged Accounts","系统":"System","最近审查":"Last Review","待审查":"To Review","风险处置与残余风险":"Risk Treatment & Residual","风险点":"Risk Item","固有风险":"Inherent","处置决策":"Decision","处置措施":"Action","残余风险":"Residual","责任人接受":"Owner Acceptance","降低":"Mitigate","接受":"Accept","待签认":"Pending Sign","管理层已接受":"Mgmt Accepted",
     "采集健康监控":"Collection Health"
   };
   var RDICT={};for(var dk in DICT){RDICT[DICT[dk]]=dk;}
