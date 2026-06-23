@@ -552,6 +552,12 @@
         <div class="phead"><div><span class="bk" data-go="risk">← 返回评估任务</span><div class="kqt">RA-2026-031 · 等保三级 V2.1</div><h1>核心支付网关 · 风险自评填写</h1></div><div class="sp"></div><span class="st doing" style="margin-right:8px"><span class="d"></span>填写中 75%</span><button class="btn ghost">保存草稿</button><button class="btn">提交审核</button></div>
         <div class="g g-main-side">
           <div class="card"><div class="cb">
+            <div class="fsec"><div class="fh">资产 - 威胁 - 脆弱性建模</div>
+              <div style="overflow-x:auto"><table style="min-width:560px;font-size:12px"><thead><tr><th style="padding:0 0 8px;color:var(--text-3)">资产</th><th>威胁源</th><th>脆弱性</th><th>可能性</th><th>影响</th><th>风险</th></tr></thead><tbody>
+                <tr><td style="padding:8px 0">核心支付网关</td><td>外部攻击 / 越权</td><td>特权账号未定期审查</td><td>高</td><td>高</td><td><span class="tag vh">极高</span></td></tr>
+                <tr><td style="padding:8px 0">核心支付网关</td><td>数据窃听</td><td>部分接口仍 TLS1.1</td><td>中</td><td>高</td><td><span class="tag h">高</span></td></tr>
+              </tbody></table></div>
+            </div>
             <div class="fsec"><div class="fh"><span class="no">8.1.4</span> 安全计算环境 / 访问控制</div>
               <div class="fitem"><div class="q">是否对登录用户分配账户并鉴别身份？<span class="req">*</span><span class="ctlref">CTL-024</span></div><div class="opts"><span class="opt sel">是</span><span class="opt">否</span><span class="opt">不适用</span></div></div>
               <div class="fitem"><div class="q">特权账号是否定期审查？<span class="req">*</span><span class="ctlref">CTL-007</span></div><div class="opts"><span class="opt sel">是</span><span class="opt">否</span><span class="opt">不适用</span></div></div>
@@ -635,11 +641,11 @@
           </div></div>
         </div>
         <div class="tabpane" data-pane="a3"><div class="g g-16-1">
-          <div class="card"><div class="ch"><h3>审计发现</h3></div><table><thead><tr><th>编号</th><th>问题</th><th>依据</th><th>严重度</th><th>整改状态</th></tr></thead><tbody>
-            <tr><td class="code">F-0117</td><td>数据仓库存在共享账号</td><td>等保8.1.4.2</td><td><span class="tag m">中</span></td><td><span class="st wait"><span class="d"></span>待处理</span></td></tr>
-            <tr><td class="code">F-0118</td><td>特权操作未留审计日志</td><td>等保8.1.4.3</td><td><span class="tag h">高</span></td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
-            <tr><td class="code">F-0119</td><td>备份恢复演练记录缺失</td><td>ISO A.12.3</td><td><span class="tag m">中</span></td><td><span class="st ok"><span class="d"></span>已验证</span></td></tr>
-          </tbody></table></div>
+          <div class="card"><div class="ch"><h3>审计发现</h3></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:680px"><thead><tr><th>编号</th><th>问题</th><th>依据</th><th>严重度</th><th>管理层回应</th><th>整改状态</th></tr></thead><tbody>
+            <tr><td class="code">F-0117</td><td>数据仓库存在共享账号</td><td>等保8.1.4.2</td><td><span class="tag m">中</span></td><td><span class="pill blue">整改</span></td><td><span class="st wait"><span class="d"></span>待处理</span></td></tr>
+            <tr><td class="code">F-0118</td><td>特权操作未留审计日志</td><td>等保8.1.4.3</td><td><span class="tag h">高</span></td><td><span class="pill blue">整改</span></td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+            <tr><td class="code">F-0119</td><td>备份恢复演练记录缺失</td><td>ISO A.12.3</td><td><span class="tag m">中</span></td><td><span class="pill">接受风险</span></td><td><span class="st ok"><span class="d"></span>已接受·签认</span></td></tr>
+          </tbody></table></div></div>
           <div class="card"><div class="ch"><h3>同类问题复发趋势</h3></div><div class="cb"><div class="bars">
             <div class="bar-row"><div class="hd"><span class="nm">访问控制类</span><b>9 ▲</b></div><div class="track"><div class="seg2 h" style="width:90%"></div></div></div>
             <div class="bar-row"><div class="hd"><span class="nm">日志审计类</span><b>7 ▲</b></div><div class="track"><div class="seg2 m" style="width:70%"></div></div></div>
@@ -795,7 +801,7 @@
           <div class="seg"><button class="on">集团</button><button>支付科技</button><button>消费金融</button></div>
           <button class="btn">＋ 登记监管事项</button></div>
         <div class="kpibar k5"><div class="kc"><div class="l">本月待报送</div><div class="v" style="color:var(--accent)">6</div><div class="s">2 项法定时限临近</div></div><div class="kc"><div class="l">逾期报送</div><div class="v" style="color:var(--danger)">0</div></div><div class="kc"><div class="l">未结问询</div><div class="v" style="color:var(--warning)">3</div></div><div class="kc"><div class="l">处罚整改未闭环</div><div class="v" style="color:var(--danger)">1</div></div><div class="kc"><div class="l">重大事件报送</div><div class="v">0</div><div class="s">本季</div></div></div>
-        <div class="tabbar" data-tabs="regaffairs"><button class="on" data-tab="g1">报送日历</button><button data-tab="g2">监管问询</button><button data-tab="g3">处罚与约谈</button><button data-tab="g4">重大事件报送</button></div>
+        <div class="tabbar" data-tabs="regaffairs"><button class="on" data-tab="g1">报送日历</button><button data-tab="g5">年度合规计划</button><button data-tab="g2">监管问询</button><button data-tab="g3">处罚与约谈</button><button data-tab="g4">重大事件报送</button></div>
         <div class="tabpane show" data-pane="g1">
           <div class="g g-16-1">
             <div class="card"><div class="ch"><h3>监管报送日历</h3><span class="sub">法定时限</span></div><table><thead><tr><th>报送事项</th><th>监管机构</th><th>类型</th><th>法定时限</th><th>责任人</th><th>状态</th></tr></thead><tbody>
@@ -827,6 +833,15 @@
           <div class="infoline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>重大风险/安全事件须按监管时限上报（如人民银行重大事件报告制度）；此处管理报送的时限、版本与回执留痕。</div>
           <div class="card"><div class="empty"><div class="t">本季无重大事件报送</div><div class="d">发生重大事件时，从此处发起监管报送并跟踪回执；与安全事件、整改、证据留痕联动。</div></div></div>
         </div>
+        <div class="tabpane" data-pane="g5">
+          <div class="kpibar k4"><div class="kc"><div class="l">年度合规事项</div><div class="v">38</div></div><div class="kc"><div class="l">已完成</div><div class="v" style="color:var(--success)">19</div></div><div class="kc"><div class="l">进行中</div><div class="v">14</div></div><div class="kc"><div class="l">逾期</div><div class="v" style="color:var(--danger)">2</div></div></div>
+          <div class="card"><div class="ch"><h3>2026 年度合规计划</h3><span class="more">＋ 新增事项</span></div><table><thead><tr><th>事项</th><th>类别</th><th>责任部门</th><th>计划完成</th><th>进度</th><th>状态</th></tr></thead><tbody>
+            <tr><td>等保三级测评（支付科技）</td><td><span class="pill">测评</span></td><td>信息安全部</td><td>Q4</td><td><span class="prog"><i style="width:70%"></i></span>70%</td><td><span class="st doing"><span class="d"></span>进行中</span></td></tr>
+            <tr><td>全员个人信息保护培训</td><td><span class="pill blue">培训</span></td><td>合规部</td><td>Q3</td><td><span class="prog"><i style="width:40%"></i></span>40%</td><td><span class="st doing"><span class="d"></span>进行中</span></td></tr>
+            <tr><td>反洗钱专项检查</td><td><span class="pill">检查</span></td><td>合规部</td><td>Q2</td><td><span class="prog"><i style="width:100%"></i></span>100%</td><td><span class="st ok"><span class="d"></span>已完成</span></td></tr>
+            <tr><td>数据安全合规自评</td><td><span class="pill">自评</span></td><td>信息安全部</td><td>Q2</td><td><span class="prog"><i style="width:20%"></i></span>20%</td><td><span class="st over"><span class="d"></span>逾期</span></td></tr>
+          </tbody></table></div>
+        </div>
       </section>
 
       <!-- ===== AI ===== -->
@@ -835,7 +850,7 @@
         <div class="chat">
           <div class="card chatbox"><div class="scope"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg>数据范围：<b>全集团（集团管理层）</b> · 按权限过滤，不越权</div>
             <div class="msgs"><div class="msg u">对比支付科技与商户服务近两次评估的高风险项变化</div><div class="msg a"><div class="ab">· <b>支付科技</b>：8→<b>6</b>（核心网关未闭环）；· <b>商户服务</b>：2→<b>4</b>（结算访问控制缺陷）。<div class="cites"><span class="cite">📄 RA-2026-031</span><span class="cite">📄 RA-2026-028</span></div></div></div></div>
-            <div class="suggest"><button>哪些法规更新需修订制度？</button><button>本季逾期最多的部门</button></div>
+            <div class="suggest"><button>生成本季度合规自评报告初稿</button><button>哪些法规更新需修订制度？</button><button>本季逾期最多的部门</button></div>
             <div class="composer"><input placeholder="输入问题…（回答标注来源）"><button class="btn">发送</button></div>
           </div>
           <div><div class="sidecard"><h4>数据源覆盖</h4><div class="srow"><span>制度知识库</span><span class="st ok"><span class="d"></span>已接入</span></div><div class="srow"><span>法规库</span><span class="st ok"><span class="d"></span>已接入</span></div><div class="srow"><span>评估/审计记录</span><span class="st ok"><span class="d"></span>已接入</span></div></div><div class="sidecard"><h4>近期会话</h4><div class="srow"><span>高风险项对比</span><span style="color:var(--text-4)">今天</span></div><div class="srow"><span>PIPL 覆盖核查</span><span style="color:var(--text-4)">昨天</span></div></div></div>
@@ -845,7 +860,7 @@
       <!-- ===== VENDOR ===== -->
       <section class="view" id="view-vendor">
         <div class="phead"><div><div class="kqt">M7 · 第三方供应商</div><h1>第三方 / 供应商管理</h1></div><div class="sp"></div><button class="btn">＋ 新增供应商</button></div>
-        <div class="tabbar" data-tabs="vendor"><button class="on" data-tab="v1">供应商台账</button><button data-tab="v2">SLA 跟踪</button><button data-tab="v3">事件触发复评</button></div>
+        <div class="tabbar" data-tabs="vendor"><button class="on" data-tab="v1">供应商台账</button><button data-tab="v4">评估闭环</button><button data-tab="v2">SLA 跟踪</button><button data-tab="v3">事件触发复评</button></div>
         <div class="tabpane show" data-pane="v1">
           <div class="kpibar k5"><div class="kc"><div class="l">在册供应商</div><div class="v">64</div></div><div class="kc"><div class="l">关键供应商</div><div class="v">12</div></div><div class="kc"><div class="l">高风险</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">SLA 临期</div><div class="v" style="color:var(--warning)">5</div></div><div class="kc"><div class="l">待复评</div><div class="v">7</div></div></div>
           <div class="g g-16-1">
@@ -874,6 +889,21 @@
             <tr><td>风控数据 C</td><td>信用评级下调</td><td><span class="pill blue">信用接口</span></td><td>待发起</td><td class="num">06-20</td></tr>
           </tbody></table></div>
         </div>
+        <div class="tabpane" data-pane="v4">
+          <div class="kpibar k5"><div class="kc"><div class="l">首次(准入)评估</div><div class="v">8</div><div class="s">本年新增</div></div><div class="kc"><div class="l">定期评估(本年)</div><div class="v">46</div></div><div class="kc"><div class="l">事件触发复评</div><div class="v" style="color:var(--warning)">5</div></div><div class="kc"><div class="l">未闭环整改</div><div class="v" style="color:var(--danger)">6</div></div><div class="kc"><div class="l">按时复评率</div><div class="v" style="color:var(--success)">94%</div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>供应商评估记录</h3><span class="sub">复用风险评估引擎</span></div><table><thead><tr><th>编号</th><th>供应商</th><th>评估类型</th><th>风险</th><th>发现</th><th>整改</th><th>状态</th></tr></thead><tbody>
+              <tr><td class="code">VA-2026-019</td><td>云擎科技</td><td><span class="pill">事件复评</span></td><td><span class="tag h">高·71</span></td><td>5</td><td>3/5</td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+              <tr><td class="code">VA-2026-014</td><td>运维外包 D</td><td><span class="pill blue">准入(首次)</span></td><td><span class="pill">评估中</span></td><td>—</td><td>—</td><td><span class="st doing"><span class="d"></span>填写中</span></td></tr>
+              <tr><td class="code">VA-2026-008</td><td>短信网关 B</td><td><span class="pill teal">年度定期</span></td><td><span class="tag m">中·48</span></td><td>2</td><td>2/2</td><td><span class="st ok"><span class="d"></span>已闭环</span></td></tr>
+              <tr><td class="code">VA-2026-003</td><td>风控数据 C</td><td><span class="pill">续约评估</span></td><td><span class="tag m">中·52</span></td><td>1</td><td>0/1</td><td><span class="st wait"><span class="d"></span>待整改</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>评估闭环漏斗</h3></div><div class="cb"><div class="funnel"><div class="fr" style="width:100%;background:var(--accent)">已评估 59</div><div class="fr" style="width:64%;background:var(--warning)">有发现 38</div><div class="fr" style="width:40%;background:var(--accent-bright)">整改中 24</div><div class="fr" style="width:28%;background:var(--success)">已闭环 17</div></div></div></div>
+              <div class="card"><div class="ch"><h3>定期评估计划</h3></div><div class="cb"><div class="srow"><span>关键供应商 · 季度</span><b>12 家</b></div><div class="srow"><span>一般供应商 · 年度</span><b>52 家</b></div><div class="srow"><span>本月到期复评</span><b style="color:var(--warning)">7 家</b></div></div></div>
+            </div>
+          </div>
+        </div>
       </section>
       <section class="view" id="view-vendor-detail">
         <div class="phead"><div><span class="bk" data-go="vendor">← 返回供应商台账</span><div class="kqt">云擎科技 · IaaS</div><h1>供应商详情</h1></div><div class="sp"></div><button class="btn ghost">发起复评</button></div>
@@ -881,12 +911,17 @@
           <div class="card"><div class="ch"><h3>生命周期</h3></div><div class="cb"><div class="flow"><div class="node done"><div class="r">准入评估</div><div class="s">已通过</div></div><span class="arr">→</span><div class="node cur"><div class="r">合同期内</div><div class="s">复评中</div></div><span class="arr">→</span><div class="node"><div class="r">续约评估</div><div class="s">待</div></div><span class="arr">→</span><div class="node"><div class="r">退出评估</div><div class="s">—</div></div></div></div></div>
           <div class="sidecard"><h4>关键信息</h4><div class="meta-list"><div class="m"><span>风险评分</span><b style="color:var(--danger)">71（高）</b></div><div class="m"><span>SLA</span><b>偏离</b></div><div class="m"><span>最近评估</span><b>2026-06-15</b></div><div class="m"><span>纳入台账</span><b>是</b></div></div></div>
         </div>
+        <div class="card"><div class="ch"><h3>技术安全与合规评估</h3></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:720px"><thead><tr><th>维度</th><th>情况</th><th>维度</th><th>情况</th></tr></thead><tbody>
+          <tr><td>数据驻留 / 出境</td><td><span class="tag m">境内 + 跨境</span></td><td>触达持卡人数据(PCI)</td><td>是</td></tr>
+          <tr><td>自身认证</td><td><span class="pill">ISO27001</span> <span class="pill">SOC2</span></td><td>再委托(四方)</td><td>有 2 家</td></tr>
+          <tr><td>连接方式 / 权限</td><td>专线 · 最小权限</td><td>数据处理协议(DPA)</td><td><span class="st ok"><span class="d"></span>已签署</span></td></tr>
+        </tbody></table></div></div>
       </section>
 
       <!-- ===== ORG ===== -->
       <section class="view" id="view-org">
         <div class="phead"><div><div class="kqt">M6 · 资产与组织</div><h1>组织架构与资产台账</h1></div><div class="sp"></div><button class="btn ghost">AD 同步</button><button class="btn">＋ 登记资产</button></div>
-        <div class="tabbar" data-tabs="org"><button class="on" data-tab="o1">组织架构</button><button data-tab="o2">资产台账</button></div>
+        <div class="tabbar" data-tabs="org"><button class="on" data-tab="o1">组织架构</button><button data-tab="o2">资产台账</button><button data-tab="o3">个人信息处理活动(ROPA)</button></div>
         <div class="tabpane show" data-pane="o1"><div class="g g-main-side">
           <div class="card"><div class="ch"><h3>组织树（AD 同步）</h3><span class="more">手动同步</span></div><div class="cb"><div class="tree">
             <div class="tn"><span class="dot2"></span>集团总部<span class="cnt">128 人</span></div>
@@ -915,6 +950,14 @@
               <div class="bar-row"><div class="hd"><span class="nm">供应商</span><b>14</b></div><div class="track"><div class="seg2 a" style="width:15%"></div></div></div>
             </div></div></div>
           </div>
+        </div>
+        <div class="tabpane" data-pane="o3">
+          <div class="card"><div class="ch"><h3>个人信息处理活动记录（ROPA）</h3><span class="sub">PIPL 法定台账</span><span class="more">＋ 新增活动</span></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:860px"><thead><tr><th>处理活动</th><th>处理目的</th><th>个人信息类型</th><th>数据量级</th><th>敏感</th><th>出境</th><th>保留期</th><th>责任人</th></tr></thead><tbody>
+            <tr><td>商户结算</td><td>清算结算</td><td>身份/银行卡号</td><td>百万级</td><td><span class="tag h">是</span></td><td>否</td><td>10 年</td><td>李娜</td></tr>
+            <tr><td>跨境清算</td><td>跨境支付</td><td>身份/交易明细</td><td>十万级</td><td><span class="tag h">是</span></td><td><span class="tag m">是</span></td><td>10 年</td><td>刘洋</td></tr>
+            <tr><td>风控建模</td><td>反欺诈</td><td>设备/行为</td><td>千万级</td><td><span class="tag l">否</span></td><td>否</td><td>5 年</td><td>王芳</td></tr>
+            <tr><td>客服回访</td><td>服务质量</td><td>手机号/通话</td><td>十万级</td><td><span class="tag l">否</span></td><td>否</td><td>2 年</td><td>陈强</td></tr>
+          </tbody></table></div></div>
         </div>
       </section>
 
@@ -1178,6 +1221,7 @@
     "添加组件":"Add Widget","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
     "权限审阅(UAR)":"Access Review (UAR)","越权与特权明细":"Violations & Privileges","本期应审阅角色":"Roles to Review","已审阅":"Reviewed","特权账号":"Privileged Accts","本期已回收":"Revoked","待复核":"To Recheck","权限审阅活动（季度）":"Access Reviews (Qtr)","发起审阅":"Start Review","审阅活动":"Review","范围":"Scope","复核人":"Reviewer","保留/回收":"Keep/Revoke","已完成·签认":"Done · Signed","越权拦截明细":"Blocked Access Detail","账号":"Account","尝试访问":"Attempted","拒绝原因":"Reason","跨子公司越权":"Cross-sub violation","角色不足":"Insufficient role","越权导出":"Unauthorized export","特权账号清单":"Privileged Accounts","系统":"System","最近审查":"Last Review","待审查":"To Review","风险处置与残余风险":"Risk Treatment & Residual","风险点":"Risk Item","固有风险":"Inherent","处置决策":"Decision","处置措施":"Action","残余风险":"Residual","责任人接受":"Owner Acceptance","降低":"Mitigate","接受":"Accept","待签认":"Pending Sign","管理层已接受":"Mgmt Accepted",
     "构成与归因 →":"Breakdown →","综合风险指数 · 构成与归因":"Risk Index · Breakdown","当前指数":"Current Index","环比":"QoQ","最高风险域":"Top Domain","数据时点":"As of","按风险域构成（加权贡献）":"By Domain (weighted)","环比归因":"QoQ Attribution","近 6 季趋势":"6-Qtr Trend","计算口径":"Methodology","各子公司 × 体系 · 合规达成度对比":"Subsidiary × Framework Compliance","同类问题 · 各子公司复发次数":"Recurring by Subsidiary","平台操作审计日志":"Platform Audit Log","操作人":"Actor","操作":"Action","来源 IP":"Source IP","修改 KRI 阈值":"Edit KRI threshold","导出数据":"Export data","权限授予":"Grant permission","发布制度":"Publish policy","跨子公司对比":"Cross-Subsidiary","操作审计日志":"Audit Log","← 返回合规态势":"← Back to Posture","← 返回评估任务":"← Back to Assessments","← 返回模板库":"← Back to Templates","← 返回供应商台账":"← Back to Vendors","← 返回制度台账":"← Back to Policies",
+    "评估闭环":"Assessment Loop","首次(准入)评估":"Initial (Onboarding)","定期评估(本年)":"Periodic (YTD)","未闭环整改":"Open Remediation","按时复评率":"On-time Rate","供应商评估记录":"Vendor Assessments","评估类型":"Type","发现":"Findings","准入(首次)":"Onboarding","年度定期":"Annual","续约评估":"Renewal","已闭环":"Closed","评估闭环漏斗":"Assessment Funnel","已评估":"Assessed","有发现":"With Findings","定期评估计划":"Periodic Plan","本月到期复评":"Due This Month","技术安全与合规评估":"Technical Security & Compliance","维度":"Dimension","情况":"Status","触达持卡人数据(PCI)":"Touches CHD (PCI)","自身认证":"Own Certs","再委托(四方)":"Subprocessors","数据处理协议(DPA)":"Data Processing Agreement (DPA)","已签署":"Signed","资产 - 威胁 - 脆弱性建模":"Asset-Threat-Vulnerability","资产":"Asset","威胁源":"Threat","脆弱性":"Vulnerability","可能性":"Likelihood","影响":"Impact","个人信息处理活动(ROPA)":"Processing Activities (ROPA)","个人信息处理活动记录（ROPA）":"Records of Processing (ROPA)","处理活动":"Activity","处理目的":"Purpose","个人信息类型":"PI Type","数据量级":"Volume","敏感":"Sensitive","出境":"Cross-border","保留期":"Retention","新增活动":"Add Activity","年度合规计划":"Annual Compliance Plan","年度合规事项":"Annual Items","2026 年度合规计划":"2026 Compliance Plan","新增事项":"Add Item","测评":"Assessment","培训":"Training","检查":"Inspection","自评":"Self-Assess","计划完成":"Target","管理层回应":"Mgmt Response","接受风险":"Accept Risk","已接受·签认":"Accepted · Signed","生成本季度合规自评报告初稿":"Draft quarterly self-assessment",
     "采集健康监控":"Collection Health"
   };
   var RDICT={};for(var dk in DICT){RDICT[DICT[dk]]=dk;}
