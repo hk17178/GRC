@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mandao GRC · 高保真完整演示（驾驶舱版 · 5主题）</title>
+<style>
+  :root{
+    --danger:#c0392b;--danger-tint:#f8e8e6;--warning:#c2902f;--warning-tint:#f7eed9;--success:#2f7a52;--success-tint:#e7f1ea;--info:#2e6da4;--info-tint:#e7eff7;--plum:#7c63c4;--plum-tint:#ece6f7;
+    --font-sans:"Inter",-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;--font-serif:"Georgia","Songti SC","SimSun",serif;--font-mono:"SFMono-Regular",Consolas,monospace;
+    --bg:#f3f1ea;--surface:#ffffff;--surface-border:#e8e3d8;--blur:none;
+    --side-bg:linear-gradient(180deg,#a81e22,#7e1216);--side-fg:#f0cdce;--topbar-bg:#ffffff;--accent-gold:#bd9436;
+    --text-1:#23211c;--text-2:#5b574e;--text-3:#8a857a;--text-4:#b0a99c;--border:#e8e3d8;--border-subtle:#f0ece2;
+    --accent:#b21d22;--accent-strong:#8a1419;--accent-weak:#f8e8e8;--accent-tint:rgba(178,29,34,.06);--accent-bright:#c8343a;
+    --safe:#2e6da4;--safe-weak:#e7eff7;--radius-sm:4px;--radius-md:6px;--radius-lg:8px;
+    --shadow-1:0 1px 2px rgba(70,50,30,.05);--shadow-2:0 1px 2px rgba(70,50,30,.05),0 8px 18px rgba(70,50,30,.07);--font-display:var(--font-sans);
+  }
+  body.t-sand{--bg:#f3efe7;--surface:#fcfaf5;--surface-border:#e7e1d6;--side-bg:#f7f4ed;--side-fg:#6b6358;--topbar-bg:#f7f4ed;--accent-gold:#b5623f;--text-1:#26221c;--text-2:#6b6358;--text-3:#9a9286;--text-4:#bcb4a8;--border:#e7e1d6;--border-subtle:#efe9de;--accent:#1f6b54;--accent-strong:#16513f;--accent-weak:#e4efe9;--accent-tint:rgba(31,107,84,.08);--accent-bright:#4f9173;--safe:#4f9173;--safe-weak:#e4efe9;--radius-sm:8px;--radius-md:10px;--radius-lg:14px;--shadow-1:0 1px 2px rgba(60,48,30,.05);--shadow-2:0 1px 2px rgba(60,48,30,.04),0 8px 20px rgba(60,48,30,.07)}
+  body.t-glass{--bg:#eef3f6;--surface:#ffffff;--surface-border:#e3eaf0;--side-bg:linear-gradient(180deg,#1f9aa6,#147884);--side-fg:#dff1f3;--topbar-bg:#ffffff;--accent-gold:#c79a3e;--text-1:#1a2530;--text-2:#566472;--text-3:#8896a4;--text-4:#aab6c2;--border:#e3eaf0;--border-subtle:#eef2f6;--accent:#1f9aa6;--accent-strong:#147884;--accent-weak:#dff1f3;--accent-tint:rgba(31,154,166,.07);--accent-bright:#39c0cb;--safe:#2e6da4;--safe-weak:#e7eff7;--radius-sm:10px;--radius-md:14px;--radius-lg:18px;--shadow-1:0 1px 2px rgba(30,60,90,.05);--shadow-2:0 2px 6px rgba(30,60,90,.06),0 10px 24px rgba(30,60,90,.08)}
+  body.t-emerald{--bg:#f1f3f7;--surface:#ffffff;--surface-border:#e6e9ef;--side-bg:#0f172a;--side-fg:#9aa6b8;--topbar-bg:#ffffff;--accent-gold:#0c9d6e;--text-1:#0f172a;--text-2:#475569;--text-3:#7c8aa0;--text-4:#a3aec0;--border:#e6e9ef;--border-subtle:#eef1f5;--accent:#0c9d6e;--accent-strong:#067a55;--accent-weak:#dcf5ec;--accent-tint:#f0faf6;--accent-bright:#16a34a;--safe:#0c9d6e;--safe-weak:#dcf5ec;--radius-sm:8px;--radius-md:10px;--radius-lg:14px;--shadow-1:0 1px 2px rgba(15,23,42,.05);--shadow-2:0 1px 3px rgba(15,23,42,.06),0 10px 22px rgba(15,23,42,.08)}
+  body.t-editorial{--bg:#f7f4ec;--surface:#fffdf7;--surface-border:#e4e2d6;--side-bg:#faf8f1;--side-fg:#5c5f55;--topbar-bg:#faf8f1;--accent-gold:#9a7b32;--text-1:#22251f;--text-2:#5c5f55;--text-3:#8c8f83;--text-4:#b3b6aa;--border:#e4e2d6;--border-subtle:#edebe0;--accent:#285c3f;--accent-strong:#1d4730;--accent-weak:#e5ede7;--accent-tint:rgba(40,92,63,.06);--accent-bright:#5a8a6b;--safe:#285c3f;--safe-weak:#e5ede7;--radius-sm:4px;--radius-md:5px;--radius-lg:7px;--shadow-1:0 1px 2px rgba(50,45,25,.05);--shadow-2:0 2px 4px rgba(50,45,25,.05),0 10px 22px rgba(50,45,25,.08);--font-display:var(--font-serif)}
+
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font-sans);color:var(--text-1);background:var(--bg);font-size:13px;-webkit-font-smoothing:antialiased;min-height:100vh}
+  .num{font-variant-numeric:tabular-nums}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+  .app{display:flex;min-height:100vh}
+  /* sidebar */
+  .side{width:226px;flex-shrink:0;display:flex;flex-direction:column;padding:0 12px;background:var(--side-bg);border-right:1px solid var(--border);position:sticky;top:0;height:100vh;overflow-y:auto}
+  .brand{height:60px;display:flex;align-items:center;gap:10px;padding:0 8px;flex-shrink:0}
+  .brand .logo{width:34px;height:34px;border-radius:var(--radius-md);background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px}
+  .brand b{font-size:14px;font-weight:720;color:var(--text-1)}.brand span{font-size:9.5px;color:var(--text-3);display:block;margin-top:1px}
+  .nav .grp{font-size:10px;color:var(--text-4);padding:13px 11px 5px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+  .nav a{display:flex;align-items:center;gap:10px;padding:8px 11px;color:var(--side-fg);text-decoration:none;font-size:12.5px;border-radius:var(--radius-md);margin-bottom:1px;cursor:pointer;position:relative}
+  .nav a svg{width:16px;height:16px;color:var(--text-3)}
+  .nav a:hover{background:var(--accent-tint);color:var(--accent-strong)}.nav a:hover svg{color:var(--accent)}
+  .nav a.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}.nav a.on svg{color:#fff}
+  .nav a .cnt{margin-left:auto;font-size:10.5px;font-weight:600;color:var(--text-3);background:rgba(120,120,120,.12);padding:0 7px;border-radius:9px}
+  .nav a.on .cnt{background:rgba(255,255,255,.22);color:#fff}
+  body.t-gov .side::after{content:"";position:absolute;top:0;right:0;bottom:0;width:3px;background:linear-gradient(180deg,var(--accent-gold),transparent 55%)}
+  body.t-gov .brand .logo{background:linear-gradient(145deg,#f0d690,var(--accent-gold));color:var(--accent-strong)}
+  body.t-gov .brand b{color:#fff}body.t-gov .brand span{color:#e7b9bb}body.t-gov .nav .grp{color:#e09fa1}
+  body.t-gov .nav a{color:#f0cdce}body.t-gov .nav a svg{color:#f0cdce}
+  body.t-gov .nav a:hover{background:rgba(255,255,255,.1);color:#fff}body.t-gov .nav a:hover svg{color:#fff}
+  body.t-gov .nav a.on{background:rgba(255,255,255,.14);color:#fff}body.t-gov .nav a.on svg{color:#fff}
+  body.t-gov .nav a.on::before{content:"";position:absolute;left:-12px;top:7px;bottom:7px;width:3px;border-radius:0 3px 3px 0;background:var(--accent-gold)}
+  body.t-gov .nav a .cnt{background:rgba(0,0,0,.16);color:#f0cdce}
+  body.t-glass .nav a,body.t-emerald .nav a{color:var(--side-fg)}
+  body.t-glass .brand b,body.t-emerald .brand b{color:#fff}
+  body.t-glass .nav a:hover,body.t-emerald .nav a:hover{background:rgba(255,255,255,.12);color:#fff}
+  body.t-glass .nav a:hover svg,body.t-emerald .nav a:hover svg{color:#fff}
+  body.t-glass .nav a.on,body.t-emerald .nav a.on{background:rgba(255,255,255,.16);color:#fff}
+  body.t-glass .nav a svg,body.t-emerald .nav a svg{color:var(--side-fg)}
+  body.t-glass .nav .grp,body.t-emerald .nav .grp{color:rgba(255,255,255,.5)}
+  /* main */
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .top{height:60px;display:flex;align-items:center;padding:0 24px;gap:14px;position:sticky;top:0;z-index:20;background:var(--topbar-bg);border-bottom:1px solid var(--border)}
+  body.t-gov .top{border-bottom:2px solid var(--accent)}
+  .crumb{font-size:12.5px;color:var(--text-3)}.crumb b{color:var(--text-1);font-weight:680}
+  .top .right{margin-left:auto;display:flex;align-items:center;gap:12px}
+  /* theme pills (always visible) */
+  .themesel{display:flex;align-items:center;gap:5px}
+  .themesel .tl{font-size:11px;color:var(--text-3);margin-right:2px}
+  .themesel .tp{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:20px;border:1px solid var(--surface-border);background:var(--surface);font-size:12px;color:var(--text-2);cursor:pointer}
+  .themesel .tp i{width:11px;height:11px;border-radius:50%;background:var(--c);box-shadow:inset 0 1px 0 rgba(255,255,255,.3)}
+  .themesel .tp:hover{border-color:var(--accent-bright)}
+  .themesel .tp.on{border-color:var(--accent);background:var(--accent-tint);color:var(--accent-strong);font-weight:600}
+  .lang{display:inline-flex;border:1px solid var(--surface-border);border-radius:20px;overflow:hidden;background:var(--surface);box-shadow:var(--shadow-1)}
+  .lang button{border:0;background:none;padding:6px 11px;font-size:12px;color:var(--text-2);cursor:pointer}
+  .lang button.on{background:var(--accent);color:#fff;font-weight:600}
+  .search{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:8px 12px;width:180px;color:var(--text-3);box-shadow:var(--shadow-1)}
+  .search input{border:0;background:none;outline:none;font-size:12.5px;flex:1;color:var(--text-1)}
+  .ico{width:40px;height:40px;border-radius:var(--radius-md);background:var(--surface);border:1px solid var(--surface-border);display:flex;align-items:center;justify-content:center;color:var(--text-2);position:relative;box-shadow:var(--shadow-1)}
+  .ico .dot{position:absolute;top:9px;right:10px;width:7px;height:7px;background:var(--danger);border-radius:50%;border:2px solid var(--surface)}
+  .av{width:40px;height:40px;border-radius:var(--radius-md);background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+  .content{padding:16px 24px 60px}
+  .view{display:none;animation:fadeUp .35s ease}.view.active{display:block}
+  /* page head */
+  .phead{display:flex;align-items:center;margin-bottom:14px;gap:12px}
+  .phead .bk{font-size:12px;color:var(--accent-strong);cursor:pointer;font-weight:600;margin-bottom:5px;display:inline-block}
+  .phead .kqt{font-size:10.5px;letter-spacing:1.5px;color:var(--accent);text-transform:uppercase;font-weight:700;margin-bottom:4px}
+  .phead h1{font-size:20px;font-weight:760;letter-spacing:-.3px;font-family:var(--font-display)}
+  .phead h1 small{font-size:12px;font-weight:400;color:var(--text-3);margin-left:8px;font-family:var(--font-sans)}
+  .phead .sp{flex:1}
+  /* tabs */
+  .tabbar{display:inline-flex;gap:2px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:3px;box-shadow:var(--shadow-1);margin-bottom:14px;flex-wrap:wrap}
+  .tabbar button{border:0;background:none;padding:6px 13px;font-size:12px;color:var(--text-2);border-radius:var(--radius-sm);cursor:pointer;font-weight:500}
+  .tabbar button.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}
+  .tabpane{display:none}.tabpane.show{display:block}
+  /* btn */
+  .btn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:0;border-radius:var(--radius-md);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-1)}
+  .btn.ghost{background:var(--surface);color:var(--text-2);border:1px solid var(--surface-border)}
+  .seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:3px;box-shadow:var(--shadow-1)}
+  .seg button{border:0;background:none;padding:6px 12px;font-size:11.5px;color:var(--text-2);border-radius:var(--radius-sm);cursor:pointer}
+  .seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}
+  /* card */
+  .card{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);margin-bottom:14px}
+  .ch{display:flex;align-items:center;padding:14px 18px 4px}
+  .ch h3{font-size:14px;font-weight:720;font-family:var(--font-display)}.ch .sub{margin-left:auto;font-size:11px;color:var(--text-3)}
+  .ch .more{margin-left:auto;font-size:11.5px;color:var(--accent-strong);font-weight:600;cursor:pointer}
+  .cb{padding:14px 18px 18px}
+  /* layout grids */
+  .g{display:grid;gap:14px;margin-bottom:14px}
+  .g-6-3-3{grid-template-columns:1.7fr 1fr 1fr}.g-2{grid-template-columns:1fr 1fr}.g-4-4-4{grid-template-columns:1fr 1fr 1fr}.g-main-side{grid-template-columns:1fr 300px;align-items:start}.g-16-1{grid-template-columns:1.6fr 1fr}
+  /* KPI bar */
+  .kpibar{display:grid;grid-template-columns:repeat(8,1fr);gap:11px;margin-bottom:14px}
+  .kpibar.k5{grid-template-columns:repeat(5,1fr)}.kpibar.k4{grid-template-columns:repeat(4,1fr)}
+  .kc{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);padding:13px 13px;box-shadow:var(--shadow-1)}
+  .kc .l{font-size:11px;color:var(--text-2)}
+  .kc .v{font-size:22px;font-weight:790;font-family:var(--font-display);margin-top:5px;line-height:1;font-variant-numeric:tabular-nums}
+  .kc .v small{font-size:12px;color:var(--text-3)}.kc .v .up{font-size:11px;color:var(--success);font-weight:700}.kc .v .dn{font-size:11px;color:var(--danger);font-weight:700}
+  .kc .s{font-size:10.5px;color:var(--text-3);margin-top:5px}
+  .kc .pb{height:4px;background:rgba(120,120,120,.13);border-radius:3px;margin-top:9px;overflow:hidden}.kc .pb i{display:block;height:100%;border-radius:3px}
+  /* heatmap */
+  .heat{width:100%;border-collapse:separate;border-spacing:3px}
+  .heat th{font-size:10.5px;color:var(--text-3);font-weight:600;padding:3px 0}
+  .heat td.lbl{font-size:11.5px;color:var(--text-2);text-align:right;padding-right:8px;white-space:nowrap}
+  .heat td.cell{text-align:center;border-radius:var(--radius-sm);font-size:12px;font-weight:700;padding:8px 0;color:#fff}
+  /* bars */
+  .bars{display:flex;flex-direction:column;gap:11px}
+  .bar-row .hd{display:flex;justify-content:space-between;margin-bottom:5px;font-size:12px}.bar-row .hd .nm{color:var(--text-2)}.bar-row .hd b{font-weight:700}.bar-row .hd .ov{color:var(--danger);font-size:11px}
+  .track{height:9px;background:rgba(120,120,120,.1);border-radius:6px;display:flex;overflow:hidden;gap:2px}
+  .seg2{height:100%;border-radius:6px}.seg2.h{background:var(--danger)}.seg2.m{background:var(--warning)}.seg2.l{background:var(--safe)}.seg2.a{background:var(--accent)}.seg2.g{background:var(--success)}
+  .legend{display:flex;gap:16px;margin-top:14px;font-size:11.5px;color:var(--text-2)}.legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+  /* donut */
+  .donut-wrap{display:flex;align-items:center;gap:18px}.dlbl{flex:1}
+  .dlbl .li{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:12.5px}.dlbl .li:last-child{border:0}
+  .dlbl .li .k{display:flex;align-items:center;gap:8px;color:var(--text-2)}.dlbl .li .k i{width:9px;height:9px;border-radius:3px}.dlbl .li b{font-weight:790}.dlbl .li .pc{color:var(--text-3);font-size:11px;margin-left:4px}
+  /* KRI list */
+  .kri .ki{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}.kri .ki:last-child{border:0}
+  .kri .ki .dt{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+  .kri .ki .nm{flex:1}.kri .ki .nm .t{font-size:12.5px}.kri .ki .nm .src{font-size:10.5px;color:var(--text-3);margin-top:1px}
+  .kri .ki .val{font-weight:700;font-variant-numeric:tabular-nums;text-align:right}.kri .ki .val .th{font-size:10.5px;color:var(--text-3);font-weight:400}
+  /* worklist */
+  .wl .wi{display:flex;align-items:center;gap:11px;padding:11px 0;border-bottom:1px solid var(--border-subtle)}.wl .wi:last-child{border:0}
+  .wl .tp2{font-size:10px;font-weight:700;padding:3px 7px;border-radius:5px;background:var(--accent-weak);color:var(--accent-strong);flex-shrink:0;white-space:nowrap}
+  .wl .ti{flex:1;min-width:0}.wl .ti .t{font-size:12.5px}.wl .ti .m{font-size:10.5px;color:var(--text-3);margin-top:2px}
+  .wl .due{font-size:11px;color:var(--text-3);white-space:nowrap}.wl .due.ov{color:var(--danger);font-weight:600}
+  /* funnel */
+  .funnel{display:flex;flex-direction:column;gap:5px;align-items:center;padding:6px 0}
+  .funnel .fr{height:30px;border-radius:5px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11.5px;font-weight:600}
+  /* feed */
+  .feed .it{display:flex;gap:11px;padding:11px 18px;border-top:1px solid var(--border-subtle)}.feed .it:first-child{border-top:0}
+  .feed .tm{font-size:10.5px;color:var(--text-3);width:42px;flex-shrink:0;padding-top:2px;font-variant-numeric:tabular-nums}
+  .feed .bd{font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px;flex-shrink:0;height:18px;display:inline-flex;align-items:center}
+  .bd.law{background:var(--accent-weak);color:var(--accent-strong)}.bd.over{background:var(--danger-tint);color:var(--danger)}.bd.kri{background:var(--plum-tint);color:var(--plum)}.bd.aud{background:var(--warning-tint);color:#a87d22}.bd.rev{background:var(--info-tint);color:var(--info)}
+  .feed .tx{font-size:12px;line-height:1.45}
+  /* table */
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:10.5px;font-weight:600;color:var(--text-3);padding:0 18px 10px}
+  body.t-gov thead th{background:var(--accent-tint)}
+  tbody td{padding:11px 18px;border-top:1px solid var(--border-subtle);font-size:12px}
+  tbody tr{transition:background .15s}tbody tr:hover{background:var(--accent-tint)}tbody tr.clk{cursor:pointer}
+  .code{font-weight:700;color:var(--accent-strong);font-variant-numeric:tabular-nums}
+  .tag{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:700}
+  .tag::before{content:"";width:5px;height:5px;border-radius:50%}
+  .tag.vh{background:#f1d9d6;color:#7a1620}.tag.vh::before{background:#7a1620}
+  .tag.h{background:var(--danger-tint);color:var(--danger)}.tag.h::before{background:var(--danger)}
+  .tag.m{background:var(--warning-tint);color:#a87d22}.tag.m::before{background:var(--warning)}
+  .tag.l{background:var(--safe-weak);color:var(--safe)}.tag.l::before{background:var(--safe)}
+  .tag.vl{background:#eef1f4;color:#5a6b7a}.tag.vl::before{background:#8aa0b3}
+  .pill{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10.5px;font-weight:600;background:rgba(120,120,120,.1);color:var(--text-2)}
+  .pill.teal{background:var(--accent-weak);color:var(--accent-strong)}.pill.blue{background:var(--info-tint);color:var(--info)}.pill.violet{background:var(--plum-tint);color:var(--plum)}
+  .st{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;color:var(--text-2)}.st .d{width:6px;height:6px;border-radius:50%}
+  .st.doing{color:var(--accent-strong)}.st.doing .d{background:var(--accent)}.st.over{color:var(--danger)}.st.over .d{background:var(--danger)}.st.wait .d{background:var(--text-3)}.st.ok{color:var(--success)}.st.ok .d{background:var(--success)}.st.draft{color:var(--info)}.st.draft .d{background:var(--info)}
+  .av-s{width:23px;height:23px;border-radius:var(--radius-sm);background:var(--accent-weak);color:var(--accent-strong);display:inline-flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:700;margin-right:7px;vertical-align:-6px}
+  .prog{height:6px;width:80px;background:rgba(120,120,120,.13);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle}.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--accent-bright),var(--accent));border-radius:4px}
+  .gauge-t{font-size:11px;color:var(--text-3);text-align:center;margin-top:4px}
+  /* toolbar */
+  .toolbar{display:flex;align-items:center;gap:9px;margin-bottom:12px;flex-wrap:wrap}
+  .ts{display:flex;align-items:center;gap:6px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:7px 11px;font-size:11.5px;color:var(--text-2);box-shadow:var(--shadow-1);cursor:pointer}.ts b{color:var(--text-1)}
+  .tsearch{display:flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:7px 11px;width:200px;color:var(--text-3);box-shadow:var(--shadow-1)}.tsearch input{border:0;background:none;outline:none;font-size:11.5px;flex:1;color:var(--text-1)}
+  /* sidecard */
+  .sidecard{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:15px;margin-bottom:14px}
+  .sidecard h4{font-size:12.5px;font-weight:700;margin-bottom:10px}
+  .srow{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border-subtle);font-size:11.5px;color:var(--text-2)}.srow:last-child{border:0}.srow b{color:var(--text-1)}
+  /* infoline */
+  .infoline{display:flex;align-items:center;gap:9px;background:var(--accent-tint);border:1px solid var(--accent-weak);border-left:3px solid var(--accent);border-radius:var(--radius-md);padding:10px 14px;font-size:12px;color:var(--accent-strong);margin-bottom:14px}
+  .infoline svg{width:15px;height:15px;flex-shrink:0}
+  /* template cards */
+  .tpls{display:grid;grid-template-columns:repeat(4,1fr);gap:13px}
+  .tpl{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);padding:15px;cursor:pointer;box-shadow:var(--shadow-1)}
+  .tpl:hover{box-shadow:var(--shadow-2)}
+  .tpl .badge{width:36px;height:36px;border-radius:var(--radius-sm);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;margin-bottom:10px}
+  .tpl h4{font-size:13px;font-weight:700}.tpl .desc{font-size:10.5px;color:var(--text-3);margin-top:4px;line-height:1.5;min-height:30px}
+  .tpl .foot{display:flex;gap:7px;margin-top:10px;padding-top:9px;border-top:1px solid var(--border-subtle);font-size:10.5px;color:var(--text-3)}
+  /* law 3-col */
+  .law3{display:grid;grid-template-columns:260px 1fr 290px;gap:14px;align-items:start}
+  .src .si{display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--border-subtle)}.src .si:last-child{border:0}
+  .src .si .d{width:7px;height:7px;border-radius:50%;flex-shrink:0}.src .si .nm{flex:1}.src .si .nm .t{font-size:12px;font-weight:600}.src .si .nm .m{font-size:10px;color:var(--text-3)}
+  .regcard{background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);margin-bottom:13px;overflow:hidden}
+  .regcard.urgent{border-top:3px solid var(--danger)}
+  .regcard .rh{display:flex;align-items:center;gap:8px;padding:13px 16px 0}
+  .regcard .rh .lvl{font-size:10px;font-weight:700;padding:2px 7px;border-radius:5px}
+  .regcard .rh .map{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+  .regcard h4{padding:8px 16px 4px;font-size:14px;font-weight:700}
+  .regcard .sum{margin:6px 16px;padding:11px 13px;background:var(--accent-tint);border-radius:var(--radius-md);font-size:11.5px;line-height:1.6}
+  .regcard .sum .tt{font-size:10.5px;font-weight:700;color:var(--accent-strong);margin-bottom:4px;display:flex;align-items:center;gap:5px}
+  .regcard .hit{padding:0 16px 10px;font-size:11px;color:var(--text-3)}
+  .regcard .act{display:flex;align-items:center;gap:8px;padding:11px 16px;border-top:1px solid var(--border-subtle)}
+  .regcard .act .pushed{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+  .todo-item{padding:11px 0;border-bottom:1px solid var(--border-subtle)}.todo-item:last-child{border:0}
+  .todo-item .tt{font-size:12px}.todo-item .mt{font-size:10.5px;color:var(--text-3);margin-top:3px}.todo-item .dd{float:right;font-size:10.5px;color:var(--accent-strong);font-weight:600}
+  /* form fill */
+  .fsec{margin-bottom:16px}.fsec .fh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;padding:9px 0;border-bottom:2px solid var(--accent);margin-bottom:2px;color:var(--accent-strong)}
+  .fsec .fh .no{font-family:var(--font-mono);font-size:10.5px;background:var(--accent-weak);color:var(--accent-strong);padding:1px 6px;border-radius:4px}
+  .fitem{padding:12px 0;border-bottom:1px solid var(--border-subtle)}.fitem .q{font-size:12.5px;margin-bottom:8px}.fitem .q .req{color:var(--danger);margin-left:2px}.fitem .ctlref{font-size:10px;color:var(--text-3);font-family:var(--font-mono);margin-left:6px}
+  .opts{display:flex;gap:7px;flex-wrap:wrap}.opt{padding:6px 12px;border:1px solid var(--surface-border);border-radius:var(--radius-md);font-size:11.5px;color:var(--text-2);cursor:pointer;background:var(--surface)}.opt.sel{border-color:var(--accent);background:var(--accent-weak);color:var(--accent-strong);font-weight:600}
+  .score{display:flex;gap:5px}.score .s{width:28px;height:28px;border-radius:var(--radius-sm);border:1px solid var(--surface-border);display:flex;align-items:center;justify-content:center;font-size:11.5px;cursor:pointer;color:var(--text-2)}.score .s.sel{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .fbox{border:1px dashed var(--surface-border);border-radius:var(--radius-md);padding:11px;font-size:11.5px;color:var(--text-3)}
+  .fattach{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--accent-strong);border:1px dashed var(--accent-weak);border-radius:var(--radius-md);padding:7px 11px;cursor:pointer}
+  /* config builder */
+  .cfg{display:grid;grid-template-columns:230px 1fr 250px;gap:14px;align-items:start}
+  .ctree .ci{padding:7px 9px;border-radius:var(--radius-sm);font-size:12px;cursor:pointer;color:var(--text-2)}.ctree .ci:hover{background:var(--accent-tint)}.ctree .ci.on{background:var(--accent-weak);color:var(--accent-strong);font-weight:600}
+  .ctree .l2{padding-left:20px}.ctree .l3{padding-left:38px;font-size:11.5px}
+  /* meta/timeline/flow/tree */
+  .meta-list .m{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-subtle);font-size:12px}.meta-list .m:last-child{border:0}.meta-list .m span{color:var(--text-3)}.meta-list .m b{font-weight:600}
+  .vtl .v{position:relative;padding:0 0 14px 14px;border-left:2px solid var(--border)}.vtl .v::before{content:"";position:absolute;left:-6px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--accent)}.vtl .v:last-child{border-color:transparent}.vtl .vn{font-weight:700;font-size:12.5px}.vtl .vd{font-size:10.5px;color:var(--text-3);margin:2px 0 3px}.vtl .vc{font-size:11.5px;color:var(--text-2)}
+  .tree .tn{display:flex;align-items:center;gap:7px;padding:6px 9px;border-radius:var(--radius-sm);cursor:pointer;font-size:12.5px}.tree .tn:hover{background:var(--accent-tint)}.tree .tn .dot2{width:7px;height:7px;border-radius:2px;background:var(--accent)}.tree .lv2{padding-left:22px}.tree .lv3{padding-left:44px;color:var(--text-3)}.tree .tn .cnt{margin-left:auto;font-size:10.5px;color:var(--text-3)}
+  .flow{display:flex;align-items:center;flex-wrap:wrap}.flow .node{border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:10px 14px;text-align:center;background:var(--surface);min-width:120px}.flow .node .r{font-size:12px;font-weight:600}.flow .node .s{font-size:10.5px;color:var(--text-3);margin-top:2px}.flow .node.done{border-color:var(--success);background:var(--success-tint)}.flow .node.cur{border-color:var(--accent);background:var(--accent-weak)}.flow .arr{color:var(--text-4);padding:0 8px;font-size:16px}
+  .matrix{width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px}.matrix th{text-align:center;font-size:10.5px;color:var(--text-3);font-weight:600;padding:8px 5px}.matrix th:first-child{text-align:left;padding-left:18px}.matrix td{text-align:center;padding:8px 5px;border-top:1px solid var(--border-subtle)}.matrix td:first-child{text-align:left;padding-left:18px;font-weight:500}.pm{display:inline-block;min-width:22px;padding:2px 0;border-radius:5px;font-size:10px;font-weight:700}.pm.c{background:var(--accent-weak);color:var(--accent-strong)}.pm.a{background:var(--plum-tint);color:var(--plum)}.pm.r{background:rgba(120,120,120,.1);color:var(--text-3)}.pm.x{color:var(--text-4)}
+  /* chat */
+  .chat{display:grid;grid-template-columns:1fr 270px;gap:14px}.chatbox{display:flex;flex-direction:column;height:calc(100vh - 180px);min-height:420px}
+  .scope{display:flex;align-items:center;gap:8px;margin:13px 16px 0;padding:9px 12px;background:var(--accent-tint);border:1px solid var(--accent-weak);border-radius:var(--radius-md);font-size:11px;color:var(--accent-strong)}
+  .msgs{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:12px}.msg{max-width:84%;font-size:12.5px;line-height:1.6}.msg.u{align-self:flex-end;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;padding:9px 13px;border-radius:13px 13px 4px 13px}.msg.a .ab{background:var(--accent-tint);border:1px solid var(--accent-weak);padding:11px 14px;border-radius:13px 13px 13px 4px}.cites{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}.cite{font-size:10.5px;color:var(--accent-strong);background:var(--accent-weak);border-radius:5px;padding:2px 7px;font-weight:600}
+  .suggest{display:flex;flex-wrap:wrap;gap:7px;padding:4px 16px 10px}.suggest button{font-size:11.5px;color:var(--text-2);background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:6px 11px;cursor:pointer}
+  .composer{display:flex;gap:8px;padding:11px 16px;border-top:1px solid var(--border-subtle)}.composer input{flex:1;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-md);padding:10px 13px;font-size:12.5px;outline:none;color:var(--text-1)}
+  /* fab */
+  .fab{position:fixed;bottom:18px;left:18px;z-index:62;width:50px;height:50px;border-radius:15px;border:0;cursor:pointer;background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-2)}.fab svg{width:21px;height:21px}.fab .badge{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;background:var(--accent-gold);border:2px solid #fff;font-size:8.5px;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800}
+  .aipanel{position:fixed;bottom:78px;left:18px;z-index:62;width:360px;max-width:calc(100vw - 36px);height:520px;max-height:calc(100vh - 110px);border-radius:16px;background:var(--surface);border:1px solid var(--surface-border);box-shadow:var(--shadow-2);flex-direction:column;overflow:hidden;display:none}.aipanel.open{display:flex}
+  .aipanel .ah{display:flex;align-items:center;gap:10px;padding:13px 15px;border-bottom:1px solid var(--border-subtle)}.aipanel .ah .alogo{width:30px;height:30px;border-radius:9px;background:linear-gradient(145deg,var(--accent-bright),var(--accent-strong));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}.aipanel .ah h4{font-size:13px;font-weight:720}.aipanel .ah .asub{font-size:10.5px;color:var(--text-3)}.aipanel .ah .x{margin-left:auto;width:26px;height:26px;border-radius:7px;border:0;background:rgba(120,120,120,.1);color:var(--text-2);cursor:pointer}
+  .aipanel .scope{margin:11px 13px 0}.aipanel .msgs{padding:13px}.aipanel .composer{padding:11px 13px}
+  .empty{text-align:center;padding:36px 16px;color:var(--text-3)}.empty .t{font-size:13px;font-weight:600;color:var(--text-2)}.empty .d{font-size:11.5px;margin-top:5px}
+  .kspark{width:54px;height:18px;flex-shrink:0}
+  /* 大屏自定义组件抽屉 */
+  .drawer-mask{position:fixed;inset:0;z-index:79;background:rgba(0,0,0,.22);display:none}.drawer-mask.open{display:block}
+  .drawer{position:fixed;top:0;right:0;width:400px;max-width:92vw;height:100vh;z-index:80;background:var(--surface);border-left:1px solid var(--surface-border);box-shadow:-8px 0 30px rgba(0,0,0,.14);transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column}
+  .drawer.open{transform:none}
+  .drawer .dh{display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border-subtle)}
+  .drawer .dh h3{font-size:15px;font-weight:720;font-family:var(--font-display)}.drawer .dh .ds{font-size:11px;color:var(--text-3)}
+  .drawer .dh .x{margin-left:auto;width:28px;height:28px;border-radius:8px;border:0;background:rgba(120,120,120,.1);color:var(--text-2);cursor:pointer}
+  .drawer .db{flex:1;overflow-y:auto;padding:12px 18px 24px}
+  .drawer .dcat{font-size:10.5px;color:var(--text-4);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin:15px 0 8px}
+  .wlib{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+  .wlib .wc{border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:10px 11px;cursor:pointer;background:var(--surface)}
+  .wlib .wc:hover{border-color:var(--accent-bright)}
+  .wlib .wc .wn{font-size:12px;font-weight:600}.wlib .wc .wd{font-size:10px;color:var(--text-3);margin-top:2px;line-height:1.4;min-height:26px}
+  .wlib .wc .add{margin-top:6px;font-size:10.5px;color:var(--accent-strong);font-weight:700}
+  .wlib .wc.added{border-color:var(--success);background:var(--success-tint)}.wlib .wc.added .add{color:var(--success)}
+</style>
+</head>
+<body class="t-gov">
+<div class="app">
+  <aside class="side">
+    <div class="brand"><div class="logo">G</div><div><b>Mandao GRC</b><span>治理 · 风险 · 合规</span></div></div>
+    <nav class="nav" id="nav">
+      <div class="grp">概览</div>
+      <a class="on" data-view="dashboard"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>合规态势</a>
+      <a data-view="todo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>我的待办<span class="cnt num">8</span></a>
+      <div class="grp">业务</div>
+      <a data-view="extaudit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="8" r="5"/><path d="M8.5 12.5 7 21l5-3 5 3-1.5-8.5"/></svg>外部审计</a>
+      <a data-view="audit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>内部审计<span class="cnt num">23</span></a>
+      <a data-view="risk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg>风险评估<span class="cnt num">248</span></a>
+      <a data-view="law"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 6h18M3 12h18M3 18h12"/></svg>法规跟踪</a>
+      <a data-view="regaffairs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6"/></svg>监管事项<span class="cnt num">5</span></a>
+      <a data-view="policy"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>制度体系<span class="cnt num">312</span></a>
+      <a data-view="ai"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>AI 智能问答</a>
+      <a data-view="vendor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/></svg>第三方供应商</a>
+      <div class="grp">资产与组织</div>
+      <a data-view="org"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><path d="M14 7h4a2 2 0 0 1 2 2v2M6.5 10v4"/></svg>组织与资产</a>
+      <div class="grp">系统管理</div>
+      <a data-view="notify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>通知中心</a>
+      <a data-view="perm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>权限与审批</a>
+      <a data-view="board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>看板与留痕</a>
+    </nav>
+  </aside>
+  <div class="main">
+    <header class="top">
+      <div class="crumb" id="crumb">概览 / <b>合规态势总览</b></div>
+      <div class="right">
+        <div class="lang" id="lang"><button class="on" data-l="zh">中</button><button data-l="en">EN</button></div>
+        <div class="themesel" id="themesel"><span class="tl">主题</span>
+          <button class="tp on" data-theme="t-gov" style="--c:#b21d22"><i></i>朱砂</button>
+          <button class="tp" data-theme="t-sand" style="--c:#1f6b54"><i></i>砂岩</button>
+          <button class="tp" data-theme="t-glass" style="--c:#1f9aa6"><i></i>晴空</button>
+          <button class="tp" data-theme="t-emerald" style="--c:#0c9d6e"><i></i>苍翠</button>
+          <button class="tp" data-theme="t-editorial" style="--c:#285c3f"><i></i>宣纸</button>
+        </div>
+        <div class="search"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="搜索…"></div>
+        <div class="ico"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg><span class="dot"></span></div>
+        <div class="av">陈</div>
+      </div>
+    </header>
+    <div class="content" id="content">
+
+      <!-- ===== DASHBOARD (L1) ===== -->
+      <section class="view active" id="view-dashboard">
+        <div class="phead"><div><div class="kqt">Group Overview · 2026 Q2</div><h1>合规态势 <small>全集团 · 数据截至 06-22 09:00 · 准实时</small></h1></div><div class="sp"></div><div class="seg"><button class="on">全集团</button><button>支付科技</button><button>消费金融</button><button>数科</button></div><button class="btn ghost" id="dashEdit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>添加组件</button></div>
+        <div class="kpibar">
+          <div class="kc"><div class="l">综合风险指数</div><div class="v">62.4 <span class="dn">▲3.1</span></div><div class="s">较上季上升·中高位</div><div class="pb"><i style="width:62%;background:var(--warning)"></i></div></div>
+          <div class="kc"><div class="l">高风险项(未关闭)</div><div class="v" style="color:var(--danger)">37 <span class="dn">▲5</span></div><div class="s">含逾期整改 12 项</div><div class="pb"><i style="width:48%;background:var(--danger)"></i></div></div>
+          <div class="kc"><div class="l">整改完成率</div><div class="v" style="color:var(--success)">78.6<small>%</small> <span class="up">▲4.2</span></div><div class="s">本季关闭 184/234</div><div class="pb"><i style="width:78%;background:var(--success)"></i></div></div>
+          <div class="kc"><div class="l">KRI 超阈值</div><div class="v" style="color:var(--warning)">6 <small>/24</small></div><div class="s">2 紧急·SIEM/日志/漏洞</div><div class="pb"><i style="width:25%;background:var(--warning)"></i></div></div>
+          <div class="kc"><div class="l">制度签署确认率</div><div class="v" style="color:var(--info)">91.3<small>%</small></div><div class="s">核心制度·未确认 312 人</div><div class="pb"><i style="width:91%;background:var(--info)"></i></div></div>
+          <div class="kc"><div class="l">通知送达率</div><div class="v" style="color:var(--success)">99.2<small>%</small></div><div class="s">近30天4,182条·失败33</div><div class="pb"><i style="width:99%;background:var(--success)"></i></div></div>
+          <div class="kc"><div class="l">进行中评估/审计</div><div class="v">23</div><div class="s">评估 14 · 审计 9</div><div class="pb"><i style="width:40%;background:var(--accent)"></i></div></div>
+          <div class="kc"><div class="l">供应商高风险</div><div class="v" style="color:var(--danger)">4 <span class="dn">▲1</span></div><div class="s">1 起事件触发复评</div><div class="pb"><i style="width:33%;background:var(--danger)"></i></div></div>
+        </div>
+        <div class="g g-6-3-3">
+          <div class="card"><div class="ch"><h3>子公司 × 风险域 · 热力矩阵</h3><span class="sub">综合风险值 0–100</span></div><div class="cb">
+            <table class="heat"><thead><tr><th></th><th>信息安全</th><th>数据合规</th><th>业务连续</th><th>第三方</th><th>监管合规</th><th>内控</th></tr></thead><tbody>
+              <tr><td class="lbl">集团总部</td><td class="cell" style="background:#dfb84d">41</td><td class="cell" style="background:#9cbf6e">33</td><td class="cell" style="background:#7fa76a">28</td><td class="cell" style="background:#e0a93f">52</td><td class="cell" style="background:#cdbf57">38</td><td class="cell" style="background:#86ab69">30</td></tr>
+              <tr><td class="lbl">支付子公司</td><td class="cell" style="background:#c0392b">78</td><td class="cell" style="background:#cf6233">71</td><td class="cell" style="background:#e0a93f">55</td><td class="cell" style="background:#d4853a">68</td><td class="cell" style="background:#c0392b">82</td><td class="cell" style="background:#dba148">49</td></tr>
+              <tr><td class="lbl">消费金融</td><td class="cell" style="background:#d99845">64</td><td class="cell" style="background:#e0a93f">58</td><td class="cell" style="background:#dba148">47</td><td class="cell" style="background:#cf6233">73</td><td class="cell" style="background:#d68a3c">66</td><td class="cell" style="background:#d6aa49">44</td></tr>
+              <tr><td class="lbl">财富管理</td><td class="cell" style="background:#e0a93f">52</td><td class="cell" style="background:#d99845">61</td><td class="cell" style="background:#bcbf5c">39</td><td class="cell" style="background:#e0a93f">57</td><td class="cell" style="background:#dd9a44">54</td><td class="cell" style="background:#a8b566">36</td></tr>
+              <tr><td class="lbl">数科子公司</td><td class="cell" style="background:#d68a3c">69</td><td class="cell" style="background:#dba148">47</td><td class="cell" style="background:#dba148">51</td><td class="cell" style="background:#d99845">60</td><td class="cell" style="background:#cdbf57">43</td><td class="cell" style="background:#e0a93f">55</td></tr>
+              <tr><td class="lbl">保理子公司</td><td class="cell" style="background:#dba148">48</td><td class="cell" style="background:#d6aa49">44</td><td class="cell" style="background:#d99845">62</td><td class="cell" style="background:#e0a93f">51</td><td class="cell" style="background:#dba148">49</td><td class="cell" style="background:#cdbf57">41</td></tr>
+            </tbody></table>
+          </div></div>
+          <div class="card"><div class="ch"><h3>整改完成率 · 分子公司</h3></div><div class="cb"><div class="bars">
+            <div class="bar-row"><div class="hd"><span class="nm">集团总部</span><span><b>88%</b> <span class="ov">逾期1</span></span></div><div class="track"><div class="seg2 g" style="width:88%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">支付子公司</span><span><b>64%</b> <span class="ov">逾期7</span></span></div><div class="track"><div class="seg2 h" style="width:64%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">消费金融</span><span><b>73%</b> <span class="ov">逾期3</span></span></div><div class="track"><div class="seg2 m" style="width:73%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">财富管理</span><span><b>85%</b> <span class="ov">逾期1</span></span></div><div class="track"><div class="seg2 g" style="width:85%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">数科子公司</span><span><b>91%</b></span></div><div class="track"><div class="seg2 g" style="width:91%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">保理子公司</span><span><b>82%</b></span></div><div class="track"><div class="seg2 m" style="width:82%"></div></div></div>
+          </div></div></div>
+          <div class="card"><div class="ch"><h3>KRI 持续监控</h3><span class="sub">SIEM/日志/漏洞</span></div><div class="cb"><div class="kri">
+            <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">高危漏洞修复时效(天)</div><div class="src">漏洞管理 · 阈值≤15</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,14 11,12 22,13 33,8 44,6 54,3" fill="none" stroke="var(--danger)" stroke-width="1.5"/></svg><span class="val" style="color:var(--danger)">23.4<div class="th">超标 56%</div></span></div>
+            <div class="ki"><span class="dt" style="background:var(--danger)"></span><span class="nm"><div class="t">特权账号未审查数</div><div class="src">SIEM · 阈值=0</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,15 11,13 22,14 33,10 44,7 54,5" fill="none" stroke="var(--danger)" stroke-width="1.5"/></svg><span class="val" style="color:var(--danger)">7<div class="th">紧急</div></span></div>
+            <div class="ki"><span class="dt" style="background:var(--success)"></span><span class="nm"><div class="t">日志留存周期(天)</div><div class="src">日志平台 · 阈值≥180</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,9 11,10 22,8 33,9 44,8 54,8" fill="none" stroke="var(--success)" stroke-width="1.5"/></svg><span class="val">162<div class="th">达标</div></span></div>
+            <div class="ki"><span class="dt" style="background:var(--warning)"></span><span class="nm"><div class="t">第三方接口异常率</div><div class="src">SIEM · 阈值≤0.5%</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,12 11,9 22,13 33,8 44,11 54,7" fill="none" stroke="var(--warning)" stroke-width="1.5"/></svg><span class="val" style="color:var(--warning)">0.71%<div class="th">超标</div></span></div>
+            <div class="ki"><span class="dt" style="background:var(--success)"></span><span class="nm"><div class="t">数据导出审批合规率</div><div class="src">日志平台 · 阈值≥99%</div></span><svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none"><polyline points="0,5 11,6 22,4 33,5 44,4 54,3" fill="none" stroke="var(--success)" stroke-width="1.5"/></svg><span class="val">99.6%<div class="th">正常</div></span></div>
+          </div></div></div>
+        </div>
+        <div class="g g-4-4-4">
+          <div class="card"><div class="ch"><h3>体系合规达成度</h3><span class="sub">控制点覆盖率</span></div><div class="cb"><div class="bars">
+            <div class="bar-row"><div class="hd"><span class="nm">ISO 27001</span><b>92%</b></div><div class="track"><div class="seg2 g" style="width:92%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">等保三级</span><b>86%</b></div><div class="track"><div class="seg2 a" style="width:86%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">PBOC 支付监管</span><b>78%</b></div><div class="track"><div class="seg2 m" style="width:78%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">PIPL 个人信息</span><b>81%</b></div><div class="track"><div class="seg2 m" style="width:81%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">PCI DSS</span><b>74%</b></div><div class="track"><div class="seg2 h" style="width:74%"></div></div></div>
+          </div></div></div>
+          <div class="card"><div class="ch"><h3>待我审批</h3><span class="more" data-go="todo">全部 4 →</span></div><div class="cb"><div class="wl">
+            <div class="wi"><span class="tp2">报告签批</span><div class="ti"><div class="t">支付核心系统等保测评报告</div><div class="m">起敏 · 信息安全负责人</div></div><span class="due">待处理 2h</span></div>
+            <div class="wi"><span class="tp2">评估确认</span><div class="ti"><div class="t">消费金融季度评估表单确认</div><div class="m">王建国 · 部门负责人</div></div><span class="due">待处理 6h</span></div>
+            <div class="wi"><span class="tp2">制度发布</span><div class="ti"><div class="t">《数据出境管理办法 v2.5》发布</div><div class="m">李强 · 制度发布审批人</div></div><span class="due ov">逾期 1d</span></div>
+            <div class="wi"><span class="tp2">复评审批</span><div class="ti"><div class="t">云擎科技非计划性复评结论</div><div class="m">陈伟 · 集团管理层</div></div><span class="due">待处理 3h</span></div>
+          </div></div></div>
+          <div class="card" style="padding:0"><div class="ch" style="padding:14px 18px 8px"><h3>重点关注 · 实时事件流</h3></div><div class="feed">
+            <div class="it"><span class="tm">08:52</span><span class="bd over">逾期</span><span class="tx">支付子公司「特权账号定期审查」整改逾期 3 天，已升级至直属上级</span></div>
+            <div class="it"><span class="tm">08:31</span><span class="bd kri">KRI</span><span class="tx">漏洞修复时效超阈值(23.4&gt;15 天)，触发预警并推送运维负责人</span></div>
+            <div class="it"><span class="tm">07:40</span><span class="bd law">法规</span><span class="tx">人民银行发布支付机构监管条例实施细则，命中 4 条制度待复核</span></div>
+            <div class="it"><span class="tm">昨日</span><span class="bd aud">审计</span><span class="tx">消费金融 Q2 合规审计报告完成签批，发现 14 项已转整改</span></div>
+            <div class="it"><span class="tm">昨日</span><span class="bd rev">复评</span><span class="tx">供应商「云擎科技」被曝数据泄露，自动触发非计划性复评任务</span></div>
+          </div></div>
+        </div>
+      </section>
+
+      <!-- ===== 我的待办工作台 ===== -->
+      <section class="view" id="view-todo">
+        <div class="phead"><div><div class="kqt">My Workbench</div><h1>我的待办 · 工作台</h1></div><div class="sp"></div></div>
+        <div class="kpibar k4">
+          <div class="kc"><div class="l">待我填写（评估）</div><div class="v" style="color:var(--accent)">2</div><div class="s">1 项临近截止</div></div>
+          <div class="kc"><div class="l">待我审批</div><div class="v" style="color:var(--warning)">4</div><div class="s">1 项已逾期</div></div>
+          <div class="kc"><div class="l">待我签署（制度）</div><div class="v" style="color:var(--info)">1</div><div class="s">核心制度</div></div>
+          <div class="kc"><div class="l">待我整改</div><div class="v" style="color:var(--danger)">3</div><div class="s">含逾期 1 项</div></div>
+        </div>
+        <div class="g g-2">
+          <div class="card"><div class="ch"><h3>待我审批</h3></div><div class="cb"><div class="wl">
+            <div class="wi"><span class="tp2">报告签批</span><div class="ti"><div class="t">支付核心系统等保测评报告</div><div class="m">RA-2026-031</div></div><span class="due">2h</span></div>
+            <div class="wi"><span class="tp2">制度发布</span><div class="ti"><div class="t">《数据出境管理办法 v2.5》</div><div class="m">POL-0305</div></div><span class="due ov">逾期 1d</span></div>
+            <div class="wi"><span class="tp2">复评审批</span><div class="ti"><div class="t">云擎科技非计划性复评</div><div class="m">RA-2026-019</div></div><span class="due">3h</span></div>
+          </div></div></div>
+          <div class="card"><div class="ch"><h3>待我整改 / 填写 / 签署</h3></div><div class="cb"><div class="wl">
+            <div class="wi"><span class="tp2" style="background:var(--danger-tint);color:var(--danger)">整改</span><div class="ti"><div class="t">商户结算系统访问控制缺陷</div><div class="m">TASK-0392</div></div><span class="due ov">逾期 2d</span></div>
+            <div class="wi"><span class="tp2">填写</span><div class="ti"><div class="t">核心支付网关等保自评（75%）</div><div class="m">RA-2026-031</div></div><span class="due">06-25</span></div>
+            <div class="wi"><span class="tp2" style="background:var(--info-tint);color:var(--info)">签署</span><div class="ti"><div class="t">《员工信息安全保密协议 V3.2》</div><div class="m">POL-0042</div></div><span class="due">本周</span></div>
+          </div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== POLICY ===== -->
+      <section class="view" id="view-policy">
+        <div class="phead"><div><div class="kqt">M1 · 制度体系</div><h1>制度体系文件管理</h1></div><div class="sp"></div><button class="btn ghost">导入</button><button class="btn">＋ 新建制度</button></div>
+        <div class="tabbar" data-tabs="policy"><button class="on" data-tab="p1">制度台账</button><button data-tab="p2">知识库</button><button data-tab="p3">签署确认</button></div>
+        <div class="tabpane show" data-pane="p1">
+          <div class="kpibar k4"><div class="kc"><div class="l">制度总数</div><div class="v">312</div><div class="s">生效 286·草稿 18·评审 8</div></div><div class="kc"><div class="l">待复审</div><div class="v" style="color:var(--warning)">14</div><div class="s">30 天内到期</div></div><div class="kc"><div class="l">核心制度签署率</div><div class="v" style="color:var(--info)">92.3<small>%</small></div><div class="s">待确认 87 人</div></div><div class="kc"><div class="l">关联体系</div><div class="v">7</div><div class="s">ISO/等保/PIPL…</div></div></div>
+          <div class="g g-16-1">
+            <div>
+              <div class="toolbar"><div class="tsearch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="搜索制度"></div><div class="ts">体系：<b>全部</b>▾</div><div class="ts">层级：<b>全部</b>▾</div><div class="ts">状态：<b>生效</b>▾</div></div>
+              <div class="card"><table><thead><tr><th>编号</th><th>名称</th><th>体系</th><th>层级</th><th>版本</th><th>签署确认</th><th>状态</th></tr></thead><tbody>
+                <tr class="clk" data-go="policy-detail"><td class="code">POL-0042</td><td>员工信息安全保密协议</td><td><span class="pill teal">ISO27001</span></td><td>集团级</td><td class="num">V3.2</td><td><span class="prog"><i style="width:92%"></i></span> 92%</td><td><span class="st ok"><span class="d"></span>生效</span></td></tr>
+                <tr class="clk" data-go="policy-detail"><td class="code">POL-0117</td><td>个人信息保护管理办法</td><td><span class="pill violet">PIPL</span></td><td>集团级</td><td class="num">V2.0</td><td><span class="prog"><i style="width:88%"></i></span> 88%</td><td><span class="st ok"><span class="d"></span>生效</span></td></tr>
+                <tr class="clk" data-go="policy-detail"><td class="code">POL-0305</td><td>数据出境管理办法</td><td><span class="pill violet">PIPL</span></td><td>集团级</td><td class="num">V2.5</td><td><span class="prog"><i style="width:64%"></i></span> 64%</td><td><span class="st draft"><span class="d"></span>评审中</span></td></tr>
+                <tr class="clk" data-go="policy-detail"><td class="code">POL-0288</td><td>支付清算业务操作规程</td><td><span class="pill">PBOC</span></td><td>子公司级</td><td class="num">V4.1</td><td>—</td><td><span class="st ok"><span class="d"></span>生效</span></td></tr>
+              </tbody></table></div>
+            </div>
+            <div>
+              <div class="card"><div class="ch"><h3>按体系分布</h3></div><div class="cb"><div class="donut-wrap"><svg width="92" height="92" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)"><circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.12)" stroke-width="6"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--accent)" stroke-width="6" stroke-dasharray="34 66"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--info)" stroke-width="6" stroke-dasharray="28 72" stroke-dashoffset="-34"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--plum)" stroke-width="6" stroke-dasharray="38 62" stroke-dashoffset="-62"/></g></svg><div class="dlbl"><div class="li"><span class="k"><i style="background:var(--accent)"></i>ISO</span><b>106</b></div><div class="li"><span class="k"><i style="background:var(--info)"></i>等保</span><b>88</b></div><div class="li"><span class="k"><i style="background:var(--plum)"></i>PIPL/其它</span><b>118</b></div></div></div></div></div>
+              <div class="sidecard"><h4>即将到期复审</h4><div class="srow"><span>反洗钱监控制度</span><b style="color:var(--danger)">剩 5 天</b></div><div class="srow"><span>第三方接入规范</span><b style="color:var(--warning)">剩 12 天</b></div><div class="srow"><span>应急响应预案</span><b>剩 21 天</b></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="p2">
+          <div class="kpibar k4"><div class="kc"><div class="l">已切片制度</div><div class="v">286</div><div class="s">切片 12,480 条</div></div><div class="kc"><div class="l">条款边界命中率</div><div class="v" style="color:var(--success)">96<small>%</small></div><div class="s">防断章取义</div></div><div class="kc"><div class="l">向量索引</div><div class="v">就绪</div><div class="s">pgvector·HNSW</div></div><div class="kc"><div class="l">索引刷新窗口</div><div class="v">1h</div><div class="s">发布后</div></div></div>
+          <div class="card"><table><thead><tr><th>来源制度</th><th>条款</th><th>切片摘要</th><th>版本</th></tr></thead><tbody>
+            <tr><td>员工信息安全保密协议</td><td class="code">第4.2条</td><td>员工应对其知悉的商业秘密与个人信息承担保密义务…</td><td class="num">V3.2</td></tr>
+            <tr><td>数据出境管理办法</td><td class="code">第3.1条</td><td>重要数据出境须经安全评估，个人信息出境须取得单独同意…</td><td class="num">V2.5</td></tr>
+          </tbody></table></div>
+        </div>
+        <div class="tabpane" data-pane="p3">
+          <div class="kpibar k4"><div class="kc"><div class="l">核心制度</div><div class="v">8</div><div class="s">强制签署</div></div><div class="kc"><div class="l">应确认</div><div class="v">1128</div></div><div class="kc"><div class="l">已确认</div><div class="v" style="color:var(--success)">1041</div><div class="s">92.3%</div></div><div class="kc"><div class="l">逾期未确认</div><div class="v" style="color:var(--danger)">87</div><div class="s">已提醒本人及上级</div></div></div>
+          <div class="card"><div class="ch"><h3>各部门签署确认率</h3></div><div class="cb"><div class="bars">
+            <div class="bar-row"><div class="hd"><span class="nm">支付科技</span><b>96%</b></div><div class="track"><div class="seg2 g" style="width:96%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">商户服务</span><b>89%</b></div><div class="track"><div class="seg2 a" style="width:89%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">数据科技</span><b>78%</b></div><div class="track"><div class="seg2 h" style="width:78%"></div></div></div>
+          </div></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-policy-detail">
+        <div class="phead"><div><span class="bk" data-go="policy">← 返回制度台账</span><div class="kqt">POL-0042</div><h1>员工信息安全保密协议</h1></div><div class="sp"></div><button class="btn ghost">下载正文</button><button class="btn">发起修订</button></div>
+        <div class="g g-main-side">
+          <div>
+            <div class="card"><div class="ch"><h3>版本历史</h3></div><div class="cb"><div class="vtl">
+              <div class="v"><div class="vn">V3.2（当前生效）</div><div class="vd">2026-03-01 · MAJOR · 触发重新确认</div><div class="vc">新增远程办公保密条款，明确个人信息处理边界。</div></div>
+              <div class="v"><div class="vn">V3.1</div><div class="vd">2025-09-01 · MINOR</div><div class="vc">元数据调整，未触发重新确认。</div></div>
+              <div class="v"><div class="vn">V3.0</div><div class="vd">2025-03-01 · MAJOR</div><div class="vc">全面修订，对齐 PIPL。</div></div>
+            </div></div></div>
+            <div class="card"><div class="ch"><h3>引用关系</h3></div><table><thead><tr><th>关系</th><th>制度</th><th>条款</th></tr></thead><tbody><tr><td>下位引用</td><td>数据分类分级标准</td><td class="code">3.1</td></tr><tr><td>上位依据</td><td>信息安全总纲</td><td class="code">2.4</td></tr></tbody></table></div>
+          </div>
+          <div>
+            <div class="sidecard"><h4>元数据</h4><div class="meta-list"><div class="m"><span>所属体系</span><b>ISO27001</b></div><div class="m"><span>层级</span><b>集团级</b></div><div class="m"><span>责任部门</span><b>信息安全部</b></div><div class="m"><span>生效日期</span><b>2026-03-01</b></div><div class="m"><span>核心制度</span><b>是</b></div></div></div>
+            <div class="sidecard"><h4>签署确认</h4><div class="srow"><span>应确认</span><b>458 人</b></div><div class="srow"><span>已确认</span><b>421（92%）</b></div><div class="srow"><span>逾期未确认</span><b style="color:var(--danger)">37 人</b></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== RISK ===== -->
+      <section class="view" id="view-risk">
+        <div class="phead"><div><div class="kqt">M2 · 风险评估</div><h1>风险评估闭环</h1></div><div class="sp"></div><button class="btn">＋ 发起评估</button></div>
+        <div class="tabbar" data-tabs="risk"><button class="on" data-tab="r1">评估任务</button><button data-tab="r2">模板库</button><button data-tab="r3">统一控件库</button><button data-tab="r4">KRI 监控</button></div>
+        <div class="tabpane show" data-pane="r1">
+          <div class="kpibar k5"><div class="kc"><div class="l">进行中</div><div class="v">14</div></div><div class="kc"><div class="l">待审批</div><div class="v" style="color:var(--warning)">5</div></div><div class="kc"><div class="l">高风险评估</div><div class="v" style="color:var(--danger)">6</div></div><div class="kc"><div class="l">逾期</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">本季完成</div><div class="v" style="color:var(--success)">31</div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>评估任务</h3></div><table><thead><tr><th>编号</th><th>对象</th><th>体系模板</th><th>进度</th><th>风险值</th><th>截止</th><th>状态</th></tr></thead><tbody>
+              <tr class="clk" data-go="assess-fill"><td class="code">RA-2026-031</td><td>核心支付网关</td><td><span class="pill blue">等保三级</span></td><td><span class="prog"><i style="width:75%"></i></span>75%</td><td><span class="tag vh">极高·22.4</span></td><td class="num">06-25</td><td><span class="st doing"><span class="d"></span>填写中</span></td></tr>
+              <tr class="clk" data-go="assess-report"><td class="code">RA-2026-028</td><td>商户结算系统</td><td><span class="pill teal">ISO27001</span></td><td><span class="prog"><i style="width:100%"></i></span>100%</td><td><span class="tag h">高·16.0</span></td><td class="num">06-20</td><td><span class="st wait"><span class="d"></span>待审批</span></td></tr>
+              <tr class="clk" data-go="assess-report"><td class="code">RA-2026-025</td><td>数据仓库平台</td><td><span class="pill blue">等保三级</span></td><td><span class="prog"><i style="width:100%"></i></span>100%</td><td><span class="tag m">中·9.2</span></td><td class="num">06-12</td><td><span class="st ok"><span class="d"></span>已生效</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>风险等级分布</h3><span class="sub">五级</span></div><div class="cb"><div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">极高</span><b>4</b></div><div class="track"><div class="seg2" style="width:8%;background:#7a1620"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">高</span><b>12</b></div><div class="track"><div class="seg2 h" style="width:22%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">中</span><b>64</b></div><div class="track"><div class="seg2 m" style="width:58%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">低</span><b>120</b></div><div class="track"><div class="seg2 l" style="width:92%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">极低</span><b>48</b></div><div class="track"><div class="seg2" style="width:42%;background:#8aa0b3"></div></div></div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>评估进度漏斗</h3></div><div class="cb"><div class="funnel">
+                <div class="fr" style="width:100%;background:var(--accent)">已发起 38</div>
+                <div class="fr" style="width:82%;background:var(--accent-bright)">填写中 31</div>
+                <div class="fr" style="width:58%;background:var(--warning)">待审批 22</div>
+                <div class="fr" style="width:40%;background:var(--success)">已生效 15</div>
+              </div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="r2">
+          <div class="tpls">
+            <div class="tpl" data-go="template-config"><div class="badge" style="background:var(--info-tint);color:var(--info)">等保</div><h4>等保三级测评</h4><div class="desc">安全通用+扩展，控制点编号组织</div><div class="foot"><span class="pill">V2.1</span><span>211 控制点</span></div></div>
+            <div class="tpl" data-go="template-config"><div class="badge" style="background:var(--accent-weak);color:var(--accent-strong)">ISO</div><h4>ISO 27001</h4><div class="desc">资产-威胁-脆弱性四要素</div><div class="foot"><span class="pill">V3.0</span><span>114 控制项</span></div></div>
+            <div class="tpl" data-go="template-config"><div class="badge" style="background:var(--plum-tint);color:var(--plum)">PCI</div><h4>PCI DSS</h4><div class="desc">持卡人数据环境 12 类</div><div class="foot"><span class="pill">V1.4</span><span>78 控制点</span></div></div>
+            <div class="tpl" data-go="template-config"><div class="badge" style="background:var(--warning-tint);color:#a87d22">PBOC</div><h4>PBOC 支付合规</h4><div class="desc">非银行支付机构监管映射</div><div class="foot"><span class="pill">V2.0</span><span>96 控制点</span></div></div>
+            <div class="tpl"><div class="badge" style="background:var(--accent-weak);color:var(--accent-strong)">271</div><h4>ISO 27701</h4><div class="desc">隐私信息管理 PIMS</div><div class="foot"><span class="pill">V1.1</span><span>49 控制项</span></div></div>
+            <div class="tpl"><div class="badge" style="background:var(--info-tint);color:var(--info)">供</div><h4>供应商评估</h4><div class="desc">合同条款+履约，定量叠加定性</div><div class="foot"><span class="pill">V2.2</span><span>54 题</span></div></div>
+            <div class="tpl"><div class="badge" style="background:var(--success-tint);color:var(--success)">9001</div><h4>ISO 9001</h4><div class="desc">质量管理过程方法</div><div class="foot"><span class="pill">V1.0</span><span>61 控制项</span></div></div>
+            <div class="tpl" style="border-style:dashed;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--accent-strong)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 5v14M5 12h14"/></svg><h4 style="margin-top:6px">新建体系模板</h4></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="r3">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>统一控件库</h3><span class="sub">具体控制点颗粒度</span></div><table><thead><tr><th>编号</th><th>控制点</th><th>覆盖体系</th><th>复用</th><th>结果</th></tr></thead><tbody>
+              <tr><td class="code">CTL-007</td><td>特权账号定期审查</td><td><span class="pill teal">ISO</span> <span class="pill blue">等保</span> <span class="pill">PBOC</span></td><td class="num">14</td><td><span class="st ok"><span class="d"></span>符合</span></td></tr>
+              <tr><td class="code">CTL-019</td><td>数据传输加密 TLS1.2+</td><td><span class="pill blue">等保</span> <span class="pill violet">PCI</span></td><td class="num">9</td><td><span class="st over"><span class="d"></span>部分不符</span></td></tr>
+              <tr><td class="code">CTL-024</td><td>访问控制最小权限</td><td><span class="pill teal">ISO</span> <span class="pill blue">等保</span> <span class="pill violet">PCI</span></td><td class="num">16</td><td><span class="st ok"><span class="d"></span>符合</span></td></tr>
+            </tbody></table></div>
+            <div class="card"><div class="ch"><h3>复用 Top</h3></div><div class="cb"><div class="bars">
+              <div class="bar-row"><div class="hd"><span class="nm">访问控制最小权限</span><b>16</b></div><div class="track"><div class="seg2 a" style="width:100%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">特权账号审查</span><b>14</b></div><div class="track"><div class="seg2 a" style="width:88%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">日志留存</span><b>11</b></div><div class="track"><div class="seg2 a" style="width:69%"></div></div></div>
+            </div></div></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="r4">
+          <div class="kpibar k4"><div class="kc"><div class="l">监控指标</div><div class="v">18</div></div><div class="kc"><div class="l">超阈值预警</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">采集源</div><div class="v">3</div><div class="s">SIEM/日志/漏洞</div></div><div class="kc"><div class="l">采集状态</div><div class="v" style="color:var(--success)">正常</div></div></div>
+          <div class="card"><div class="ch"><h3>KRI 指标与阈值</h3><span class="more">＋ 配置指标</span></div><table><thead><tr><th>指标</th><th>采集源</th><th>当前</th><th>阈值</th><th>状态</th></tr></thead><tbody>
+            <tr><td>核心系统漏洞修复时效</td><td><span class="pill">漏洞管理</span></td><td>23.4 天</td><td>≤15 天</td><td><span class="st over"><span class="d"></span>超阈值</span></td></tr>
+            <tr><td>特权账号未审查数</td><td><span class="pill">SIEM</span></td><td>7</td><td>=0</td><td><span class="st over"><span class="d"></span>紧急</span></td></tr>
+            <tr><td>日志留存天数</td><td><span class="pill">日志平台</span></td><td>162 天</td><td>≥180 天</td><td><span class="st wait"><span class="d"></span>关注</span></td></tr>
+          </tbody></table></div>
+        </div>
+      </section>
+      <section class="view" id="view-assess-fill">
+        <div class="phead"><div><span class="bk" data-go="risk">← 返回评估任务</span><div class="kqt">RA-2026-031 · 等保三级 V2.1</div><h1>核心支付网关 · 风险自评填写</h1></div><div class="sp"></div><span class="st doing" style="margin-right:8px"><span class="d"></span>填写中 75%</span><button class="btn ghost">保存草稿</button><button class="btn">提交审核</button></div>
+        <div class="g g-main-side">
+          <div class="card"><div class="cb">
+            <div class="fsec"><div class="fh"><span class="no">8.1.4</span> 安全计算环境 / 访问控制</div>
+              <div class="fitem"><div class="q">是否对登录用户分配账户并鉴别身份？<span class="req">*</span><span class="ctlref">CTL-024</span></div><div class="opts"><span class="opt sel">是</span><span class="opt">否</span><span class="opt">不适用</span></div></div>
+              <div class="fitem"><div class="q">特权账号是否定期审查？<span class="req">*</span><span class="ctlref">CTL-007</span></div><div class="opts"><span class="opt sel">是</span><span class="opt">否</span><span class="opt">不适用</span></div></div>
+              <div class="fitem"><div class="q">访问控制成熟度评分（0–5）<span class="req">*</span></div><div class="score"><span class="s">0</span><span class="s">1</span><span class="s">2</span><span class="s sel">3</span><span class="s">4</span><span class="s">5</span></div></div>
+            </div>
+            <div class="fsec"><div class="fh"><span class="no">8.1.5</span> 数据保密性</div>
+              <div class="fitem"><div class="q">数据传输是否加密（TLS1.2+）？<span class="req">*</span><span class="ctlref">CTL-019</span></div><div class="opts"><span class="opt">是</span><span class="opt sel">部分</span><span class="opt">否</span></div></div>
+              <div class="fitem"><div class="q">现状说明</div><div class="fbox">部分内部接口仍使用 TLS1.1，计划 Q3 完成升级…</div></div>
+              <div class="fitem"><div class="q">佐证材料</div><span class="fattach"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>上传（已传 2 个）</span></div>
+            </div>
+          </div></div>
+          <div>
+            <div class="sidecard"><h4>填写进度</h4><div class="srow"><span>访问控制</span><span class="st ok"><span class="d"></span>完成</span></div><div class="srow"><span>数据保密</span><span class="st doing"><span class="d"></span>进行中</span></div><div class="srow"><span>安全审计</span><span class="st wait"><span class="d"></span>未开始</span></div></div>
+            <div class="sidecard"><h4>提交流程</h4><div class="srow"><span>① 系统负责人</span><span class="st doing"><span class="d"></span>当前</span></div><div class="srow"><span>② 部门负责人</span><span class="st wait"><span class="d"></span>待</span></div><div class="srow"><span>③ 信息安全负责人</span><span class="st wait"><span class="d"></span>待</span></div></div>
+          </div>
+        </div>
+      </section>
+      <section class="view" id="view-assess-report">
+        <div class="phead"><div><span class="bk" data-go="risk">← 返回评估任务</span><div class="kqt">RA-2026-028 · ISO 27001</div><h1>商户结算系统 · 风险评估报告</h1></div><div class="sp"></div><span class="st wait" style="margin-right:8px"><span class="d"></span>待审批</span><button class="btn ghost">导出 PDF</button><button class="btn">复核签批</button></div>
+        <div class="kpibar k4"><div class="kc"><div class="l">风险值</div><div class="v" style="color:var(--danger)">16.0</div><div class="s">高风险</div></div><div class="kc"><div class="l">风险点</div><div class="v">14</div></div><div class="kc"><div class="l">高风险点</div><div class="v" style="color:var(--danger)">4</div></div><div class="kc"><div class="l">已转整改</div><div class="v">4</div></div></div>
+        <div class="g g-16-1">
+          <div class="card"><div class="ch"><h3>风险点清单</h3></div><table><thead><tr><th>控制点</th><th>结论</th><th>等级</th><th>建议整改</th></tr></thead><tbody>
+            <tr><td>结算接口访问控制</td><td>存在共享账号</td><td><span class="tag h">高</span></td><td>启用个人账号+审计</td></tr>
+            <tr><td>数据传输加密</td><td>部分 TLS1.1</td><td><span class="tag h">高</span></td><td>升级 TLS1.2+</td></tr>
+            <tr><td>日志留存</td><td>满足要求</td><td><span class="tag l">低</span></td><td>—</td></tr>
+          </tbody></table></div>
+          <div class="card"><div class="ch"><h3>等级分布</h3></div><div class="cb"><div class="donut-wrap"><svg width="90" height="90" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)"><circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.12)" stroke-width="6"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--safe)" stroke-width="6" stroke-dasharray="50 50" stroke-dashoffset="-50"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--warning)" stroke-width="6" stroke-dasharray="21 79" stroke-dashoffset="-29"/><circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--danger)" stroke-width="6" stroke-dasharray="29 71"/></g></svg><div class="dlbl"><div class="li"><span class="k"><i style="background:var(--danger)"></i>高</span><b>4</b></div><div class="li"><span class="k"><i style="background:var(--warning)"></i>中</span><b>3</b></div><div class="li"><span class="k"><i style="background:var(--safe)"></i>低</span><b>7</b></div></div></div></div></div>
+        </div>
+      </section>
+      <section class="view" id="view-template-config">
+        <div class="phead"><div><span class="bk" data-go="risk">← 返回模板库</span><div class="kqt">等保三级测评 · V2.2（草稿）</div><h1>模板配置器</h1></div><div class="sp"></div><button class="btn ghost">发布前预览测试</button><button class="btn">发布生效</button></div>
+        <div class="cfg">
+          <div class="card"><div class="ch"><h3>结构树</h3></div><div class="cb"><div class="ctree">
+            <div class="ci on">▾ 8.1 安全通用要求</div>
+            <div class="ci l2">▾ 8.1.4 访问控制</div>
+            <div class="ci l3 on">· 身份鉴别</div>
+            <div class="ci l3">· 特权账号审查</div>
+            <div class="ci l2">8.1.5 数据保密性</div>
+            <div class="ci">8.2 安全扩展要求</div>
+          </div></div></div>
+          <div class="card"><div class="ch"><h3>题目编辑</h3></div><div class="cb">
+            <div class="srow"><span>题型</span><b>单选</b></div><div class="srow"><span>题干</span><b>是否对登录用户鉴别身份？</b></div><div class="srow"><span>引用控件</span><b>CTL-024</b></div><div class="srow"><span>必填</span><b>是</b></div><div class="srow"><span>跳题逻辑</span><b>答"不适用"→跳过后续</b></div>
+            <div style="margin-top:12px"><div class="opt sel" style="margin:4px 0">选项：是</div><div class="opt" style="margin:4px 0">选项：否</div><div class="opt" style="margin:4px 0">选项：不适用</div></div>
+          </div></div>
+          <div class="card"><div class="ch"><h3>打分 / 报告映射</h3></div><div class="cb"><div class="meta-list">
+            <div class="m"><span>权重</span><b>0.8</b></div><div class="m"><span>打分模型</span><b>定量(可能性×影响)</b></div><div class="m"><span>报告章节</span><b>访问控制</b></div><div class="m"><span>判不合规建议严重度</span><b>高</b></div>
+          </div><div style="margin-top:10px;font-size:11px;color:var(--text-3)">调整此处不影响表单结构（两层解耦）。</div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== AUDIT ===== -->
+      <section class="view" id="view-audit">
+        <div class="phead"><div><div class="kqt">M3 · 内部审计</div><h1>内部审计实施与管理</h1></div><div class="sp"></div><button class="btn">＋ 新建审计计划</button></div>
+        <div class="tabbar" data-tabs="audit"><button class="on" data-tab="a1">审计计划</button><button data-tab="a2">检查表执行</button><button data-tab="a3">审计发现</button><button data-tab="a4">审计报告</button></div>
+        <div class="tabpane show" data-pane="a1">
+          <div class="kpibar k5"><div class="kc"><div class="l">年度计划</div><div class="v">12</div></div><div class="kc"><div class="l">实施中</div><div class="v" style="color:var(--accent)">4</div></div><div class="kc"><div class="l">待签批</div><div class="v" style="color:var(--warning)">2</div></div><div class="kc"><div class="l">已归档</div><div class="v">6</div></div><div class="kc"><div class="l">发现总数</div><div class="v">23</div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>审计计划</h3></div><table><thead><tr><th>编号</th><th>主题</th><th>对象</th><th>检查表</th><th>进度</th><th>状态</th></tr></thead><tbody>
+              <tr><td class="code">AP-2026-04</td><td>支付系统安全审计</td><td>支付科技</td><td><span class="pill blue">等保检查表</span></td><td><span class="prog"><i style="width:80%"></i></span>80%</td><td><span class="st doing"><span class="d"></span>实施中</span></td></tr>
+              <tr><td class="code">AP-2026-03</td><td>数据仓库合规审计</td><td>数据科技</td><td><span class="pill">合规检查表</span></td><td><span class="prog"><i style="width:100%"></i></span>100%</td><td><span class="st wait"><span class="d"></span>待签批</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>发现按严重度</h3></div><div class="cb"><div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">高</span><b>6</b></div><div class="track"><div class="seg2 h" style="width:60%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">中</span><b>11</b></div><div class="track"><div class="seg2 m" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">低</span><b>6</b></div><div class="track"><div class="seg2 l" style="width:55%"></div></div></div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>整改闭环漏斗</h3></div><div class="cb"><div class="funnel"><div class="fr" style="width:100%;background:var(--accent)">发现 23</div><div class="fr" style="width:78%;background:var(--warning)">整改中 18</div><div class="fr" style="width:52%;background:var(--success)">已验证 12</div></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="a2">
+          <div class="card"><div class="cb">
+            <div class="fsec"><div class="fh"><span class="no">检查项 1</span> 账号与权限</div><div class="fitem"><div class="q">是否存在共享账号？<span class="ctlref">依据 等保 8.1.4.2</span></div><div class="opts"><span class="opt sel">是（不合规）</span><span class="opt">否</span></div><div style="margin-top:7px;font-size:11px;color:var(--text-3)">系统建议严重度：<span class="tag m">中</span></div></div></div>
+            <div class="fsec"><div class="fh"><span class="no">检查项 2</span> 审计日志</div><div class="fitem"><div class="q">特权操作是否留审计日志？<span class="ctlref">依据 等保 8.1.4.3</span></div><div class="opts"><span class="opt sel">否（不合规）</span><span class="opt">是</span></div><div style="margin-top:7px;font-size:11px;color:var(--text-3)">系统建议严重度：<span class="tag h">高</span></div></div></div>
+          </div></div>
+        </div>
+        <div class="tabpane" data-pane="a3"><div class="g g-16-1">
+          <div class="card"><div class="ch"><h3>审计发现</h3></div><table><thead><tr><th>编号</th><th>问题</th><th>依据</th><th>严重度</th><th>整改状态</th></tr></thead><tbody>
+            <tr><td class="code">F-0117</td><td>数据仓库存在共享账号</td><td>等保8.1.4.2</td><td><span class="tag m">中</span></td><td><span class="st wait"><span class="d"></span>待处理</span></td></tr>
+            <tr><td class="code">F-0118</td><td>特权操作未留审计日志</td><td>等保8.1.4.3</td><td><span class="tag h">高</span></td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+            <tr><td class="code">F-0119</td><td>备份恢复演练记录缺失</td><td>ISO A.12.3</td><td><span class="tag m">中</span></td><td><span class="st ok"><span class="d"></span>已验证</span></td></tr>
+          </tbody></table></div>
+          <div class="card"><div class="ch"><h3>同类问题复发趋势</h3></div><div class="cb"><div class="bars">
+            <div class="bar-row"><div class="hd"><span class="nm">访问控制类</span><b>9 ▲</b></div><div class="track"><div class="seg2 h" style="width:90%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">日志审计类</span><b>7 ▲</b></div><div class="track"><div class="seg2 m" style="width:70%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">数据保护类</span><b>5</b></div><div class="track"><div class="seg2 m" style="width:50%"></div></div></div>
+            <div class="bar-row"><div class="hd"><span class="nm">备份恢复类</span><b>3 ▼</b></div><div class="track"><div class="seg2 l" style="width:30%"></div></div></div>
+          </div></div></div>
+        </div></div>
+        <div class="tabpane" data-pane="a4"><div class="card"><div class="ch"><h3>审计报告</h3><span class="more">＋ 生成报告</span></div><table><thead><tr><th>报告</th><th>类型</th><th>日期</th><th>状态</th></tr></thead><tbody>
+          <tr><td>数据仓库合规审计报告</td><td><span class="pill">PBOC 合规审计</span></td><td class="num">06-15</td><td><span class="st wait"><span class="d"></span>待签批</span></td></tr>
+          <tr><td>支付系统等保测评报告</td><td><span class="pill blue">等保测评</span></td><td class="num">—</td><td><span class="st draft"><span class="d"></span>生成中</span></td></tr>
+        </tbody></table></div></div>
+      </section>
+
+      <!-- ===== 外部审计 (M3-EXT) ===== -->
+      <section class="view" id="view-extaudit">
+        <div class="phead"><div><div class="kqt">M3-EXT · 外部审计</div><h1>外部审计</h1></div><div class="sp"></div>
+          <div class="seg"><button class="on">集团</button><button>支付科技</button><button>消费金融</button><button>数科</button></div>
+          <button class="btn">＋ 登记外审任务</button></div>
+        <div class="tabbar" data-tabs="extaudit"><button class="on" data-tab="e1">外审任务</button><button data-tab="e2">外部审计发现</button><button data-tab="e3">整改跟踪</button></div>
+        <div class="tabpane show" data-pane="e1">
+          <div class="kpibar k5"><div class="kc"><div class="l">进行中外审</div><div class="v" style="color:var(--accent)">4</div></div><div class="kc"><div class="l">外部审计机构</div><div class="v">6</div></div><div class="kc"><div class="l">外部发现(未闭环)</div><div class="v" style="color:var(--danger)">11</div></div><div class="kc"><div class="l">待整改</div><div class="v" style="color:var(--warning)">7</div></div><div class="kc"><div class="l">本年通过认证</div><div class="v" style="color:var(--success)">5</div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>外部审计任务</h3><span class="sub">按组织隔离</span></div><table><thead><tr><th>编号</th><th>认证体系</th><th>审计机构</th><th>责任单位</th><th>周期</th><th>状态</th></tr></thead><tbody>
+              <tr class="clk" data-go="extaudit"><td class="code">EA-2026-07</td><td><span class="pill blue">等保三级测评</span></td><td>某等保测评机构</td><td>支付科技</td><td>2026 年度</td><td><span class="st doing"><span class="d"></span>现场审计中</span></td></tr>
+              <tr class="clk" data-go="extaudit"><td class="code">EA-2026-05</td><td><span class="pill teal">ISO 27001</span></td><td>BSI</td><td>集团</td><td>年度监督审核</td><td><span class="st wait"><span class="d"></span>待回复发现</span></td></tr>
+              <tr class="clk" data-go="extaudit"><td class="code">EA-2026-04</td><td><span class="pill violet">PCI DSS</span></td><td>QSA 机构</td><td>支付科技</td><td>年度复审</td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+              <tr class="clk" data-go="extaudit"><td class="code">EA-2026-02</td><td><span class="pill">PBOC 监管检查</span></td><td>属地央行分支</td><td>消费金融</td><td>专项检查</td><td><span class="st over"><span class="d"></span>待监管回复</span></td></tr>
+              <tr class="clk" data-go="extaudit"><td class="code">EA-2026-01</td><td><span class="pill teal">ISO 27701</span></td><td>DNV</td><td>数据科技</td><td>认证审核</td><td><span class="st ok"><span class="d"></span>已通过</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>按认证体系分布</h3></div><div class="cb"><div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">等保三级</span><b>3</b></div><div class="track"><div class="seg2 a" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">ISO 27001/27701</span><b>4</b></div><div class="track"><div class="seg2 a" style="width:80%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">PCI DSS</span><b>2</b></div><div class="track"><div class="seg2 a" style="width:55%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">PBOC 监管检查</span><b>2</b></div><div class="track"><div class="seg2 a" style="width:55%"></div></div></div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>认证有效期临近</h3></div><div class="cb"><div class="srow"><span>PCI DSS（支付科技）</span><b style="color:var(--danger)">剩 28 天</b></div><div class="srow"><span>ISO 27001（集团）</span><b style="color:var(--warning)">剩 73 天</b></div><div class="srow"><span>等保三级（支付科技）</span><b>剩 120 天</b></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="e2">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>外部审计发现</h3><span class="sub">来自外部机构</span></div><table><thead><tr><th>发现编号</th><th>来源外审</th><th>问题</th><th>认证体系</th><th>严重度</th><th>责任单位</th><th>整改状态</th></tr></thead><tbody>
+              <tr><td class="code">EF-031</td><td>EA-2026-04</td><td>持卡人数据传输未全程加密</td><td><span class="pill violet">PCI</span></td><td><span class="tag vh">极高</span></td><td>支付科技</td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+              <tr><td class="code">EF-028</td><td>EA-2026-05</td><td>访问评审记录不完整</td><td><span class="pill teal">ISO</span></td><td><span class="tag h">高</span></td><td>集团</td><td><span class="st wait"><span class="d"></span>待整改</span></td></tr>
+              <tr><td class="code">EF-022</td><td>EA-2026-02</td><td>备付金日志留存不足</td><td><span class="pill">PBOC</span></td><td><span class="tag h">高</span></td><td>消费金融</td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+              <tr><td class="code">EF-019</td><td>EA-2026-07</td><td>部分主机基线未达标</td><td><span class="pill blue">等保</span></td><td><span class="tag m">中</span></td><td>支付科技</td><td><span class="st wait"><span class="d"></span>待整改</span></td></tr>
+              <tr><td class="code">EF-014</td><td>EA-2026-01</td><td>隐私告知文案待完善</td><td><span class="pill teal">27701</span></td><td><span class="tag l">低</span></td><td>数据科技</td><td><span class="st ok"><span class="d"></span>已验证</span></td></tr>
+            </tbody></table></div>
+            <div class="card"><div class="ch"><h3>发现按严重度（五级）</h3></div><div class="cb"><div class="bars">
+              <div class="bar-row"><div class="hd"><span class="nm">极高</span><b>1</b></div><div class="track"><div class="seg2" style="width:14%;background:#7a1620"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">高</span><b>4</b></div><div class="track"><div class="seg2 h" style="width:55%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">中</span><b>5</b></div><div class="track"><div class="seg2 m" style="width:68%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">低</span><b>3</b></div><div class="track"><div class="seg2 l" style="width:40%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">极低</span><b>1</b></div><div class="track"><div class="seg2" style="width:14%;background:#8aa0b3"></div></div></div>
+            </div></div></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="e3">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>外部发现整改任务（含企微通知状态）</h3></div><table><thead><tr><th>任务</th><th>来源发现</th><th>责任人</th><th>截止</th><th>企微通知</th><th>状态</th></tr></thead><tbody>
+              <tr><td class="code">RT-0451</td><td>EF-031</td><td><span class="av-s">张</span>张伟</td><td class="num">06-28</td><td><span class="st ok"><span class="d"></span>已通知·期限临近</span></td><td><span class="st doing"><span class="d"></span>整改中</span></td></tr>
+              <tr><td class="code">RT-0448</td><td>EF-022</td><td><span class="av-s">陈</span>陈强</td><td class="num">06-22</td><td><span class="st over"><span class="d"></span>已升级上级</span></td><td><span class="st over"><span class="d"></span>逾期</span></td></tr>
+              <tr><td class="code">RT-0442</td><td>EF-028</td><td><span class="av-s">王</span>王芳</td><td class="num">07-05</td><td><span class="st ok"><span class="d"></span>已通知</span></td><td><span class="st wait"><span class="d"></span>待处理</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>对外闭环漏斗</h3></div><div class="cb"><div class="funnel">
+                <div class="fr" style="width:100%;background:var(--accent)">外部发现 14</div>
+                <div class="fr" style="width:79%;background:var(--accent-bright)">内部整改 11</div>
+                <div class="fr" style="width:64%;background:var(--warning)">内部已验证 9</div>
+                <div class="fr" style="width:50%;background:#3a7d9c">已向外部机构提交 7</div>
+                <div class="fr" style="width:36%;background:#2f7a8a">外方受理 5</div>
+                <div class="fr" style="width:21%;background:var(--success)">外方确认关闭 3</div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>对外回函与受理</h3></div><table><thead><tr><th>外审</th><th>报告</th><th>提交日</th><th>外方受理</th><th>结论</th></tr></thead><tbody>
+                <tr><td class="code">EA-2026-04</td><td>v2</td><td class="num">06-20</td><td><span class="st doing"><span class="d"></span>审核中</span></td><td><span class="st wait"><span class="d"></span>待确认</span></td></tr>
+                <tr><td class="code">EA-2026-02</td><td>v1</td><td class="num">06-12</td><td><span class="st ok"><span class="d"></span>已受理</span></td><td><span class="st doing"><span class="d"></span>要求二次举证</span></td></tr>
+                <tr><td class="code">EA-2026-01</td><td>v1</td><td class="num">05-30</td><td><span class="st ok"><span class="d"></span>已受理</span></td><td><span class="st ok"><span class="d"></span>确认关闭</span></td></tr>
+              </tbody></table></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== LAW (3-col) ===== -->
+      <section class="view" id="view-law">
+        <div class="phead"><div><div class="kqt">M4 · 法规跟踪</div><h1>法律法规跟踪与采集 <small>权威信息源采集 · 条款级变更 · 法规-制度映射核查</small></h1></div><div class="sp"></div><button class="btn ghost">采集健康监控</button><button class="btn" title="新增源后，采集内容自动按体系/主题 AI 分类并结构化排版到统一卡片流">＋ 新增追踪源（自动分类排版）</button></div>
+        <div class="law3">
+          <div>
+            <div class="card"><div class="ch"><h3>跟踪信息源</h3></div><div class="cb"><div class="src">
+              <div class="si"><span class="d" style="background:var(--success)"></span><div class="nm"><div class="t">中国人民银行</div><div class="m">检测每2小时·命中142</div></div><span class="st ok">正常</span></div>
+              <div class="si"><span class="d" style="background:var(--success)"></span><div class="nm"><div class="t">国家网信办</div><div class="m">检测每4小时·命中98</div></div><span class="st ok">正常</span></div>
+              <div class="si"><span class="d" style="background:var(--danger)"></span><div class="nm"><div class="t">金融监管总局</div><div class="m">检测每4小时·命中76</div></div><span class="st over">失效告警</span></div>
+              <div class="si"><span class="d" style="background:var(--success)"></span><div class="nm"><div class="t">全国人大法律库</div><div class="m">检测每日·命中54</div></div><span class="st ok">正常</span></div>
+              <div class="si"><span class="d" style="background:var(--success)"></span><div class="nm"><div class="t">中国证监会</div><div class="m">检测每6小时·命中41</div></div><span class="st ok">正常</span></div>
+            </div></div></div>
+            <div class="card" style="background:var(--accent);border:0"><div class="cb" style="color:#fff">
+              <div style="font-size:13px;font-weight:700;margin-bottom:10px">采集健康监控</div>
+              <div style="display:flex;gap:12px"><div style="flex:1;background:rgba(255,255,255,.12);border-radius:8px;padding:10px"><div style="font-size:22px;font-weight:800">8</div><div style="font-size:10.5px;opacity:.85">正常源</div></div><div style="flex:1;background:rgba(255,255,255,.12);border-radius:8px;padding:10px"><div style="font-size:22px;font-weight:800">1</div><div style="font-size:10.5px;opacity:.85">失效告警</div></div></div>
+              <div style="font-size:10.5px;opacity:.85;margin-top:10px;line-height:1.5">「金融监管总局」连续 3 次未抓到预期内容，疑似改版，已推送告警至运维并暂停采集。</div>
+            </div></div>
+          </div>
+          <div>
+            <div class="toolbar"><div class="sp" style="flex:1"></div><div class="seg"><button class="on">全部</button><button>待评估 4</button><button>已映射</button></div></div>
+            <div class="regcard urgent"><div class="rh"><span class="pill">中国人民银行</span><span class="lvl" style="background:var(--danger-tint);color:var(--danger)">紧急</span><span class="map" style="color:var(--danger);font-weight:600">待评估</span></div>
+              <h4>《非银行支付机构监督管理条例》实施细则（2026 修订）</h4>
+              <div class="sum"><div class="tt">⚡ 变更摘要 · AI 提取条款级变更点</div>新增第 28 条：支付机构应建立特权账号全生命周期管理机制，离职人员账号须于 24 小时内禁用（原为 3 个工作日）；第 41 条强化交易日志留存要求，由 5 年延长至 6 年。</div>
+              <div class="hit">命中内部制度 4 条：<span class="pill">访问控制管理办法4.2</span> <span class="pill">日志留存规范5.4</span> <span class="pill">员工离职管理3.3</span> <span class="pill">+1</span></div>
+              <div class="act"><button class="btn">发起逐条合规核查</button><button class="btn ghost">登记制度映射</button><span class="pushed">♪ 已 M10 推送 合规部/信息安全部</span></div>
+            </div>
+            <div class="regcard"><div class="rh"><span class="pill">国家网信办</span><span class="lvl" style="background:var(--warning-tint);color:#a87d22">重要</span><span class="map">已映射</span></div>
+              <h4>关于进一步规范个人信息跨境提供活动的公告</h4>
+              <div class="sum"><div class="tt">⚡ 变更摘要 · AI 提取条款级变更点</div>明确个人信息出境标准合同备案有效期为 2 年，到期需重新评估；新增对敏感个人信息出境的单独同意留痕要求，须向监管举证。</div>
+              <div class="hit">命中内部制度 3 条：<span class="pill">个人信息保护政策6.1</span> <span class="pill">数据出境管理办法2.4</span> <span class="pill">+1</span></div>
+              <div class="act"><button class="btn">发起逐条合规核查</button><button class="btn ghost">登记制度映射</button><span class="pushed">♪ 已 M10 推送 合规部</span></div>
+            </div>
+            <div class="regcard"><div class="rh"><span class="pill">金融监管总局</span><span class="lvl" style="background:rgba(120,120,120,.12);color:var(--text-2)">普通</span><span class="map">已映射</span></div>
+              <h4>商业银行第三方合作机构风险管理指引（征求意见稿）</h4>
+              <div class="sum"><div class="tt">⚡ 变更摘要 · AI 提取条款级变更点</div>建议建立第三方机构事件触发的非计划性复评机制，对发生数据泄露、监管处罚等负面事件的合作机构应在 5 个工作日内启动专项复评。</div>
+              <div class="hit">命中内部制度 2 条：<span class="pill">供应商管理办法4.5</span> <span class="pill">第三方准入规范2.1</span></div>
+              <div class="act"><button class="btn">发起逐条合规核查</button><button class="btn ghost">登记制度映射</button><span class="pushed">♪ 已 M10 推送 供应商管理</span></div>
+            </div>
+          </div>
+          <div>
+            <div class="card"><div class="ch"><h3>法规-制度映射概览</h3></div><div class="cb">
+              <div style="display:flex;gap:10px;margin-bottom:12px"><div style="flex:1;text-align:center;background:var(--accent-tint);border-radius:8px;padding:12px"><div style="font-size:22px;font-weight:800;color:var(--accent-strong)">2,184</div><div style="font-size:10.5px;color:var(--text-3)">已建立映射</div></div><div style="flex:1;text-align:center;background:var(--warning-tint);border-radius:8px;padding:12px"><div style="font-size:22px;font-weight:800;color:#a87d22">23</div><div style="font-size:10.5px;color:var(--text-3)">待修订制度</div></div></div>
+              <div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">PBOC 支付监管</span><b>642</b></div><div class="track"><div class="seg2 a" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">PIPL 个人信息</span><b>518</b></div><div class="track"><div class="seg2 a" style="width:80%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">ISO 27001</span><b>487</b></div><div class="track"><div class="seg2 a" style="width:76%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">等保三级</span><b>537</b></div><div class="track"><div class="seg2 a" style="width:84%"></div></div></div>
+              </div>
+            </div></div>
+            <div class="card"><div class="ch"><h3>待办合规核查</h3></div><div class="cb">
+              <div class="todo-item"><span class="dd">剩 2 天</span><div class="tt">逐条核查</div><div class="mt">支付机构条例第28条 → 复核《访问控制管理办法4.2》离职账号回收时限</div></div>
+              <div class="todo-item"><span class="dd">剩 2 天</span><div class="tt">逐条核查</div><div class="mt">支付机构条例第41条 → 复核《日志留存规范5.4》留存期限</div></div>
+              <div class="todo-item"><span class="dd">剩 6 天</span><div class="tt">制度修订</div><div class="mt">个人信息出境合同有效期变更 → 修订《数据出境管理办法2.4》</div></div>
+              <div class="todo-item"><span class="dd" style="color:var(--success)">已确认</span><div class="tt">06-18</div><div class="mt">第三方复评机制已纳入《供应商管理办法4.5》修订计划</div></div>
+            </div></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px"><div class="ch"><h3>合规义务清单（Obligation Register）</h3><span class="more">＋ 新增义务</span></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:820px"><thead><tr><th>义务编号</th><th>来源法规/条款</th><th>合规义务</th><th>责任部门</th><th>关联制度/控制点</th><th>证据</th><th>状态</th></tr></thead><tbody>
+          <tr><td class="code">OB-031</td><td>支付机构条例 §28</td><td>离职账号 24 小时内禁用</td><td>信息安全部</td><td><span class="pill">访问控制4.2</span> <span class="pill blue">CTL-007</span></td><td><span class="st ok"><span class="d"></span>已留痕</span></td><td><span class="st ok"><span class="d"></span>满足</span></td></tr>
+          <tr><td class="code">OB-028</td><td>PIPL §55</td><td>个人信息出境单独同意留痕</td><td>法务合规部</td><td><span class="pill">个保政策6.1</span></td><td><span class="st doing"><span class="d"></span>整改中</span></td><td><span class="st over"><span class="d"></span>部分满足</span></td></tr>
+          <tr><td class="code">OB-019</td><td>等保 8.1.4.3</td><td>特权操作审计日志留存</td><td>信息安全部</td><td><span class="pill">日志规范5.4</span> <span class="pill blue">CTL-012</span></td><td><span class="st wait"><span class="d"></span>待补</span></td><td><span class="st over"><span class="d"></span>缺口</span></td></tr>
+          <tr><td class="code">OB-012</td><td>PBOC 备付金管理</td><td>备付金集中存管比例</td><td>财务部</td><td><span class="pill">备付金管理3.1</span></td><td><span class="st ok"><span class="d"></span>已留痕</span></td><td><span class="st ok"><span class="d"></span>满足</span></td></tr>
+        </tbody></table></div></div>
+      </section>
+
+      <!-- ===== 监管事项 ===== -->
+      <section class="view" id="view-regaffairs">
+        <div class="phead"><div><div class="kqt">监管事项</div><h1>监管事项</h1></div><div class="sp"></div>
+          <div class="seg"><button class="on">集团</button><button>支付科技</button><button>消费金融</button></div>
+          <button class="btn">＋ 登记监管事项</button></div>
+        <div class="kpibar k5"><div class="kc"><div class="l">本月待报送</div><div class="v" style="color:var(--accent)">6</div><div class="s">2 项法定时限临近</div></div><div class="kc"><div class="l">逾期报送</div><div class="v" style="color:var(--danger)">0</div></div><div class="kc"><div class="l">未结问询</div><div class="v" style="color:var(--warning)">3</div></div><div class="kc"><div class="l">处罚整改未闭环</div><div class="v" style="color:var(--danger)">1</div></div><div class="kc"><div class="l">重大事件报送</div><div class="v">0</div><div class="s">本季</div></div></div>
+        <div class="tabbar" data-tabs="regaffairs"><button class="on" data-tab="g1">报送日历</button><button data-tab="g2">监管问询</button><button data-tab="g3">处罚与约谈</button><button data-tab="g4">重大事件报送</button></div>
+        <div class="tabpane show" data-pane="g1">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>监管报送日历</h3><span class="sub">法定时限</span></div><table><thead><tr><th>报送事项</th><th>监管机构</th><th>类型</th><th>法定时限</th><th>责任人</th><th>状态</th></tr></thead><tbody>
+              <tr><td>支付业务统计报表</td><td>人民银行</td><td><span class="pill">月报</span></td><td class="num" style="color:var(--danger)">07-05（剩 2 天）</td><td><span class="av-s">陈</span>陈强</td><td><span class="st doing"><span class="d"></span>编制中</span></td></tr>
+              <tr><td>反洗钱报告</td><td>反洗钱中心</td><td><span class="pill">月报</span></td><td class="num">07-10</td><td><span class="av-s">李</span>李娜</td><td><span class="st wait"><span class="d"></span>待编制</span></td></tr>
+              <tr><td>个人信息保护合规报告</td><td>网信办</td><td><span class="pill blue">年报</span></td><td class="num">08-31</td><td><span class="av-s">王</span>王芳</td><td><span class="st wait"><span class="d"></span>待编制</span></td></tr>
+              <tr><td>备付金存管报表</td><td>人民银行</td><td><span class="pill">季报</span></td><td class="num">07-15</td><td><span class="av-s">张</span>张伟</td><td><span class="st ok"><span class="d"></span>已报送</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>报送达成（本年）</h3></div><div class="cb"><div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">按时报送率</span><b>100%</b></div><div class="track"><div class="seg2 g" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">月报</span><b>6/6</b></div><div class="track"><div class="seg2 g" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">季报</span><b>2/2</b></div><div class="track"><div class="seg2 g" style="width:100%"></div></div></div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>临近报送</h3></div><div class="cb"><div class="srow"><span>支付业务统计报表</span><b style="color:var(--danger)">剩 2 天</b></div><div class="srow"><span>反洗钱报告</span><b style="color:var(--warning)">剩 7 天</b></div><div class="srow"><span>备付金存管报表</span><b>剩 12 天</b></div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="g2"><div class="card"><div class="ch"><h3>监管问询</h3><span class="more">＋ 登记问询</span></div><table><thead><tr><th>编号</th><th>监管机构</th><th>事项</th><th>收文日</th><th>答复期限</th><th>答复留痕</th><th>状态</th></tr></thead><tbody>
+          <tr><td class="code">RQ-2026-08</td><td>人民银行</td><td>大额交易监测机制问询</td><td class="num">06-18</td><td class="num" style="color:var(--danger)">06-28</td><td>—</td><td><span class="st doing"><span class="d"></span>答复编制中</span></td></tr>
+          <tr><td class="code">RQ-2026-07</td><td>网信办</td><td>个人信息出境情况说明</td><td class="num">06-10</td><td class="num">06-24</td><td><span class="st ok"><span class="d"></span>已答复·留痕</span></td><td><span class="st wait"><span class="d"></span>待监管反馈</span></td></tr>
+          <tr><td class="code">RQ-2026-05</td><td>金融监管总局</td><td>外包风险管理情况</td><td class="num">05-28</td><td class="num">06-11</td><td><span class="st ok"><span class="d"></span>已答复·留痕</span></td><td><span class="st ok"><span class="d"></span>已办结</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="g3"><div class="card"><div class="ch"><h3>处罚与约谈台账</h3><span class="more">＋ 登记</span></div><table><thead><tr><th>编号</th><th>类型</th><th>监管机构</th><th>事由</th><th>日期</th><th>整改要求</th><th>回函状态</th></tr></thead><tbody>
+          <tr><td class="code">RP-2026-02</td><td><span class="tag m">约谈</span></td><td>人民银行</td><td>商户实名制落实不到位</td><td class="num">06-05</td><td>30 日内整改并报告</td><td><span class="st doing"><span class="d"></span>整改中·待回函</span></td></tr>
+          <tr><td class="code">RP-2025-11</td><td><span class="tag h">行政处罚</span></td><td>属地央行</td><td>备付金管理违规</td><td class="num">2025-11</td><td>限期整改+罚款</td><td><span class="st ok"><span class="d"></span>已回函·监管办结</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="g4">
+          <div class="infoline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>重大风险/安全事件须按监管时限上报（如人民银行重大事件报告制度）；此处管理报送的时限、版本与回执留痕。</div>
+          <div class="card"><div class="empty"><div class="t">本季无重大事件报送</div><div class="d">发生重大事件时，从此处发起监管报送并跟踪回执；与安全事件、整改、证据留痕联动。</div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== AI ===== -->
+      <section class="view" id="view-ai">
+        <div class="phead"><div><div class="kqt">M5 · AI 智能问答</div><h1>AI 智能问答</h1></div></div>
+        <div class="chat">
+          <div class="card chatbox"><div class="scope"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg>数据范围：<b>全集团（集团管理层）</b> · 按权限过滤，不越权</div>
+            <div class="msgs"><div class="msg u">对比支付科技与商户服务近两次评估的高风险项变化</div><div class="msg a"><div class="ab">· <b>支付科技</b>：8→<b>6</b>（核心网关未闭环）；· <b>商户服务</b>：2→<b>4</b>（结算访问控制缺陷）。<div class="cites"><span class="cite">📄 RA-2026-031</span><span class="cite">📄 RA-2026-028</span></div></div></div></div>
+            <div class="suggest"><button>哪些法规更新需修订制度？</button><button>本季逾期最多的部门</button></div>
+            <div class="composer"><input placeholder="输入问题…（回答标注来源）"><button class="btn">发送</button></div>
+          </div>
+          <div><div class="sidecard"><h4>数据源覆盖</h4><div class="srow"><span>制度知识库</span><span class="st ok"><span class="d"></span>已接入</span></div><div class="srow"><span>法规库</span><span class="st ok"><span class="d"></span>已接入</span></div><div class="srow"><span>评估/审计记录</span><span class="st ok"><span class="d"></span>已接入</span></div></div><div class="sidecard"><h4>近期会话</h4><div class="srow"><span>高风险项对比</span><span style="color:var(--text-4)">今天</span></div><div class="srow"><span>PIPL 覆盖核查</span><span style="color:var(--text-4)">昨天</span></div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== VENDOR ===== -->
+      <section class="view" id="view-vendor">
+        <div class="phead"><div><div class="kqt">M7 · 第三方供应商</div><h1>第三方 / 供应商管理</h1></div><div class="sp"></div><button class="btn">＋ 新增供应商</button></div>
+        <div class="tabbar" data-tabs="vendor"><button class="on" data-tab="v1">供应商台账</button><button data-tab="v2">SLA 跟踪</button><button data-tab="v3">事件触发复评</button></div>
+        <div class="tabpane show" data-pane="v1">
+          <div class="kpibar k5"><div class="kc"><div class="l">在册供应商</div><div class="v">64</div></div><div class="kc"><div class="l">关键供应商</div><div class="v">12</div></div><div class="kc"><div class="l">高风险</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">SLA 临期</div><div class="v" style="color:var(--warning)">5</div></div><div class="kc"><div class="l">待复评</div><div class="v">7</div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>供应商台账</h3></div><table><thead><tr><th>供应商</th><th>类别</th><th>生命周期</th><th>风险评分</th><th>SLA</th><th>状态</th></tr></thead><tbody>
+              <tr class="clk" data-go="vendor-detail"><td><span class="av-s">云</span>云擎科技</td><td>IaaS</td><td><span class="pill teal">合同期内</span></td><td><span class="tag h">高·71</span></td><td><span class="st over"><span class="d"></span>偏离</span></td><td><span class="st doing"><span class="d"></span>复评中</span></td></tr>
+              <tr class="clk" data-go="vendor-detail"><td><span class="av-s">短</span>短信网关 B</td><td>通信</td><td><span class="pill teal">合同期内</span></td><td><span class="tag m">中·48</span></td><td><span class="st ok"><span class="d"></span>达标</span></td><td><span class="st ok"><span class="d"></span>正常</span></td></tr>
+              <tr class="clk" data-go="vendor-detail"><td><span class="av-s">风</span>风控数据 C</td><td>数据服务</td><td><span class="pill blue">续约评估</span></td><td><span class="tag m">中·52</span></td><td><span class="st ok"><span class="d"></span>达标</span></td><td><span class="st wait"><span class="d"></span>待续约</span></td></tr>
+            </tbody></table></div>
+            <div>
+              <div class="card"><div class="ch"><h3>风险评分分布</h3></div><div class="cb"><div class="bars">
+                <div class="bar-row"><div class="hd"><span class="nm">高(>70)</span><b>3</b></div><div class="track"><div class="seg2 h" style="width:20%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">中(40-70)</span><b>28</b></div><div class="track"><div class="seg2 m" style="width:100%"></div></div></div>
+                <div class="bar-row"><div class="hd"><span class="nm">低(<40)</span><b>33</b></div><div class="track"><div class="seg2 l" style="width:90%"></div></div></div>
+              </div></div></div>
+              <div class="card"><div class="ch"><h3>SLA 达标率</h3></div><div class="cb" style="text-align:center"><svg width="86" height="50" viewBox="0 0 100 56"><path d="M8 50 A42 42 0 0 1 92 50" fill="none" stroke="rgba(120,120,120,.13)" stroke-width="8" stroke-linecap="round"/><path d="M8 50 A42 42 0 0 1 78 18" fill="none" stroke="var(--success)" stroke-width="8" stroke-linecap="round"/></svg><div style="font-size:22px;font-weight:800;margin-top:-6px">87<small style="font-size:13px">%</small></div><div class="gauge-t">关键供应商 SLA 达标</div></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="v2"><div class="card"><table><thead><tr><th>供应商</th><th>SLA 指标</th><th>目标</th><th>当前</th><th>到期</th><th>状态</th></tr></thead><tbody>
+          <tr><td>云擎科技</td><td>可用性</td><td>≥99.9%</td><td>99.4%</td><td class="num">2026-12</td><td><span class="st over"><span class="d"></span>偏离</span></td></tr>
+          <tr><td>短信网关 B</td><td>到达率</td><td>≥98%</td><td>99.1%</td><td class="num">2026-09</td><td><span class="st ok"><span class="d"></span>达标</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="v3">
+          <div class="card"><table><thead><tr><th>供应商</th><th>事件</th><th>来源</th><th>触发复评</th><th>时间</th></tr></thead><tbody>
+            <tr><td>云擎科技</td><td>被曝数据泄露</td><td><span class="pill">人工登记</span></td><td><span class="code">RA-2026-019</span></td><td class="num">06-14</td></tr>
+            <tr><td>风控数据 C</td><td>信用评级下调</td><td><span class="pill blue">信用接口</span></td><td>待发起</td><td class="num">06-20</td></tr>
+          </tbody></table></div>
+        </div>
+      </section>
+      <section class="view" id="view-vendor-detail">
+        <div class="phead"><div><span class="bk" data-go="vendor">← 返回供应商台账</span><div class="kqt">云擎科技 · IaaS</div><h1>供应商详情</h1></div><div class="sp"></div><button class="btn ghost">发起复评</button></div>
+        <div class="g g-main-side">
+          <div class="card"><div class="ch"><h3>生命周期</h3></div><div class="cb"><div class="flow"><div class="node done"><div class="r">准入评估</div><div class="s">已通过</div></div><span class="arr">→</span><div class="node cur"><div class="r">合同期内</div><div class="s">复评中</div></div><span class="arr">→</span><div class="node"><div class="r">续约评估</div><div class="s">待</div></div><span class="arr">→</span><div class="node"><div class="r">退出评估</div><div class="s">—</div></div></div></div></div>
+          <div class="sidecard"><h4>关键信息</h4><div class="meta-list"><div class="m"><span>风险评分</span><b style="color:var(--danger)">71（高）</b></div><div class="m"><span>SLA</span><b>偏离</b></div><div class="m"><span>最近评估</span><b>2026-06-15</b></div><div class="m"><span>纳入台账</span><b>是</b></div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== ORG ===== -->
+      <section class="view" id="view-org">
+        <div class="phead"><div><div class="kqt">M6 · 资产与组织</div><h1>组织架构与资产台账</h1></div><div class="sp"></div><button class="btn ghost">AD 同步</button><button class="btn">＋ 登记资产</button></div>
+        <div class="tabbar" data-tabs="org"><button class="on" data-tab="o1">组织架构</button><button data-tab="o2">资产台账</button></div>
+        <div class="tabpane show" data-pane="o1"><div class="g g-main-side">
+          <div class="card"><div class="ch"><h3>组织树（AD 同步）</h3><span class="more">手动同步</span></div><div class="cb"><div class="tree">
+            <div class="tn"><span class="dot2"></span>集团总部<span class="cnt">128 人</span></div>
+            <div class="tn lv2"><span class="dot2"></span>支付科技子公司<span class="cnt">312 人</span></div>
+            <div class="tn lv3"><span class="dot2"></span>研发部 / 运维部 / 风控部</div>
+            <div class="tn lv2"><span class="dot2"></span>商户服务子公司<span class="cnt">256 人</span></div>
+            <div class="tn lv2"><span class="dot2"></span>数据科技子公司<span class="cnt">189 人</span></div>
+            <div class="tn lv2"><span class="dot2"></span>海外业务子公司<span class="cnt">98 人</span></div>
+          </div></div></div>
+          <div class="sidecard"><h4>AD 同步态势</h4><div class="srow"><span>最近同步</span><b>今天 06:00</b></div><div class="srow"><span>同步用户</span><b>983</b></div><div class="srow"><span>停用（离职）</span><b style="color:var(--danger)">12</b></div><div class="srow"><span>离职回收时效</span><b>≤同步周期</b></div><div class="srow"><span>状态</span><span class="st ok"><span class="d"></span>正常</span></div></div>
+        </div></div>
+        <div class="tabpane" data-pane="o2">
+          <div class="kpibar k4"><div class="kc"><div class="l">资产总数</div><div class="v">186</div></div><div class="kc"><div class="l">信息系统</div><div class="v">94</div></div><div class="kc"><div class="l">高重要性</div><div class="v" style="color:var(--danger)">38</div></div><div class="kc"><div class="l">评估覆盖率</div><div class="v" style="color:var(--success)">86<small>%</small></div></div></div>
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>资产台账</h3><span class="sub">含数据/合规属性</span></div><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:760px"><thead><tr><th>编号</th><th>名称</th><th>类型</th><th>数据分级</th><th>个人信息</th><th>跨境</th><th>等保定级</th><th>持卡人数据</th><th>重要性</th></tr></thead><tbody>
+              <tr><td class="code">AST-001</td><td>核心支付网关</td><td><span class="pill">信息系统</span></td><td><span class="tag h">敏感</span></td><td>是</td><td>否</td><td><span class="pill blue">三级</span></td><td>是</td><td><span class="tag h">高</span></td></tr>
+              <tr><td class="code">AST-014</td><td>商户结算系统</td><td><span class="pill">信息系统</span></td><td><span class="tag h">敏感</span></td><td>是</td><td>否</td><td><span class="pill blue">三级</span></td><td>是</td><td><span class="tag h">高</span></td></tr>
+              <tr><td class="code">AST-022</td><td>跨境清算接口</td><td><span class="pill">信息系统</span></td><td><span class="tag h">敏感</span></td><td>是</td><td><span class="tag m">是</span></td><td><span class="pill blue">三级</span></td><td>否</td><td><span class="tag h">高</span></td></tr>
+              <tr><td class="code">AST-031</td><td>数据仓库平台</td><td><span class="pill">信息系统</span></td><td><span class="tag m">内部</span></td><td>是</td><td>否</td><td><span class="pill blue">二级</span></td><td>否</td><td><span class="tag m">中</span></td></tr>
+              <tr><td class="code">AST-039</td><td>云擎科技</td><td><span class="pill violet">供应商</span></td><td><span class="tag h">敏感</span></td><td>是</td><td><span class="tag m">是</span></td><td>—</td><td>是</td><td><span class="tag h">高</span></td></tr>
+            </tbody></table></div></div>
+            <div class="card"><div class="ch"><h3>资产类型分布</h3></div><div class="cb"><div class="bars">
+              <div class="bar-row"><div class="hd"><span class="nm">信息系统</span><b>94</b></div><div class="track"><div class="seg2 a" style="width:100%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">业务流程</span><b>52</b></div><div class="track"><div class="seg2 a" style="width:55%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">数据资产</span><b>26</b></div><div class="track"><div class="seg2 a" style="width:28%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">供应商</span><b>14</b></div><div class="track"><div class="seg2 a" style="width:15%"></div></div></div>
+            </div></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== NOTIFY ===== -->
+      <section class="view" id="view-notify">
+        <div class="phead"><div><div class="kqt">M10 · 通知中心</div><h1>统一通知中心</h1></div><div class="sp"></div><button class="btn">＋ 新建规则</button></div>
+        <div class="tabbar" data-tabs="notify"><button class="on" data-tab="n1">发送概览</button><button data-tab="n5">企微通知场景</button><button data-tab="n2">通知规则</button><button data-tab="n3">发送记录</button><button data-tab="n4">通道管理</button></div>
+        <div class="tabpane show" data-pane="n1">
+          <div class="kpibar k4"><div class="kc"><div class="l">今日发送</div><div class="v">1,284</div></div><div class="kc"><div class="l">成功率</div><div class="v" style="color:var(--success)">99.4<small>%</small></div></div><div class="kc"><div class="l">失败重试</div><div class="v" style="color:var(--warning)">33</div></div><div class="kc"><div class="l">紧急级(短信)</div><div class="v">37</div></div></div>
+          <div class="g g-2">
+            <div class="card"><div class="ch"><h3>各通道用量（近7天）</h3></div><div class="cb"><div class="bars">
+              <div class="bar-row"><div class="hd"><span class="nm">企业微信</span><b>4,210</b></div><div class="track"><div class="seg2 a" style="width:100%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">飞书</span><b>2,860</b></div><div class="track"><div class="seg2 a" style="width:68%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">邮件</span><b>3,120</b></div><div class="track"><div class="seg2 a" style="width:74%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">短信(紧急)</span><b>240</b></div><div class="track"><div class="seg2 h" style="width:8%"></div></div></div>
+            </div></div></div>
+            <div class="card"><div class="ch"><h3>降噪与分级</h3></div><div class="cb"><div class="srow"><span>合并推送命中</span><b>312 次</b></div><div class="srow"><span>免打扰延迟</span><b>96 条</b></div><div class="srow"><span>紧急级直达</span><b>37 条</b></div><div class="srow"><span>跨子公司拦截</span><b style="color:var(--success)">0 越界</b></div></div></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="n5">
+          <div class="g g-16-1">
+            <div class="card"><div class="ch"><h3>企微通知场景库</h3><span class="more">＋ 新建场景</span></div><table><thead><tr><th>场景</th><th>触发</th><th>接收角色 / 层级</th><th>内容要点</th><th>状态</th></tr></thead><tbody>
+              <tr><td>整改期限临近</td><td>截止前 3 天</td><td>整改任务责任人</td><td>任务编号·所属系统·剩余天数·跳转</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>整改逾期升级</td><td>逾期 ≥3 天</td><td>责任人 + 直属上级（升级链）</td><td>逾期天数·已升级提示</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>审计发现概况</td><td>审计报告签批</td><td>子公司负责人</td><td>本次内/外审发现数·高风险数·待整改</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>评估发现概况</td><td>评估生效</td><td>子公司负责人 / 系统责任人</td><td>风险值·高风险点·整改要求</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>法规变化提醒</td><td>命中本子公司制度</td><td>该子公司合规对接人</td><td>法规名·条款级变更摘要·受影响制度</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>管理层合规简报</td><td>每周一 09:00（聚合）</td><td>集团 / 子公司管理层</td><td>态势摘要·KRI 异常·待办概览（不逐条打扰）</td><td><span class="st draft"><span class="d"></span>草稿</span></td></tr>
+              <tr><td>KRI 阈值预警</td><td>指标超阈值</td><td>指标责任人 + 安全负责人</td><td>指标·当前值·阈值·超标幅度</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+              <tr><td>制度待签署提醒</td><td>逾期未确认</td><td>本人 + 上级</td><td>制度名·版本·确认入口</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+            </tbody></table></div>
+            <div class="card"><div class="ch"><h3>消息模板预览</h3><span class="sub">企业微信</span></div><div class="cb">
+              <div style="background:var(--accent-tint);border-radius:8px;padding:12px;font-size:11.5px;line-height:1.7;color:var(--text-1)">
+                <b style="color:var(--accent-strong)">【整改期限临近】</b><br>张伟，您负责的整改任务 <b>TASK-0451</b>（核心支付网关·PCI 发现 EF-031）将于 <b>06-28（剩 2 天）</b> 到期，请尽快处理。<br><span style="color:var(--accent-strong)">▸ 点击查看任务详情</span>
+              </div>
+              <div style="font-size:11px;color:var(--text-3);margin-top:10px">模板变量：{责任人}{任务编号}{对象}{来源发现}{截止}{剩余天数}{链接}，均可在场景中编辑。</div>
+            </div></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="n2"><div class="card"><table><thead><tr><th>规则</th><th>触发事件</th><th>级别</th><th>通道</th><th>状态</th></tr></thead><tbody>
+          <tr><td>高风险整改逾期</td><td>逾期≥3天</td><td><span class="tag h">紧急</span></td><td><span class="pill teal">企微</span><span class="pill blue">短信</span><span class="pill">邮件</span></td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+          <tr><td>法规更新推送</td><td>新增/修订法规</td><td><span class="tag m">重要</span></td><td><span class="pill teal">企微</span><span class="pill violet">飞书</span></td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="n3"><div class="card"><table><thead><tr><th>时间</th><th>事件</th><th>对象</th><th>通道</th><th>结果</th></tr></thead><tbody>
+          <tr><td class="num">08:00</td><td>TASK-0392 逾期</td><td>李娜+上级</td><td><span class="pill teal">企微</span><span class="pill">邮件</span></td><td><span class="st ok"><span class="d"></span>成功</span></td></tr>
+          <tr><td class="num">昨18:22</td><td>KRI 预警</td><td>网关责任人</td><td><span class="pill blue">短信</span></td><td><span class="st over"><span class="d"></span>重试后成功</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="n4"><div class="card"><table><thead><tr><th>通道</th><th>接入方式</th><th>限制</th><th>连通性</th></tr></thead><tbody>
+          <tr><td>企业微信</td><td>群机器人 Webhook</td><td>长度/频率限制</td><td><span class="st ok"><span class="d"></span>已测通</span></td></tr>
+          <tr><td>飞书</td><td>群机器人 Webhook</td><td>长度/频率限制</td><td><span class="st ok"><span class="d"></span>已测通</span></td></tr>
+          <tr><td>短信</td><td>公司短信网关</td><td>有额度，仅紧急级</td><td><span class="st ok"><span class="d"></span>已测通</span></td></tr>
+        </tbody></table></div></div>
+      </section>
+
+      <!-- ===== PERM ===== -->
+      <section class="view" id="view-perm">
+        <div class="phead"><div><div class="kqt">M8 · 权限与审批</div><h1>统一权限与审批流</h1></div></div>
+        <div class="tabbar" data-tabs="perm"><button class="on" data-tab="pm1">角色权限矩阵</button><button data-tab="pm2">角色管理</button><button data-tab="pm3">审批流配置</button></div>
+        <div class="tabpane show" data-pane="pm1">
+          <div class="kpibar k5"><div class="kc"><div class="l">角色数</div><div class="v">20</div></div><div class="kc"><div class="l">授权用户</div><div class="v">983</div></div><div class="kc"><div class="l">待审批</div><div class="v" style="color:var(--warning)">14</div></div><div class="kc"><div class="l">超时审批</div><div class="v" style="color:var(--danger)">3</div></div><div class="kc"><div class="l">越权拦截(本月)</div><div class="v" style="color:var(--success)">128</div></div></div>
+          <div class="infoline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>查看范围默认仅限本子公司。C=创建　R=查看　U=修改　A=审批</div>
+          <div class="card"><div class="cb" style="overflow-x:auto"><table class="matrix"><thead><tr><th>角色 \ 模块</th><th>制度</th><th>风险</th><th>审计</th><th>法规</th><th>问答</th><th>供应商</th><th>看板</th></tr></thead><tbody>
+            <tr><td>系统/业务责任人</td><td><span class="pm r">R</span></td><td><span class="pm c">CRU</span></td><td><span class="pm x">—</span></td><td><span class="pm x">—</span></td><td><span class="pm r">R</span></td><td><span class="pm x">—</span></td><td><span class="pm x">—</span></td></tr>
+            <tr><td>信息安全负责人</td><td><span class="pm r">R</span></td><td><span class="pm a">ARU</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td></tr>
+            <tr><td>模板结构配置管理员</td><td><span class="pm r">R</span></td><td><span class="pm c">CRU</span></td><td><span class="pm c">CRU</span></td><td><span class="pm x">—</span></td><td><span class="pm r">R</span></td><td><span class="pm x">—</span></td><td><span class="pm x">—</span></td></tr>
+            <tr><td>子公司管理层</td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R*</span></td></tr>
+            <tr><td>集团管理层</td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td><td><span class="pm r">R</span></td></tr>
+          </tbody></table></div></div>
+        </div>
+        <div class="tabpane" data-pane="pm2"><div class="card"><div class="ch"><h3>角色清单（20 角色基线）</h3><span class="more">＋ 新建角色</span></div><table><thead><tr><th>角色</th><th>职责域</th><th>跨子公司</th><th>授权人数</th><th>状态</th></tr></thead><tbody>
+          <tr><td>平台超级管理员</td><td>平台</td><td>是</td><td class="num">3</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+          <tr><td>信息安全负责人</td><td>风险评估</td><td>否</td><td class="num">6</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+          <tr><td>模板结构配置管理员</td><td>风险/审计</td><td>否</td><td class="num">4</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+          <tr><td>集团管理层</td><td>管理层</td><td>是</td><td class="num">8</td><td><span class="st ok"><span class="d"></span>启用</span></td></tr>
+        </tbody></table></div></div>
+        <div class="tabpane" data-pane="pm3">
+          <div class="card"><div class="ch"><h3>风险评估报告 · 审批流</h3></div><div class="cb"><div class="flow"><div class="node done"><div class="r">发起人提交</div><div class="s">业务责任人</div></div><span class="arr">→</span><div class="node done"><div class="r">部门审核</div><div class="s">部门审核人</div></div><span class="arr">→</span><div class="node cur"><div class="r">安全审批</div><div class="s">信息安全负责人</div></div><span class="arr">→</span><div class="node"><div class="r">集团审批</div><div class="s">集团管理层(高风险)</div></div></div></div></div>
+        </div>
+      </section>
+
+      <!-- ===== BOARD ===== -->
+      <section class="view" id="view-board">
+        <div class="phead"><div><div class="kqt">M9 · 看板与留痕</div><h1>管理看板与证据留痕库</h1></div><div class="sp"></div><div class="seg"><button class="on">季度</button><button>年度</button></div></div>
+        <div class="tabbar" data-tabs="board"><button class="on" data-tab="b1">管理看板</button><button data-tab="b2">证据留痕库</button></div>
+        <div class="tabpane show" data-pane="b1">
+          <div class="kpibar k4"><div class="kc"><div class="l">整改完成率</div><div class="v" style="color:var(--success)">78.5<small>%</small></div><div class="s">▲4.2%</div></div><div class="kc"><div class="l">逾期率</div><div class="v" style="color:var(--danger)">12<small>%</small></div></div><div class="kc"><div class="l">审计发现(季)</div><div class="v">23</div></div><div class="kc"><div class="l">通知送达率</div><div class="v" style="color:var(--success)">99.4<small>%</small></div></div></div>
+          <div class="g g-2">
+            <div class="card"><div class="ch"><h3>审计发现趋势（同类问题）</h3></div><div class="cb"><div class="bars">
+              <div class="bar-row"><div class="hd"><span class="nm">访问控制类</span><b>9</b></div><div class="track"><div class="seg2 h" style="width:60%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">日志审计类</span><b>7</b></div><div class="track"><div class="seg2 m" style="width:47%"></div></div></div>
+              <div class="bar-row"><div class="hd"><span class="nm">数据保护类</span><b>5</b></div><div class="track"><div class="seg2 m" style="width:33%"></div></div></div>
+            </div></div></div>
+            <div class="card"><div class="ch"><h3>通知送达情况</h3></div><div class="cb"><div class="dlbl"><div class="li"><span class="k">已发送</span><b class="num">1,284</b></div><div class="li"><span class="k">成功率</span><b class="num">99.4%</b></div><div class="li"><span class="k">紧急级(短信)</span><b class="num">37</b></div><div class="li"><span class="k">已读响应率</span><b class="num">86%</b></div></div></div></div>
+          </div>
+        </div>
+        <div class="tabpane" data-pane="b2">
+          <div class="kpibar k4"><div class="kc"><div class="l">证据总量</div><div class="v">42,180</div></div><div class="kc"><div class="l">完整性校验</div><div class="v" style="color:var(--success)">100<small>%</small></div></div><div class="kc"><div class="l">存储用量</div><div class="v">1.2<small>TB</small></div></div><div class="kc"><div class="l">即将到期归档</div><div class="v">0</div></div></div>
+          <div class="toolbar"><div class="tsearch"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4-4"/></svg><input placeholder="按检查/项目/条款检索证据"></div><div class="ts">按法规条款取证：<b>支付机构条例§41</b>▾</div><button class="btn">导出合规举证包（含清单+校验值）</button></div>
+          <div class="card"><div class="cb" style="overflow-x:auto;padding-bottom:6px"><table style="min-width:740px"><thead><tr><th>编号</th><th>关联记录</th><th>关联法规条款</th><th>类型</th><th>哈希(SHA256)</th><th>入库</th><th>保留至</th></tr></thead><tbody>
+            <tr><td class="code">EV-10241</td><td>TASK-0392 整改</td><td><span class="pill">支付机构条例§28</span></td><td>截图</td><td style="font-family:var(--font-mono)">a3f1…9c2b ✓</td><td class="num">06-22 08:10</td><td class="num">2036-06</td></tr>
+            <tr><td class="code">EV-10238</td><td>RA-2026-028 报告</td><td><span class="pill">ISO A.9 · 等保8.1.4</span></td><td>PDF</td><td style="font-family:var(--font-mono)">7e0d…41aa ✓</td><td class="num">06-20 16:30</td><td class="num">2036-06</td></tr>
+            <tr><td class="code">EV-10230</td><td>保密协议签署</td><td><span class="pill">PIPL§51</span></td><td>记录</td><td style="font-family:var(--font-mono)">c92f…83de ✓</td><td class="num">06-19 09:00</td><td class="num">2046-06</td></tr>
+          </tbody></table></div></div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<div class="drawer-mask" id="drawerMask"></div>
+<div class="drawer" id="widgetDrawer">
+  <div class="dh"><div><h3>添加组件</h3><div class="ds">自定义你的合规态势大屏</div></div><button class="x" id="drawerClose">✕</button></div>
+  <div class="db">
+    <div class="dcat">指标卡</div>
+    <div class="wlib">
+      <div class="wc added"><div class="wn">综合风险指数</div><div class="wd">集团综合风险评分与趋势</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc added"><div class="wn">整改完成率</div><div class="wd">本季整改关闭率</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc"><div class="wn">待报送(本月)</div><div class="wd">监管报送法定时限</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">未结监管问询</div><div class="wd">监管问询答复进度</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">认证有效期临近</div><div class="wd">各认证体系到期倒计时</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">数据出境台账</div><div class="wd">跨境数据资产数量</div><div class="add">＋ 添加</div></div>
+    </div>
+    <div class="dcat">图表</div>
+    <div class="wlib">
+      <div class="wc added"><div class="wn">风险域热力矩阵</div><div class="wd">子公司×风险域</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc added"><div class="wn">KRI 持续监控</div><div class="wd">关键风险指标阈值</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc"><div class="wn">KRI 趋势曲线</div><div class="wd">指标历史趋势+基线</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">跨子公司对比</div><div class="wd">同口径横向 benchmark</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">风险等级分布</div><div class="wd">五级风险占比</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">审计发现趋势</div><div class="wd">同类问题复发</div><div class="add">＋ 添加</div></div>
+    </div>
+    <div class="dcat">信息流</div>
+    <div class="wlib">
+      <div class="wc added"><div class="wn">待我审批</div><div class="wd">跨模块审批工作台</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc added"><div class="wn">实时事件流</div><div class="wd">重点关注动态</div><div class="add">✓ 已在大屏</div></div>
+      <div class="wc"><div class="wn">监管报送提醒</div><div class="wd">临近法定报送时限</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">法规变化提醒</div><div class="wd">命中本集团制度的法规</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">整改逾期清单</div><div class="wd">逾期整改任务流</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">合规义务到期</div><div class="wd">义务清单到期提醒</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">供应商风险事件</div><div class="wd">触发复评的事件流</div><div class="add">＋ 添加</div></div>
+      <div class="wc"><div class="wn">外审进展</div><div class="wd">外部审计与回函状态</div><div class="add">＋ 添加</div></div>
+    </div>
+  </div>
+</div>
+<button class="fab" id="aiFab" title="AI 助手"><span class="badge">AI</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+<div class="aipanel" id="aiPanel">
+  <div class="ah"><div class="alogo">G</div><div><h4>AI 合规助手</h4><div class="asub">数据范围 · 集团管理层</div></div><button class="x" id="aiClose">✕</button></div>
+  <div class="scope"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg>按权限过滤，不越权</div>
+  <div class="msgs"><div class="msg u">商户服务有几项高风险未闭环？</div><div class="msg a"><div class="ab">当前 <b>4 项</b>，TASK-0392 已逾期 2 天。<div class="cites"><span class="cite">📄 TASK-0392</span></div></div></div></div>
+  <div class="composer"><input placeholder="问问 AI…"><button class="btn">发送</button></div>
+</div>
+
+<script>
+(function(){
+  var lang='zh';
+  var crumb={dashboard:[['概览','合规态势'],['Overview','Compliance Posture']],todo:[['概览','我的待办'],['Overview','My Tasks']],extaudit:[['业务','外部审计'],['Business','External Audit']],policy:[['业务','制度体系'],['Business','Policies']],'policy-detail':[['业务','制度详情'],['Business','Policy Detail']],risk:[['业务','风险评估'],['Business','Risk Assessment']],'assess-fill':[['业务','风险自评填写'],['Business','Self-Assessment']],'assess-report':[['业务','评估报告'],['Business','Assessment Report']],'template-config':[['业务','模板配置器'],['Business','Template Builder']],audit:[['业务','内部审计'],['Business','Internal Audit']],law:[['业务','法规跟踪'],['Business','Regulatory Tracking']],regaffairs:[['业务','监管事项'],['Business','Regulatory Affairs']],ai:[['业务','AI 智能问答'],['Business','AI Assistant']],vendor:[['业务','第三方供应商'],['Business','Third-Party']],'vendor-detail':[['业务','供应商详情'],['Business','Vendor Detail']],org:[['资产与组织','组织与资产'],['Assets & Org','Org & Assets']],notify:[['系统管理','通知中心'],['Administration','Notifications']],perm:[['系统管理','权限与审批'],['Administration','Access & Approval']],board:[['系统管理','看板与留痕'],['Administration','Dashboard & Evidence']]};
+  var I18N={grp:{zh:['概览','业务','资产与组织','系统管理'],en:['Overview','Business','Assets & Org','Administration']},nav:{dashboard:['合规态势','Compliance Posture'],todo:['我的待办','My Tasks'],extaudit:['外部审计','External Audit'],audit:['内部审计','Internal Audit'],risk:['风险评估','Risk Assessment'],law:['法规跟踪','Regulatory Tracking'],policy:['制度体系','Policies'],ai:['AI 智能问答','AI Assistant'],vendor:['第三方供应商','Third-Party'],org:['组织与资产','Org & Assets'],notify:['通知中心','Notifications'],perm:['权限与审批','Access & Approval'],board:['看板与留痕','Dashboard & Evidence']}};
+  var navV={dashboard:1,todo:1,extaudit:1,policy:1,risk:1,audit:1,law:1,regaffairs:1,ai:1,vendor:1,org:1,notify:1,perm:1,board:1};
+  function show(v){
+    document.querySelectorAll('.view').forEach(function(s){s.classList.remove('active');});
+    var el=document.getElementById('view-'+v); if(!el)return; el.classList.add('active');
+    var hl=navV[v]?v:v.split('-')[0];
+    document.querySelectorAll('#nav a').forEach(function(a){a.classList.toggle('on',a.dataset.view===hl);});
+    var cc=crumb[v]||[['',''],['','']]; var c=cc[lang==='en'?1:0]; document.getElementById('crumb').innerHTML=c[0]+' / <b>'+c[1]+'</b>';
+    document.getElementById('content').scrollTop=0; window.scrollTo(0,0);
+  }
+  document.getElementById('nav').addEventListener('click',function(e){var a=e.target.closest('a[data-view]');if(a)show(a.dataset.view);});
+  document.addEventListener('click',function(e){
+    var g=e.target.closest('[data-go]'); if(g){show(g.dataset.go);return;}
+    var t=e.target.closest('.tabbar button'); if(t){var bar=t.closest('.tabbar');bar.querySelectorAll('button').forEach(function(b){b.classList.remove('on');});t.classList.add('on');var view=t.closest('.view');view.querySelectorAll('.tabpane').forEach(function(p){p.classList.toggle('show',p.dataset.pane===t.dataset.tab);});return;}
+    var sb=e.target.closest('.seg button'); if(sb){sb.parentElement.querySelectorAll('button').forEach(function(b){b.classList.remove('on');});sb.classList.add('on');}
+    var op=e.target.closest('.opt'); if(op&&op.parentElement.classList.contains('opts')){op.parentElement.querySelectorAll('.opt').forEach(function(o){o.classList.remove('sel');});op.classList.add('sel');}
+    var sc=e.target.closest('.score .s'); if(sc){sc.parentElement.querySelectorAll('.s').forEach(function(o){o.classList.remove('sel');});sc.classList.add('sel');}
+    var ci=e.target.closest('.ctree .ci'); if(ci){document.querySelectorAll('.ctree .ci').forEach(function(o){o.classList.remove('on');});ci.classList.add('on');}
+  });
+  // theme pills
+  document.getElementById('themesel').addEventListener('click',function(e){var b=e.target.closest('.tp');if(!b)return;document.body.className=b.dataset.theme;document.querySelectorAll('#themesel .tp').forEach(function(x){x.classList.toggle('on',x===b);});});
+  // AI
+  var fab=document.getElementById('aiFab'),panel=document.getElementById('aiPanel');
+  fab.addEventListener('click',function(){panel.classList.toggle('open');var b=fab.querySelector('.badge');if(b)b.style.display='none';});
+  document.getElementById('aiClose').addEventListener('click',function(){panel.classList.remove('open');});
+  // 中英文切换（全文词典 + DOM 遍历；记录类数据保持原值）
+  var DICT={
+    "概览":"Overview","业务":"Business","资产与组织":"Assets & Org","系统管理":"Administration","主题":"Theme",
+    "合规态势":"Compliance Posture","我的待办":"My Tasks","外部审计":"External Audit","内部审计":"Internal Audit","风险评估":"Risk Assessment","法规跟踪":"Regulatory Tracking","制度体系":"Policies","AI 智能问答":"AI Assistant","第三方供应商":"Third-Party","组织与资产":"Org & Assets","通知中心":"Notifications","权限与审批":"Access & Approval","看板与留痕":"Dashboard & Evidence","监管事项":"Regulatory Affairs",
+    "全集团":"Group-wide","集团":"Group","集团总部":"HQ","支付科技":"PaySvc Co","支付子公司":"Payment Co","消费金融":"Consumer Fin.","数科":"DataTech","数科子公司":"DataTech Co","数据科技":"DataTech","商户服务":"Merchant Svc","财富管理":"Wealth Mgmt","保理子公司":"Factoring Co","海外业务":"Overseas",
+    "综合风险指数":"Composite Risk Index","高风险项(未关闭)":"Open High Risks","KRI 超阈值":"KRI Breaches","制度签署确认率":"Policy Sign-off Rate","通知送达率":"Delivery Rate","进行中评估/审计":"Active Assess./Audits","供应商高风险":"High-Risk Vendors","高风险项":"High Risks","逾期整改项":"Overdue Remediation","制度签署率":"Sign-off Rate",
+    "子公司 × 风险域 · 热力矩阵":"Subsidiary × Domain Heatmap","整改完成率 · 分子公司":"Remediation by Subsidiary","KRI 持续监控":"KRI Monitoring","体系合规达成度":"Framework Compliance","待我审批":"Pending My Approval","重点关注 · 实时事件流":"Live Event Stream","风险等级分布":"Risk Level Distribution","整改完成率":"Remediation Rate",
+    "信息安全":"InfoSec","数据合规":"Data Compliance","业务连续":"Continuity","第三方":"Third-Party","监管合规":"Reg. Compliance","内控":"Internal Ctrl",
+    "高危漏洞修复时效(天)":"Critical Vuln MTTR (d)","特权账号未审查数":"Unreviewed Priv. Accts","日志留存周期(天)":"Log Retention (d)","第三方接口异常率":"3rd-Party API Error %","数据导出审批合规率":"Export Approval %","漏洞管理":"Vuln Mgmt","日志平台":"Log Platform","采集源":"Sources",
+    "报告签批":"Report Sign-off","评估确认":"Assess. Confirm","制度发布":"Policy Release","复评审批":"Re-assess Approval","逾期":"Overdue","待处理":"Pending","逾期 1d":"Overdue 1d",
+    "法规":"Reg.","审计":"Audit","复评":"Re-assess","KRI":"KRI",
+    "待我填写（评估）":"To Fill (Assess.)","待我签署（制度）":"To Sign (Policy)","待我整改":"To Remediate","待我审批 / 整改 / 填写 / 签署":"My Pending Items","待我整改 / 填写 / 签署":"To Remediate/Fill/Sign","整改":"Remediate","填写":"Fill","签署":"Sign","本周":"This Week",
+    "制度总数":"Total Policies","待复审":"Due for Review","核心制度签署率":"Core Sign-off","关联体系":"Frameworks","制度台账":"Policy Register","知识库":"Knowledge Base","签署确认":"Attestation","按体系分布":"By Framework","即将到期复审":"Reviews Due Soon","各部门签署确认率":"Sign-off by Dept.","已切片制度":"Chunked Policies","条款边界命中率":"Clause-Boundary Accuracy","向量索引":"Vector Index","索引刷新窗口":"Index Refresh",
+    "编号":"ID","名称":"Name","体系":"Framework","层级":"Level","版本":"Version","责任部门":"Owner Dept.","状态":"Status","生效":"Effective","评审中":"In Review","集团级":"Group","子公司级":"Subsidiary","新版待确认":"New Ver. Pending",
+    "员工信息安全保密协议":"Employee NDA","个人信息保护管理办法":"PI Protection Policy","数据出境管理办法":"Cross-Border Data Policy","支付清算业务操作规程":"Payment Clearing SOP","数据分类分级标准":"Data Classification Std.",
+    "发起评估":"Start Assessment","评估任务":"Assessments","模板库":"Templates","统一控件库":"Control Library","进行中":"In Progress","待审批":"Pending Approval","高风险评估":"High-Risk Assess.","本季完成":"Closed (Qtr)","对象":"Target","体系模板":"Template","进度":"Progress","风险值":"Risk Score","截止":"Due","填写中":"Filling","已生效":"Effective","已验证":"Verified","处理中":"In Progress","已逾期":"Overdue","评估进度漏斗":"Assessment Funnel","已发起":"Initiated","复用 Top":"Top Reused","控制点":"Control Points",
+    "极低":"Very Low","低":"Low","中":"Medium","高":"High","极高":"Very High",
+    "等保三级测评":"MLPS L3","资产-威胁-脆弱性四要素":"Asset-Threat-Vuln model","持卡人数据环境 12 类":"CDE 12 domains","非银行支付机构监管映射":"Payment Reg. mapping","隐私信息管理 PIMS":"PIMS","供应商评估":"Vendor Assess.","合同条款+履约，定量叠加定性":"Contract+SLA, quant.+qual.","质量管理过程方法":"QMS process","新建体系模板":"New Framework Template","新建":"New",
+    "外审任务":"Audit Tasks","外部审计发现":"Audit Findings","整改跟踪":"Remediation","进行中外审":"Active Audits","外部审计机构":"Audit Bodies","外部发现(未闭环)":"Open Findings","本年通过认证":"Certs Passed (Yr)","外部审计任务":"External Audit Tasks","按组织隔离":"Org-isolated","认证体系":"Certification","审计机构":"Audit Body","责任单位":"Owner Unit","周期":"Cycle","按认证体系分布":"By Certification","认证有效期临近":"Certs Expiring","按认证体系分布":"By Certification","现场审计中":"On-site Audit","待回复发现":"Findings Pending","整改中":"Remediating","待监管回复":"Awaiting Regulator","已通过":"Passed","来自外部机构":"From External Bodies","发现编号":"Finding ID","来源外审":"Source Audit","问题":"Issue","严重度":"Severity","整改状态":"Status","发现按严重度（五级）":"Findings by Severity (5)","外部发现整改任务（含企微通知状态）":"Remediation Tasks (w/ WeChat status)","来源发现":"Source Finding","责任人":"Owner","企微通知":"WeChat Notify","整改闭环漏斗":"Remediation Funnel","外部发现":"External Findings","已分配整改":"Assigned","已验证闭环":"Verified Closed","已通知·期限临近":"Notified · Due Soon","已升级上级":"Escalated","已通知":"Notified","登记外审任务":"Register Audit",
+    "审计计划":"Audit Plans","检查表执行":"Checklist","审计发现":"Findings","审计报告":"Reports","年度计划":"Annual Plans","实施中":"In Progress","已归档":"Archived","发现总数":"Total Findings","主题":"Subject","检查表":"Checklist","新建审计计划":"New Audit Plan","发现按严重度":"Findings by Severity","同类问题复发趋势":"Recurring Issues Trend","报告待签批":"Report Pending","账号与权限":"Accounts & Access","审计日志":"Audit Logs","系统建议严重度：":"Suggested severity: ","依据 等保 8.1.4.2":"per MLPS 8.1.4.2","依据 等保 8.1.4.3":"per MLPS 8.1.4.3","是（不合规）":"Yes (non-compliant)","否（不合规）":"No (non-compliant)","否":"No","是":"Yes","生成报告":"Generate Report","类型":"Type","日期":"Date","待签批":"Pending Sign-off","生成中":"Generating",
+    "法律法规跟踪与采集":"Regulatory Tracking & Collection","采集健康监控":"Collection Health","新增追踪源（自动分类排版）":"Add Source (auto-classify)","跟踪信息源":"Tracking Sources","正常":"Normal","失效告警":"Down · Alert","监管动态卡片":"Regulatory Updates","全部":"All","待评估":"To Review","已映射":"Mapped","紧急":"Urgent","重要":"Important","普通":"Normal","变更摘要 · AI 提取条款级变更点":"Change Summary · AI clause-level","命中内部制度":"Matched Policies","发起逐条合规核查":"Start Clause Review","登记制度映射":"Map to Policy","法规-制度映射概览":"Reg.-Policy Mapping","已建立映射":"Mappings","待修订制度":"Policies to Revise","待办合规核查":"Pending Reviews","逐条核查":"Clause Review","制度修订":"Policy Revision","已确认":"Confirmed",
+    "数据范围：":"Data scope: ","全集团（集团管理层）":"Group (Group Mgmt)","数据源覆盖":"Data Sources","已接入":"Connected","近期会话":"Recent Chats","今天":"Today","昨天":"Yesterday",
+    "供应商台账":"Vendor Register","SLA 跟踪":"SLA Tracking","事件触发复评":"Event Re-assessment","在册供应商":"Registered","关键供应商":"Critical","SLA 临期":"SLA Expiring","待复评":"Re-assess Due","生命周期":"Lifecycle","风险评分":"Risk Score","风险评分分布":"Risk Score Dist.","合同期内":"In Contract","续约评估":"Renewal","供应商详情":"Vendor Detail","关键信息":"Key Info","SLA 指标":"SLA Metric","目标":"Target","当前":"Current","到期":"Expiry","可用性":"Availability","到达率":"Delivery Rate","达标":"Met","偏离":"Breached","事件":"Event","来源":"Source","触发复评":"Triggers Re-assess.","人工登记":"Manual","信用接口":"Credit API","被曝数据泄露":"Data breach reported","信用评级下调":"Credit downgrade","待发起":"To Start","新增供应商":"Add Vendor","复评中":"Re-assessing","待续约":"Renewal Due","准入评估":"Onboarding",
+    "组织架构与资产台账":"Org & Asset Register","组织架构":"Org Structure","资产台账":"Asset Register","组织树（AD 同步）":"Org Tree (AD sync)","手动同步":"Sync now","AD 同步态势":"AD Sync Status","最近同步":"Last Sync","同步用户":"Users Synced","停用（离职）":"Disabled (Left)","离职回收时效":"Deprovision SLA","资产总数":"Total Assets","信息系统":"Systems","高重要性":"High Criticality","评估覆盖率":"Assess. Coverage","资产类型分布":"Asset Type Dist.","业务流程":"Processes","数据资产":"Data Assets","供应商":"Vendors","重要性":"Criticality","登记资产":"Register Asset","核心支付网关":"Core Payment GW","商户结算系统":"Merchant Settlement","云擎科技":"YunQing Tech","反洗钱监控流程":"AML Monitoring",
+    "发送概览":"Send Overview","企微通知场景":"WeChat Scenarios","通知规则":"Rules","发送记录":"Send Log","通道管理":"Channels","今日发送":"Sent Today","成功率":"Success Rate","失败重试":"Retries","紧急级(短信)":"Urgent (SMS)","各通道用量（近7天）":"Channel Usage (7d)","企业微信":"WeChat Work","飞书":"Feishu","邮件":"Email","短信(紧急)":"SMS (urgent)","降噪与分级":"Dedup & Tiering","合并推送命中":"Merged Pushes","免打扰延迟":"DND Delayed","紧急级直达":"Urgent Direct","跨子公司拦截":"Cross-Sub Blocked","企微通知场景库":"WeChat Scenario Library","新建场景":"New Scenario","场景":"Scenario","触发":"Trigger","接收角色 / 层级":"Recipient Role/Level","内容要点":"Content","启用":"Enabled","整改期限临近":"Remediation Due Soon","整改逾期升级":"Overdue Escalation","审计发现概况":"Audit Findings Summary","评估发现概况":"Assessment Summary","法规变化提醒":"Regulatory Change Alert","管理层合规简报":"Mgmt Compliance Brief","KRI 阈值预警":"KRI Threshold Alert","制度待签署提醒":"Policy Sign-off Reminder","消息模板预览":"Message Template","规则":"Rule","触发事件":"Trigger Event","级别":"Level","通道":"Channel","高风险整改逾期":"High-Risk Overdue","法规更新推送":"Reg. Update Push","评估临近截止":"Assess. Due Soon","时间":"Time","结果":"Result","成功":"Success","重试后成功":"Retried OK","接入方式":"Method","限制":"Limits","群机器人 Webhook":"Group Bot Webhook","公司短信网关":"Corp SMS GW","已测通":"Tested OK",
+    "角色权限矩阵":"Role-Permission Matrix","角色管理":"Roles","审批流配置":"Approval Flows","角色数":"Roles","授权用户":"Authorized Users","超时审批":"Overdue Approvals","越权拦截(本月)":"Blocked (Mo.)","制度":"Policy","风险":"Risk","看板":"Dashboards","平台超级管理员":"Super Admin","信息安全负责人":"CISO","模板结构配置管理员":"Template Admin","审计执行人员":"Auditor","子公司管理层":"Subsidiary Mgmt","集团管理层":"Group Mgmt","系统/业务责任人":"System Owner","角色清单（20 角色基线）":"Roles (20 baseline)","新建角色":"New Role","职责域":"Domain","跨子公司":"Cross-Sub","授权人数":"Users","风险评估报告 · 审批流":"Risk Report · Approval Flow","发起人提交":"Submit","部门审核":"Dept. Review","安全审批":"Security Approval","集团审批":"Group Approval","业务责任人":"System Owner","部门审核人":"Dept. Reviewer","集团管理层(高风险)":"Group Mgmt (High)",
+    "管理看板":"Mgmt Dashboard","证据留痕库":"Evidence Vault","逾期率":"Overdue Rate","审计发现(季)":"Findings (Qtr)","季度":"Quarter","年度":"Year","审计发现趋势（同类问题）":"Findings Trend","访问控制类":"Access Control","日志审计类":"Logging/Audit","数据保护类":"Data Protection","备份恢复类":"Backup/Recovery","通知送达情况":"Notification Delivery","已发送":"Sent","紧急级(短信)":"Urgent (SMS)","已读响应率":"Read/Resp. Rate","证据总量":"Total Evidence","完整性校验":"Integrity Check","存储用量":"Storage Used","即将到期归档":"Archiving Due","关联":"Related","哈希(SHA256)":"Hash (SHA256)","入库":"Ingested","保留至":"Retain Until","截图":"Screenshot","记录":"Record","保密协议签署":"NDA Sign-off",
+    "风险自评填写":"Self-Assessment","保存草稿":"Save Draft","提交审核":"Submit","安全计算环境 / 访问控制":"Compute Env / Access Ctrl","数据保密性":"Data Confidentiality","是否对登录用户分配账户并鉴别身份？":"Are users authenticated with assigned accounts?","特权账号是否定期审查？":"Are privileged accounts reviewed periodically?","访问控制成熟度评分（0–5）":"Access control maturity (0–5)","数据传输是否加密（TLS1.2+）？":"Is data in transit encrypted (TLS1.2+)?","部分":"Partial","现状说明":"Current state","填写进度":"Progress","提交流程":"Submission Flow","系统负责人":"System Owner","部门负责人":"Dept. Head","当前":"Current","待":"Pending","完成":"Done","未开始":"Not Started","上传（已传 2 个）":"Upload (2)","佐证材料":"Evidence",
+    "导出 PDF":"Export PDF","复核签批":"Review & Sign","风险点":"Risk Items","高风险点":"High-Risk Items","已转整改":"To Remediation","风险点清单":"Risk Items List","结论":"Conclusion","等级":"Level","建议整改":"Suggested Fix","等级分布":"Level Distribution","存在共享账号":"Shared accounts found","部分 TLS1.1":"Partial TLS1.1","满足要求":"Compliant","结算接口访问控制":"Settlement API access","数据传输加密":"Data encryption","日志留存":"Log retention",
+    "模板配置器":"Template Builder","发布前预览测试":"Preview & Test","发布生效":"Publish","结构树":"Structure Tree","题目编辑":"Question Editor","打分 / 报告映射":"Scoring / Report","题型":"Type","题干":"Question","引用控件":"Linked Control","必填":"Required","跳题逻辑":"Skip Logic","选项：是":"Option: Yes","选项：否":"Option: No","选项：不适用":"Option: N/A","单选":"Single","权重":"Weight","打分模型":"Scoring Model","报告章节":"Report Section","判不合规建议严重度":"Suggested severity",
+    "下载正文":"Download","发起修订":"Revise","版本历史":"Version History","引用关系":"References","元数据":"Metadata","所属体系":"Framework","生效日期":"Effective Date","核心制度":"Core Policy","应确认":"Required","已确认":"Confirmed","逾期未确认":"Overdue","关系":"Relation","条款":"Clause","下位引用":"Refers to","上位依据":"Based on",
+    "导入":"Import","新建制度":"New Policy","查看范围默认仅限本子公司。C=创建　R=查看　U=修改　A=审批":"Scope defaults to own subsidiary. C=Create R=Read U=Update A=Approve",
+    "登记监管事项":"Register Item","本月待报送":"Due This Month","逾期报送":"Overdue Reports","未结问询":"Open Inquiries","处罚整改未闭环":"Open Penalty Fixes","重大事件报送":"Major Incident Report","报送日历":"Reporting Calendar","监管问询":"Inquiries","处罚与约谈":"Penalties & Talks","监管报送日历":"Reporting Calendar","报送事项":"Report Item","监管机构":"Regulator","法定时限":"Statutory Deadline","月报":"Monthly","季报":"Quarterly","年报":"Annual","编制中":"Drafting","待编制":"To Draft","已报送":"Submitted","报送达成（本年）":"Reporting (YTD)","按时报送率":"On-time Rate","临近报送":"Upcoming","登记问询":"Add Inquiry","事项":"Subject","收文日":"Received","答复期限":"Reply Due","答复留痕":"Reply Record","答复编制中":"Drafting Reply","已答复·留痕":"Replied · Logged","待监管反馈":"Awaiting Feedback","已办结":"Closed","处罚与约谈台账":"Penalty & Talk Register","事由":"Reason","整改要求":"Remediation Req.","回函状态":"Reply Status","约谈":"Talk","行政处罚":"Penalty","整改中·待回函":"Remediating · Reply Due","已回函·监管办结":"Replied · Closed","本季无重大事件报送":"No major incidents this quarter","含数据/合规属性":"with Data/Compliance Attrs","数据分级":"Data Class.","个人信息":"Personal Info","跨境":"Cross-border","等保定级":"MLPS Level","持卡人数据":"CHD","敏感":"Sensitive","内部":"Internal","三级":"L3","二级":"L2","跨境清算接口":"Cross-border Clearing","数据仓库平台":"Data Warehouse","登记":"Register",
+    "添加组件":"Add Widget","对外闭环漏斗":"External Closure Funnel","对外回函与受理":"External Reply & Acceptance","内部整改":"Internal Fix","内部已验证":"Internally Verified","已向外部机构提交":"Submitted to Body","外方受理":"Accepted by Body","外方确认关闭":"Closed by Body","外审":"Audit","报告":"Report","提交日":"Submitted","结论":"Conclusion","审核中":"Under Review","待确认":"Pending","已受理":"Accepted","要求二次举证":"More Evidence Req.","确认关闭":"Closed","导出合规举证包（含清单+校验值）":"Export Evidence Pack","关联记录":"Related Record","关联法规条款":"Related Clause","合规义务清单（Obligation Register）":"Compliance Obligation Register","新增义务":"Add Obligation","义务编号":"Obligation ID","来源法规/条款":"Source Reg./Clause","合规义务":"Obligation","关联制度/控制点":"Linked Policy/Control","证据":"Evidence","已留痕":"Logged","满足":"Met","部分满足":"Partial","缺口":"Gap","待补":"Pending","已在大屏":"On board","已添加":"Added",
+    "采集健康监控":"Collection Health"
+  };
+  var RDICT={};for(var dk in DICT){RDICT[DICT[dk]]=dk;}
+  function tnodes(node,map){
+    if(node.nodeType===3){var t=node.nodeValue.trim();if(t&&map[t]!==undefined){node.nodeValue=node.nodeValue.replace(t,map[t]);}return;}
+    if(node.nodeType!==1)return;
+    if(node.id==='crumb'||node.id==='lang'||node.tagName==='SCRIPT'||node.tagName==='STYLE'||node.tagName==='SVG')return;
+    for(var i=0;i<node.childNodes.length;i++)tnodes(node.childNodes[i],map);
+  }
+  function applyLang(){
+    tnodes(document.body,lang==='en'?DICT:RDICT);
+    var si=document.querySelector('.search input');if(si)si.setAttribute('placeholder',lang==='en'?'Search…':'搜索…');
+    var av=document.querySelector('.view.active');if(av){var cc=crumb[av.id.replace('view-','')]||[['',''],['','']];var c=cc[lang==='en'?1:0];document.getElementById('crumb').innerHTML=c[0]+' / <b>'+c[1]+'</b>';}
+  }
+  document.getElementById('lang').addEventListener('click',function(e){var b=e.target.closest('button');if(!b)return;if(b.dataset.l===lang)return;lang=b.dataset.l;this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);});applyLang();});
+  // 大屏自定义组件抽屉
+  var dr=document.getElementById('widgetDrawer'),drm=document.getElementById('drawerMask');
+  function drToggle(open){dr.classList.toggle('open',open);drm.classList.toggle('open',open);}
+  document.getElementById('dashEdit').addEventListener('click',function(){drToggle(true);});
+  document.getElementById('drawerClose').addEventListener('click',function(){drToggle(false);});
+  drm.addEventListener('click',function(){drToggle(false);});
+  dr.addEventListener('click',function(e){var c=e.target.closest('.wc');if(!c||c.classList.contains('added'))return;c.classList.add('added');var a=c.querySelector('.add');if(a)a.textContent='✓ 已添加';});
+})();
+</script>
+</body>
+</html>
