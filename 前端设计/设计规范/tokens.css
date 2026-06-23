@@ -97,7 +97,7 @@
 body.t-sand{
   --bg:#f3efe7;
   --surface:#fcfaf5; --surface-border:#e7e1d6; --blur:none; --gloss:0;
-  --side-bg:#f7f4ed; --side-fg:#6b6358; --topbar-bg:rgba(247,244,237,.92); --topbar-accent:#1f6b54; --accent-gold:#b5623f;
+  --side-bg:#f7f4ed; --side-fg:#6b6358; --topbar-bg:#f7f4ed; --topbar-accent:#1f6b54; --accent-gold:#b5623f;
   --text-1:#26221c; --text-2:#6b6358; --text-3:#9a9286; --text-4:#bcb4a8;
   --border:#e7e1d6; --border-subtle:#efe9de;
   --accent:#1f6b54; --accent-strong:#16513f; --accent-weak:#e4efe9; --accent-tint:rgba(31,107,84,.08); --accent-bright:#4f9173;
@@ -109,30 +109,31 @@ body.t-sand{
 }
 
 /* ===================== 晴空 · t-glass ===================== */
+/* 注：原型已将「晴空」落地为清透实底（青色渐变侧栏 + 纯白表面），不再使用毛玻璃/流光；本块与原型严格一致。 */
 body.t-glass{
   --bg:#eef3f6;
-  --surface:rgba(255,255,255,.7); --surface-border:rgba(255,255,255,.75);
-  --blur:blur(20px) saturate(135%); --gloss:1;
-  --side-bg:linear-gradient(180deg,rgba(255,255,255,.6),rgba(255,255,255,.25)); --side-fg:#566472; --topbar-bg:rgba(244,248,251,.55); --topbar-accent:#1f9aa6; --accent-gold:#c79a3e;
+  --surface:#ffffff; --surface-border:#e3eaf0;
+  --blur:none; --gloss:0;
+  --side-bg:linear-gradient(180deg,#1f9aa6,#147884); --side-fg:#dff1f3; --topbar-bg:#ffffff; --topbar-accent:#1f9aa6; --accent-gold:#c79a3e;
   --text-1:#1a2530; --text-2:#566472; --text-3:#8896a4; --text-4:#aab6c2;
-  --border:rgba(40,70,100,.10); --border-subtle:rgba(40,70,100,.06);
-  --accent:#1f9aa6; --accent-strong:#147884; --accent-weak:#dff1f3; --accent-tint:rgba(31,154,166,.09); --accent-bright:#39c0cb;
-  --safe:#39c0cb; --safe-weak:#dff1f3;
-  --radius-sm:10px; --radius-md:14px; --radius-lg:21px;
-  --shadow-1:0 1px 1px rgba(30,60,90,.04),0 8px 20px rgba(30,60,90,.08),0 24px 48px rgba(30,60,90,.07);
-  --shadow-2:0 4px 10px rgba(30,60,90,.07),0 18px 40px rgba(30,60,90,.13);
-  --aurora-op:.6; --aurora-1:#bfe6ef; --aurora-2:#d3cdf3; --aurora-3:#c7ecd6;
+  --border:#e3eaf0; --border-subtle:#eef2f6;
+  --accent:#1f9aa6; --accent-strong:#147884; --accent-weak:#dff1f3; --accent-tint:rgba(31,154,166,.07); --accent-bright:#39c0cb;
+  --safe:#2e6da4; --safe-weak:#e7eff7;
+  --radius-sm:10px; --radius-md:14px; --radius-lg:18px;
+  --shadow-1:0 1px 2px rgba(30,60,90,.05);
+  --shadow-2:0 2px 6px rgba(30,60,90,.06),0 10px 24px rgba(30,60,90,.08);
+  --aurora-op:0;
 }
 
 /* ===================== 苍翠 · t-emerald ===================== */
 body.t-emerald{
   --bg:#f1f3f7;
   --surface:#ffffff; --surface-border:#e6e9ef; --blur:none; --gloss:0;
-  --side-bg:#ffffff; --side-fg:#475569; --topbar-bg:rgba(255,255,255,.92); --topbar-accent:#0c9d6e; --accent-gold:#0c9d6e;
+  --side-bg:#0f172a; --side-fg:#9aa6b8; --topbar-bg:#ffffff; --topbar-accent:#0c9d6e; --accent-gold:#0c9d6e;
   --text-1:#0f172a; --text-2:#475569; --text-3:#7c8aa0; --text-4:#a3aec0;
   --border:#e6e9ef; --border-subtle:#eef1f5;
   --accent:#0c9d6e; --accent-strong:#067a55; --accent-weak:#dcf5ec; --accent-tint:#f0faf6; --accent-bright:#16a34a;
-  --safe:#16a34a; --safe-weak:#dcf5ec;
+  --safe:#0c9d6e; --safe-weak:#dcf5ec;
   --radius-sm:8px; --radius-md:10px; --radius-lg:14px;
   --shadow-1:0 1px 2px rgba(15,23,42,.05);
   --shadow-2:0 1px 3px rgba(15,23,42,.06),0 10px 22px rgba(15,23,42,.08);
@@ -143,11 +144,11 @@ body.t-emerald{
 body.t-editorial{
   --bg:#f7f4ec;
   --surface:#fffdf7; --surface-border:#e4e2d6; --blur:none; --gloss:0;
-  --side-bg:#faf8f1; --side-fg:#5c5f55; --topbar-bg:rgba(250,248,241,.92); --topbar-accent:#285c3f; --accent-gold:#9a7b32;
+  --side-bg:#faf8f1; --side-fg:#5c5f55; --topbar-bg:#faf8f1; --topbar-accent:#285c3f; --accent-gold:#9a7b32;
   --text-1:#22251f; --text-2:#5c5f55; --text-3:#8c8f83; --text-4:#b3b6aa;
   --border:#e4e2d6; --border-subtle:#edebe0;
-  --accent:#285c3f; --accent-strong:#1d4730; --accent-weak:#e5ede7; --accent-tint:rgba(40,92,63,.07); --accent-bright:#5a8a6b;
-  --safe:#5a8a6b; --safe-weak:#e5ede7;
+  --accent:#285c3f; --accent-strong:#1d4730; --accent-weak:#e5ede7; --accent-tint:rgba(40,92,63,.06); --accent-bright:#5a8a6b;
+  --safe:#285c3f; --safe-weak:#e5ede7;
   --radius-sm:4px; --radius-md:5px; --radius-lg:7px;
   --shadow-1:0 1px 2px rgba(50,45,25,.05);
   --shadow-2:0 2px 4px rgba(50,45,25,.05),0 10px 22px rgba(50,45,25,.08);
