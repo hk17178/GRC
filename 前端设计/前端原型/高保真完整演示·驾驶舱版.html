@@ -1170,12 +1170,32 @@
         </div>
 
         <div class="tabpane" data-pane="brand">
-          <div class="card"><div class="ch"><h3>平台标识</h3></div><div class="cb" style="padding:18px;display:flex;flex-direction:column;gap:14px">
-            <div class="ff"><label>平台名称</label><input class="ipt2" value="Mandao GRC"></div>
-            <div class="ff"><label>平台副名</label><input class="ipt2" value="治理 · 风险 · 合规"></div>
-            <div class="ff"><label>默认主题（新用户首登）</label><input class="ipt2" value="朱砂（t-gov）" disabled></div>
-            <div class="hint" style="font-size:11.5px;color:var(--text-4)">说明：用户切换主题后将记住其个人选择；此处仅设定新用户的默认主题。</div>
-          </div></div>
+          <div class="g g-main-side">
+            <div class="card"><div class="ch"><h3>平台标识与登录</h3><span class="sub">保存后登录页与系统左上角即时生效</span></div>
+              <div class="cb" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <div class="ff"><label>Logo 图标（上传图片替换金色色块；留空则用字母）</label>
+                  <div style="display:flex;gap:12px;align-items:center">
+                    <div class="lcp-logo" id="brandLogoPrev" style="margin-bottom:0">G</div>
+                    <label class="btn ghost" style="cursor:pointer">选择图片<input type="file" id="logoFile" accept="image/*" style="display:none"></label>
+                    <button class="btn ghost" id="logoClear">清除图片</button>
+                  </div>
+                </div>
+                <div class="ff"><label>Logo 字母（无图片时显示，1–2 字）</label><input class="ipt2" id="brandLetter" maxlength="2" value="G" style="max-width:120px"></div>
+                <div class="ff"><label>平台名称</label><input class="ipt2" id="brandName" value="Mandao GRC"></div>
+                <div class="ff"><label>平台副名</label><input class="ipt2" id="brandSub" value="治理 · 风险 · 合规"></div>
+                <div class="ff"><label>忘记密码链接（AD 自助改密 / 工单门户 URL）</label><input class="ipt2" id="forgotUrl" placeholder="https://sso.corp.com/reset"></div>
+                <div class="ff"><label>默认主题（新用户首登）</label><input class="ipt2" value="朱砂（t-gov）" disabled></div>
+                <div style="display:flex;align-items:center;gap:10px"><button class="btn" id="brandSave">保存</button><button class="btn ghost" id="brandReset">恢复默认</button><span id="brandMsg" style="font-size:12px;color:var(--success);opacity:0;transition:.2s">已保存 ✓</span></div>
+                <div class="hint" style="font-size:11.5px;color:var(--text-4);line-height:1.6">说明：Logo、名称、忘记密码链接会同步到登录页与系统；用户切换主题后记住其个人选择，此处仅设定新用户默认主题。</div>
+              </div>
+            </div>
+            <div class="card"><div class="ch"><h3>预览</h3><span class="sub">左上角标识</span></div><div class="cb" style="padding:24px 18px">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div class="lcp-logo" id="brandLogoPrev2" style="margin-bottom:0">G</div>
+                <div><div id="brandNamePrev" style="font-weight:740;font-size:16px;color:var(--text-1)">Mandao GRC</div><div id="brandSubPrev" style="font-size:12px;color:var(--text-3);margin-top:2px">治理 · 风险 · 合规</div></div>
+              </div>
+            </div></div>
+          </div>
         </div>
 
         <div class="tabpane" data-pane="prefs">
@@ -1424,6 +1444,48 @@
       var m=document.getElementById('lc-msg');if(m){m.textContent=lang==='en'?'Reset ✓':'已恢复默认 ✓';m.style.opacity=1;setTimeout(function(){m.style.opacity=0;m.textContent=lang==='en'?'Saved ✓':'已保存 ✓';},1800);}
     });
     lcLoad();
+  })();
+
+  // ===== 系统设置 · 平台标识（Logo / 名称 / 忘记密码链接，写 localStorage，登录页与系统共用） =====
+  var BRAND_DEF={letter:'G',name:'Mandao GRC',sub:'治理 · 风险 · 合规'};
+  function setLogo(el,img,letter){if(!el)return;if(img){el.textContent='';el.style.backgroundImage='url('+img+')';el.style.backgroundSize='cover';el.style.backgroundPosition='center';}else{el.style.backgroundImage='';el.textContent=letter;}}
+  function applyBrand(){
+    var img=localStorage.getItem('grc-logo-img');
+    var letter=localStorage.getItem('grc-logo-text')||BRAND_DEF.letter;
+    var name=localStorage.getItem('grc-brand-name')||BRAND_DEF.name;
+    var sub=localStorage.getItem('grc-brand-sub')||BRAND_DEF.sub;
+    setLogo(document.querySelector('.brand .logo'),img,letter);
+    var bn=document.querySelector('.brand b');if(bn)bn.textContent=name;
+    var bs=document.querySelector('.brand span');if(bs)bs.textContent=sub;
+    setLogo(document.getElementById('brandLogoPrev'),img,letter);
+    setLogo(document.getElementById('brandLogoPrev2'),img,letter);
+    var np=document.getElementById('brandNamePrev');if(np)np.textContent=name;
+    var sp=document.getElementById('brandSubPrev');if(sp)sp.textContent=sub;
+  }
+  (function bindBrand(){
+    if(!document.getElementById('brandSave'))return;
+    var letterEl=document.getElementById('brandLetter'),nameEl=document.getElementById('brandName'),subEl=document.getElementById('brandSub'),forgotEl=document.getElementById('forgotUrl');
+    letterEl.value=localStorage.getItem('grc-logo-text')||BRAND_DEF.letter;
+    nameEl.value=localStorage.getItem('grc-brand-name')||BRAND_DEF.name;
+    subEl.value=localStorage.getItem('grc-brand-sub')||BRAND_DEF.sub;
+    forgotEl.value=localStorage.getItem('grc-forgot-url')||'';
+    applyBrand();
+    function livePrev(){var img=localStorage.getItem('grc-logo-img');setLogo(document.getElementById('brandLogoPrev'),img,letterEl.value||'G');setLogo(document.getElementById('brandLogoPrev2'),img,letterEl.value||'G');document.getElementById('brandNamePrev').textContent=nameEl.value||'';document.getElementById('brandSubPrev').textContent=subEl.value||'';}
+    [letterEl,nameEl,subEl].forEach(function(el){el.addEventListener('input',livePrev);});
+    document.getElementById('logoFile').addEventListener('change',function(){var f=this.files&&this.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){localStorage.setItem('grc-logo-img',rd.result);applyBrand();};rd.readAsDataURL(f);});
+    document.getElementById('logoClear').addEventListener('click',function(){localStorage.removeItem('grc-logo-img');document.getElementById('logoFile').value='';applyBrand();});
+    document.getElementById('brandSave').addEventListener('click',function(){
+      localStorage.setItem('grc-logo-text',letterEl.value||'G');
+      localStorage.setItem('grc-brand-name',nameEl.value||BRAND_DEF.name);
+      localStorage.setItem('grc-brand-sub',subEl.value||BRAND_DEF.sub);
+      if(forgotEl.value)localStorage.setItem('grc-forgot-url',forgotEl.value);else localStorage.removeItem('grc-forgot-url');
+      applyBrand();var m=document.getElementById('brandMsg');if(m){m.style.opacity=1;setTimeout(function(){m.style.opacity=0;},1800);}
+    });
+    document.getElementById('brandReset').addEventListener('click',function(){
+      ['grc-logo-text','grc-brand-name','grc-brand-sub','grc-logo-img','grc-forgot-url'].forEach(function(k){localStorage.removeItem(k);});
+      letterEl.value=BRAND_DEF.letter;nameEl.value=BRAND_DEF.name;subEl.value=BRAND_DEF.sub;forgotEl.value='';document.getElementById('logoFile').value='';applyBrand();
+      var m=document.getElementById('brandMsg');if(m){m.textContent=lang==='en'?'Reset ✓':'已恢复默认 ✓';m.style.opacity=1;setTimeout(function(){m.style.opacity=0;m.textContent=lang==='en'?'Saved ✓':'已保存 ✓';},1800);}
+    });
   })();
 
   // 全文检索（跨模块溯源）

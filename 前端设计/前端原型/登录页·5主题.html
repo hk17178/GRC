@@ -24,10 +24,11 @@
   body{font-family:var(--font-sans);color:var(--text-1);background:var(--bg);font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh;display:flex}
   .num{font-variant-numeric:tabular-nums}
   @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
   @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 
   /* ===== brand panel ===== */
-  .brandpane{flex:1.15;min-width:0;position:relative;overflow:hidden;background:var(--side-bg);color:var(--side-fg);display:flex;flex-direction:column;justify-content:center;padding:52px 56px}
+  .brandpane{flex:1.15;min-width:0;position:relative;overflow:hidden;background:var(--side-bg);color:var(--side-fg);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:52px 56px}
   .brandpane::after{content:"";position:absolute;inset:0;background:
      radial-gradient(680px 480px at 78% 18%,rgba(255,255,255,.13),transparent 60%),
      radial-gradient(560px 420px at 12% 88%,rgba(0,0,0,.18),transparent 60%);pointer-events:none}
@@ -35,10 +36,12 @@
   .logo{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:21px;background:linear-gradient(145deg,#f0d690,var(--accent-gold));color:var(--accent-strong);box-shadow:0 6px 18px rgba(0,0,0,.2)}
   .bp-top b{font-size:19px;letter-spacing:.5px;color:#fff;font-family:var(--font-display)}
   .bp-top span{display:block;font-size:12px;opacity:.8;margin-top:2px;letter-spacing:3px}
-  .bp-mid{position:relative;z-index:2;animation:fadeUp .7s ease both}
+  .bp-mid{position:relative;z-index:2;animation:fadeIn .6s ease both}
   .bp-mid h1{font-size:36px;line-height:1.3;color:#fff;font-weight:760;letter-spacing:.5px;font-family:var(--font-display)}
-  .bp-mid p{margin-top:20px;font-size:15.5px;line-height:1.92;max-width:480px;opacity:.94;padding-left:15px;border-left:2px solid var(--accent-gold)}
-  .feats{margin-top:30px;display:flex;flex-direction:column;gap:13px;max-width:430px}
+  .bp-mid{max-width:560px}
+  .bp-mid h1::after{content:"";display:block;width:54px;height:3px;border-radius:3px;background:var(--accent-gold);margin:18px auto 0}
+  .bp-mid p{margin:18px auto 0;font-size:15.5px;line-height:1.92;max-width:470px;opacity:.94}
+  .feats{margin:30px auto 0;display:flex;flex-direction:column;gap:13px;max-width:420px;text-align:left}
   .feat{display:flex;gap:12px;align-items:flex-start;font-size:13px;opacity:.94}
   .feat .ic{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16)}
   .feat .ic svg{width:16px;height:16px;stroke:#fff}
@@ -150,15 +153,36 @@
           <button type="button" class="at" data-pane="local" data-zh="本地账号" data-en="Local Account">本地账号</button>
         </div>
 
-        <!-- 统一身份(AD)：默认登录方式（账号由 AD 统一管理） -->
+        <!-- 统一身份(AD)：默认登录方式，直接输入域账号（账号由 AD 统一管理） -->
         <div class="apane show" data-pane="sso">
-          <div class="ssohint" data-zh="企业统一身份认证，账号由 AD 统一管理，平台不单独维护账号体系" data-en="Corporate single sign-on. Accounts are managed centrally in AD.">企业统一身份认证，账号由 AD 统一管理，平台不单独维护账号体系</div>
-          <button class="btn lg" type="button" data-sso="ad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/><path d="M9 12l2 2 4-4"/></svg><span data-zh="使用统一身份登录 (AD SSO)" data-en="Sign in with Unified ID (AD SSO)">使用统一身份登录 (AD SSO)</span></button>
-          <div class="div" data-zh="或使用以下方式" data-en="or continue with">或使用以下方式</div>
-          <div class="sso">
-            <button type="button" data-sso="wecom"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-5 4z"/></svg><span data-zh="企业微信" data-en="WeChat Work">企业微信</span></button>
-            <button type="button" data-sso="feishu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10"/></svg><span data-zh="飞书" data-en="Feishu">飞书</span></button>
+          <div class="ssohint" data-zh="企业统一身份认证，请输入您的 AD 域账号" data-en="Corporate single sign-on — enter your AD domain credentials">企业统一身份认证，请输入您的 AD 域账号</div>
+          <div class="field">
+            <label data-zh="域账号" data-en="Domain Account">域账号</label>
+            <div class="ipt">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" value="CORP\chen.compliance" placeholder="DOMAIN\用户名 或 user@corp.com">
+            </div>
           </div>
+          <div class="field">
+            <label data-zh="密码" data-en="Password">密码</label>
+            <div class="ipt">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" class="pwd" value="123456" placeholder="">
+              <svg class="eye" viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+          </div>
+          <div class="field">
+            <label data-zh="验证码" data-en="Captcha">验证码</label>
+            <div class="capt">
+              <div class="ipt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><input type="text" placeholder=""></div>
+              <div class="captbox" title="点击刷新">7K9Q</div>
+            </div>
+          </div>
+          <div class="row">
+            <label class="chk"><input type="checkbox" checked><span data-zh="记住我" data-en="Remember me">记住我</span></label>
+            <a class="link forgot" href="#" target="_blank" rel="noopener" data-zh="忘记密码？" data-en="Forgot password?">忘记密码？</a>
+          </div>
+          <button class="btn" type="submit" data-zh="登 录" data-en="SIGN IN">登 录</button>
         </div>
 
         <!-- 本地账号：仅用于 AD 不可用时的应急/管理员登录 -->
@@ -174,20 +198,20 @@
             <label data-zh="密码" data-en="Password">密码</label>
             <div class="ipt">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              <input type="password" id="pwd" value="123456" placeholder="">
-              <svg class="eye" id="eye" viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              <input type="password" class="pwd" value="123456" placeholder="">
+              <svg class="eye" viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
             </div>
           </div>
           <div class="field">
             <label data-zh="验证码" data-en="Captcha">验证码</label>
             <div class="capt">
-              <div class="ipt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><input type="text" id="capt" placeholder=""></div>
-              <div class="captbox" id="captbox" title="点击刷新">7K9Q</div>
+              <div class="ipt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><input type="text" placeholder=""></div>
+              <div class="captbox" title="点击刷新">7K9Q</div>
             </div>
           </div>
           <div class="row">
-            <label class="chk"><input type="checkbox" id="remember"><span data-zh="记住我" data-en="Remember me">记住我</span></label>
-            <a class="link" href="#" data-zh="忘记密码？" data-en="Forgot password?">忘记密码？</a>
+            <label class="chk"><input type="checkbox"><span data-zh="记住我" data-en="Remember me">记住我</span></label>
+            <a class="link forgot" href="#" target="_blank" rel="noopener" data-zh="忘记密码？" data-en="Forgot password?">忘记密码？</a>
           </div>
           <button class="btn" type="submit" data-zh="登 录" data-en="SIGN IN">登 录</button>
           <div class="localnote" data-zh="本地账号仅用于 AD 不可用时的应急 / 管理员登录，登录行为将被审计留痕" data-en="Local accounts are for break-glass / admin use when AD is unavailable; all logins are audited.">本地账号仅用于 AD 不可用时的应急 / 管理员登录，登录行为将被审计留痕</div>
@@ -224,6 +248,10 @@
     var sz=localStorage.getItem('grc-login-slogan-zh'),se=localStorage.getItem('grc-login-slogan-en');
     if(tz)h1.setAttribute('data-zh',nl2br(tz));if(te)h1.setAttribute('data-en',nl2br(te));
     if(sz)p.setAttribute('data-zh',nl2br(sz));if(se)p.setAttribute('data-en',nl2br(se));
+    // 平台名称 / 副名（系统设置 → 平台标识）
+    var nm=localStorage.getItem('grc-brand-name'),sb=localStorage.getItem('grc-brand-sub');
+    if(nm){var b=document.querySelector('.bp-top b');if(b)b.textContent=nm;}
+    if(sb){var s=document.querySelector('.bp-top span');if(s){s.setAttribute('data-zh',sb);s.setAttribute('data-en',sb);}}
   })();
 
   // ——认证方式切换：默认统一身份(AD)，第二项本地账号——
@@ -247,22 +275,26 @@
   });
   applyLang();
 
-  // ——交互——
-  document.getElementById('eye').addEventListener('click',function(){
-    var p=document.getElementById('pwd');p.type=p.type==='password'?'text':'password';
-  });
-  var caps='ABCDEFGHJKLMNPQRSTUVWXY3456789';
-  document.getElementById('captbox').addEventListener('click',function(){
-    var s='';for(var i=0;i<4;i++)s+=caps[(i*7+this.textContent.charCodeAt(0)+Date.now()%29)%caps.length];
-    this.textContent=s;
+  // ——Logo 与忘记密码链接：均可在「系统设置 → 平台标识」配置，登录页在此读取——
+  (function applyBrand(){
+    var img=localStorage.getItem('grc-logo-img'),txt=localStorage.getItem('grc-logo-text');
+    document.querySelectorAll('.logo').forEach(function(el){
+      if(img){el.textContent='';el.style.backgroundImage='url('+img+')';el.style.backgroundSize='cover';el.style.backgroundPosition='center';}
+      else if(txt){el.textContent=txt;}
+    });
+    var url=localStorage.getItem('grc-forgot-url')||'';
+    document.querySelectorAll('.forgot').forEach(function(a){a.setAttribute('href',url||'#');if(!url)a.removeAttribute('target');});
+  })();
+
+  // ——交互（事件委托，兼容 AD / 本地 两套表单）——
+  document.addEventListener('click',function(e){
+    var eye=e.target.closest('.eye');
+    if(eye){var inp=eye.parentElement.querySelector('input.pwd')||eye.parentElement.querySelector('input');if(inp)inp.type=inp.type==='password'?'text':'password';return;}
+    var cb=e.target.closest('.captbox');
+    if(cb){var caps='ABCDEFGHJKLMNPQRSTUVWXY3456789',s='';for(var i=0;i<4;i++)s+=caps[(i*7+cb.textContent.charCodeAt(0)+((e.timeStamp|0)%29))%caps.length];cb.textContent=s;return;}
   });
   document.getElementById('loginForm').addEventListener('submit',function(e){
-    e.preventDefault();
-    // 演示：进入主应用（主题已写入 localStorage，应用侧会沿用）
-    window.location.href='高保真完整演示·驾驶舱版.html';
-  });
-  document.querySelectorAll('[data-sso]').forEach(function(b){
-    b.addEventListener('click',function(){window.location.href='高保真完整演示·驾驶舱版.html';});
+    e.preventDefault();window.location.href='高保真完整演示·驾驶舱版.html';
   });
 })();
 </script>
