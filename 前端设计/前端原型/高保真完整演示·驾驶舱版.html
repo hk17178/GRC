@@ -99,6 +99,16 @@
   .btn{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;border:0;border-radius:var(--radius-md);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;box-shadow:var(--shadow-1)}
   .btn.ghost{background:var(--surface);color:var(--text-2);border:1px solid var(--surface-border)}
   .btn.ghost.primary{background:var(--accent-tint);color:var(--accent-strong);border-color:var(--accent)}
+  /* 系统设置 · 登录页文案编辑 */
+  .ff label{display:block;font-size:12px;color:var(--text-2);margin-bottom:6px;font-weight:550}
+  .ff textarea,.ipt2{width:100%;border:1px solid var(--border);border-radius:var(--radius-md);background:var(--bg);padding:9px 11px;font-size:13px;color:var(--text-1);font-family:inherit;line-height:1.6}
+  .ff textarea{resize:vertical}
+  .ff textarea:focus,.ipt2:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px var(--accent-tint)}
+  .lcprev{background:var(--side-bg);color:#fff;border-radius:var(--radius-lg);padding:30px 26px;min-height:188px;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden}
+  .lcprev::after{content:"";position:absolute;inset:0;background:radial-gradient(360px 240px at 80% 18%,rgba(255,255,255,.12),transparent 60%)}
+  .lcp-logo{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:800;font-size:17px;background:linear-gradient(145deg,#f0d690,var(--accent-gold));color:var(--accent-strong);margin-bottom:16px;position:relative;z-index:2}
+  .lcp-title{font-size:21px;font-weight:740;line-height:1.34;font-family:var(--font-display);color:#fff;position:relative;z-index:2}
+  .lcp-slogan{margin-top:13px;font-size:13px;line-height:1.85;opacity:.93;padding-left:12px;border-left:2px solid var(--accent-gold);max-width:90%;position:relative;z-index:2}
   .seg{display:inline-flex;gap:3px;background:var(--surface);border:1px solid var(--surface-border);border-radius:var(--radius-md);padding:3px;box-shadow:var(--shadow-1)}
   .seg button{border:0;background:none;padding:6px 12px;font-size:11.5px;color:var(--text-2);border-radius:var(--radius-sm);cursor:pointer}
   .seg button.on{background:linear-gradient(135deg,var(--accent),var(--accent-strong));color:#fff;font-weight:600}
@@ -302,6 +312,7 @@
       <a data-view="notify"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/></svg>通知中心</a>
       <a data-view="perm"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>权限与审批</a>
       <a data-view="board"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>看板与留痕</a>
+      <a data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>系统设置</a>
     </nav>
   </aside>
   <div class="main">
@@ -1129,6 +1140,51 @@
         </div>
       </section>
 
+      <!-- ===== 系统设置 ===== -->
+      <section class="view" id="view-settings">
+        <div class="phead"><div><div class="kqt">System · Settings</div><h1>系统设置 <small>登录页与平台外观可在此维护</small></h1></div></div>
+        <div class="tabbar"><button class="on" data-tab="login">登录页文案</button><button data-tab="brand">平台标识</button><button data-tab="prefs">通用偏好</button></div>
+
+        <div class="tabpane show" data-pane="login">
+          <div class="g g-main-side">
+            <div class="card"><div class="ch"><h3>登录页文案</h3><span class="sub">保存后在下次登录页生效，支持随时更新</span></div>
+              <div class="cb" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+                <div class="ff"><label>主标题（中文，换行用回车）</label><textarea id="lc-title-zh" rows="2"></textarea></div>
+                <div class="ff"><label>主标题（English）</label><textarea id="lc-title-en" rows="2"></textarea></div>
+                <div class="ff"><label>副标题 / 口号（中文）</label><textarea id="lc-slogan-zh" rows="3"></textarea></div>
+                <div class="ff"><label>副标题 / 口号（English）</label><textarea id="lc-slogan-en" rows="3"></textarea></div>
+                <div style="display:flex;align-items:center;gap:10px;margin-top:2px">
+                  <button class="btn" id="lc-save">保存</button>
+                  <button class="btn ghost" id="lc-reset">恢复默认</button>
+                  <span id="lc-msg" style="font-size:12px;color:var(--success);opacity:0;transition:.2s">已保存 ✓</span>
+                </div>
+                <div class="hint" style="font-size:11.5px;color:var(--text-4);line-height:1.6">提示：主标题、口号支持中英文双语；登录页按所选语言展示。修改仅影响登录页展示文案，不涉及账号与权限。</div>
+              </div>
+            </div>
+            <div class="card"><div class="ch"><h3>实时预览</h3><span class="sub">登录页品牌区</span></div>
+              <div class="cb" style="padding:18px">
+                <div class="lcprev"><div class="lcp-logo">G</div><div class="lcp-title" id="lcp-title"></div><div class="lcp-slogan" id="lcp-slogan"></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tabpane" data-pane="brand">
+          <div class="card"><div class="ch"><h3>平台标识</h3></div><div class="cb" style="padding:18px;display:flex;flex-direction:column;gap:14px">
+            <div class="ff"><label>平台名称</label><input class="ipt2" value="Mandao GRC"></div>
+            <div class="ff"><label>平台副名</label><input class="ipt2" value="治理 · 风险 · 合规"></div>
+            <div class="ff"><label>默认主题（新用户首登）</label><input class="ipt2" value="朱砂（t-gov）" disabled></div>
+            <div class="hint" style="font-size:11.5px;color:var(--text-4)">说明：用户切换主题后将记住其个人选择；此处仅设定新用户的默认主题。</div>
+          </div></div>
+        </div>
+
+        <div class="tabpane" data-pane="prefs">
+          <div class="card"><div class="ch"><h3>通用偏好</h3></div><div class="cb" style="padding:18px;color:var(--text-3);font-size:12.5px;line-height:1.8">
+            语言默认、时区与本地化、会话超时、密码与登录策略（本地账号）等偏好项在此维护——本演示从略。
+          </div></div>
+        </div>
+      </section>
+
     </div>
   </div>
 </div>
@@ -1179,9 +1235,9 @@
 <script>
 (function(){
   var lang='zh';
-  var crumb={dashboard:[['概览','合规态势'],['Overview','Compliance Posture']],riskindex:[['概览','综合风险指数构成'],['Overview','Risk Index Breakdown']],todo:[['概览','我的待办'],['Overview','My Tasks']],extaudit:[['业务','外部审计'],['Business','External Audit']],policy:[['业务','制度体系'],['Business','Policies']],'policy-detail':[['业务','制度详情'],['Business','Policy Detail']],risk:[['业务','风险评估'],['Business','Risk Assessment']],'assess-fill':[['业务','风险自评填写'],['Business','Self-Assessment']],'assess-report':[['业务','评估报告'],['Business','Assessment Report']],'template-config':[['业务','模板配置器'],['Business','Template Builder']],audit:[['业务','内部审计'],['Business','Internal Audit']],law:[['业务','法规跟踪'],['Business','Regulatory Tracking']],regaffairs:[['业务','监管事项'],['Business','Regulatory Affairs']],ai:[['业务','AI 智能问答'],['Business','AI Assistant']],vendor:[['业务','第三方供应商'],['Business','Third-Party']],'vendor-detail':[['业务','供应商详情'],['Business','Vendor Detail']],org:[['资产与组织','组织与资产'],['Assets & Org','Org & Assets']],notify:[['系统管理','通知中心'],['Administration','Notifications']],perm:[['系统管理','权限与审批'],['Administration','Access & Approval']],board:[['系统管理','看板与留痕'],['Administration','Dashboard & Evidence']]};
-  var I18N={grp:{zh:['概览','业务','资产与组织','系统管理'],en:['Overview','Business','Assets & Org','Administration']},nav:{dashboard:['合规态势','Compliance Posture'],todo:['我的待办','My Tasks'],extaudit:['外部审计','External Audit'],audit:['内部审计','Internal Audit'],risk:['风险评估','Risk Assessment'],law:['法规跟踪','Regulatory Tracking'],policy:['制度体系','Policies'],ai:['AI 智能问答','AI Assistant'],vendor:['第三方供应商','Third-Party'],org:['组织与资产','Org & Assets'],notify:['通知中心','Notifications'],perm:['权限与审批','Access & Approval'],board:['看板与留痕','Dashboard & Evidence']}};
-  var navV={dashboard:1,todo:1,extaudit:1,policy:1,risk:1,audit:1,law:1,regaffairs:1,ai:1,vendor:1,org:1,notify:1,perm:1,board:1};
+  var crumb={dashboard:[['概览','合规态势'],['Overview','Compliance Posture']],riskindex:[['概览','综合风险指数构成'],['Overview','Risk Index Breakdown']],todo:[['概览','我的待办'],['Overview','My Tasks']],extaudit:[['业务','外部审计'],['Business','External Audit']],policy:[['业务','制度体系'],['Business','Policies']],'policy-detail':[['业务','制度详情'],['Business','Policy Detail']],risk:[['业务','风险评估'],['Business','Risk Assessment']],'assess-fill':[['业务','风险自评填写'],['Business','Self-Assessment']],'assess-report':[['业务','评估报告'],['Business','Assessment Report']],'template-config':[['业务','模板配置器'],['Business','Template Builder']],audit:[['业务','内部审计'],['Business','Internal Audit']],law:[['业务','法规跟踪'],['Business','Regulatory Tracking']],regaffairs:[['业务','监管事项'],['Business','Regulatory Affairs']],ai:[['业务','AI 智能问答'],['Business','AI Assistant']],vendor:[['业务','第三方供应商'],['Business','Third-Party']],'vendor-detail':[['业务','供应商详情'],['Business','Vendor Detail']],org:[['资产与组织','组织与资产'],['Assets & Org','Org & Assets']],notify:[['系统管理','通知中心'],['Administration','Notifications']],perm:[['系统管理','权限与审批'],['Administration','Access & Approval']],board:[['系统管理','看板与留痕'],['Administration','Dashboard & Evidence']],settings:[['系统管理','系统设置'],['Administration','Settings']]};
+  var I18N={grp:{zh:['概览','业务','资产与组织','系统管理'],en:['Overview','Business','Assets & Org','Administration']},nav:{dashboard:['合规态势','Compliance Posture'],todo:['我的待办','My Tasks'],extaudit:['外部审计','External Audit'],audit:['内部审计','Internal Audit'],risk:['风险评估','Risk Assessment'],law:['法规跟踪','Regulatory Tracking'],policy:['制度体系','Policies'],ai:['AI 智能问答','AI Assistant'],vendor:['第三方供应商','Third-Party'],org:['组织与资产','Org & Assets'],notify:['通知中心','Notifications'],perm:['权限与审批','Access & Approval'],board:['看板与留痕','Dashboard & Evidence'],settings:['系统设置','Settings']}};
+  var navV={dashboard:1,todo:1,extaudit:1,policy:1,risk:1,audit:1,law:1,regaffairs:1,ai:1,vendor:1,org:1,notify:1,perm:1,board:1,settings:1};
   function show(v){
     document.querySelectorAll('.view').forEach(function(s){s.classList.remove('active');});
     var el=document.getElementById('view-'+v); if(!el)return; el.classList.add('active');
@@ -1249,7 +1305,8 @@
     "权限审阅(UAR)":"Access Review (UAR)","越权与特权明细":"Violations & Privileges","本期应审阅角色":"Roles to Review","已审阅":"Reviewed","特权账号":"Privileged Accts","本期已回收":"Revoked","待复核":"To Recheck","权限审阅活动（季度）":"Access Reviews (Qtr)","发起审阅":"Start Review","审阅活动":"Review","范围":"Scope","复核人":"Reviewer","保留/回收":"Keep/Revoke","已完成·签认":"Done · Signed","越权拦截明细":"Blocked Access Detail","账号":"Account","尝试访问":"Attempted","拒绝原因":"Reason","跨子公司越权":"Cross-sub violation","角色不足":"Insufficient role","越权导出":"Unauthorized export","特权账号清单":"Privileged Accounts","系统":"System","最近审查":"Last Review","待审查":"To Review","风险处置与残余风险":"Risk Treatment & Residual","风险点":"Risk Item","固有风险":"Inherent","处置决策":"Decision","处置措施":"Action","残余风险":"Residual","责任人接受":"Owner Acceptance","降低":"Mitigate","接受":"Accept","待签认":"Pending Sign","管理层已接受":"Mgmt Accepted",
     "构成与归因 →":"Breakdown →","综合风险指数 · 构成与归因":"Risk Index · Breakdown","当前指数":"Current Index","环比":"QoQ","最高风险域":"Top Domain","数据时点":"As of","按风险域构成（加权贡献）":"By Domain (weighted)","环比归因":"QoQ Attribution","近 6 季趋势":"6-Qtr Trend","计算口径":"Methodology","各子公司 × 体系 · 合规达成度对比":"Subsidiary × Framework Compliance","同类问题 · 各子公司复发次数":"Recurring by Subsidiary","平台操作审计日志":"Platform Audit Log","操作人":"Actor","操作":"Action","来源 IP":"Source IP","修改 KRI 阈值":"Edit KRI threshold","导出数据":"Export data","权限授予":"Grant permission","发布制度":"Publish policy","跨子公司对比":"Cross-Subsidiary","操作审计日志":"Audit Log","← 返回合规态势":"← Back to Posture","← 返回评估任务":"← Back to Assessments","← 返回模板库":"← Back to Templates","← 返回供应商台账":"← Back to Vendors","← 返回制度台账":"← Back to Policies",
     "评估闭环":"Assessment Loop","首次(准入)评估":"Initial (Onboarding)","定期评估(本年)":"Periodic (YTD)","未闭环整改":"Open Remediation","按时复评率":"On-time Rate","供应商评估记录":"Vendor Assessments","评估类型":"Type","发现":"Findings","准入(首次)":"Onboarding","年度定期":"Annual","续约评估":"Renewal","已闭环":"Closed","评估闭环漏斗":"Assessment Funnel","已评估":"Assessed","有发现":"With Findings","定期评估计划":"Periodic Plan","本月到期复评":"Due This Month","技术安全与合规评估":"Technical Security & Compliance","维度":"Dimension","情况":"Status","触达持卡人数据(PCI)":"Touches CHD (PCI)","自身认证":"Own Certs","再委托(四方)":"Subprocessors","数据处理协议(DPA)":"Data Processing Agreement (DPA)","已签署":"Signed","资产 - 威胁 - 脆弱性建模":"Asset-Threat-Vulnerability","资产":"Asset","威胁源":"Threat","脆弱性":"Vulnerability","可能性":"Likelihood","影响":"Impact","个人信息处理活动(ROPA)":"Processing Activities (ROPA)","个人信息处理活动记录（ROPA）":"Records of Processing (ROPA)","处理活动":"Activity","处理目的":"Purpose","个人信息类型":"PI Type","数据量级":"Volume","敏感":"Sensitive","出境":"Cross-border","保留期":"Retention","新增活动":"Add Activity","年度合规计划":"Annual Compliance Plan","年度合规事项":"Annual Items","2026 年度合规计划":"2026 Compliance Plan","新增事项":"Add Item","测评":"Assessment","培训":"Training","检查":"Inspection","自评":"Self-Assess","计划完成":"Target","管理层回应":"Mgmt Response","接受风险":"Accept Risk","已接受·签认":"Accepted · Signed","生成本季度合规自评报告初稿":"Draft quarterly self-assessment",
-    "采集健康监控":"Collection Health"
+    "采集健康监控":"Collection Health",
+    "系统设置":"Settings","登录页与平台外观可在此维护":"Manage login page & appearance here","登录页文案":"Login Page Copy","平台标识":"Branding","通用偏好":"Preferences","保存后在下次登录页生效，支持随时更新":"Applies on next login · editable anytime","主标题（中文，换行用回车）":"Title (Chinese, Enter = line break)","主标题（English）":"Title (English)","副标题 / 口号（中文）":"Slogan (Chinese)","副标题 / 口号（English）":"Slogan (English)","保存":"Save","恢复默认":"Reset","已保存 ✓":"Saved ✓","实时预览":"Live Preview","登录页品牌区":"Login brand panel","平台名称":"Platform Name","平台副名":"Sub-name","默认主题（新用户首登）":"Default Theme (first login)","平台名称":"Platform Name"
   };
   var RDICT={};for(var dk in DICT){RDICT[DICT[dk]]=dk;}
   function tnodes(node,map){
@@ -1339,6 +1396,36 @@
     if(editing){ensureChrome(gi);gi.draggable=true;}
     saveLayout();
   });
+  // ===== 系统设置 · 登录页文案编辑（写入 localStorage，登录页读取覆盖默认） =====
+  var LC_DEF={
+    'title-zh':'集团一体化\n治理 · 风险 · 合规平台',
+    'title-en':'Group-wide\nGovernance · Risk · Compliance',
+    'slogan-zh':'一个平台，穿透集团至各子公司的风险底数与合规义务——让治理决策有据可依、风险敞口实时可控、合规价值持续沉淀。',
+    'slogan-en':'One platform, seeing through risk and obligations from the group down to every subsidiary — decisions grounded in data, exposure under real-time control, compliance value that compounds.'
+  };
+  var LC_KEYS=['title-zh','title-en','slogan-zh','slogan-en'];
+  function lcGet(k){return localStorage.getItem('grc-login-'+k)||LC_DEF[k];}
+  function lcPrev(){
+    var tz=document.getElementById('lc-title-zh'),sz=document.getElementById('lc-slogan-zh');
+    var pt=document.getElementById('lcp-title'),ps=document.getElementById('lcp-slogan');
+    if(pt)pt.innerHTML=(tz?tz.value:LC_DEF['title-zh']).replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    if(ps)ps.textContent=sz?sz.value:LC_DEF['slogan-zh'];
+  }
+  function lcLoad(){LC_KEYS.forEach(function(k){var el=document.getElementById('lc-'+k);if(el)el.value=lcGet(k);});lcPrev();}
+  (function bindSettings(){
+    if(!document.getElementById('lc-save'))return;
+    LC_KEYS.forEach(function(k){var el=document.getElementById('lc-'+k);if(el)el.addEventListener('input',lcPrev);});
+    document.getElementById('lc-save').addEventListener('click',function(){
+      LC_KEYS.forEach(function(k){var el=document.getElementById('lc-'+k);if(el)localStorage.setItem('grc-login-'+k,el.value);});
+      var m=document.getElementById('lc-msg');if(m){m.style.opacity=1;setTimeout(function(){m.style.opacity=0;},1800);}
+    });
+    document.getElementById('lc-reset').addEventListener('click',function(){
+      LC_KEYS.forEach(function(k){localStorage.removeItem('grc-login-'+k);});lcLoad();
+      var m=document.getElementById('lc-msg');if(m){m.textContent=lang==='en'?'Reset ✓':'已恢复默认 ✓';m.style.opacity=1;setTimeout(function(){m.style.opacity=0;m.textContent=lang==='en'?'Saved ✓':'已保存 ✓';},1800);}
+    });
+    lcLoad();
+  })();
+
   // 全文检索（跨模块溯源）
   var gs=document.getElementById('gsearch'),srp=document.getElementById('sresults');
   if(gs){

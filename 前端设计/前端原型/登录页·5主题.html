@@ -27,17 +27,17 @@
   @keyframes floatY{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
 
   /* ===== brand panel ===== */
-  .brandpane{flex:1.15;min-width:0;position:relative;overflow:hidden;background:var(--side-bg);color:var(--side-fg);display:flex;flex-direction:column;justify-content:space-between;padding:52px 56px}
+  .brandpane{flex:1.15;min-width:0;position:relative;overflow:hidden;background:var(--side-bg);color:var(--side-fg);display:flex;flex-direction:column;justify-content:center;padding:52px 56px}
   .brandpane::after{content:"";position:absolute;inset:0;background:
      radial-gradient(680px 480px at 78% 18%,rgba(255,255,255,.13),transparent 60%),
      radial-gradient(560px 420px at 12% 88%,rgba(0,0,0,.18),transparent 60%);pointer-events:none}
-  .bp-top{display:flex;align-items:center;gap:13px;position:relative;z-index:2}
+  .bp-top{display:flex;align-items:center;gap:13px;position:absolute;top:46px;left:56px;z-index:3}
   .logo{width:46px;height:46px;border-radius:13px;display:grid;place-items:center;font-weight:800;font-size:21px;background:linear-gradient(145deg,#f0d690,var(--accent-gold));color:var(--accent-strong);box-shadow:0 6px 18px rgba(0,0,0,.2)}
   .bp-top b{font-size:19px;letter-spacing:.5px;color:#fff;font-family:var(--font-display)}
   .bp-top span{display:block;font-size:12px;opacity:.8;margin-top:2px;letter-spacing:3px}
   .bp-mid{position:relative;z-index:2;animation:fadeUp .7s ease both}
-  .bp-mid h1{font-size:34px;line-height:1.32;color:#fff;font-weight:760;letter-spacing:.5px;font-family:var(--font-display)}
-  .bp-mid p{margin-top:16px;font-size:14px;line-height:1.9;max-width:430px;opacity:.9}
+  .bp-mid h1{font-size:36px;line-height:1.3;color:#fff;font-weight:760;letter-spacing:.5px;font-family:var(--font-display)}
+  .bp-mid p{margin-top:20px;font-size:15.5px;line-height:1.92;max-width:480px;opacity:.94;padding-left:15px;border-left:2px solid var(--accent-gold)}
   .feats{margin-top:30px;display:flex;flex-direction:column;gap:13px;max-width:430px}
   .feat{display:flex;gap:12px;align-items:flex-start;font-size:13px;opacity:.94}
   .feat .ic{width:30px;height:30px;border-radius:9px;flex-shrink:0;display:grid;place-items:center;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.16)}
@@ -64,7 +64,16 @@
   .fp-body{flex:1;display:flex;align-items:center;justify-content:center;padding:10px 40px 30px}
   .card{width:100%;max-width:392px;background:var(--surface);border:1px solid var(--surface-border);border-radius:calc(var(--radius-lg) + 6px);box-shadow:var(--shadow-2);padding:38px 38px 32px;animation:fadeUp .55s ease both}
   .card h2{font-size:23px;font-weight:740;letter-spacing:.3px;font-family:var(--font-display)}
-  .card .sub{color:var(--text-3);font-size:13px;margin-top:7px;margin-bottom:26px}
+  .card .sub{color:var(--text-3);font-size:13px;margin-top:7px;margin-bottom:20px}
+  .authtabs{display:flex;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-md);padding:4px;margin-bottom:22px}
+  .authtabs .at{flex:1;border:0;background:transparent;padding:9px 6px;border-radius:calc(var(--radius-md) - 1px);font-size:13px;color:var(--text-2);cursor:pointer;font-family:inherit;font-weight:550;transition:.16s}
+  .authtabs .at.on{background:var(--surface);color:var(--accent-strong);box-shadow:var(--shadow-2);font-weight:660}
+  .apane{display:none}
+  .apane.show{display:block;animation:fadeUp .32s ease both}
+  .ssohint{font-size:12.5px;color:var(--text-3);line-height:1.7;margin-bottom:16px;text-align:center}
+  .btn.lg{height:48px;font-size:14.5px;letter-spacing:.5px}
+  .btn.lg svg{width:18px;height:18px;margin-right:2px}
+  .localnote{margin-top:16px;font-size:11.5px;color:var(--text-4);line-height:1.65;text-align:center}
   .field{margin-bottom:16px}
   .field label{display:block;font-size:12.5px;color:var(--text-2);margin-bottom:7px;font-weight:550}
   .ipt{position:relative}
@@ -109,19 +118,12 @@
     </div>
     <div class="bp-mid">
       <h1 data-zh="集团一体化<br>治理 · 风险 · 合规平台" data-en="Group-wide<br>Governance · Risk · Compliance">集团一体化<br>治理 · 风险 · 合规平台</h1>
-      <p data-zh="面向非银行支付机构集团的统一合规中枢——风险评估、制度法规、内外部审计、监管事项与第三方供应商全周期闭环管理，按子公司严格隔离。" data-en="A unified compliance hub for non-bank payment groups — closed-loop management across risk, policy, audit, regulatory affairs and third-party vendors, strictly isolated by subsidiary.">面向非银行支付机构集团的统一合规中枢——风险评估、制度法规、内外部审计、监管事项与第三方供应商全周期闭环管理，按子公司严格隔离。</p>
+      <p data-zh="一个平台，穿透集团至各子公司的风险底数与合规义务——让治理决策有据可依、风险敞口实时可控、合规价值持续沉淀。" data-en="One platform, seeing through risk and obligations from the group down to every subsidiary — decisions grounded in data, exposure under real-time control, compliance value that compounds.">一个平台，穿透集团至各子公司的风险底数与合规义务——让治理决策有据可依、风险敞口实时可控、合规价值持续沉淀。</p>
       <div class="feats">
         <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg></span><div><b data-zh="五级风险与 KRI 监控" data-en="5-Level Risk & KRI">五级风险与 KRI 监控</b><em data-zh="资产-威胁-脆弱性建模、残余风险与管理层接受" data-en="Asset-Threat-Vuln modeling, residual risk & acceptance">资产-威胁-脆弱性建模、残余风险与管理层接受</em></div></div>
         <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 11l3 3 8-8M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span><div><b data-zh="内外审与监管事项闭环" data-en="Audit & Regulatory Closure">内外审与监管事项闭环</b><em data-zh="整改 → 对外回函 → 外方确认，报送日历与法定时限预警" data-en="Remediation → external reply → closure, statutory deadlines">整改 → 对外回函 → 外方确认，报送日历与法定时限预警</em></div></div>
         <div class="feat"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></span><div><b data-zh="AI 合规助手（不越权）" data-en="AI Assistant (scoped)">AI 合规助手（不越权）</b><em data-zh="按权限过滤的智能问答、合规自评报告生成与举证溯源" data-en="Permission-scoped Q&A, self-assessment drafting & evidence trace">按权限过滤的智能问答、合规自评报告生成与举证溯源</em></div></div>
       </div>
-    </div>
-    <div class="bp-bot">
-      <span class="badge">等保三级</span>
-      <span class="badge">ISO 27001</span>
-      <span class="badge">PCI DSS</span>
-      <span class="badge">PIPL</span>
-      <span class="badge" data-zh="人民银行监管" data-en="PBOC Supervised">人民银行监管</span>
     </div>
   </div>
 
@@ -141,44 +143,54 @@
     <div class="fp-body">
       <form class="card" id="loginForm" autocomplete="off">
         <h2 data-zh="欢迎登录" data-en="Welcome back">欢迎登录</h2>
-        <div class="sub" data-zh="请使用企业账号登录合规管理平台" data-en="Sign in with your corporate account">请使用企业账号登录合规管理平台</div>
+        <div class="sub" data-zh="请选择登录方式接入合规管理平台" data-en="Choose a sign-in method to access the platform">请选择登录方式接入合规管理平台</div>
 
-        <div class="field">
-          <label data-zh="账号 / 企业邮箱" data-en="Account / Email">账号 / 企业邮箱</label>
-          <div class="ipt">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-            <input type="text" id="acct" value="chen.compliance" placeholder="">
+        <div class="authtabs" id="authTabs">
+          <button type="button" class="at on" data-pane="sso" data-zh="统一身份登录(AD)" data-en="Unified ID (AD)">统一身份登录(AD)</button>
+          <button type="button" class="at" data-pane="local" data-zh="本地账号" data-en="Local Account">本地账号</button>
+        </div>
+
+        <!-- 统一身份(AD)：默认登录方式（账号由 AD 统一管理） -->
+        <div class="apane show" data-pane="sso">
+          <div class="ssohint" data-zh="企业统一身份认证，账号由 AD 统一管理，平台不单独维护账号体系" data-en="Corporate single sign-on. Accounts are managed centrally in AD.">企业统一身份认证，账号由 AD 统一管理，平台不单独维护账号体系</div>
+          <button class="btn lg" type="button" data-sso="ad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/><path d="M9 12l2 2 4-4"/></svg><span data-zh="使用统一身份登录 (AD SSO)" data-en="Sign in with Unified ID (AD SSO)">使用统一身份登录 (AD SSO)</span></button>
+          <div class="div" data-zh="或使用以下方式" data-en="or continue with">或使用以下方式</div>
+          <div class="sso">
+            <button type="button" data-sso="wecom"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-5 4z"/></svg><span data-zh="企业微信" data-en="WeChat Work">企业微信</span></button>
+            <button type="button" data-sso="feishu"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M7 20h10"/></svg><span data-zh="飞书" data-en="Feishu">飞书</span></button>
           </div>
         </div>
 
-        <div class="field">
-          <label data-zh="密码" data-en="Password">密码</label>
-          <div class="ipt">
-            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-            <input type="password" id="pwd" value="123456" placeholder="">
-            <svg class="eye" id="eye" viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+        <!-- 本地账号：仅用于 AD 不可用时的应急/管理员登录 -->
+        <div class="apane" data-pane="local">
+          <div class="field">
+            <label data-zh="账号 / 企业邮箱" data-en="Account / Email">账号 / 企业邮箱</label>
+            <div class="ipt">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input type="text" id="acct" value="admin.local" placeholder="">
+            </div>
           </div>
-        </div>
-
-        <div class="field">
-          <label data-zh="验证码" data-en="Captcha">验证码</label>
-          <div class="capt">
-            <div class="ipt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><input type="text" id="capt" placeholder=""></div>
-            <div class="captbox" id="captbox" title="点击刷新">7K9Q</div>
+          <div class="field">
+            <label data-zh="密码" data-en="Password">密码</label>
+            <div class="ipt">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              <input type="password" id="pwd" value="123456" placeholder="">
+              <svg class="eye" id="eye" viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
           </div>
-        </div>
-
-        <div class="row">
-          <label class="chk"><input type="checkbox" id="remember" checked><span data-zh="记住我" data-en="Remember me">记住我</span></label>
-          <a class="link" href="#" data-zh="忘记密码？" data-en="Forgot password?">忘记密码？</a>
-        </div>
-
-        <button class="btn" type="submit" data-zh="登 录" data-en="SIGN IN">登 录</button>
-
-        <div class="div" data-zh="或使用企业统一身份" data-en="or use corporate SSO">或使用企业统一身份</div>
-        <div class="sso">
-          <button type="button" data-sso="wecom"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8l-5 4z"/></svg><span data-zh="企业微信" data-en="WeChat Work">企业微信</span></button>
-          <button type="button" data-sso="ad"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2 3 7v6c0 5 3.8 8.5 9 10 5.2-1.5 9-5 9-10V7z"/></svg><span data-zh="统一身份(AD)" data-en="AD SSO">统一身份(AD)</span></button>
+          <div class="field">
+            <label data-zh="验证码" data-en="Captcha">验证码</label>
+            <div class="capt">
+              <div class="ipt"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.8"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg><input type="text" id="capt" placeholder=""></div>
+              <div class="captbox" id="captbox" title="点击刷新">7K9Q</div>
+            </div>
+          </div>
+          <div class="row">
+            <label class="chk"><input type="checkbox" id="remember"><span data-zh="记住我" data-en="Remember me">记住我</span></label>
+            <a class="link" href="#" data-zh="忘记密码？" data-en="Forgot password?">忘记密码？</a>
+          </div>
+          <button class="btn" type="submit" data-zh="登 录" data-en="SIGN IN">登 录</button>
+          <div class="localnote" data-zh="本地账号仅用于 AD 不可用时的应急 / 管理员登录，登录行为将被审计留痕" data-en="Local accounts are for break-glass / admin use when AD is unavailable; all logins are audited.">本地账号仅用于 AD 不可用时的应急 / 管理员登录，登录行为将被审计留痕</div>
         </div>
       </form>
     </div>
@@ -202,6 +214,23 @@
     document.body.className=b.dataset.theme;
     localStorage.setItem(KEY,b.dataset.theme);                 // 记忆，供主应用沿用
     this.querySelectorAll('.tp').forEach(function(x){x.classList.toggle('on',x===b);});
+  });
+
+  // ——登录页文案：可在「系统设置 → 登录页文案」编辑，存 localStorage，登录页在此读取覆盖默认——
+  (function applyCopy(){
+    var h1=document.querySelector('.bp-mid h1'),p=document.querySelector('.bp-mid p');
+    function nl2br(s){return s.replace(/\n/g,'<br>');}
+    var tz=localStorage.getItem('grc-login-title-zh'),te=localStorage.getItem('grc-login-title-en');
+    var sz=localStorage.getItem('grc-login-slogan-zh'),se=localStorage.getItem('grc-login-slogan-en');
+    if(tz)h1.setAttribute('data-zh',nl2br(tz));if(te)h1.setAttribute('data-en',nl2br(te));
+    if(sz)p.setAttribute('data-zh',nl2br(sz));if(se)p.setAttribute('data-en',nl2br(se));
+  })();
+
+  // ——认证方式切换：默认统一身份(AD)，第二项本地账号——
+  document.getElementById('authTabs').addEventListener('click',function(e){
+    var b=e.target.closest('.at');if(!b)return;
+    this.querySelectorAll('.at').forEach(function(x){x.classList.toggle('on',x===b);});
+    document.querySelectorAll('.apane').forEach(function(p){p.classList.toggle('show',p.dataset.pane===b.dataset.pane);});
   });
 
   // ——语言——
