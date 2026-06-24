@@ -1,6 +1,9 @@
 package com.mandao.grc.modules.regulatory;
 
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,12 +28,19 @@ import java.util.List;
 @Service
 public class RegFilingService {
 
+    /** 报送复核审批的业务类型与审批候选组（Flowable）。 */
+    public static final String FILING_BIZ_TYPE = "REG_FILING";
+    public static final String FILING_APPROVER_GROUP = "REG_FILING_APPROVER";
+
     private final RegFilingRepository repository;
     private final HashChainService hashChainService;
+    private final WorkflowService workflowService;
 
-    public RegFilingService(RegFilingRepository repository, HashChainService hashChainService) {
+    public RegFilingService(RegFilingRepository repository, HashChainService hashChainService,
+                            WorkflowService workflowService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
+        this.workflowService = workflowService;
     }
 
     /** 列出可见组织范围内的报送事项（无 org 过滤，靠切面 + RLS）。 */
@@ -72,14 +82,47 @@ public class RegFilingService {
         return saved;
     }
 
-    /** 报送：DRAFTING → SUBMITTED。 */
+    /**
+     * 提交内部复核（A5 报送审批化）：DRAFTING → PENDING_REVIEW，并启动 Flowable 复核审批。
+     * 报送材料须经内部复核通过后方可正式报送监管机构。
+     */
     @Transactional
-    public RegFiling submit(Long id, String actor) {
+    public RegFiling submitForReview(Long id, String actor) {
         RegFiling f = get(id);
-        transition(f, RegFilingStatus.DRAFTING, RegFilingStatus.SUBMITTED);
+        transition(f, RegFilingStatus.DRAFTING, RegFilingStatus.PENDING_REVIEW);
         RegFiling saved = repository.save(f);
-        appendLog(saved, "REG_FILING_SUBMIT", actor, "已提交监管机构");
+        appendLog(saved, "REG_FILING_SUBMIT_REVIEW", actor, "提交报送复核");
+        workflowService.submit(FILING_BIZ_TYPE, saved.getId(), saved.getOrgId(), FILING_APPROVER_GROUP, actor);
         return saved;
+    }
+
+    /**
+     * 复核处置（A5）：定位该报送进行中的复核任务 → {@link WorkflowService#decide} 完成 →
+     * 通过则 PENDING_REVIEW → SUBMITTED（正式报送）；驳回则 PENDING_REVIEW → DRAFTING（退回起草）。同事务原子 + 留痕。
+     */
+    @Transactional
+    public RegFiling decideSubmit(Long id, ApprovalDecision decision, String approver, String comment) {
+        RegFiling f = get(id);
+        if (f.getStatus() != RegFilingStatus.PENDING_REVIEW) {
+            throw new IllegalStateException("仅复核中(PENDING_REVIEW)的报送可处置，当前状态：" + f.getStatus());
+        }
+        Task task = workflowService.activeTask(FILING_BIZ_TYPE, id);
+        if (task == null) {
+            throw new IllegalStateException("报送 id=" + id + " 无进行中的复核审批任务");
+        }
+        workflowService.decide(task.getId(), decision, approver, comment);
+        if (decision == ApprovalDecision.APPROVED) {
+            f.setStatus(RegFilingStatus.SUBMITTED);
+            RegFiling saved = repository.save(f);
+            appendLog(saved, "REG_FILING_SUBMIT", approver, "复核通过，已提交监管机构");
+            return saved;
+        } else {
+            f.setStatus(RegFilingStatus.DRAFTING);
+            RegFiling saved = repository.save(f);
+            appendLog(saved, "REG_FILING_REVIEW_REJECT", approver,
+                    "复核驳回退回起草：" + (comment == null ? "" : comment));
+            return saved;
+        }
     }
 
     /** 了结：SUBMITTED → CLOSED（终态）。 */

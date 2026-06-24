@@ -81,12 +81,21 @@
 - [ ] 审批中心查询 API（我的待办审批、按域）— 与前端「权限与审批」页一并 Phase D
 
 ### A5 · M11 监管事项
-- [ ] 年度合规计划（计划-分解-跟踪）
-- [ ] 监管报送走 Flowable 审批（编制→复核→报送）
+- [x] 监管报送走 Flowable 审批 —— ✅ 报送加内部复核：DRAFTING→submitForReview→PENDING_REVIEW(启动审批)
+  →通过 SUBMITTED(正式报送)/驳回退回 DRAFTING。/api/reg-filings/submit-for-review|approve-submit|reject-submit。
+  RegulatoryAffairsTest 改两步 + 增驳回退回用例。
+- [x] 年度合规计划（计划-分解-跟踪）—— ✅ 新增 CompliancePlan + CompliancePlanItem：
+  状态机 DRAFT→ACTIVE→CLOSED，计划项 PENDING→IN_PROGRESS→DONE；下发门控(须有项)、非草稿不可加项；
+  RLS 隔离 + 留痕。/api/compliance-plans。CompliancePlanTest 4/4。全量 107/107 绿。
+  （此即前端「年度合规计划」原占位功能的后端，Phase D 可接通。）
 
 ### A6 · M6 组织与资产
-- [ ] 资产-威胁-脆弱补全（与 A2 A-T-V 协同）
+- [x] 资产-威胁-脆弱 —— ✅ 已由 A2 A-T-V(modules/atv) 覆盖（风险场景桥接 asset）。
 - （AD/LDAP 同步按用户既定押到人工联测期，不在本阶段）
+
+> **🎉 Phase A 后端补全收官**：A0 Flowable 审批引擎 · A1 制度审批 · A2 M2 全域(风险接受审批/KRI/控件库/模板库/A-T-V)
+> · A3 M3 整改工单 · A4 M8 SoD 审批 · A5 M11 报送审批+年度计划。后端测试 84→**107 全绿**。
+> 红线全部端到端硬化：隔离/留痕/调度/关闭门控/外审漏斗/SoD/法定时限/审批/整改验证闭环。
 
 ---
 

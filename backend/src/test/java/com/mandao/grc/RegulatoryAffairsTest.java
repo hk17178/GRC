@@ -11,6 +11,9 @@ import com.mandao.grc.modules.regulatory.MajorIncidentStatus;
 import com.mandao.grc.modules.regulatory.RegFiling;
 import com.mandao.grc.modules.regulatory.RegFilingService;
 import com.mandao.grc.modules.regulatory.RegFilingStatus;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RuntimeService;
 import com.mandao.grc.modules.regulatory.RegInquiry;
 import com.mandao.grc.modules.regulatory.RegInquiryService;
 import com.mandao.grc.modules.regulatory.RegInquiryStatus;
@@ -95,6 +98,12 @@ class RegulatoryAffairsTest {
     @Autowired
     private ExpiryScanService scanService;
 
+    @Autowired
+    private RuntimeService runtimeService;
+
+    @Autowired
+    private HistoryService historyService;
+
     private static final long ORG_PAY = 12L;   // 支付子公司
     private static final long ORG_CF = 13L;     // 消费金融
 
@@ -105,6 +114,12 @@ class RegulatoryAffairsTest {
     void clean() throws Exception {
         execAsOwner("TRUNCATE reg_filing, reg_inquiry, reg_penalty, major_incident_report, "
                 + "operation_log, reminder_dispatch_log, domain_event RESTART IDENTITY CASCADE");
+        // 清理 Flowable 运行态/历史：reg_filing id 因 RESTART IDENTITY 跨用例复用，会使
+        // 报送复核 businessKey(REG_FILING:{id}) 跨用例碰撞，须净化（生产 id 全局唯一无此问题）。
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> runtimeService.deleteProcessInstance(pi.getId(), "用例重置"));
+        historyService.createHistoricProcessInstanceQuery().list()
+                .forEach(hpi -> historyService.deleteHistoricProcessInstance(hpi.getId()));
     }
 
     @AfterEach
@@ -121,10 +136,28 @@ class RegulatoryAffairsTest {
 
         assertEquals(RegFilingStatus.DRAFTING,
                 asOrg(ORG_PAY, () -> filingService.prepare(id, "officer").getStatus()));
+        // 提交复核（启动审批）→ 复核中
+        assertEquals(RegFilingStatus.PENDING_REVIEW,
+                asOrg(ORG_PAY, () -> filingService.submitForReview(id, "officer").getStatus()));
+        // 复核通过 → 正式报送
         assertEquals(RegFilingStatus.SUBMITTED,
-                asOrg(ORG_PAY, () -> filingService.submit(id, "officer").getStatus()));
+                asOrg(ORG_PAY, () -> filingService.decideSubmit(id, ApprovalDecision.APPROVED, "lead", "材料合规").getStatus()));
         assertEquals(RegFilingStatus.CLOSED,
                 asOrg(ORG_PAY, () -> filingService.close(id, "officer").getStatus()));
+    }
+
+    @Test
+    void 报送复核驳回_退回起草后可再次提交复核() {
+        Long id = asOrg(ORG_PAY, () ->
+                filingService.create(ORG_PAY, "支付统计报表", "央行", TODAY.plusDays(20), "creator").getId());
+        asOrg(ORG_PAY, () -> filingService.prepare(id, "officer"));
+        asOrg(ORG_PAY, () -> filingService.submitForReview(id, "officer"));
+        // 复核驳回 → 退回起草
+        assertEquals(RegFilingStatus.DRAFTING,
+                asOrg(ORG_PAY, () -> filingService.decideSubmit(id, ApprovalDecision.REJECTED, "lead", "数据口径需修订").getStatus()));
+        // 退回后可再次提交复核
+        assertEquals(RegFilingStatus.PENDING_REVIEW,
+                asOrg(ORG_PAY, () -> filingService.submitForReview(id, "officer").getStatus()));
     }
 
     @Test
@@ -233,12 +266,14 @@ class RegulatoryAffairsTest {
         Long id = asOrg(ORG_PAY, () ->
                 filingService.create(ORG_PAY, "留痕报送", "央行", TODAY.plusDays(30), "c").getId()); // CREATE=1
         asOrg(ORG_PAY, () -> filingService.prepare(id, "o"));   // PREPARE=2
-        asOrg(ORG_PAY, () -> filingService.submit(id, "o"));    // SUBMIT=3
-        asOrg(ORG_PAY, () -> filingService.close(id, "o"));     // CLOSE=4
+        // 提交复核(SUBMIT_REVIEW + WORKFLOW_SUBMIT)=3,4；复核通过(WORKFLOW_DECIDE + SUBMIT)=5,6
+        asOrg(ORG_PAY, () -> filingService.submitForReview(id, "o"));
+        asOrg(ORG_PAY, () -> filingService.decideSubmit(id, ApprovalDecision.APPROVED, "lead", "ok"));
+        asOrg(ORG_PAY, () -> filingService.close(id, "o"));     // CLOSE=7
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");
-        assertEquals(4, r.count(), "应有 4 条 M11 报送操作留痕");
+        assertEquals(7, r.count(), "应有 7 条 M11 报送操作留痕（含复核审批两段+工作流两条）");
     }
 
     // ---------- 测试辅助 ----------

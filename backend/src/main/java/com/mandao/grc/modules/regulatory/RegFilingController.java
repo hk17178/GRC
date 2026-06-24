@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulatory;
 
+import com.mandao.grc.modules.workflow.ApprovalDecision;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -49,10 +50,27 @@ public class RegFilingController {
         return service.prepare(id, actor(user));
     }
 
-    @PostMapping("/{id}/submit")
-    public RegFiling submit(@PathVariable Long id,
-                            @RequestHeader(value = "X-User", required = false) String user) {
-        return service.submit(id, actor(user));
+    /** 提交内部复核（DRAFTING → PENDING_REVIEW，启动审批）。 */
+    @PostMapping("/{id}/submit-for-review")
+    public RegFiling submitForReview(@PathVariable Long id,
+                                     @RequestHeader(value = "X-User", required = false) String user) {
+        return service.submitForReview(id, actor(user));
+    }
+
+    /** 复核通过 → 正式报送（PENDING_REVIEW → SUBMITTED）。 */
+    @PostMapping("/{id}/approve-submit")
+    public RegFiling approveSubmit(@PathVariable Long id,
+                                   @RequestBody(required = false) DecideRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideSubmit(id, ApprovalDecision.APPROVED, actor(user), req == null ? null : req.comment());
+    }
+
+    /** 复核驳回 → 退回起草（PENDING_REVIEW → DRAFTING）。 */
+    @PostMapping("/{id}/reject-submit")
+    public RegFiling rejectSubmit(@PathVariable Long id,
+                                  @RequestBody(required = false) DecideRequest req,
+                                  @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideSubmit(id, ApprovalDecision.REJECTED, actor(user), req == null ? null : req.comment());
     }
 
     @PostMapping("/{id}/close")
@@ -67,5 +85,9 @@ public class RegFilingController {
 
     /** 新建报送事项请求体。 */
     public record CreateFilingRequest(Long orgId, String title, String regulator, LocalDate statutoryDeadline) {
+    }
+
+    /** 复核处置请求体（意见可选）。 */
+    public record DecideRequest(String comment) {
     }
 }

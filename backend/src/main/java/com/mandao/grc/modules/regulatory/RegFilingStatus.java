@@ -5,7 +5,8 @@ package com.mandao.grc.modules.regulatory;
  *
  * 合法流转（其余一律非法，由 {@link RegFilingService} 校验并抛 {@link IllegalStateException}）：
  *   TO_DRAFT --prepare--> DRAFTING
- *   DRAFTING --submit--> SUBMITTED
+ *   DRAFTING --submitForReview--> PENDING_REVIEW（启动 Flowable 复核审批）
+ *   PENDING_REVIEW --审批通过--> SUBMITTED；PENDING_REVIEW --审批驳回--> DRAFTING（退回起草）
  *   SUBMITTED --close--> CLOSED（终态）
  *
  * 注：本状态机为报送业务生命周期，与调度内核无关——调度据 statutory_deadline + reminder_days 产
@@ -20,6 +21,9 @@ public enum RegFilingStatus {
 
     /** 起草中：正在编制报送材料。 */
     DRAFTING,
+
+    /** 复核中：已提交内部复核审批，待审批通过后方可报送（A5 报送审批化）。 */
+    PENDING_REVIEW,
 
     /** 已报送：材料已提交监管机构。 */
     SUBMITTED,
