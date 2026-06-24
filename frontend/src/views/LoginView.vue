@@ -359,22 +359,24 @@ function onSubmit() {
   --side-fg: #f0cdce;
   --surface-border: #e8e3d8;
 }
-:global(body.t-sand) .login-root {
+/* 整条选择器都放进 :global()——否则 Vue 只把 body.t-* 设为全局、给 .login-root 加作用域属性，
+   导致按主题切换品牌侧背景的覆盖不生效（品牌侧始终停留在默认朱砂红）。 */
+:global(body.t-sand .login-root) {
   --side-bg: linear-gradient(150deg, #2a7d63, #16513f);
   --side-fg: #d6e7df;
   --surface-border: #e7e1d6;
 }
-:global(body.t-glass) .login-root {
+:global(body.t-glass .login-root) {
   --side-bg: linear-gradient(150deg, #1f9aa6, #147884);
   --side-fg: #dff1f3;
   --surface-border: #e3eaf0;
 }
-:global(body.t-emerald) .login-root {
+:global(body.t-emerald .login-root) {
   --side-bg: linear-gradient(160deg, #0f172a, #1b2a44);
   --side-fg: #9aa6b8;
   --surface-border: #e6e9ef;
 }
-:global(body.t-editorial) .login-root {
+:global(body.t-editorial .login-root) {
   --side-bg: linear-gradient(155deg, #2f6645, #1d4730);
   --side-fg: #dbe7df;
   --surface-border: #e4e2d6;
