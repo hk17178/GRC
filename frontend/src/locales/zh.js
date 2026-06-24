@@ -787,5 +787,29 @@ export default {
       ownerWang: '王芳',
       ownerChen: '陈强'
     }
+  },
+
+  // ---- 看板与留痕（BoardView）----
+  board: {
+    tag: 'AUDIT TRAIL · 防篡改',
+    title: '看板与留痕',
+    org: { group: '集团', pay: '支付科技', consumer: '消费金融' },
+    verify: {
+      title: '哈希链完整性校验',
+      badge: '防篡改',
+      org: '组织链',
+      run: '校验',
+      valid: '链完整 · 已校验 {n} 条',
+      broken: '断链/篡改 · 异常于序号 {seq}'
+    },
+    trail: {
+      title: '操作留痕',
+      entityPh: '对象（如 POLICY:5）',
+      actionPh: '动作（如 POLICY_APPROVE）',
+      actorPh: '操作人',
+      query: '查询',
+      empty: '暂无留痕（或调整过滤条件）',
+      th: { seq: '序号', time: '时间', action: '动作', actor: '操作人', entity: '对象', detail: '详情', hash: '入链哈希' }
+    }
   }
 }

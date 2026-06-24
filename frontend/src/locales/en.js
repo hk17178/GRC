@@ -726,5 +726,29 @@ export default {
       ownerWang: 'Wang Fang',
       ownerChen: 'Chen Qiang'
     }
+  },
+
+  // ---- Board & Audit Trail (BoardView) ----
+  board: {
+    tag: 'AUDIT TRAIL · Tamper-proof',
+    title: 'Board & Audit Trail',
+    org: { group: 'Group', pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    verify: {
+      title: 'Hash-chain Integrity Check',
+      badge: 'Tamper-proof',
+      org: 'Org chain',
+      run: 'Verify',
+      valid: 'Chain intact · {n} entries verified',
+      broken: 'Broken/tampered · at seq {seq}'
+    },
+    trail: {
+      title: 'Operation Trail',
+      entityPh: 'Entity (e.g. POLICY:5)',
+      actionPh: 'Action (e.g. POLICY_APPROVE)',
+      actorPh: 'Actor',
+      query: 'Query',
+      empty: 'No trail (or adjust filters)',
+      th: { seq: 'Seq', time: 'Time', action: 'Action', actor: 'Actor', entity: 'Entity', detail: 'Detail', hash: 'Chain hash' }
+    }
   }
 }
