@@ -483,6 +483,9 @@ export default {
     // Tab2 · 模板库
     templates: {
       newTpl: '新建体系模板',
+      tstatus: { DRAFT: '草稿', PUBLISHED: '已发布', RETIRED: '已停用' },
+      fw: { MLPS: '等保 2.0', ISO27001: 'ISO 27001', PCI_DSS: 'PCI DSS', PBOC: 'PBOC 支付合规' },
+      f: { framework: '合规框架', desc: '模板说明' },
       ctrlPoints: '控制点',
       ctrlItems: '控制项',
       questions: '题',
@@ -500,7 +503,12 @@ export default {
     controls: {
       title: '统一控件库',
       sub: '具体控制点颗粒度',
+      newCtrl: '＋ 定义控件',
+      noMap: '未映射',
+      empty: '暂无控件',
       th: { id: '编号', ctrl: '控制点', systems: '覆盖体系', reuse: '复用', result: '结果' },
+      cstatus: { ACTIVE: '启用', RETIRED: '已停用' },
+      f: { domain: '控制域', domainPh: '如：访问控制 / 加密 / 日志审计' },
       ctrl: { priv: '特权账号定期审查', tls: '数据传输加密 TLS1.2+', acl: '访问控制最小权限' },
       result: { ok: '符合', partial: '部分不符' },
       reuseTop: {
@@ -512,10 +520,15 @@ export default {
     },
     // Tab4 · KRI 监控
     kri: {
-      kpi: { metrics: '监控指标', breach: '超阈值预警', sources: '采集源', sourcesSub: 'SIEM/日志/漏洞', collect: '采集状态', collectV: '正常' },
+      kpi: { metrics: '监控指标', breach: '超阈值预警', critical: '严重(超阈值)', warning: '预警', normal: '正常', sources: '采集源', sourcesSub: 'SIEM/日志/漏洞', collect: '采集状态', collectV: '正常' },
       title: 'KRI 指标与阈值',
       config: '＋ 配置指标',
-      th: { metric: '指标', source: '采集源', current: '当前', threshold: '阈值', status: '状态' },
+      newKri: '＋ 定义指标',
+      empty: '暂无 KRI 指标',
+      th: { metric: '指标', owner: '责任人', source: '采集源', current: '当前', threshold: '预警/严重阈值', status: '状态' },
+      cstatus: { CRITICAL: '严重', WARNING: '预警', NORMAL: '正常', UNKNOWN: '未测量' },
+      dir: { UPPER_BAD: '越高越坏', LOWER_BAD: '越低越坏' },
+      f: { unit: '计量单位', direction: '阈值方向', warn: '预警阈值', crit: '严重阈值' },
       rows: {
         vuln: { metric: '核心系统漏洞修复时效', source: '漏洞管理', current: '23.4 天', threshold: '≤15 天', status: '超阈值' },
         priv: { metric: '特权账号未审查数', source: 'SIEM', current: '7', threshold: '=0', status: '紧急' },
@@ -523,6 +536,8 @@ export default {
       },
       st: { over: '超阈值', urgent: '紧急', watch: '关注' }
     },
+    // 三参考库「新建」弹窗共用字段
+    ref: { code: '编号', name: '名称', owner: '责任人', org: '归属组织' },
     // 下钻 · 评估报告（固有/残余风险与管理层接受、综合风险指数下钻）
     report: {
       back: '← 返回评估任务',

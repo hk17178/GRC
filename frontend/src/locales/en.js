@@ -442,6 +442,9 @@ export default {
     },
     templates: {
       newTpl: 'New Template',
+      tstatus: { DRAFT: 'Draft', PUBLISHED: 'Published', RETIRED: 'Retired' },
+      fw: { MLPS: 'MLPS 2.0', ISO27001: 'ISO 27001', PCI_DSS: 'PCI DSS', PBOC: 'PBOC Payment' },
+      f: { framework: 'Framework', desc: 'Description' },
       ctrlPoints: 'controls',
       ctrlItems: 'controls',
       questions: 'items',
@@ -458,7 +461,12 @@ export default {
     controls: {
       title: 'Unified Control Library',
       sub: 'control-point granularity',
+      newCtrl: '＋ Define Control',
+      noMap: 'Unmapped',
+      empty: 'No controls',
       th: { id: 'ID', ctrl: 'Control', systems: 'Systems', reuse: 'Reuse', result: 'Result' },
+      cstatus: { ACTIVE: 'Active', RETIRED: 'Retired' },
+      f: { domain: 'Domain', domainPh: 'e.g. Access Control / Encryption / Logging' },
       ctrl: { priv: 'Periodic privileged account review', tls: 'Data-in-transit encryption TLS1.2+', acl: 'Least-privilege access control' },
       result: { ok: 'Compliant', partial: 'Partially Non-compliant' },
       reuseTop: {
@@ -469,10 +477,15 @@ export default {
       }
     },
     kri: {
-      kpi: { metrics: 'Metrics', breach: 'Breaches', sources: 'Sources', sourcesSub: 'SIEM/Log/Vuln', collect: 'Collection', collectV: 'Normal' },
+      kpi: { metrics: 'Metrics', breach: 'Breaches', critical: 'Critical', warning: 'Warning', normal: 'Normal', sources: 'Sources', sourcesSub: 'SIEM/Log/Vuln', collect: 'Collection', collectV: 'Normal' },
       title: 'KRI Metrics & Thresholds',
       config: '＋ Configure Metric',
-      th: { metric: 'Metric', source: 'Source', current: 'Current', threshold: 'Threshold', status: 'Status' },
+      newKri: '＋ Define KRI',
+      empty: 'No KRI metrics',
+      th: { metric: 'Metric', owner: 'Owner', source: 'Source', current: 'Current', threshold: 'Warn/Crit Threshold', status: 'Status' },
+      cstatus: { CRITICAL: 'Critical', WARNING: 'Warning', NORMAL: 'Normal', UNKNOWN: 'Unmeasured' },
+      dir: { UPPER_BAD: 'Higher is worse', LOWER_BAD: 'Lower is worse' },
+      f: { unit: 'Unit', direction: 'Threshold Direction', warn: 'Warning Threshold', crit: 'Critical Threshold' },
       rows: {
         vuln: { metric: 'Core system vuln fix time', source: 'Vuln Mgmt', current: '23.4 d', threshold: '≤15 d', status: 'Breach' },
         priv: { metric: 'Unreviewed privileged accounts', source: 'SIEM', current: '7', threshold: '=0', status: 'Critical' },
@@ -480,6 +493,7 @@ export default {
       },
       st: { over: 'Breach', urgent: 'Critical', watch: 'Watch' }
     },
+    ref: { code: 'Code', name: 'Name', owner: 'Owner', org: 'Organization' },
     // drill-down · assessment report (inherent/residual risk & management acceptance)
     report: {
       back: '← Back to Assessments',

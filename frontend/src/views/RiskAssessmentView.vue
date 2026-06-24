@@ -185,19 +185,19 @@
         </div>
       </div>
 
-      <!-- ========== Tab2 · 模板库 ========== -->
+      <!-- ========== Tab2 · 模板库（真实后端 GET /api/assessment-templates）========== -->
       <div v-show="activeTab === 'templates'" class="tabpane">
         <div class="tpls">
-          <div v-for="c in tplCards" :key="c.key" class="tpl">
-            <div class="badge" :style="c.badgeStyle">{{ c.badge }}</div>
-            <h4>{{ $t('risk.templates.cards.' + c.key + '.name') }}</h4>
-            <div class="desc">{{ $t('risk.templates.cards.' + c.key + '.desc') }}</div>
+          <div v-for="t in templates" :key="t.id" class="tpl">
+            <div class="badge" :style="fwBadge(t.framework)">{{ fwShort(t.framework) }}</div>
+            <h4>{{ t.name }}</h4>
+            <div class="desc">{{ t.description || '—' }}</div>
             <div class="foot">
-              <span class="pill">{{ c.ver }}</span>
-              <span>{{ $t('risk.templates.cards.' + c.key + '.meta') }}</span>
+              <span class="pill">{{ t.code }}</span>
+              <span class="st" :class="TPL_STATUS_CLS[t.status]"><span class="d"></span>{{ $t('risk.templates.tstatus.' + t.status) }}</span>
             </div>
           </div>
-          <!-- 新建体系模板（虚线占位卡） -->
+          <!-- 新建体系模板（虚线卡 → 真实创建弹窗） -->
           <div
             class="tpl"
             style="
@@ -208,6 +208,7 @@
               justify-content: center;
               color: var(--accent-strong);
             "
+            @click="openRefModal('template')"
           >
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
               <path d="M12 5v14M5 12h14" />
@@ -217,7 +218,7 @@
         </div>
       </div>
 
-      <!-- ========== Tab3 · 统一控件库 ========== -->
+      <!-- ========== Tab3 · 统一控件库（真实后端 GET /api/controls + /{id}/mappings）========== -->
       <div v-show="activeTab === 'controls'" class="tabpane">
         <div class="g g-16-1">
           <!-- 左：控件库表 -->
@@ -225,6 +226,7 @@
             <div class="ch">
               <h3>{{ $t('risk.controls.title') }}</h3>
               <span class="sub">{{ $t('risk.controls.sub') }}</span>
+              <button class="btn ghost sm" style="margin-left: 10px" @click="openRefModal('control')">{{ $t('risk.controls.newCtrl') }}</button>
             </div>
             <table>
               <thead>
@@ -237,58 +239,62 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in ctrlRows" :key="r.id">
-                  <td class="code">{{ r.id }}</td>
-                  <td>{{ $t(r.ctrl) }}</td>
+                <tr v-for="c in controls" :key="c.id">
+                  <td class="code">{{ c.code }}</td>
+                  <td>{{ c.name }}</td>
                   <td>
-                    <span v-for="p in r.systems" :key="p.t" class="pill" :class="p.cls">{{ p.t }}</span>
+                    <span v-for="m in (ctrlMappings[c.id] || [])" :key="m.id" class="pill" :class="fwPill(m.framework)">{{ fwShort(m.framework) }}</span>
+                    <span v-if="!(ctrlMappings[c.id] || []).length" class="muted">{{ $t('risk.controls.noMap') }}</span>
                   </td>
-                  <td class="num">{{ r.reuse }}</td>
+                  <td class="num">{{ ctrlReuse(c.id) }}</td>
                   <td>
-                    <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                    <span class="st" :class="CTRL_STATUS_CLS[c.status]"><span class="d"></span>{{ $t('risk.controls.cstatus.' + c.status) }}</span>
                   </td>
+                </tr>
+                <tr v-if="!controls.length">
+                  <td colspan="5" class="emptyrow">{{ $t('risk.controls.empty') }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <!-- 右：复用 Top bars -->
+          <!-- 右：复用 Top bars（按真实映射数排序）-->
           <div class="card">
             <div class="ch"><h3>{{ $t('risk.controls.reuseTop.title') }}</h3></div>
             <div class="cb">
               <div class="bars">
-                <div v-for="b in reuseTop" :key="b.label" class="bar-row">
-                  <div class="hd"><span class="nm">{{ $t(b.label) }}</span><b>{{ b.v }}</b></div>
+                <div v-for="b in reuseTopLive" :key="b.code" class="bar-row">
+                  <div class="hd"><span class="nm">{{ b.name }}</span><b>{{ b.v }}</b></div>
                   <div class="track">
                     <div class="seg2 a" :style="{ width: b.w }"></div>
                   </div>
                 </div>
+                <div v-if="!reuseTopLive.length" class="muted">{{ $t('risk.controls.empty') }}</div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- ========== Tab4 · KRI 监控 ========== -->
+      <!-- ========== Tab4 · KRI 监控（真实后端 GET /api/kris）========== -->
       <div v-show="activeTab === 'kri'" class="tabpane">
-        <!-- KPI 四卡 -->
+        <!-- KPI 四卡（真实统计：指标数/严重/预警/正常）-->
         <div class="kpibar k4">
           <div class="kc">
             <div class="l">{{ $t('risk.kri.kpi.metrics') }}</div>
-            <div class="v">18</div>
+            <div class="v">{{ kriStat.total }}</div>
           </div>
           <div class="kc">
-            <div class="l">{{ $t('risk.kri.kpi.breach') }}</div>
-            <div class="v" style="color: var(--danger)">3</div>
+            <div class="l">{{ $t('risk.kri.kpi.critical') }}</div>
+            <div class="v" style="color: var(--danger)">{{ kriStat.critical }}</div>
           </div>
           <div class="kc">
-            <div class="l">{{ $t('risk.kri.kpi.sources') }}</div>
-            <div class="v">3</div>
-            <div class="s">{{ $t('risk.kri.kpi.sourcesSub') }}</div>
+            <div class="l">{{ $t('risk.kri.kpi.warning') }}</div>
+            <div class="v" style="color: #a87d22">{{ kriStat.warning }}</div>
           </div>
           <div class="kc">
-            <div class="l">{{ $t('risk.kri.kpi.collect') }}</div>
-            <div class="v" style="color: var(--success)">{{ $t('risk.kri.kpi.collectV') }}</div>
+            <div class="l">{{ $t('risk.kri.kpi.normal') }}</div>
+            <div class="v" style="color: var(--success)">{{ kriStat.normal }}</div>
           </div>
         </div>
 
@@ -296,30 +302,86 @@
         <div class="card">
           <div class="ch">
             <h3>{{ $t('risk.kri.title') }}</h3>
-            <span class="more">{{ $t('risk.kri.config') }}</span>
+            <span class="more" @click="openRefModal('kri')">{{ $t('risk.kri.newKri') }}</span>
           </div>
           <table>
             <thead>
               <tr>
                 <th>{{ $t('risk.kri.th.metric') }}</th>
-                <th>{{ $t('risk.kri.th.source') }}</th>
+                <th>{{ $t('risk.kri.th.owner') }}</th>
                 <th>{{ $t('risk.kri.th.current') }}</th>
                 <th>{{ $t('risk.kri.th.threshold') }}</th>
                 <th>{{ $t('risk.kri.th.status') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="r in kriRows" :key="r.key">
-                <td>{{ $t('risk.kri.rows.' + r.key + '.metric') }}</td>
-                <td><span class="pill">{{ $t('risk.kri.rows.' + r.key + '.source') }}</span></td>
-                <td>{{ $t('risk.kri.rows.' + r.key + '.current') }}</td>
-                <td>{{ $t('risk.kri.rows.' + r.key + '.threshold') }}</td>
+              <tr v-for="k in kris" :key="k.id">
+                <td>{{ k.name }} <span class="code">{{ k.code }}</span></td>
+                <td><span class="pill">{{ k.owner || '—' }}</span></td>
+                <td class="num">{{ k.currentValue == null ? '—' : k.currentValue }}<span v-if="k.unit" class="muted"> {{ k.unit }}</span></td>
+                <td class="num">{{ k.thresholdWarning }} / {{ k.thresholdCritical }}</td>
                 <td>
-                  <span class="st" :class="r.stClass"><span class="d"></span>{{ $t('risk.kri.st.' + r.st) }}</span>
+                  <span class="st" :class="kriStCls(k.currentStatus)"><span class="d"></span>{{ $t('risk.kri.cstatus.' + k.currentStatus) }}</span>
                 </td>
+              </tr>
+              <tr v-if="!kris.length">
+                <td colspan="5" class="emptyrow">{{ $t('risk.kri.empty') }}</td>
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+      <!-- ===== 参考库「新建」弹窗（定义 KRI / 定义控件 / 新建模板，按 refModal 切换）===== -->
+      <div v-if="refModal" class="modal-mask" @click.self="refModal = null">
+        <!-- 定义 KRI -->
+        <div v-if="refModal === 'kri'" class="modal-card">
+          <h3>{{ $t('risk.kri.newKri') }}</h3>
+          <label class="fld">{{ $t('risk.ref.code') }}<input v-model="kriForm.code" placeholder="KRI-VULN-001" /></label>
+          <label class="fld">{{ $t('risk.ref.name') }}<input v-model="kriForm.name" /></label>
+          <label class="fld">{{ $t('risk.kri.f.unit') }}<input v-model="kriForm.unit" placeholder="个 / % / 天" /></label>
+          <label class="fld">{{ $t('risk.kri.f.direction') }}
+            <select v-model="kriForm.direction"><option value="UPPER_BAD">{{ $t('risk.kri.dir.UPPER_BAD') }}</option><option value="LOWER_BAD">{{ $t('risk.kri.dir.LOWER_BAD') }}</option></select>
+          </label>
+          <label class="fld">{{ $t('risk.kri.f.warn') }}<input v-model.number="kriForm.thresholdWarning" type="number" /></label>
+          <label class="fld">{{ $t('risk.kri.f.crit') }}<input v-model.number="kriForm.thresholdCritical" type="number" /></label>
+          <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="kriForm.owner" /></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="kriForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <p v-if="refError" class="cerr">{{ refError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!kriForm.code || !kriForm.name || kriForm.thresholdWarning == null || kriForm.thresholdCritical == null || refSaving" @click="submitRef">{{ refSaving ? $t('common.submitting') : $t('common.confirm') }}</button>
+          </div>
+        </div>
+        <!-- 定义控件 -->
+        <div v-else-if="refModal === 'control'" class="modal-card">
+          <h3>{{ $t('risk.controls.newCtrl') }}</h3>
+          <label class="fld">{{ $t('risk.ref.code') }}<input v-model="ctrlForm.code" placeholder="CTL-ACL-001" /></label>
+          <label class="fld">{{ $t('risk.ref.name') }}<input v-model="ctrlForm.name" /></label>
+          <label class="fld">{{ $t('risk.controls.f.domain') }}<input v-model="ctrlForm.domain" :placeholder="$t('risk.controls.f.domainPh')" /></label>
+          <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="ctrlForm.owner" /></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="ctrlForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <p v-if="refError" class="cerr">{{ refError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!ctrlForm.code || !ctrlForm.name || refSaving" @click="submitRef">{{ refSaving ? $t('common.submitting') : $t('common.confirm') }}</button>
+          </div>
+        </div>
+        <!-- 新建模板 -->
+        <div v-else class="modal-card">
+          <h3>{{ $t('risk.templates.newTpl') }}</h3>
+          <label class="fld">{{ $t('risk.ref.code') }}<input v-model="tplForm.code" placeholder="TPL-MLPS-001" /></label>
+          <label class="fld">{{ $t('risk.ref.name') }}<input v-model="tplForm.name" /></label>
+          <label class="fld">{{ $t('risk.templates.f.framework') }}
+            <select v-model="tplForm.framework"><option value="MLPS">{{ $t('risk.templates.fw.MLPS') }}</option><option value="ISO27001">{{ $t('risk.templates.fw.ISO27001') }}</option><option value="PCI_DSS">{{ $t('risk.templates.fw.PCI_DSS') }}</option><option value="PBOC">{{ $t('risk.templates.fw.PBOC') }}</option></select>
+          </label>
+          <label class="fld">{{ $t('risk.templates.f.desc') }}<input v-model="tplForm.description" /></label>
+          <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="tplForm.owner" /></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="tplForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <p v-if="refError" class="cerr">{{ refError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!tplForm.code || !tplForm.name || refSaving" @click="submitRef">{{ refSaving ? $t('common.submitting') : $t('common.confirm') }}</button>
+          </div>
         </div>
       </div>
     </section>
@@ -511,7 +573,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
@@ -639,13 +701,110 @@ function clearRequested(id) {
 // 对应字段（DM-5 C 类缺口），先以「—」占位、不臆造，待后端补字段后再填。
 const liveTasks = ref([])
 const loadError = ref('')
+
+// ---- Tab2/3/4 参考库：真实后端数据（模板库 / 统一控件库 / KRI 监控）----
+const templates = ref([])      // GET /api/assessment-templates
+const controls = ref([])       // GET /api/controls
+const ctrlMappings = ref({})   // {controlId: [{framework,clause}]} —— 控件的多框架覆盖（GET /{id}/mappings）
+const kris = ref([])           // GET /api/kris
+
+async function loadTemplates() {
+  try { templates.value = await api.get('/assessment-templates') } catch (e) { templates.value = [] }
+}
+async function loadControls() {
+  try {
+    controls.value = await api.get('/controls')
+    // 逐控件取多框架映射（演示库规模小，N+1 可接受；覆盖体系 pill + 复用数据此）
+    const entries = await Promise.all(
+      controls.value.map((c) => api.get('/controls/' + c.id + '/mappings').then((m) => [c.id, m]).catch(() => [c.id, []]))
+    )
+    ctrlMappings.value = Object.fromEntries(entries)
+  } catch (e) { controls.value = []; ctrlMappings.value = {} }
+}
+async function loadKris() {
+  try { kris.value = await api.get('/kris') } catch (e) { kris.value = [] }
+}
+
 onMounted(async () => {
   try {
     liveTasks.value = await api.get('/assessments')
   } catch (e) {
     loadError.value = e.message
   }
+  // 并行拉取三个参考库
+  loadTemplates(); loadControls(); loadKris()
 })
+
+// ---- 合规框架 枚举 → 短标/底色/语义类（统一控件库 + 模板库共用）----
+const FW_SHORT = { MLPS: '等保', ISO27001: 'ISO', PCI_DSS: 'PCI', PBOC: 'PBOC' }
+const FW_BADGE = {
+  MLPS: { background: 'var(--info-tint)', color: 'var(--info)' },
+  ISO27001: { background: 'var(--accent-weak)', color: 'var(--accent-strong)' },
+  PCI_DSS: { background: 'var(--plum-tint)', color: 'var(--plum)' },
+  PBOC: { background: 'var(--warning-tint)', color: '#a87d22' }
+}
+const FW_PILL = { MLPS: 'blue', ISO27001: 'teal', PCI_DSS: 'violet', PBOC: '' }
+const fwShort = (f) => FW_SHORT[f] || f
+const fwBadge = (f) => FW_BADGE[f] || {}
+const fwPill = (f) => FW_PILL[f] || ''
+
+// ---- 统一控件库：覆盖体系/复用数（从真实映射派生）----
+const ctrlReuse = (id) => (ctrlMappings.value[id] || []).length
+// 复用 Top：按映射数排序取前 3，宽度相对最大值归一
+const reuseTopLive = computed(() => {
+  const rows = controls.value
+    .map((c) => ({ name: c.name, code: c.code, v: ctrlReuse(c.id) }))
+    .sort((a, b) => b.v - a.v)
+    .slice(0, 3)
+  const max = rows.length ? Math.max(...rows.map((r) => r.v), 1) : 1
+  return rows.map((r) => ({ ...r, w: Math.round((r.v / max) * 100) + '%' }))
+})
+
+// ---- KRI 监控：状态统计（KPI 卡）----
+const kriStat = computed(() => {
+  const s = { total: kris.value.length, critical: 0, warning: 0, normal: 0 }
+  for (const k of kris.value) {
+    if (k.currentStatus === 'CRITICAL') s.critical++
+    else if (k.currentStatus === 'WARNING') s.warning++
+    else if (k.currentStatus === 'NORMAL') s.normal++
+  }
+  return s
+})
+const KRI_STATUS_CLS = { CRITICAL: 'over', WARNING: 'wait', NORMAL: 'ok', UNKNOWN: 'wait' }
+const kriStCls = (s) => KRI_STATUS_CLS[s] || 'wait'
+const CTRL_STATUS_CLS = { ACTIVE: 'ok', RETIRED: 'wait' }
+const TPL_STATUS_CLS = { DRAFT: 'wait', PUBLISHED: 'ok', RETIRED: 'over' }
+
+// ---- 三个参考库的「新建」弹窗（定义 KRI / 定义控件 / 新建模板）----
+const refModal = ref(null) // 'kri' | 'control' | 'template' | null
+const refSaving = ref(false)
+const refError = ref('')
+const kriForm = reactive({ code: '', name: '', unit: '', direction: 'UPPER_BAD', thresholdWarning: null, thresholdCritical: null, owner: '', orgId: 12 })
+const ctrlForm = reactive({ code: '', name: '', domain: '', owner: '', orgId: 12 })
+const tplForm = reactive({ code: '', name: '', framework: 'MLPS', description: '', owner: '', orgId: 12 })
+function openRefModal(kind) {
+  refError.value = ''
+  if (kind === 'kri') Object.assign(kriForm, { code: '', name: '', unit: '', direction: 'UPPER_BAD', thresholdWarning: null, thresholdCritical: null, owner: '', orgId: 12 })
+  if (kind === 'control') Object.assign(ctrlForm, { code: '', name: '', domain: '', owner: '', orgId: 12 })
+  if (kind === 'template') Object.assign(tplForm, { code: '', name: '', framework: 'MLPS', description: '', owner: '', orgId: 12 })
+  refModal.value = kind
+}
+async function submitRef() {
+  refSaving.value = true; refError.value = ''
+  try {
+    if (refModal.value === 'kri') {
+      await api.post('/kris', { orgId: kriForm.orgId, code: kriForm.code, name: kriForm.name, unit: kriForm.unit, direction: kriForm.direction, thresholdWarning: kriForm.thresholdWarning, thresholdCritical: kriForm.thresholdCritical, owner: kriForm.owner })
+      await loadKris()
+    } else if (refModal.value === 'control') {
+      await api.post('/controls', { orgId: ctrlForm.orgId, code: ctrlForm.code, name: ctrlForm.name, domain: ctrlForm.domain, owner: ctrlForm.owner })
+      await loadControls()
+    } else {
+      await api.post('/assessment-templates', { orgId: tplForm.orgId, code: tplForm.code, name: tplForm.name, framework: tplForm.framework, description: tplForm.description, owner: tplForm.owner })
+      await loadTemplates()
+    }
+    refModal.value = null
+  } catch (e) { refError.value = e.message } finally { refSaving.value = false }
+}
 
 // ---- 发起评估：登记弹窗 → POST /api/assessments → 刷新列表 ----
 const showCreate = ref(false)
@@ -704,38 +863,6 @@ const funnel = [
   { key: 'filling', v: 31, w: '82%', bg: 'var(--accent-bright)' },
   { key: 'pending', v: 22, w: '58%', bg: 'var(--warning)' },
   { key: 'live', v: 15, w: '40%', bg: 'var(--success)' }
-]
-
-// ---- Tab2：模板库卡片（badge 底色照搬原型内联）----
-const tplCards = [
-  { key: 'mlps', badge: '等保', ver: 'V2.1', badgeStyle: { background: 'var(--info-tint)', color: 'var(--info)' } },
-  { key: 'iso', badge: 'ISO', ver: 'V3.0', badgeStyle: { background: 'var(--accent-weak)', color: 'var(--accent-strong)' } },
-  { key: 'pci', badge: 'PCI', ver: 'V1.4', badgeStyle: { background: 'var(--plum-tint)', color: 'var(--plum)' } },
-  { key: 'pboc', badge: 'PBOC', ver: 'V2.0', badgeStyle: { background: 'var(--warning-tint)', color: '#a87d22' } },
-  { key: 'iso27701', badge: '271', ver: 'V1.1', badgeStyle: { background: 'var(--accent-weak)', color: 'var(--accent-strong)' } },
-  { key: 'vendor', badge: '供', ver: 'V2.2', badgeStyle: { background: 'var(--info-tint)', color: 'var(--info)' } },
-  { key: 'iso9001', badge: '9001', ver: 'V1.0', badgeStyle: { background: 'var(--success-tint)', color: 'var(--success)' } }
-]
-
-// ---- Tab3：统一控件库表 ----
-const ctrlRows = [
-  { id: 'CTL-007', ctrl: 'risk.controls.ctrl.priv', systems: [{ t: 'ISO', cls: 'teal' }, { t: '等保', cls: 'blue' }, { t: 'PBOC', cls: '' }], reuse: 14, stClass: 'ok', stLabel: 'risk.controls.result.ok' },
-  { id: 'CTL-019', ctrl: 'risk.controls.ctrl.tls', systems: [{ t: '等保', cls: 'blue' }, { t: 'PCI', cls: 'violet' }], reuse: 9, stClass: 'over', stLabel: 'risk.controls.result.partial' },
-  { id: 'CTL-024', ctrl: 'risk.controls.ctrl.acl', systems: [{ t: 'ISO', cls: 'teal' }, { t: '等保', cls: 'blue' }, { t: 'PCI', cls: 'violet' }], reuse: 16, stClass: 'ok', stLabel: 'risk.controls.result.ok' }
-]
-
-// ---- 复用 Top bars ----
-const reuseTop = [
-  { label: 'risk.controls.reuseTop.acl', v: 16, w: '100%' },
-  { label: 'risk.controls.reuseTop.priv', v: 14, w: '88%' },
-  { label: 'risk.controls.reuseTop.log', v: 11, w: '69%' }
-]
-
-// ---- Tab4：KRI 指标与阈值表 ----
-const kriRows = [
-  { key: 'vuln', st: 'over', stClass: 'over' },
-  { key: 'priv', st: 'urgent', stClass: 'over' },
-  { key: 'log', st: 'watch', stClass: 'wait' }
 ]
 
 // ---- 下钻报告：风险点清单 ----
