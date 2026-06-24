@@ -1,6 +1,7 @@
 # CI 流水线：每次 push / PR 自动构建并跑测试，红则不合并。
 # 落实 D2-5 §四「测试跑绿才提交」。后端用 Testcontainers 起真实 PG 跑隔离等红线用例
 # （GitHub 托管 Runner 内置 Docker，Testcontainers 可用）。
+# 前端 CI 将随 frontend/ 工程创建时补充。
 name: CI
 
 on:
@@ -13,8 +14,6 @@ jobs:
   backend:
     name: 后端构建与测试（mvn verify）
     runs-on: ubuntu-latest
-    # 仅当后端工程存在时运行
-    if: ${{ hashFiles('backend/pom.xml') != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -28,30 +27,3 @@ jobs:
       - name: 构建并测试（含 Testcontainers 隔离红线用例）
         working-directory: backend
         run: mvn -B verify
-
-  frontend:
-    name: 前端构建与测试（npm test & build）
-    runs-on: ubuntu-latest
-    # 仅当前端工程存在时运行（当前尚未创建，将随前端开发启用）
-    if: ${{ hashFiles('frontend/package.json') != '' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: 安装 Node 20
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: 安装依赖
-        working-directory: frontend
-        run: npm ci
-
-      - name: 测试
-        working-directory: frontend
-        run: npm test
-
-      - name: 构建
-        working-directory: frontend
-        run: npm run build
