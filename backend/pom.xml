@@ -33,10 +33,8 @@
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-database-postgresql</artifactId>
+      <!-- Spring Boot 3.2.x 管理 Flyway 9.x，PostgreSQL 支持已内置于 flyway-core；
+           无需 flyway-database-postgresql（该独立模块用于 Flyway 10+）。 -->
     </dependency>
     <dependency>
       <groupId>org.postgresql</groupId>

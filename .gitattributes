@@ -1,0 +1,32 @@
+# 统一换行：面向 Rocky 9.4 / Linux 部署，仓库内文本一律 LF，杜绝 CRLF 导致
+# shell 脚本 "bad interpreter"、Dockerfile/entrypoint 失效等问题。
+* text=auto eol=lf
+
+# 明确按 LF 处理的文本类型
+*.java   text eol=lf
+*.kt     text eol=lf
+*.xml    text eol=lf
+*.yml    text eol=lf
+*.yaml   text eol=lf
+*.sql    text eol=lf
+*.sh     text eol=lf
+*.properties text eol=lf
+*.json   text eol=lf
+*.js     text eol=lf
+*.ts     text eol=lf
+*.vue    text eol=lf
+*.css    text eol=lf
+*.html   text eol=lf
+*.md     text eol=lf
+Dockerfile text eol=lf
+
+# 二进制：不做换行/diff 处理
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.gif    binary
+*.ico    binary
+*.woff   binary
+*.woff2  binary
+*.ttf    binary
+*.jar    binary
