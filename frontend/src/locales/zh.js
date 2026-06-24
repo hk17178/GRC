@@ -873,5 +873,19 @@ export default {
     op: { assess: '评估', activate: '启用', suspend: '暂停', reactivate: '恢复' },
     create: { btn: '＋ 登记供应商', category: '服务类别', criticality: '重要性', org: '归属组织', ok: '确认登记' },
     assess: { title: '供应商风险评估', risk: '风险等级', score: '得分(0–100)', concl: '评估结论', ok: '提交评估' }
+  },
+
+  // ---- 合规清单（ObligationView）----
+  obl: {
+    tag: 'OBLIGATION · 合规清单',
+    title: '合规清单',
+    list: '合规义务',
+    empty: '暂无义务',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { code: '编号', title: '义务', source: '来源', dept: '责任部门', due: '期限', status: '状态', op: '操作' },
+    status: { PENDING: '待落实', IN_PROGRESS: '落实中', FULFILLED: '已落实', NON_COMPLIANT: '不合规' },
+    op: { start: '开始落实', fulfill: '标记已落实', nc: '标记不合规' },
+    create: { btn: '＋ 登记义务', source: '来源', sourcePh: '如：PBOC-AML-2026', org: '归属组织', ok: '确认登记' },
+    fulfill: { title: '标记已落实', evidence: '落实证据', evidencePh: '如：已上线监测系统、月报存档 #2026-06', ok: '确认落实' }
   }
 }

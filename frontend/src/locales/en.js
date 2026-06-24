@@ -812,5 +812,19 @@ export default {
     op: { assess: 'Assess', activate: 'Activate', suspend: 'Suspend', reactivate: 'Reactivate' },
     create: { btn: '＋ Add Vendor', category: 'Service Category', criticality: 'Criticality', org: 'Organization', ok: 'Create' },
     assess: { title: 'Vendor Risk Assessment', risk: 'Risk Level', score: 'Score (0–100)', concl: 'Conclusion', ok: 'Submit' }
+  },
+
+  // ---- Compliance Checklist (ObligationView) ----
+  obl: {
+    tag: 'OBLIGATION · Checklist',
+    title: 'Compliance Checklist',
+    list: 'Obligations',
+    empty: 'No obligations',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { code: 'Code', title: 'Obligation', source: 'Source', dept: 'Owner Dept', due: 'Due', status: 'Status', op: 'Action' },
+    status: { PENDING: 'Pending', IN_PROGRESS: 'In Progress', FULFILLED: 'Fulfilled', NON_COMPLIANT: 'Non-compliant' },
+    op: { start: 'Start', fulfill: 'Mark Fulfilled', nc: 'Mark Non-compliant' },
+    create: { btn: '＋ Add Obligation', source: 'Source', sourcePh: 'e.g. PBOC-AML-2026', org: 'Organization', ok: 'Create' },
+    fulfill: { title: 'Mark Fulfilled', evidence: 'Evidence', evidencePh: 'e.g. monitoring system live, monthly report #2026-06', ok: 'Confirm' }
   }
 }
