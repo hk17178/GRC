@@ -105,7 +105,9 @@
 - [x] **合规态势 Dashboard 聚合** —— ✅ 新模块 modules/dashboard：GET /api/dashboard/summary 跨模块只读聚合
   （风险:未关闭/被门控/KRI预警·严重；审计:未关闭/未验证整改；监管:待报送/已报送；制度:生效/评审/草稿；权限:待审批SoD）。
   隔离天然按域(各 findAll 受 RLS)。DashboardTest 1/1（跨模块汇总 + org13 全 0 隔离）。
-- [ ] 我的待办 / 通知中心 / 看板与留痕查询（其余横切聚合）
+- [x] **看板与留痕查询** —— ✅ modules/audit 增 AuditTrailService：GET /api/audit-trail（按 对象/动作/操作人 过滤、新→旧、RLS 裁剪）
+  + GET /api/audit-trail/verify?orgId=（链完整性校验，防篡改卖点）。AuditTrailTest 3/3。
+- [ ] 我的待办 / 通知中心（其余横切聚合）
 - [ ] 未建模块：法规跟踪（法规库/订阅/影响分析）、合规清单（义务库/落实）、第三方供应商（准入/评估/监测）、
   建议与反馈（CR-004）、系统设置（租户配置 + D1-8 可配置性）。
 
