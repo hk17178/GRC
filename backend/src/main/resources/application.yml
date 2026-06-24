@@ -1,0 +1,28 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: grc-platform
+
+  # 运行期以【非 owner / NOBYPASSRLS 角色 grc_app】连接 → RLS 对其强制生效
+  datasource:
+    url: jdbc:postgresql://localhost:5432/grc
+    username: grc_app
+    password: grc_app_pw
+
+  jpa:
+    hibernate:
+      ddl-auto: none          # 由 Flyway 管理 schema，禁用 Hibernate 自动建表
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+  # 迁移以 owner/超级用户执行（owner 不受 RLS，可建表/灌种子）
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/grc
+    user: postgres
+    password: postgres
+    locations: classpath:db/migration
