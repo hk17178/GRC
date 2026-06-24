@@ -257,6 +257,125 @@ export default {
     }
   },
 
+  // ---- 风险评估（M2，严格对齐驾驶舱版原型 #view-risk 及其下钻视图）----
+  risk: {
+    tag: 'M2 · 风险评估',
+    title: '风险评估闭环',
+    newAssess: '＋ 发起评估',
+    // 顶部 Tab
+    tab: {
+      tasks: '评估任务',
+      templates: '模板库',
+      controls: '统一控件库',
+      kri: 'KRI 监控'
+    },
+    // Tab1 · 评估任务
+    kpi: {
+      active: '进行中',
+      pending: '待审批',
+      highRisk: '高风险评估',
+      overdue: '逾期',
+      doneQuarter: '本季完成'
+    },
+    tasks: {
+      title: '评估任务',
+      th: { id: '编号', obj: '对象', tpl: '体系模板', prog: '进度', risk: '风险值', due: '截止', status: '状态' },
+      obj: { gateway: '核心支付网关', settle: '商户结算系统', warehouse: '数据仓库平台' },
+      status: { filling: '填写中', pending: '待审批', live: '已生效' }
+    },
+    // 风险等级分布（五级）
+    levelDist: {
+      title: '风险等级分布',
+      sub: '五级',
+      vh: '极高',
+      h: '高',
+      m: '中',
+      l: '低',
+      vl: '极低'
+    },
+    // 评估进度漏斗
+    funnel: {
+      title: '评估进度漏斗',
+      started: '已发起',
+      filling: '填写中',
+      pending: '待审批',
+      live: '已生效'
+    },
+    // Tab2 · 模板库
+    templates: {
+      newTpl: '新建体系模板',
+      ctrlPoints: '控制点',
+      ctrlItems: '控制项',
+      questions: '题',
+      cards: {
+        mlps: { name: '等保三级测评', desc: '安全通用+扩展，控制点编号组织', meta: '211 控制点' },
+        iso: { name: 'ISO 27001', desc: '资产-威胁-脆弱性四要素', meta: '114 控制项' },
+        pci: { name: 'PCI DSS', desc: '持卡人数据环境 12 类', meta: '78 控制点' },
+        pboc: { name: 'PBOC 支付合规', desc: '非银行支付机构监管映射', meta: '96 控制点' },
+        iso27701: { name: 'ISO 27701', desc: '隐私信息管理 PIMS', meta: '49 控制项' },
+        vendor: { name: '供应商评估', desc: '合同条款+履约，定量叠加定性', meta: '54 题' },
+        iso9001: { name: 'ISO 9001', desc: '质量管理过程方法', meta: '61 控制项' }
+      }
+    },
+    // Tab3 · 统一控件库
+    controls: {
+      title: '统一控件库',
+      sub: '具体控制点颗粒度',
+      th: { id: '编号', ctrl: '控制点', systems: '覆盖体系', reuse: '复用', result: '结果' },
+      ctrl: { priv: '特权账号定期审查', tls: '数据传输加密 TLS1.2+', acl: '访问控制最小权限' },
+      result: { ok: '符合', partial: '部分不符' },
+      reuseTop: {
+        title: '复用 Top',
+        acl: '访问控制最小权限',
+        priv: '特权账号审查',
+        log: '日志留存'
+      }
+    },
+    // Tab4 · KRI 监控
+    kri: {
+      kpi: { metrics: '监控指标', breach: '超阈值预警', sources: '采集源', sourcesSub: 'SIEM/日志/漏洞', collect: '采集状态', collectV: '正常' },
+      title: 'KRI 指标与阈值',
+      config: '＋ 配置指标',
+      th: { metric: '指标', source: '采集源', current: '当前', threshold: '阈值', status: '状态' },
+      rows: {
+        vuln: { metric: '核心系统漏洞修复时效', source: '漏洞管理', current: '23.4 天', threshold: '≤15 天', status: '超阈值' },
+        priv: { metric: '特权账号未审查数', source: 'SIEM', current: '7', threshold: '=0', status: '紧急' },
+        log: { metric: '日志留存天数', source: '日志平台', current: '162 天', threshold: '≥180 天', status: '关注' }
+      },
+      st: { over: '超阈值', urgent: '紧急', watch: '关注' }
+    },
+    // 下钻 · 评估报告（固有/残余风险与管理层接受、综合风险指数下钻）
+    report: {
+      back: '← 返回评估任务',
+      title: '商户结算系统 · 风险评估报告',
+      pending: '待审批',
+      exportPdf: '导出 PDF',
+      sign: '复核签批',
+      kpi: { riskVal: '风险值', high: '高风险', points: '风险点', highPoints: '高风险点', toRemed: '已转整改' },
+      list: {
+        title: '风险点清单',
+        th: { ctrl: '控制点', concl: '结论', level: '等级', advice: '建议整改' },
+        rows: {
+          acl: { ctrl: '结算接口访问控制', concl: '存在共享账号', advice: '启用个人账号+审计' },
+          tls: { ctrl: '数据传输加密', concl: '部分 TLS1.1', advice: '升级 TLS1.2+' },
+          log: { ctrl: '日志留存', concl: '满足要求', advice: '—' }
+        }
+      },
+      donut: { title: '等级分布' },
+      residual: {
+        title: '风险处置与残余风险',
+        th: { point: '风险点', inherent: '固有风险', decision: '处置决策', measure: '处置措施', residual: '残余风险', accept: '责任人接受' },
+        decision: { mitigate: '降低', accept: '接受' },
+        accept: { pending: '待签认', accepted: '管理层已接受' },
+        rows: {
+          shared: { point: '结算接口共享账号', measure: '启用个人账号+审计' },
+          tls: { point: '部分 TLS1.1', measure: 'Q3 升级 TLS1.2+' },
+          backup: { point: '老旧备份介质', measure: '限期至下次评估复核' }
+        }
+      }
+    }
+  },
+
   // ---- 子公司名（热力矩阵 / 整改率共用）----
   'dash.sub.hq': '集团总部',
   'dash.sub.pay': '支付子公司',

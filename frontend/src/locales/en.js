@@ -243,6 +243,118 @@ export default {
     }
   },
 
+  // ---- Risk Assessment (M2, mirrors cockpit prototype #view-risk and drill-downs) ----
+  risk: {
+    tag: 'M2 · Risk Assessment',
+    title: 'Risk Assessment Loop',
+    newAssess: '＋ New Assessment',
+    tab: {
+      tasks: 'Assessments',
+      templates: 'Templates',
+      controls: 'Control Library',
+      kri: 'KRI Monitoring'
+    },
+    kpi: {
+      active: 'In Progress',
+      pending: 'Pending Approval',
+      highRisk: 'High-Risk',
+      overdue: 'Overdue',
+      doneQuarter: 'Done This Qtr'
+    },
+    tasks: {
+      title: 'Assessments',
+      th: { id: 'ID', obj: 'Object', tpl: 'Template', prog: 'Progress', risk: 'Risk', due: 'Due', status: 'Status' },
+      obj: { gateway: 'Core Payment Gateway', settle: 'Merchant Settlement', warehouse: 'Data Warehouse' },
+      status: { filling: 'Filling', pending: 'Pending', live: 'Live' }
+    },
+    levelDist: {
+      title: 'Risk Level Distribution',
+      sub: '5-tier',
+      vh: 'Very High',
+      h: 'High',
+      m: 'Medium',
+      l: 'Low',
+      vl: 'Very Low'
+    },
+    funnel: {
+      title: 'Assessment Funnel',
+      started: 'Started',
+      filling: 'Filling',
+      pending: 'Pending',
+      live: 'Live'
+    },
+    templates: {
+      newTpl: 'New Template',
+      ctrlPoints: 'controls',
+      ctrlItems: 'controls',
+      questions: 'items',
+      cards: {
+        mlps: { name: 'MLPS Level 3', desc: 'General + extended, organized by control ID', meta: '211 controls' },
+        iso: { name: 'ISO 27001', desc: 'Asset-Threat-Vulnerability four factors', meta: '114 controls' },
+        pci: { name: 'PCI DSS', desc: 'Cardholder data environment, 12 categories', meta: '78 controls' },
+        pboc: { name: 'PBOC Payment', desc: 'Non-bank payment institution mapping', meta: '96 controls' },
+        iso27701: { name: 'ISO 27701', desc: 'Privacy info management PIMS', meta: '49 controls' },
+        vendor: { name: 'Vendor Assessment', desc: 'Contract terms + performance, quant + qual', meta: '54 items' },
+        iso9001: { name: 'ISO 9001', desc: 'Quality management process approach', meta: '61 controls' }
+      }
+    },
+    controls: {
+      title: 'Unified Control Library',
+      sub: 'control-point granularity',
+      th: { id: 'ID', ctrl: 'Control', systems: 'Systems', reuse: 'Reuse', result: 'Result' },
+      ctrl: { priv: 'Periodic privileged account review', tls: 'Data-in-transit encryption TLS1.2+', acl: 'Least-privilege access control' },
+      result: { ok: 'Compliant', partial: 'Partially Non-compliant' },
+      reuseTop: {
+        title: 'Top Reused',
+        acl: 'Least-privilege access',
+        priv: 'Privileged review',
+        log: 'Log retention'
+      }
+    },
+    kri: {
+      kpi: { metrics: 'Metrics', breach: 'Breaches', sources: 'Sources', sourcesSub: 'SIEM/Log/Vuln', collect: 'Collection', collectV: 'Normal' },
+      title: 'KRI Metrics & Thresholds',
+      config: '＋ Configure Metric',
+      th: { metric: 'Metric', source: 'Source', current: 'Current', threshold: 'Threshold', status: 'Status' },
+      rows: {
+        vuln: { metric: 'Core system vuln fix time', source: 'Vuln Mgmt', current: '23.4 d', threshold: '≤15 d', status: 'Breach' },
+        priv: { metric: 'Unreviewed privileged accounts', source: 'SIEM', current: '7', threshold: '=0', status: 'Critical' },
+        log: { metric: 'Log retention days', source: 'Log Platform', current: '162 d', threshold: '≥180 d', status: 'Watch' }
+      },
+      st: { over: 'Breach', urgent: 'Critical', watch: 'Watch' }
+    },
+    // drill-down · assessment report (inherent/residual risk & management acceptance)
+    report: {
+      back: '← Back to Assessments',
+      title: 'Merchant Settlement · Risk Assessment Report',
+      pending: 'Pending Approval',
+      exportPdf: 'Export PDF',
+      sign: 'Review & Sign',
+      kpi: { riskVal: 'Risk Value', high: 'High Risk', points: 'Risk Points', highPoints: 'High-Risk Points', toRemed: 'To Remediation' },
+      list: {
+        title: 'Risk Point List',
+        th: { ctrl: 'Control', concl: 'Conclusion', level: 'Level', advice: 'Remediation Advice' },
+        rows: {
+          acl: { ctrl: 'Settlement API access control', concl: 'Shared accounts present', advice: 'Enable individual accounts + audit' },
+          tls: { ctrl: 'Data-in-transit encryption', concl: 'Partial TLS1.1', advice: 'Upgrade to TLS1.2+' },
+          log: { ctrl: 'Log retention', concl: 'Requirement met', advice: '—' }
+        }
+      },
+      donut: { title: 'Level Distribution' },
+      residual: {
+        title: 'Risk Treatment & Residual Risk',
+        th: { point: 'Risk Point', inherent: 'Inherent Risk', decision: 'Decision', measure: 'Treatment', residual: 'Residual Risk', accept: 'Owner Acceptance' },
+        decision: { mitigate: 'Mitigate', accept: 'Accept' },
+        accept: { pending: 'Pending Sign-off', accepted: 'Management Accepted' },
+        rows: {
+          shared: { point: 'Settlement API shared account', measure: 'Enable individual accounts + audit' },
+          tls: { point: 'Partial TLS1.1', measure: 'Upgrade to TLS1.2+ in Q3' },
+          backup: { point: 'Legacy backup media', measure: 'Time-boxed to next assessment review' }
+        }
+      }
+    }
+  },
+
   // ---- subsidiary names (shared by heatmap / remediation) ----
   'dash.sub.hq': 'Group HQ',
   'dash.sub.pay': 'Payment Co.',
