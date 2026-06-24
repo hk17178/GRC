@@ -42,7 +42,7 @@
 - `WorkflowEngineTest` 3/3 绿（部署/通过/驳回/留痕）。
 
 ### A1 · M1 制度体系
-- [ ] 制度发布走 Flowable 审批（替换/对接现有 submit→approve 状态机）
+- [x] 制度发布走 Flowable 审批 —— ✅ 提交评审启动 genericApproval；审批结论驱动 REVIEW→EFFECTIVE/退回 DRAFT，审批与状态流转同事务原子 + 留痕；PolicyLifecycleTest 9/9 绿（含工作流联动用例）。
 - [ ] 知识库（分类、检索）
 - [ ] 版本管理与差异（version/diff、生效/废止）
 

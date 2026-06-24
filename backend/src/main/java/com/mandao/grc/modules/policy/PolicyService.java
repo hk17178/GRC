@@ -1,6 +1,9 @@
 package com.mandao.grc.modules.policy;
 
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,8 +16,11 @@ import java.util.List;
  * 且位于 com.mandao.grc.modules 包，{@link com.mandao.grc.common.isolation.OrgScopeAspect}
  * 会在事务内自动注入 app.visible_orgs，随后 RLS 裁剪数据并校验写入（WITH CHECK）。
  *
- * 状态机：DRAFT → REVIEW → EFFECTIVE → DEPRECATED；
- * REVIEW 可被驳回回 DRAFT。非法流转一律抛 {@link IllegalStateException}。
+ * 状态机：DRAFT → REVIEW → EFFECTIVE → DEPRECATED；REVIEW 可被驳回回 DRAFT。
+ * 非法流转一律抛 {@link IllegalStateException}。
+ *
+ * 审批：提交评审时启动 Flowable 通用审批流（{@link WorkflowService}），审批人处置的结论
+ * 驱动 REVIEW→EFFECTIVE（通过）或 REVIEW→DRAFT（驳回）。审批流转与制度状态流转同事务原子。
  *
  * 留痕：每次状态流转 / 签署后，调用 {@link HashChainService#append} 写入按 org 分链的
  * 防篡改哈希链（D1-3 §8 ADR-C）。HashChainService 自身 @Transactional，与本服务同事务/同连接，
@@ -25,16 +31,23 @@ import java.util.List;
 @Service
 public class PolicyService {
 
+    /** 制度审批的业务类型与审批候选组（Flowable 流程变量；候选组后续可映射 M8 角色）。 */
+    public static final String BIZ_TYPE = "POLICY";
+    public static final String APPROVER_GROUP = "POLICY_APPROVER";
+
     private final PolicyRepository policyRepository;
     private final PolicySignoffRepository signoffRepository;
     private final HashChainService hashChainService;
+    private final WorkflowService workflowService;
 
     public PolicyService(PolicyRepository policyRepository,
                          PolicySignoffRepository signoffRepository,
-                         HashChainService hashChainService) {
+                         HashChainService hashChainService,
+                         WorkflowService workflowService) {
         this.policyRepository = policyRepository;
         this.signoffRepository = signoffRepository;
         this.hashChainService = hashChainService;
+        this.workflowService = workflowService;
     }
 
     /**
@@ -68,8 +81,9 @@ public class PolicyService {
     }
 
     /**
-     * 提交评审：DRAFT → REVIEW。
+     * 提交评审：DRAFT → REVIEW，并启动 Flowable 审批工作流。
      * 非 DRAFT 态调用属非法流转，抛 {@link IllegalStateException}。
+     * 状态流转、留痕、启动审批流三者同事务原子提交/回滚。
      */
     @Transactional
     public Policy submitForApproval(Long id, String actor) {
@@ -77,31 +91,57 @@ public class PolicyService {
         transition(policy, PolicyStatus.DRAFT, PolicyStatus.REVIEW);
         Policy saved = policyRepository.save(policy);
         appendLog(saved, "POLICY_SUBMIT", actor, "提交评审");
+        // 启动通用审批流：审批人按候选组 POLICY_APPROVER 派单；结论驱动 EFFECTIVE/退回 DRAFT。
+        workflowService.submit(BIZ_TYPE, saved.getId(), saved.getOrgId(), APPROVER_GROUP, actor);
         return saved;
     }
 
     /**
-     * 审批通过：REVIEW → EFFECTIVE。
+     * 审批通过：REVIEW → EFFECTIVE（经工作流处置）。
      */
     @Transactional
     public Policy approve(Long id, String actor) {
-        Policy policy = get(id);
-        transition(policy, PolicyStatus.REVIEW, PolicyStatus.EFFECTIVE);
-        Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_APPROVE", actor, "审批通过并生效");
-        return saved;
+        return decide(id, ApprovalDecision.APPROVED, actor, null);
     }
 
     /**
-     * 审批驳回：REVIEW → DRAFT（退回起草人修改）。
+     * 审批驳回：REVIEW → DRAFT（经工作流处置，退回起草人修改）。
      */
     @Transactional
     public Policy reject(Long id, String actor, String reason) {
+        return decide(id, ApprovalDecision.REJECTED, actor, reason);
+    }
+
+    /**
+     * 审批处置（M1 制度发布走 Flowable 审批的核心）：
+     * 定位该制度进行中的审批任务 → 经 {@link WorkflowService#decide} 完成（推进流程 + 审批留痕）→
+     * 按结论推进制度状态机（通过=生效 / 驳回=退回草稿）。审批与业务流转【同事务原子】。
+     *
+     * @param decision 审批结论（通过/驳回）
+     * @param approver 审批人（留痕 actor）
+     * @param comment  审批意见（驳回原因，可空）
+     */
+    @Transactional
+    public Policy decide(Long id, ApprovalDecision decision, String approver, String comment) {
         Policy policy = get(id);
-        transition(policy, PolicyStatus.REVIEW, PolicyStatus.DRAFT);
-        Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_REJECT", actor, "审批驳回，原因：" + (reason == null ? "" : reason));
-        return saved;
+        if (policy.getStatus() != PolicyStatus.REVIEW) {
+            throw new IllegalStateException(
+                    "仅评审(REVIEW)态制度可审批，当前状态：" + policy.getStatus());
+        }
+        Task task = workflowService.activeTask(BIZ_TYPE, id);
+        if (task == null) {
+            throw new IllegalStateException("制度 id=" + id + " 无进行中的审批任务");
+        }
+        // 先完成审批任务（推进流程 + 审批留痕），再推进制度状态机——同事务，一致提交/回滚。
+        workflowService.decide(task.getId(), decision, approver, comment);
+        if (decision == ApprovalDecision.APPROVED) {
+            transition(policy, PolicyStatus.REVIEW, PolicyStatus.EFFECTIVE);
+            appendLog(policy, "POLICY_APPROVE", approver, "审批通过并生效");
+        } else {
+            transition(policy, PolicyStatus.REVIEW, PolicyStatus.DRAFT);
+            appendLog(policy, "POLICY_REJECT", approver, "审批驳回，原因：" + (comment == null ? "" : comment));
+        }
+        return policyRepository.save(policy);
     }
 
     /**

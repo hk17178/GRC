@@ -5,6 +5,7 @@ import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
 import org.flowable.engine.history.HistoricProcessInstance;
+import org.flowable.engine.runtime.ProcessInstance;
 import org.flowable.task.api.Task;
 import org.flowable.variable.api.history.HistoricVariableInstance;
 import org.springframework.stereotype.Service;
@@ -80,6 +81,23 @@ public class WorkflowService {
                 "发起审批 process=" + GENERIC_APPROVAL + " instance=" + instanceId
                         + " approverGroup=" + approverGroup);
         return instanceId;
+    }
+
+    /**
+     * 取某业务对象当前进行中的审批任务（无运行中实例/任务则返回 null）。
+     * 用 businessKey={bizType}:{bizId} 定位运行中的流程实例，再取其待办任务——
+     * 业务模块据此用业务 id 处置审批，无需在业务实体上额外存流程实例 id。
+     * 注：运行时查询只命中【未结束】实例；驳回后旧实例转历史，重新提交会建新实例，故恒取到当前那条。
+     */
+    @Transactional(readOnly = true)
+    public Task activeTask(String bizType, Long bizId) {
+        ProcessInstance pi = runtimeService.createProcessInstanceQuery()
+                .processInstanceBusinessKey(businessKey(bizType, bizId))
+                .singleResult();
+        if (pi == null) {
+            return null;
+        }
+        return taskService.createTaskQuery().processInstanceId(pi.getId()).singleResult();
     }
 
     /** 列出某候选组的待办审批任务（按创建时间升序）。 */

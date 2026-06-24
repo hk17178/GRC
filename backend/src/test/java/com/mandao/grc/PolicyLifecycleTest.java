@@ -6,6 +6,10 @@ import com.mandao.grc.modules.audit.HashChainService;
 import com.mandao.grc.modules.policy.Policy;
 import com.mandao.grc.modules.policy.PolicyService;
 import com.mandao.grc.modules.policy.PolicyStatus;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RuntimeService;
+import org.flowable.task.api.Task;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +29,8 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -67,6 +73,15 @@ class PolicyLifecycleTest {
     @Autowired
     private HashChainService hashChainService;
 
+    @Autowired
+    private WorkflowService workflowService;
+
+    @Autowired
+    private RuntimeService runtimeService;
+
+    @Autowired
+    private HistoryService historyService;
+
     private static final long ORG_PAY = 12L;   // 支付子公司
     private static final long ORG_CF = 13L;     // 消费金融
 
@@ -80,6 +95,13 @@ class PolicyLifecycleTest {
              Statement s = owner.createStatement()) {
             s.executeUpdate("TRUNCATE policy_signoff, policy, operation_log RESTART IDENTITY CASCADE");
         }
+        // 清理 Flowable 运行态/历史：本类用 RESTART IDENTITY 复用 policy id，会使各用例
+        // businessKey(POLICY:{id}) 跨用例碰撞，残留的运行中实例致 activeTask 命中多条而报错。
+        // 生产环境 policy id 全局唯一、无此问题；此处仅为测试隔离做净化。
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> runtimeService.deleteProcessInstance(pi.getId(), "用例重置"));
+        historyService.createHistoricProcessInstanceQuery().list()
+                .forEach(hpi -> historyService.deleteHistoricProcessInstance(hpi.getId()));
     }
 
     @AfterEach
@@ -158,8 +180,26 @@ class PolicyLifecycleTest {
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "流转留痕后链应校验通过");
-        // CREATE + SUBMIT + APPROVE = 3 条留痕
-        assertEquals(3, r.count(), "应有 3 条制度操作留痕");
+        // CREATE + SUBMIT + WORKFLOW_SUBMIT + WORKFLOW_DECIDE + APPROVE = 5 条
+        //（审批走 Flowable 后，提交多出 WORKFLOW_SUBMIT、审批多出 WORKFLOW_DECIDE）
+        assertEquals(5, r.count(), "应有 5 条操作留痕（含工作流提交/处置）");
+    }
+
+    @Test
+    void 制度审批走工作流_提交产生待办_通过后流程结束并生效() {
+        Long id = asOrg(ORG_PAY, () ->
+                policyService.create(ORG_PAY, "POL-401", "审批联动制度", "正文", "drafter").getId());
+        asOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter"));
+
+        // 提交评审后：该制度应产生一条进行中的审批任务（经 Flowable 引擎）
+        Task task = asOrg(ORG_PAY, () -> workflowService.activeTask(PolicyService.BIZ_TYPE, id));
+        assertNotNull(task, "提交评审后应产生审批待办任务");
+
+        // 审批通过：制度生效，且流程结束、无进行中任务
+        assertEquals(PolicyStatus.EFFECTIVE,
+                asOrg(ORG_PAY, () -> policyService.approve(id, "approver").getStatus()));
+        assertNull(asOrg(ORG_PAY, () -> workflowService.activeTask(PolicyService.BIZ_TYPE, id)),
+                "审批通过后不应再有进行中的审批任务");
     }
 
     @Test
