@@ -412,6 +412,8 @@ export default {
       obj: { gateway: '核心支付网关', settle: '商户结算系统', warehouse: '数据仓库平台' },
       status: { filling: '填写中', pending: '待审批', live: '已生效' }
     },
+    // 评估状态（对齐后端 AssessmentStatus）
+    assessStatus: { DRAFT: '草稿', IN_PROGRESS: '进行中', PENDING_REVIEW: '待复核', COMPLETED: '已完成' },
     // 风险等级分布（五级）
     levelDist: {
       title: '风险等级分布',

@@ -381,6 +381,8 @@ export default {
       obj: { gateway: 'Core Payment Gateway', settle: 'Merchant Settlement', warehouse: 'Data Warehouse' },
       status: { filling: 'Filling', pending: 'Pending', live: 'Live' }
     },
+    // 评估状态（对齐后端 AssessmentStatus）
+    assessStatus: { DRAFT: 'Draft', IN_PROGRESS: 'In Progress', PENDING_REVIEW: 'Pending Review', COMPLETED: 'Completed' },
     levelDist: {
       title: 'Risk Level Distribution',
       sub: '5-tier',

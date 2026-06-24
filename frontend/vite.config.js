@@ -15,6 +15,13 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5173
+    port: 5173,
+    // 开发联调：把 /api 代理到本地 Docker 里跑的后端(:8080)，浏览器同源调用，免 CORS。
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8080',
+        changeOrigin: true
+      }
+    }
   }
 })

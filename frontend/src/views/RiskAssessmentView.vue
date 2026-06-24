@@ -89,21 +89,27 @@
               </thead>
               <tbody>
                 <tr
-                  v-for="r in taskRows"
+                  v-for="r in liveTasks"
                   :key="r.id"
                   class="clk"
                   @click="drill = true"
                 >
                   <td class="code">{{ r.id }}</td>
-                  <td>{{ $t(r.obj) }}</td>
-                  <td><span class="pill" :class="r.pill">{{ r.tpl }}</span></td>
+                  <td>{{ r.title }}</td>
+                  <td>—</td>
+                  <td>—</td>
                   <td>
-                    <span class="prog"><i :style="{ width: r.prog }"></i></span>{{ r.prog }}
+                    <span v-if="r.riskLevel" class="tag" :class="riskCls(r.riskLevel)">{{ $t(riskLabel(r.riskLevel)) }}</span>
+                    <span v-else>—</span>
                   </td>
-                  <td><span class="tag" :class="r.riskClass">{{ $t(r.riskLabel) }}·{{ r.riskVal }}</span></td>
-                  <td class="num">{{ r.due }}</td>
+                  <td class="num">—</td>
                   <td>
-                    <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                    <span class="st" :class="stCls(r.status)"><span class="d"></span>{{ $t(stLabel(r.status)) }}</span>
+                  </td>
+                </tr>
+                <tr v-if="!liveTasks.length">
+                  <td colspan="7" style="color: var(--text-3); text-align: center; padding: 18px;">
+                    {{ loadError || '暂无评估数据（后端真实数据）' }}
                   </td>
                 </tr>
               </tbody>
@@ -412,8 +418,9 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import { api } from '@/api/client.js'
 
 // ---- Tab 切换 ----
 const tabs = ['tasks', 'templates', 'controls', 'kri']
@@ -422,12 +429,26 @@ const activeTab = ref('tasks')
 // ---- 下钻：评估报告视图开关（点击任务行进入，← 返回）----
 const drill = ref(false)
 
-// ---- Tab1：评估任务表（静态示例值取自原型）----
-const taskRows = [
-  { id: 'RA-2026-031', obj: 'risk.tasks.obj.gateway', pill: 'blue', tpl: '等保三级', prog: '75%', riskClass: 'vh', riskLabel: 'risk.levelDist.vh', riskVal: '22.4', due: '06-25', stClass: 'doing', stLabel: 'risk.tasks.status.filling' },
-  { id: 'RA-2026-028', obj: 'risk.tasks.obj.settle', pill: 'teal', tpl: 'ISO27001', prog: '100%', riskClass: 'h', riskLabel: 'risk.levelDist.h', riskVal: '16.0', due: '06-20', stClass: 'wait', stLabel: 'risk.tasks.status.pending' },
-  { id: 'RA-2026-025', obj: 'risk.tasks.obj.warehouse', pill: 'blue', tpl: '等保三级', prog: '100%', riskClass: 'm', riskLabel: 'risk.levelDist.m', riskVal: '9.2', due: '06-12', stClass: 'ok', stLabel: 'risk.tasks.status.live' }
-]
+// ---- Tab1：评估任务表（真实后端数据 GET /api/assessments，非静态假数据）----
+// 字段以后端为准：后端现有 id/title/riskLevel/status；模板/进度/截止等列后端暂无
+// 对应字段（DM-5 C 类缺口），先以「—」占位、不臆造，待后端补字段后再填。
+const liveTasks = ref([])
+const loadError = ref('')
+onMounted(async () => {
+  try {
+    liveTasks.value = await api.get('/assessments')
+  } catch (e) {
+    loadError.value = e.message
+  }
+})
+// 五级风险等级 → 既有 levelDist 样式键 / i18n 标签键
+const LEVEL_KEY = { VERY_HIGH: 'vh', HIGH: 'h', MID: 'm', LOW: 'l', VERY_LOW: 'vl' }
+const riskCls = (lv) => LEVEL_KEY[lv] || 'm'
+const riskLabel = (lv) => 'risk.levelDist.' + (LEVEL_KEY[lv] || 'm')
+// 评估状态 → 样式类 / i18n 标签键（对齐后端 AssessmentStatus）
+const STATUS_CLS = { DRAFT: 'wait', IN_PROGRESS: 'doing', PENDING_REVIEW: 'wait', COMPLETED: 'ok' }
+const stCls = (s) => STATUS_CLS[s] || 'wait'
+const stLabel = (s) => 'risk.assessStatus.' + s
 
 // ---- 风险等级分布（五级）bars ----
 // 极高/极低保留原型内联底色；高/中/低复用 seg2.h/m/l 语义色
