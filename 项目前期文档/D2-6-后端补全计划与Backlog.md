@@ -113,8 +113,10 @@
 - [x] **法规跟踪** —— ✅ 新模块 modules/regulation：法规库(状态机 TRACKING→EFFECTIVE→SUPERSEDED/ABOLISHED)
   + 法规变更动态 + **影响评估闭环**(变更 PENDING→ASSESSED，记录受影响范围与处置，重复评估被拒)；终态不可再变；
   RLS 隔离 + 留痕。/api/regulations。RegulationTrackingTest 4/4。
-- [ ] 未建模块：合规清单（义务库/落实）、第三方供应商（准入/评估/监测）、
-  建议与反馈（CR-004）、系统设置（租户配置 + D1-8 可配置性）。
+- [x] **第三方供应商** —— ✅ 新模块 modules/vendor：供应商(状态机 ONBOARDING→ACTIVE⇄SUSPENDED→TERMINATED)
+  + 风险评估(回写五级风险)；**准入门控红线**:未评估不得启用(activate)；监测态机(暂停/恢复/终止)。
+  RLS 隔离 + 留痕。/api/vendors。VendorTest 3/3。
+- [ ] 未建模块：合规清单（义务库/落实）、建议与反馈（CR-004）、系统设置（租户配置 + D1-8 可配置性）。
 
 ### Phase C · AI 接入
 - [ ] AI 接入（pgvector 向量库 + 检索增强问答「AI 智能问答」+「模型接入」配置，CR-004）——需先定模型/密钥与本地部署方案。
