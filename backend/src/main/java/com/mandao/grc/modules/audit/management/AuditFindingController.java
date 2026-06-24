@@ -1,0 +1,116 @@
+package com.mandao.grc.modules.audit.management;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
+
+/**
+ * 审计发现 REST 端点：/api/audit-findings（参照 RiskFindingController 风格）。
+ *
+ * 隔离/actor 同 {@link AuditPlanController}：可见范围由 X-User 头决定，actor 取 X-User。
+ *
+ * 外审对外回函三段漏斗（红线）：submit/accept/confirm-close 三端点单向推进 external_response_status；
+ * 跳级/逆向/非外审走漏斗由 Service 抛 {@link AuditFunnelException} 阻断。
+ */
+@RestController
+@RequestMapping("/api/audit-findings")
+public class AuditFindingController {
+
+    private final AuditFindingService service;
+
+    public AuditFindingController(AuditFindingService service) {
+        this.service = service;
+    }
+
+    /** 列出某审计计划下的发现。 */
+    @GetMapping
+    public List<AuditFinding> listByPlan(@RequestParam Long auditPlanId) {
+        return service.listByPlan(auditPlanId);
+    }
+
+    /** 取单个审计发现。 */
+    @GetMapping("/{id}")
+    public AuditFinding get(@PathVariable Long id) {
+        return service.get(id);
+    }
+
+    /** 新建审计发现（OPEN 态）。 */
+    @PostMapping
+    public AuditFinding create(@RequestBody CreateFindingRequest req,
+                               @RequestHeader(value = "X-User", required = false) String user) {
+        return service.createFinding(req.orgId(), req.auditPlanId(), req.title(), req.severity(), actor(user));
+    }
+
+    /** 调整严重度。 */
+    @PostMapping("/{id}/severity")
+    public AuditFinding setSeverity(@PathVariable Long id,
+                                    @RequestBody SeverityRequest req,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.setSeverity(id, req.severity(), actor(user));
+    }
+
+    // ---------- 内部处置状态机 ----------
+
+    /** 开始分析：OPEN → ANALYZING。 */
+    @PostMapping("/{id}/analyze")
+    public AuditFinding analyze(@PathVariable Long id,
+                                @RequestHeader(value = "X-User", required = false) String user) {
+        return service.analyze(id, actor(user));
+    }
+
+    /** 完成整改：ANALYZING → REMEDIATED。 */
+    @PostMapping("/{id}/remediate")
+    public AuditFinding remediate(@PathVariable Long id,
+                                  @RequestHeader(value = "X-User", required = false) String user) {
+        return service.remediate(id, actor(user));
+    }
+
+    /** 关闭发现：REMEDIATED → CLOSED（内部处置终态）。 */
+    @PostMapping("/{id}/close")
+    public AuditFinding closeFinding(@PathVariable Long id,
+                                     @RequestHeader(value = "X-User", required = false) String user) {
+        return service.closeFinding(id, actor(user));
+    }
+
+    // ---------- 外审对外回函三段漏斗（红线） ----------
+
+    /** 漏斗第一段：提交外部机构（→ SUBMITTED）。仅外审。 */
+    @PostMapping("/{id}/external-response/submit")
+    public AuditFinding submitResponse(@PathVariable Long id,
+                                       @RequestHeader(value = "X-User", required = false) String user) {
+        return service.submitResponse(id, actor(user));
+    }
+
+    /** 漏斗第二段：外方受理（→ ACCEPTED）。仅外审。 */
+    @PostMapping("/{id}/external-response/accept")
+    public AuditFinding acceptResponse(@PathVariable Long id,
+                                       @RequestHeader(value = "X-User", required = false) String user) {
+        return service.acceptResponse(id, actor(user));
+    }
+
+    /** 漏斗第三段（闭环）：外方确认关闭（→ CONFIRMED_CLOSED）。仅外审。 */
+    @PostMapping("/{id}/external-response/confirm-close")
+    public AuditFinding confirmClose(@PathVariable Long id,
+                                     @RequestHeader(value = "X-User", required = false) String user) {
+        return service.confirmClose(id, actor(user));
+    }
+
+    private String actor(String user) {
+        return (user == null || user.isBlank()) ? "anonymous" : user;
+    }
+
+    /** 新建审计发现请求体。 */
+    public record CreateFindingRequest(Long orgId, Long auditPlanId, String title, AuditSeverity severity) {
+    }
+
+    /** 严重度请求体。 */
+    public record SeverityRequest(AuditSeverity severity) {
+    }
+}

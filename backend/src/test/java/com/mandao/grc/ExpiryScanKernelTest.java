@@ -60,7 +60,8 @@ class ExpiryScanKernelTest {
     /** 每用例前清空内核相关表（owner 连接，绕 RLS）。 */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE audit_plan, reminder_dispatch_log, domain_event RESTART IDENTITY");
+        // CASCADE：M3(V6) 起 audit_finding 外键引用 audit_plan，截断 audit_plan 须级联（否则被 FK 阻止）
+        execAsOwner("TRUNCATE audit_plan, reminder_dispatch_log, domain_event RESTART IDENTITY CASCADE");
     }
 
     /** 以 owner 直连插入一条外审计划（绕 RLS，模拟数据已存在）。 */
