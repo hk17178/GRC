@@ -391,8 +391,19 @@ export default {
       stDoing: '进行中',
       stDone: '已完成',
       stOverdue: '逾期',
-      // 后端无对应实体（DM-5 E 类）：该 Tab 不展示假数据，改为占位提示
-      notImpl: '该功能后端尚未实现（待 Stage 3 排期）'
+      // ---- 真实后端接通（M11 CompliancePlan，替换原占位）----
+      list: '年度计划',
+      items: '计划事项',
+      empty: '暂无年度计划',
+      itemEmpty: '该计划暂无事项',
+      selectHint: '← 选择左侧一个年度计划查看其事项',
+      addItem: '＋ 新增事项',
+      th: { year: '年度', title: '名称', owner: '责任人', status: '状态', op: '操作' },
+      ith: { matter: '事项', dept: '责任部门', due: '计划完成', status: '状态' },
+      status: { DRAFT: '草稿', ACTIVE: '执行中', CLOSED: '已关闭' },
+      istatus: { PENDING: '待办', IN_PROGRESS: '进行中', DONE: '已完成' },
+      op: { activate: '启用', close: '关闭' },
+      create: { btn: '＋ 登记计划' }
     },
     // ---- 后端真实联调相关（DM-5）----
     // 空列表行（后端真实返回空）

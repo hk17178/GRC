@@ -362,8 +362,19 @@ export default {
       stDoing: 'In Progress',
       stDone: 'Completed',
       stOverdue: 'Overdue',
-      // No matching backend entity (DM-5 class E): show placeholder, not fake data
-      notImpl: 'Not yet implemented on the backend (scheduled for Stage 3)'
+      // ---- Wired to real backend (M11 CompliancePlan) ----
+      list: 'Annual Plans',
+      items: 'Plan Items',
+      empty: 'No annual plans',
+      itemEmpty: 'No items in this plan',
+      selectHint: '← Select a plan to view its items',
+      addItem: '＋ Add Item',
+      th: { year: 'Year', title: 'Title', owner: 'Owner', status: 'Status', op: 'Action' },
+      ith: { matter: 'Matter', dept: 'Owner Dept', due: 'Due', status: 'Status' },
+      status: { DRAFT: 'Draft', ACTIVE: 'Active', CLOSED: 'Closed' },
+      istatus: { PENDING: 'Pending', IN_PROGRESS: 'In Progress', DONE: 'Done' },
+      op: { activate: 'Activate', close: 'Close' },
+      create: { btn: '＋ New Plan' }
     },
     // ---- Real backend integration (DM-5) ----
     emptyRow: 'No data (live backend)',

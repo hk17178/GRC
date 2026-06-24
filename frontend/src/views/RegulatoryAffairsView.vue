@@ -183,14 +183,101 @@
         </div>
       </div>
 
-      <!-- ========== Tab2 · 年度合规计划 ========== -->
-      <!-- 后端无对应实体（DM-5 E 类）：不得展示后端没有的能力假象，
-           改为占位提示「该功能后端尚未实现（待 Stage 3 排期）」-->
+      <!-- ========== Tab2 · 年度合规计划（真实后端 GET /api/compliance-plans）==========
+           后端 M11 年度计划实体已建（CompliancePlan + Item，状态机 DRAFT→ACTIVE→CLOSED）；
+           左=计划列表（年度/名称/责任人/状态 + 启用/关闭），点选 → 右=该计划事项（事项/部门/期限/状态可改）。 -->
       <div v-show="activeTab === 'plan'" class="tabpane">
-        <div class="card">
-          <div class="empty">
-            <div class="t">{{ $t('regaffairs.tab.plan') }}</div>
-            <div class="d">{{ $t('regaffairs.plan.notImpl') }}</div>
+        <div class="g g-16-1">
+          <!-- 左：年度计划列表 -->
+          <div class="card">
+            <div class="ch">
+              <h3>{{ $t('regaffairs.plan.list') }}</h3>
+              <button class="btn ghost sm" style="margin-left: auto" @click="openPlanCreate">{{ $t('regaffairs.plan.create.btn') }}</button>
+            </div>
+            <table>
+              <thead><tr>
+                <th>{{ $t('regaffairs.plan.th.year') }}</th><th>{{ $t('regaffairs.plan.th.title') }}</th>
+                <th>{{ $t('regaffairs.plan.th.owner') }}</th><th>{{ $t('regaffairs.plan.th.status') }}</th><th>{{ $t('regaffairs.plan.th.op') }}</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="p in plans" :key="p.id" class="clk" :class="{ on: p.id === selPlanId }" @click="selectPlan(p)">
+                  <td class="num">{{ p.year }}</td>
+                  <td>{{ p.title }}</td>
+                  <td>{{ p.owner || '—' }}</td>
+                  <td><span class="st" :class="PLAN_CLS[p.status]"><span class="d"></span>{{ $t('regaffairs.plan.status.' + p.status) }}</span></td>
+                  <td class="ops" @click.stop>
+                    <button v-if="p.status === 'DRAFT'" class="btn sm" :disabled="planBusy === p.id" @click="planAct(p, 'activate')">{{ $t('regaffairs.plan.op.activate') }}</button>
+                    <button v-else-if="p.status === 'ACTIVE'" class="btn ghost sm" :disabled="planBusy === p.id" @click="planAct(p, 'close')">{{ $t('regaffairs.plan.op.close') }}</button>
+                  </td>
+                </tr>
+                <tr v-if="!plans.length"><td colspan="5" class="emptyrow">{{ plansError || $t('regaffairs.plan.empty') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- 右：选中计划的事项 -->
+          <div class="card">
+            <div class="ch">
+              <h3>{{ $t('regaffairs.plan.items') }}</h3>
+              <button v-if="selPlanId" class="btn ghost sm" style="margin-left: auto" @click="openItemCreate">{{ $t('regaffairs.plan.addItem') }}</button>
+            </div>
+            <div v-if="!selPlanId" class="hint">{{ $t('regaffairs.plan.selectHint') }}</div>
+            <table v-else>
+              <thead><tr>
+                <th>#</th><th>{{ $t('regaffairs.plan.ith.matter') }}</th><th>{{ $t('regaffairs.plan.ith.dept') }}</th>
+                <th>{{ $t('regaffairs.plan.ith.due') }}</th><th>{{ $t('regaffairs.plan.ith.status') }}</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="it in planItems" :key="it.id">
+                  <td class="num">{{ it.seq }}</td>
+                  <td>{{ it.matter }}</td>
+                  <td>{{ it.ownerDept || '—' }}</td>
+                  <td class="num">{{ it.dueDate || '—' }}</td>
+                  <td>
+                    <select class="mini-sel" :value="it.status" :disabled="itemBusy === it.id" @change="setItemStatus(it, $event.target.value)">
+                      <option value="PENDING">{{ $t('regaffairs.plan.istatus.PENDING') }}</option>
+                      <option value="IN_PROGRESS">{{ $t('regaffairs.plan.istatus.IN_PROGRESS') }}</option>
+                      <option value="DONE">{{ $t('regaffairs.plan.istatus.DONE') }}</option>
+                    </select>
+                  </td>
+                </tr>
+                <tr v-if="!planItems.length"><td colspan="5" class="emptyrow">{{ $t('regaffairs.plan.itemEmpty') }}</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <p v-if="planOpError" class="cerr" style="padding: 0 4px">{{ planOpError }}</p>
+      </div>
+
+      <!-- 登记年度计划弹窗 -->
+      <div v-if="showPlanCreate" class="modal-mask" @click.self="showPlanCreate = false">
+        <div class="modal-card">
+          <h3>{{ $t('regaffairs.plan.create.btn') }}</h3>
+          <label class="fld">{{ $t('regaffairs.plan.th.year') }}<input v-model.number="planForm.year" type="number" /></label>
+          <label class="fld">{{ $t('regaffairs.plan.th.title') }}<input v-model="planForm.title" /></label>
+          <label class="fld">{{ $t('regaffairs.plan.th.owner') }}<input v-model="planForm.owner" /></label>
+          <label class="fld">{{ $t('regaffairs.create.org') }}
+            <select v-model.number="planForm.orgId"><option :value="12">{{ $t('regaffairs.create.orgPay') }}</option><option :value="13">{{ $t('regaffairs.create.orgConsumer') }}</option></select>
+          </label>
+          <p v-if="planOpError" class="cerr">{{ planOpError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showPlanCreate = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!planForm.year || !planForm.title || planSaving" @click="submitPlan">{{ planSaving ? $t('common.submitting') : $t('common.confirm') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增计划事项弹窗 -->
+      <div v-if="showItemCreate" class="modal-mask" @click.self="showItemCreate = false">
+        <div class="modal-card">
+          <h3>{{ $t('regaffairs.plan.addItem') }}</h3>
+          <label class="fld">{{ $t('regaffairs.plan.ith.matter') }}<input v-model="itemForm.matter" /></label>
+          <label class="fld">{{ $t('regaffairs.plan.ith.dept') }}<input v-model="itemForm.ownerDept" /></label>
+          <label class="fld">{{ $t('regaffairs.plan.ith.due') }}<input v-model="itemForm.dueDate" type="date" /></label>
+          <p v-if="planOpError" class="cerr">{{ planOpError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showItemCreate = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!itemForm.matter || planSaving" @click="submitItem">{{ planSaving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -433,6 +520,68 @@ const penaltyStLabel = (s) => (s ? t('regaffairs.penaltyStatus.' + s) : t('regaf
 const INCIDENT_CLS = { DRAFT: 'wait', REPORTED: 'doing', CLOSED: 'ok' }
 const incidentStCls = (s) => INCIDENT_CLS[s] || 'wait'
 const incidentStLabel = (s) => (s ? t('regaffairs.incidentStatus.' + s) : t('regaffairs.dash'))
+
+// =============================================================
+// Tab2 · 年度合规计划（M11，真实后端 /api/compliance-plans）
+//   计划状态机 DRAFT→ACTIVE→CLOSED；计划项 PENDING→IN_PROGRESS→DONE。
+// =============================================================
+const plans = ref([])
+const plansError = ref('')
+const selPlanId = ref(null)
+const planItems = ref([])
+const planBusy = ref(null)   // 正在流转的计划 id
+const itemBusy = ref(null)   // 正在改状态的事项 id
+const planOpError = ref('')
+const PLAN_CLS = { DRAFT: 'wait', ACTIVE: 'doing', CLOSED: 'ok' }
+
+async function loadPlans() {
+  plansError.value = ''
+  try { plans.value = await api.get('/compliance-plans') } catch (e) { plansError.value = e.message; plans.value = [] }
+}
+async function selectPlan(p) {
+  selPlanId.value = p.id
+  try { planItems.value = await api.get('/compliance-plans/' + p.id + '/items') } catch (e) { planItems.value = [] }
+}
+// 计划状态机流转：activate/close
+async function planAct(p, op) {
+  planBusy.value = p.id; planOpError.value = ''
+  try { await api.post('/compliance-plans/' + p.id + '/' + op, {}); await loadPlans() }
+  catch (e) { planOpError.value = e.message } finally { planBusy.value = null }
+}
+// 计划项状态切换：POST /items/{itemId}/status
+async function setItemStatus(it, status) {
+  itemBusy.value = it.id; planOpError.value = ''
+  try {
+    await api.post('/compliance-plans/items/' + it.id + '/status', { status })
+    if (selPlanId.value) await selectPlan({ id: selPlanId.value })
+  } catch (e) { planOpError.value = e.message } finally { itemBusy.value = null }
+}
+
+// 登记计划 / 新增事项
+const showPlanCreate = ref(false)
+const showItemCreate = ref(false)
+const planSaving = ref(false)
+const planForm = reactive({ year: 2026, title: '', owner: '', orgId: 12 })
+const itemForm = reactive({ matter: '', ownerDept: '', dueDate: '' })
+function openPlanCreate() { Object.assign(planForm, { year: 2026, title: '', owner: '', orgId: 12 }); planOpError.value = ''; showPlanCreate.value = true }
+function openItemCreate() { Object.assign(itemForm, { matter: '', ownerDept: '', dueDate: '' }); planOpError.value = ''; showItemCreate.value = true }
+async function submitPlan() {
+  planSaving.value = true; planOpError.value = ''
+  try {
+    await api.post('/compliance-plans', { orgId: planForm.orgId, year: planForm.year, title: planForm.title, owner: planForm.owner })
+    showPlanCreate.value = false; await loadPlans()
+  } catch (e) { planOpError.value = e.message } finally { planSaving.value = false }
+}
+async function submitItem() {
+  planSaving.value = true; planOpError.value = ''
+  try {
+    await api.post('/compliance-plans/' + selPlanId.value + '/items', { matter: itemForm.matter, ownerDept: itemForm.ownerDept, dueDate: itemForm.dueDate || null })
+    showItemCreate.value = false; await selectPlan({ id: selPlanId.value })
+  } catch (e) { planOpError.value = e.message } finally { planSaving.value = false }
+}
+
+// 年度计划数据在挂载时一并拉取
+onMounted(loadPlans)
 </script>
 
 <style scoped>
@@ -654,6 +803,42 @@ const incidentStLabel = (s) => (s ? t('regaffairs.incidentStatus.' + s) : t('reg
 }
 .seg2.g {
   background: var(--success);
+}
+
+/* ---- 年度合规计划 Tab 专用 ---- */
+.btn.sm {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12px;
+}
+tbody tr.clk {
+  cursor: pointer;
+}
+tbody tr.on {
+  background: var(--accent-tint);
+}
+td.ops {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.hint {
+  color: var(--text-3);
+  font-size: 12.5px;
+  padding: 22px 18px;
+  text-align: center;
+}
+.mini-sel {
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 11.5px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
 }
 
 /* ---- 信息行 srow ---- */
