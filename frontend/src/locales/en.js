@@ -334,7 +334,10 @@ export default {
     major: {
       info: 'Major risk/security incidents must be reported within regulatory deadlines (e.g., PBOC major-incident reporting); manage deadlines, versions and receipts here.',
       emptyTitle: 'No major incidents this quarter',
-      emptyDesc: 'When a major incident occurs, file the regulatory report here and track the receipt; linked to incidents, remediation and evidence.'
+      emptyDesc: 'When a major incident occurs, file the regulatory report here and track the receipt; linked to incidents, remediation and evidence.',
+      thSeverity: 'Severity',
+      thOccurred: 'Occurred At',
+      thReported: 'Reported At'
     },
     plan: {
       kpi: { total: 'Annual Items', done: 'Completed', doing: 'In Progress', overdue: 'Overdue' },
@@ -353,8 +356,18 @@ export default {
       deptCompliance: 'Compliance Dept.',
       stDoing: 'In Progress',
       stDone: 'Completed',
-      stOverdue: 'Overdue'
-    }
+      stOverdue: 'Overdue',
+      // No matching backend entity (DM-5 class E): show placeholder, not fake data
+      notImpl: 'Not yet implemented on the backend (scheduled for Stage 3)'
+    },
+    // ---- Real backend integration (DM-5) ----
+    emptyRow: 'No data (live backend)',
+    dash: '—',
+    filingStatus: { TO_DRAFT: 'To Draft', DRAFTING: 'Drafting', SUBMITTED: 'Submitted', CLOSED: 'Closed' },
+    inquiryStatus: { DRAFTING: 'Drafting Reply', REPLIED: 'Replied', AWAIT_FEEDBACK: 'Awaiting Feedback', CLOSED: 'Closed' },
+    penaltyStatus: { OPEN: 'Open', RECTIFYING: 'Rectifying', CLOSED: 'Closed' },
+    incidentStatus: { DRAFT: 'Draft', REPORTED: 'Reported', CLOSED: 'Closed' },
+    severity: { VERY_LOW: 'Very Low', LOW: 'Low', MID: 'Medium', HIGH: 'High', VERY_HIGH: 'Very High' }
   },
 
   // ---- Risk Assessment (M2, mirrors cockpit prototype #view-risk and drill-downs) ----

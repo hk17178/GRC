@@ -45,28 +45,33 @@
         <button class="btn">{{ $t('regaffairs.register') }}</button>
       </div>
 
-      <!-- ===== KPI 五卡 ===== -->
+      <!-- ===== KPI 五卡（能派生的取真实计数，派生不了显「—」）===== -->
       <div class="kpibar k5">
         <div class="kc">
           <div class="l">{{ $t('regaffairs.kpi.dueMonth') }}</div>
-          <div class="v" style="color: var(--accent)">6</div>
+          <!-- 待报送数 = reg-filings 中 status∈{TO_DRAFT,DRAFTING} 条数 -->
+          <div class="v" style="color: var(--accent)">{{ kpiDueToSubmit }}</div>
           <div class="s">{{ $t('regaffairs.kpi.dueMonthSub') }}</div>
         </div>
         <div class="kc">
           <div class="l">{{ $t('regaffairs.kpi.overdue') }}</div>
-          <div class="v" style="color: var(--danger)">0</div>
+          <!-- 逾期报送：后端无逾期标记字段，无法派生 → 「—」 -->
+          <div class="v" style="color: var(--danger)">{{ $t('regaffairs.dash') }}</div>
         </div>
         <div class="kc">
           <div class="l">{{ $t('regaffairs.kpi.openInquiry') }}</div>
-          <div class="v" style="color: var(--warning)">3</div>
+          <!-- 未结问询 = reg-inquiries 中 status≠CLOSED 条数 -->
+          <div class="v" style="color: var(--warning)">{{ kpiOpenInquiry }}</div>
         </div>
         <div class="kc">
           <div class="l">{{ $t('regaffairs.kpi.penaltyOpen') }}</div>
-          <div class="v" style="color: var(--danger)">1</div>
+          <!-- 处罚整改未闭环 = reg-penalties 中 status≠CLOSED 条数 -->
+          <div class="v" style="color: var(--danger)">{{ kpiPenaltyOpen }}</div>
         </div>
         <div class="kc">
           <div class="l">{{ $t('regaffairs.kpi.majorReport') }}</div>
-          <div class="v">0</div>
+          <!-- 重大事件报送 = major-incidents 总条数 -->
+          <div class="v">{{ kpiMajorCount }}</div>
           <div class="s">{{ $t('regaffairs.kpi.majorReportSub') }}</div>
         </div>
       </div>
@@ -86,7 +91,9 @@
       <!-- ========== Tab1 · 报送日历 ========== -->
       <div v-show="activeTab === 'calendar'" class="tabpane">
         <div class="g g-16-1">
-          <!-- 左：监管报送日历表 -->
+          <!-- 左：监管报送日历表（真调 GET /api/reg-filings）-->
+          <!-- 字段以后端为准：id/orgId/title/regulator/statutoryDeadline/status；
+               原型的「类型(月报/季报)/责任人/回执留痕」后端暂无 → 显「—」(DM-5 C 缺口) -->
           <div class="card">
             <div class="ch">
               <h3>{{ $t('regaffairs.calendar.title') }}</h3>
@@ -104,52 +111,40 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in calendarRows" :key="r.item">
-                  <td>{{ $t(r.item) }}</td>
-                  <td>{{ $t(r.regulator) }}</td>
-                  <td><span class="pill" :class="r.typePill">{{ $t(r.type) }}</span></td>
-                  <td class="num" :style="r.deadlineStyle">{{ r.deadlineKey ? $t(r.deadlineKey) : r.deadline }}</td>
-                  <td><span class="av-s">{{ r.avatar }}</span>{{ $t(r.owner) }}</td>
+                <tr v-for="r in filings" :key="r.id">
+                  <td>{{ r.title || $t('regaffairs.dash') }}</td>
+                  <td>{{ r.regulator || $t('regaffairs.dash') }}</td>
+                  <!-- 类型后端暂无 → 「—」 -->
+                  <td>{{ $t('regaffairs.dash') }}</td>
+                  <td class="num">{{ r.statutoryDeadline || $t('regaffairs.dash') }}</td>
+                  <!-- 责任人后端暂无 → 「—」 -->
+                  <td>{{ $t('regaffairs.dash') }}</td>
                   <td>
-                    <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                    <span class="st" :class="filingStCls(r.status)"><span class="d"></span>{{ filingStLabel(r.status) }}</span>
                   </td>
+                </tr>
+                <tr v-if="!filings.length">
+                  <td colspan="6" class="emptyrow">{{ filingsError || $t('regaffairs.emptyRow') }}</td>
                 </tr>
               </tbody>
             </table>
           </div>
 
-          <!-- 右：报送达成 + 临近报送 -->
+          <!-- 右：报送达成 + 临近报送（后端无对应聚合/字段，不臆造数据，显「—」）-->
           <div>
-            <!-- 报送达成（本年）bars -->
             <div class="card">
               <div class="ch"><h3>{{ $t('regaffairs.achieve.title') }}</h3></div>
               <div class="cb">
-                <div class="bars">
-                  <div v-for="b in achieveBars" :key="b.label" class="bar-row">
-                    <div class="hd"><span class="nm">{{ $t(b.label) }}</span><b>{{ b.v }}</b></div>
-                    <div class="track">
-                      <div class="seg2 g" :style="{ width: b.w }"></div>
-                    </div>
-                  </div>
+                <div class="empty">
+                  <div class="d">{{ $t('regaffairs.dash') }}</div>
                 </div>
               </div>
             </div>
-
-            <!-- 临近报送 srow -->
             <div class="card">
               <div class="ch"><h3>{{ $t('regaffairs.upcoming.title') }}</h3></div>
               <div class="cb">
-                <div class="srow">
-                  <span>{{ $t('regaffairs.calendar.itemPbocStat') }}</span>
-                  <b style="color: var(--danger)">{{ $t('regaffairs.upcoming.d2') }}</b>
-                </div>
-                <div class="srow">
-                  <span>{{ $t('regaffairs.calendar.itemAml') }}</span>
-                  <b style="color: var(--warning)">{{ $t('regaffairs.upcoming.d7') }}</b>
-                </div>
-                <div class="srow">
-                  <span>{{ $t('regaffairs.calendar.itemReserve') }}</span>
-                  <b>{{ $t('regaffairs.upcoming.d12') }}</b>
+                <div class="empty">
+                  <div class="d">{{ $t('regaffairs.dash') }}</div>
                 </div>
               </div>
             </div>
@@ -158,56 +153,14 @@
       </div>
 
       <!-- ========== Tab2 · 年度合规计划 ========== -->
+      <!-- 后端无对应实体（DM-5 E 类）：不得展示后端没有的能力假象，
+           改为占位提示「该功能后端尚未实现（待 Stage 3 排期）」-->
       <div v-show="activeTab === 'plan'" class="tabpane">
-        <!-- KPI 四卡 -->
-        <div class="kpibar k4">
-          <div class="kc">
-            <div class="l">{{ $t('regaffairs.plan.kpi.total') }}</div>
-            <div class="v">38</div>
-          </div>
-          <div class="kc">
-            <div class="l">{{ $t('regaffairs.plan.kpi.done') }}</div>
-            <div class="v" style="color: var(--success)">19</div>
-          </div>
-          <div class="kc">
-            <div class="l">{{ $t('regaffairs.plan.kpi.doing') }}</div>
-            <div class="v">14</div>
-          </div>
-          <div class="kc">
-            <div class="l">{{ $t('regaffairs.plan.kpi.overdue') }}</div>
-            <div class="v" style="color: var(--danger)">2</div>
-          </div>
-        </div>
-
         <div class="card">
-          <div class="ch">
-            <h3>{{ $t('regaffairs.plan.title') }}</h3>
-            <span class="more">{{ $t('regaffairs.plan.add') }}</span>
+          <div class="empty">
+            <div class="t">{{ $t('regaffairs.tab.plan') }}</div>
+            <div class="d">{{ $t('regaffairs.plan.notImpl') }}</div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>{{ $t('regaffairs.plan.th.item') }}</th>
-                <th>{{ $t('regaffairs.plan.th.category') }}</th>
-                <th>{{ $t('regaffairs.plan.th.dept') }}</th>
-                <th>{{ $t('regaffairs.plan.th.planDone') }}</th>
-                <th>{{ $t('regaffairs.plan.th.progress') }}</th>
-                <th>{{ $t('regaffairs.plan.th.status') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="r in planRows" :key="r.item">
-                <td>{{ $t(r.item) }}</td>
-                <td><span class="pill" :class="r.catPill">{{ $t(r.category) }}</span></td>
-                <td>{{ $t(r.dept) }}</td>
-                <td>{{ r.planDone }}</td>
-                <td><span class="prog"><i :style="{ width: r.progress }"></i></span>{{ r.progress }}</td>
-                <td>
-                  <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
         </div>
       </div>
 
@@ -230,20 +183,23 @@
                 <th>{{ $t('regaffairs.inquiry.th.status') }}</th>
               </tr>
             </thead>
+            <!-- 真调 GET /api/reg-inquiries：id/title/regulator/receivedDate/dueDate/status；
+                 「答复留痕」后端暂无 → 「—」 -->
             <tbody>
-              <tr v-for="r in inquiryRows" :key="r.id">
+              <tr v-for="r in inquiries" :key="r.id">
                 <td class="code">{{ r.id }}</td>
-                <td>{{ $t(r.regulator) }}</td>
-                <td>{{ $t(r.subject) }}</td>
-                <td class="num">{{ r.received }}</td>
-                <td class="num" :style="r.dueStyle">{{ r.replyDue }}</td>
+                <td>{{ r.regulator || $t('regaffairs.dash') }}</td>
+                <td>{{ r.title || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ r.receivedDate || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ r.dueDate || $t('regaffairs.dash') }}</td>
+                <!-- 答复留痕后端暂无 → 「—」 -->
+                <td>{{ $t('regaffairs.dash') }}</td>
                 <td>
-                  <span v-if="r.replyLogLabel" class="st" :class="r.replyLogClass"><span class="d"></span>{{ $t(r.replyLogLabel) }}</span>
-                  <span v-else>—</span>
+                  <span class="st" :class="inquiryStCls(r.status)"><span class="d"></span>{{ inquiryStLabel(r.status) }}</span>
                 </td>
-                <td>
-                  <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
-                </td>
+              </tr>
+              <tr v-if="!inquiries.length">
+                <td colspan="7" class="emptyrow">{{ inquiriesError || $t('regaffairs.emptyRow') }}</td>
               </tr>
             </tbody>
           </table>
@@ -269,17 +225,25 @@
                 <th>{{ $t('regaffairs.penalty.th.replyStatus') }}</th>
               </tr>
             </thead>
+            <!-- 真调 GET /api/reg-penalties：id/title/regulator/penaltyType/amount/occurredDate/status；
+                 「事由/整改要求/回函状态」后端暂无 → 「—」。
+                 注：原型的「事由」列以后端 title 填充（最贴近的真实字段），整改要求列「—」-->
             <tbody>
-              <tr v-for="r in penaltyRows" :key="r.id">
+              <tr v-for="r in penalties" :key="r.id">
                 <td class="code">{{ r.id }}</td>
-                <td><span class="tag" :class="r.typeClass">{{ $t(r.type) }}</span></td>
-                <td>{{ $t(r.regulator) }}</td>
-                <td>{{ $t(r.reason) }}</td>
-                <td class="num">{{ r.date }}</td>
-                <td>{{ $t(r.remediation) }}</td>
+                <!-- penaltyType 为后端自由文本，按纯文本呈现，不臆造严重度标签色 -->
+                <td>{{ r.penaltyType || $t('regaffairs.dash') }}</td>
+                <td>{{ r.regulator || $t('regaffairs.dash') }}</td>
+                <td>{{ r.title || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ r.occurredDate || $t('regaffairs.dash') }}</td>
+                <!-- 整改要求后端暂无 → 「—」 -->
+                <td>{{ $t('regaffairs.dash') }}</td>
                 <td>
-                  <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                  <span class="st" :class="penaltyStCls(r.status)"><span class="d"></span>{{ penaltyStLabel(r.status) }}</span>
                 </td>
+              </tr>
+              <tr v-if="!penalties.length">
+                <td colspan="7" class="emptyrow">{{ penaltiesError || $t('regaffairs.emptyRow') }}</td>
               </tr>
             </tbody>
           </table>
@@ -287,18 +251,41 @@
       </div>
 
       <!-- ========== Tab5 · 重大事件报送 ========== -->
+      <!-- 真调 GET /api/major-incidents：id/title/severity/occurredAt/reportedAt/status -->
       <div v-show="activeTab === 'major'" class="tabpane">
         <!-- 提示信息行 infoline -->
         <div class="infoline">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9" /></svg>
           {{ $t('regaffairs.major.info') }}
         </div>
-        <!-- 空态 -->
         <div class="card">
-          <div class="empty">
-            <div class="t">{{ $t('regaffairs.major.emptyTitle') }}</div>
-            <div class="d">{{ $t('regaffairs.major.emptyDesc') }}</div>
-          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>{{ $t('regaffairs.inquiry.th.id') }}</th>
+                <th>{{ $t('regaffairs.calendar.th.item') }}</th>
+                <th>{{ $t('regaffairs.major.thSeverity') }}</th>
+                <th>{{ $t('regaffairs.major.thOccurred') }}</th>
+                <th>{{ $t('regaffairs.major.thReported') }}</th>
+                <th>{{ $t('regaffairs.calendar.th.status') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="r in majors" :key="r.id">
+                <td class="code">{{ r.id }}</td>
+                <td>{{ r.title || $t('regaffairs.dash') }}</td>
+                <td>{{ r.severity ? $t('regaffairs.severity.' + r.severity) : $t('regaffairs.dash') }}</td>
+                <td class="num">{{ r.occurredAt || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ r.reportedAt || $t('regaffairs.dash') }}</td>
+                <td>
+                  <span class="st" :class="incidentStCls(r.status)"><span class="d"></span>{{ incidentStLabel(r.status) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!majors.length">
+                <td colspan="6" class="emptyrow">{{ majorsError || $t('regaffairs.emptyRow') }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -306,11 +293,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
+import { api } from '@/api/client.js'
 
-// ---- 顶部子公司分段（默认「集团」高亮，纯展示）----
-// 原型为：集团 / 支付科技 / 消费金融
+const { t } = useI18n()
+
+// ---- 顶部子公司分段（默认「集团」高亮，纯展示交互；后端隔离由 X-User 头驱动）----
 const segs = ['all', 'pay', 'consumer']
 const activeSeg = ref(0)
 
@@ -319,43 +309,67 @@ const activeSeg = ref(0)
 const tabs = ['calendar', 'plan', 'inquiry', 'penalty', 'major']
 const activeTab = ref('calendar')
 
-// ---- Tab1：监管报送日历表（静态示例值取自原型）----
-// avatar 为原型中责任人头像首字（与语言无关，固定显示）
-const calendarRows = [
-  { item: 'regaffairs.calendar.itemPbocStat', regulator: 'regaffairs.calendar.regPboc', type: 'regaffairs.calendar.typeMonthly', typePill: '', deadlineKey: 'regaffairs.calendar.due0705', deadlineStyle: { color: 'var(--danger)' }, avatar: '陈', owner: 'regaffairs.calendar.ownerChen', stClass: 'doing', stLabel: 'regaffairs.calendar.stDrafting' },
-  { item: 'regaffairs.calendar.itemAml', regulator: 'regaffairs.calendar.regAml', type: 'regaffairs.calendar.typeMonthly', typePill: '', deadline: '07-10', deadlineStyle: {}, avatar: '李', owner: 'regaffairs.calendar.ownerLi', stClass: 'wait', stLabel: 'regaffairs.calendar.stToDraft' },
-  { item: 'regaffairs.calendar.itemPi', regulator: 'regaffairs.calendar.regCac', type: 'regaffairs.calendar.typeAnnual', typePill: 'blue', deadline: '08-31', deadlineStyle: {}, avatar: '王', owner: 'regaffairs.calendar.ownerWang', stClass: 'wait', stLabel: 'regaffairs.calendar.stToDraft' },
-  { item: 'regaffairs.calendar.itemReserve', regulator: 'regaffairs.calendar.regPboc', type: 'regaffairs.calendar.typeQuarterly', typePill: '', deadline: '07-15', deadlineStyle: {}, avatar: '张', owner: 'regaffairs.calendar.ownerZhang', stClass: 'ok', stLabel: 'regaffairs.calendar.stSubmitted' }
-]
+// =============================================================
+// 真调后端（DM-5：前端不得用静态假数据；字段以后端为准）
+// 各台账独立持有列表与错误态；onMounted 并发拉取。
+//  - 报送日历   GET /api/reg-filings
+//  - 监管问询   GET /api/reg-inquiries
+//  - 处罚与约谈 GET /api/reg-penalties
+//  - 重大事件   GET /api/major-incidents
+// 年度合规计划：后端无对应实体（DM-5 E 类）→ 模板占位，不拉数据。
+// =============================================================
+const filings = ref([])
+const filingsError = ref('')
+const inquiries = ref([])
+const inquiriesError = ref('')
+const penalties = ref([])
+const penaltiesError = ref('')
+const majors = ref([])
+const majorsError = ref('')
 
-// ---- Tab1 右栏：报送达成（本年）bars ----
-const achieveBars = [
-  { label: 'regaffairs.achieve.onTime', v: '100%', w: '100%' },
-  { label: 'regaffairs.achieve.monthly', v: '6/6', w: '100%' },
-  { label: 'regaffairs.achieve.quarterly', v: '2/2', w: '100%' }
-]
+onMounted(() => {
+  api.get('/reg-filings').then((d) => { filings.value = d || [] }).catch((e) => { filingsError.value = e.message })
+  api.get('/reg-inquiries').then((d) => { inquiries.value = d || [] }).catch((e) => { inquiriesError.value = e.message })
+  api.get('/reg-penalties').then((d) => { penalties.value = d || [] }).catch((e) => { penaltiesError.value = e.message })
+  api.get('/major-incidents').then((d) => { majors.value = d || [] }).catch((e) => { majorsError.value = e.message })
+})
 
-// ---- Tab2：监管问询表 ----
-const inquiryRows = [
-  { id: 'RQ-2026-08', regulator: 'regaffairs.inquiry.regPboc', subject: 'regaffairs.inquiry.subjLargeTxn', received: '06-18', replyDue: '06-28', dueStyle: { color: 'var(--danger)' }, replyLogLabel: '', stClass: 'doing', stLabel: 'regaffairs.inquiry.stReplyDrafting' },
-  { id: 'RQ-2026-07', regulator: 'regaffairs.inquiry.regCac', subject: 'regaffairs.inquiry.subjPiExport', received: '06-10', replyDue: '06-24', dueStyle: {}, replyLogClass: 'ok', replyLogLabel: 'regaffairs.inquiry.stReplied', stClass: 'wait', stLabel: 'regaffairs.inquiry.stAwaitFeedback' },
-  { id: 'RQ-2026-05', regulator: 'regaffairs.inquiry.regNafr', subject: 'regaffairs.inquiry.subjOutsource', received: '05-28', replyDue: '06-11', dueStyle: {}, replyLogClass: 'ok', replyLogLabel: 'regaffairs.inquiry.stReplied', stClass: 'ok', stLabel: 'regaffairs.inquiry.stClosed' }
-]
+// ---- KPI 卡：能派生的取真实计数，派生不了在模板里显「—」----
+// 待报送数 = reg-filings 中 status∈{TO_DRAFT,DRAFTING}
+const kpiDueToSubmit = computed(() =>
+  filings.value.filter((r) => r.status === 'TO_DRAFT' || r.status === 'DRAFTING').length
+)
+// 未结问询 = reg-inquiries 中 status≠CLOSED
+const kpiOpenInquiry = computed(() =>
+  inquiries.value.filter((r) => r.status !== 'CLOSED').length
+)
+// 处罚整改未闭环 = reg-penalties 中 status≠CLOSED
+const kpiPenaltyOpen = computed(() =>
+  penalties.value.filter((r) => r.status !== 'CLOSED').length
+)
+// 重大事件报送 = major-incidents 总数
+const kpiMajorCount = computed(() => majors.value.length)
 
-// ---- Tab3：处罚与约谈台账表 ----
-// tag.m = 约谈（警示）；tag.h = 行政处罚（高）
-const penaltyRows = [
-  { id: 'RP-2026-02', type: 'regaffairs.penalty.typeTalk', typeClass: 'm', regulator: 'regaffairs.penalty.regPboc', reason: 'regaffairs.penalty.reasonKyc', date: '06-05', remediation: 'regaffairs.penalty.remed30d', stClass: 'doing', stLabel: 'regaffairs.penalty.stRemediating' },
-  { id: 'RP-2025-11', type: 'regaffairs.penalty.typePenalty', typeClass: 'h', regulator: 'regaffairs.penalty.regLocalPboc', reason: 'regaffairs.penalty.reasonReserve', date: '2025-11', remediation: 'regaffairs.penalty.remedFine', stClass: 'ok', stLabel: 'regaffairs.penalty.stRepliedClosed' }
-]
-
-// ---- Tab5：年度合规计划表 ----
-const planRows = [
-  { item: 'regaffairs.plan.itemMlps', category: 'regaffairs.plan.catAssess', catPill: '', dept: 'regaffairs.plan.deptInfosec', planDone: 'Q4', progress: '70%', stClass: 'doing', stLabel: 'regaffairs.plan.stDoing' },
-  { item: 'regaffairs.plan.itemPiTrain', category: 'regaffairs.plan.catTrain', catPill: 'blue', dept: 'regaffairs.plan.deptCompliance', planDone: 'Q3', progress: '40%', stClass: 'doing', stLabel: 'regaffairs.plan.stDoing' },
-  { item: 'regaffairs.plan.itemAmlInspect', category: 'regaffairs.plan.catInspect', catPill: '', dept: 'regaffairs.plan.deptCompliance', planDone: 'Q2', progress: '100%', stClass: 'ok', stLabel: 'regaffairs.plan.stDone' },
-  { item: 'regaffairs.plan.itemDataSelf', category: 'regaffairs.plan.catSelf', catPill: '', dept: 'regaffairs.plan.deptInfosec', planDone: 'Q2', progress: '20%', stClass: 'over', stLabel: 'regaffairs.plan.stOverdue' }
-]
+// =============================================================
+// 状态枚举 → 样式类 / i18n 标签（标签走 regaffairs.*Status 映射；
+// 未知枚举值兜底 'wait' 与「—」，不臆造）
+// =============================================================
+// 报送日历 RegFilingStatus
+const FILING_CLS = { TO_DRAFT: 'wait', DRAFTING: 'doing', SUBMITTED: 'ok', CLOSED: 'ok' }
+const filingStCls = (s) => FILING_CLS[s] || 'wait'
+const filingStLabel = (s) => (s ? t('regaffairs.filingStatus.' + s) : t('regaffairs.dash'))
+// 监管问询 RegInquiryStatus
+const INQUIRY_CLS = { DRAFTING: 'doing', REPLIED: 'ok', AWAIT_FEEDBACK: 'wait', CLOSED: 'ok' }
+const inquiryStCls = (s) => INQUIRY_CLS[s] || 'wait'
+const inquiryStLabel = (s) => (s ? t('regaffairs.inquiryStatus.' + s) : t('regaffairs.dash'))
+// 处罚约谈 RegPenaltyStatus
+const PENALTY_CLS = { OPEN: 'wait', RECTIFYING: 'doing', CLOSED: 'ok' }
+const penaltyStCls = (s) => PENALTY_CLS[s] || 'wait'
+const penaltyStLabel = (s) => (s ? t('regaffairs.penaltyStatus.' + s) : t('regaffairs.dash'))
+// 重大事件 MajorIncidentStatus
+const INCIDENT_CLS = { DRAFT: 'wait', REPORTED: 'doing', CLOSED: 'ok' }
+const incidentStCls = (s) => INCIDENT_CLS[s] || 'wait'
+const incidentStLabel = (s) => (s ? t('regaffairs.incidentStatus.' + s) : t('regaffairs.dash'))
 </script>
 
 <style scoped>
@@ -672,6 +686,13 @@ tbody tr {
 }
 tbody tr:hover {
   background: var(--accent-tint);
+}
+
+/* ---- 空数据行（后端真实返回空 / 拉取出错）---- */
+.emptyrow {
+  color: var(--text-3);
+  text-align: center;
+  padding: 18px;
 }
 
 /* ---- 编号 code / 数字 num ---- */

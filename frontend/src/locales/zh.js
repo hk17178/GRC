@@ -362,7 +362,10 @@ export default {
     major: {
       info: '重大风险/安全事件须按监管时限上报（如人民银行重大事件报告制度）；此处管理报送的时限、版本与回执留痕。',
       emptyTitle: '本季无重大事件报送',
-      emptyDesc: '发生重大事件时，从此处发起监管报送并跟踪回执；与安全事件、整改、证据留痕联动。'
+      emptyDesc: '发生重大事件时，从此处发起监管报送并跟踪回执；与安全事件、整改、证据留痕联动。',
+      thSeverity: '严重度',
+      thOccurred: '发生时间',
+      thReported: '上报时间'
     },
     // Tab5 · 年度合规计划
     plan: {
@@ -382,8 +385,25 @@ export default {
       deptCompliance: '合规部',
       stDoing: '进行中',
       stDone: '已完成',
-      stOverdue: '逾期'
-    }
+      stOverdue: '逾期',
+      // 后端无对应实体（DM-5 E 类）：该 Tab 不展示假数据，改为占位提示
+      notImpl: '该功能后端尚未实现（待 Stage 3 排期）'
+    },
+    // ---- 后端真实联调相关（DM-5）----
+    // 空列表行（后端真实返回空）
+    emptyRow: '暂无数据（后端真实）',
+    // 占位提示（后端无对应字段/能力）
+    dash: '—',
+    // 报送日历状态枚举 RegFilingStatus → 中文
+    filingStatus: { TO_DRAFT: '待编制', DRAFTING: '编制中', SUBMITTED: '已报送', CLOSED: '已办结' },
+    // 监管问询状态枚举 RegInquiryStatus → 中文
+    inquiryStatus: { DRAFTING: '答复编制中', REPLIED: '已答复', AWAIT_FEEDBACK: '待监管反馈', CLOSED: '已办结' },
+    // 处罚约谈状态枚举 RegPenaltyStatus → 中文
+    penaltyStatus: { OPEN: '待整改', RECTIFYING: '整改中', CLOSED: '已办结' },
+    // 重大事件状态枚举 MajorIncidentStatus → 中文
+    incidentStatus: { DRAFT: '草稿', REPORTED: '已上报', CLOSED: '已办结' },
+    // 重大事件严重度五级 MajorIncidentSeverity → 中文
+    severity: { VERY_LOW: '极低', LOW: '低', MID: '中', HIGH: '高', VERY_HIGH: '极高' }
   },
 
   // ---- 风险评估（M2，严格对齐驾驶舱版原型 #view-risk 及其下钻视图）----
