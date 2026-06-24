@@ -4,6 +4,7 @@ import com.mandao.grc.common.isolation.IsolationContext;
 import com.mandao.grc.modules.audit.ChainVerifyResult;
 import com.mandao.grc.modules.audit.HashChainService;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,6 +54,18 @@ class HashChainTest {
 
     @Autowired
     private HashChainService hashChainService;
+
+    /**
+     * 每个用例前清空操作日志：静态容器在本类多个用例间共享，必须隔离测试数据，
+     * 否则前一用例的篡改/追加会污染后一用例。以 owner 连接 TRUNCATE（grc_app 无删权）。
+     */
+    @BeforeEach
+    void cleanLog() throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("TRUNCATE operation_log RESTART IDENTITY");
+        }
+    }
 
     @AfterEach
     void clearContext() {
