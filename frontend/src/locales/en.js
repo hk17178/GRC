@@ -250,6 +250,8 @@ export default {
     tag: 'Regulatory Affairs',
     title: 'Regulatory Affairs',
     register: '＋ Register Item',
+    // register regulatory filing dialog
+    create: { title: 'Register Regulatory Filing', item: 'Filing Item', itemPh: 'e.g. Payment Stats Report', regulator: 'Regulator', regulatorPh: 'e.g. PBOC', deadline: 'Statutory Deadline', org: 'Organization', orgPay: 'Payment Co.', orgConsumer: 'Consumer Finance', confirm: 'Register' },
     seg: { all: 'Group', pay: 'PaySvc', consumer: 'Consumer Finance' },
     kpi: {
       dueMonth: 'Due This Month',

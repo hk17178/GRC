@@ -42,7 +42,38 @@
             {{ $t('regaffairs.seg.' + s) }}
           </button>
         </div>
-        <button class="btn">{{ $t('regaffairs.register') }}</button>
+        <button class="btn" @click="openCreate">{{ $t('regaffairs.register') }}</button>
+      </div>
+
+      <!-- 登记弹窗：登记监管报送 → POST /api/reg-filings → 刷新报送日历（端到端写）。
+           说明：监管事项含 4 台账，此登记入口先覆盖最主线的「报送日历」；
+           其余台账(问询/处罚/重大事件)的登记入口按需在各自 Tab 增设。 -->
+      <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
+        <div class="modal-card">
+          <h3>{{ $t('regaffairs.create.title') }}</h3>
+          <label class="fld">{{ $t('regaffairs.create.item') }}
+            <input v-model="form.title" :placeholder="$t('regaffairs.create.itemPh')" />
+          </label>
+          <label class="fld">{{ $t('regaffairs.create.regulator') }}
+            <input v-model="form.regulator" :placeholder="$t('regaffairs.create.regulatorPh')" />
+          </label>
+          <label class="fld">{{ $t('regaffairs.create.deadline') }}
+            <input v-model="form.statutoryDeadline" type="date" />
+          </label>
+          <label class="fld">{{ $t('regaffairs.create.org') }}
+            <select v-model="form.orgId">
+              <option :value="12">{{ $t('regaffairs.create.orgPay') }}</option>
+              <option :value="13">{{ $t('regaffairs.create.orgConsumer') }}</option>
+            </select>
+          </label>
+          <p v-if="createError" class="cerr">{{ createError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showCreate = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!form.title || !form.statutoryDeadline || saving" @click="submitCreate">
+              {{ saving ? $t('common.submitting') : $t('regaffairs.create.confirm') }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- ===== KPI 五卡（能派生的取真实计数，派生不了显「—」）===== -->
@@ -293,7 +324,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
@@ -333,6 +364,38 @@ onMounted(() => {
   api.get('/reg-penalties').then((d) => { penalties.value = d || [] }).catch((e) => { penaltiesError.value = e.message })
   api.get('/major-incidents').then((d) => { majors.value = d || [] }).catch((e) => { majorsError.value = e.message })
 })
+
+// ---- 登记监管报送：弹窗 → POST /api/reg-filings → 刷新报送日历（端到端写）----
+const showCreate = ref(false)
+const saving = ref(false)
+const createError = ref('')
+const form = reactive({ title: '', regulator: '', statutoryDeadline: '', orgId: 12 })
+function openCreate() {
+  form.title = ''
+  form.regulator = ''
+  form.statutoryDeadline = ''
+  form.orgId = 12
+  createError.value = ''
+  showCreate.value = true
+}
+async function submitCreate() {
+  saving.value = true
+  createError.value = ''
+  try {
+    await api.post('/reg-filings', {
+      orgId: form.orgId,
+      title: form.title,
+      regulator: form.regulator || null,
+      statutoryDeadline: form.statutoryDeadline
+    })
+    filings.value = await api.get('/reg-filings') // 创建后刷新报送日历
+    showCreate.value = false
+  } catch (e) {
+    createError.value = e.message
+  } finally {
+    saving.value = false
+  }
+}
 
 // ---- KPI 卡：能派生的取真实计数，派生不了在模板里显「—」----
 // 待报送数 = reg-filings 中 status∈{TO_DRAFT,DRAFTING}
@@ -814,5 +877,71 @@ tbody tr:hover {
 /* ---- 朱砂 t-gov 表头底色（用更具体的 .view-regaffairs 限定，避免污染其它页）---- */
 :global(body.t-gov .view-regaffairs thead th) {
   background: var(--accent-tint);
+}
+
+/* ---- 登记弹窗（登记监管报送）---- */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-card {
+  width: 420px;
+  max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: 22px 24px;
+}
+.modal-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: var(--text-1);
+}
+.modal-card .fld {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-bottom: 12px;
+}
+.modal-card .fld input,
+.modal-card .fld select {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin-top: 5px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+}
+.modal-card .cerr {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin: 0 0 12px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.btn.ghost {
+  background: var(--bg);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 </style>

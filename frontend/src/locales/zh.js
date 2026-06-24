@@ -264,6 +264,8 @@ export default {
     tag: '监管事项',
     title: '监管事项',
     register: '＋ 登记监管事项',
+    // 登记监管报送弹窗
+    create: { title: '登记监管报送', item: '报送事项', itemPh: '如：支付业务统计报表', regulator: '监管机构', regulatorPh: '如：人民银行', deadline: '法定时限', org: '归属组织', orgPay: '支付科技', orgConsumer: '消费金融', confirm: '确认登记' },
     // 子公司分段
     seg: { all: '集团', pay: '支付科技', consumer: '消费金融' },
     // KPI 五卡
