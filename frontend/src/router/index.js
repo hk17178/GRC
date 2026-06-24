@@ -18,6 +18,7 @@ import BoardView from '@/views/BoardView.vue'
 import MyTasksView from '@/views/MyTasksView.vue'
 import NotifyView from '@/views/NotifyView.vue'
 import RegulationView from '@/views/RegulationView.vue'
+import VendorView from '@/views/VendorView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
@@ -26,7 +27,6 @@ const PLACEHOLDER_PAGES = [
   { path: '/obligations', navKey: 'obligation' },
   { path: '/policy', navKey: 'policy' },
   { path: '/ai-assistant', navKey: 'ai' },
-  { path: '/vendor', navKey: 'vendor' },
   { path: '/model-access', navKey: 'aimodel' },
   { path: '/permission', navKey: 'perm' },
   { path: '/feedback', navKey: 'feedback' },
@@ -99,6 +99,13 @@ const routes = [
     name: 'law',
     component: RegulationView,
     meta: { title: '法规跟踪', navKey: 'law' }
+  },
+  {
+    // 第三方供应商：准入/评估/监测（准入门控红线）
+    path: '/vendor',
+    name: 'vendor',
+    component: VendorView,
+    meta: { title: '第三方供应商', navKey: 'vendor' }
   },
   // 其余菜单项的占位路由（统一用 PlaceholderView，route name 即 navKey）
   ...PLACEHOLDER_PAGES.map((p) => ({

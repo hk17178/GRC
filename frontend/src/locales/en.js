@@ -791,5 +791,26 @@ export default {
     create: { btn: '＋ Add Regulation', category: 'Category', org: 'Organization', ok: 'Create' },
     change: { btn: '＋ Add Change', ok: 'Create' },
     assess: { btn: 'Assess Impact', title: 'Impact Assessment', scope: 'Affected Scope', scopePh: 'e.g. KYC policy, customer ID controls', note: 'Disposition', ok: 'Submit' }
+  },
+
+  // ---- Third-party Vendors (VendorView) ----
+  vendor: {
+    tag: 'VENDOR · Third-party',
+    title: 'Third-party Vendors',
+    list: 'Vendors',
+    assessHist: 'Assessment History',
+    empty: 'No vendors',
+    assessEmpty: 'No assessments',
+    selectHint: '← Select a vendor to view assessment history',
+    unassessed: 'Unassessed',
+    gateTip: 'Cannot activate without a risk assessment (onboarding gate)',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { code: 'Code', name: 'Name', risk: 'Risk', status: 'Status', op: 'Action' },
+    ath: { risk: 'Risk', score: 'Score', assessor: 'Assessor', concl: 'Conclusion' },
+    status: { ONBOARDING: 'Onboarding', ACTIVE: 'Active', SUSPENDED: 'Suspended', TERMINATED: 'Terminated' },
+    level: { VERY_HIGH: 'Very High', HIGH: 'High', MID: 'Mid', LOW: 'Low', VERY_LOW: 'Very Low' },
+    op: { assess: 'Assess', activate: 'Activate', suspend: 'Suspend', reactivate: 'Reactivate' },
+    create: { btn: '＋ Add Vendor', category: 'Service Category', criticality: 'Criticality', org: 'Organization', ok: 'Create' },
+    assess: { title: 'Vendor Risk Assessment', risk: 'Risk Level', score: 'Score (0–100)', concl: 'Conclusion', ok: 'Submit' }
   }
 }

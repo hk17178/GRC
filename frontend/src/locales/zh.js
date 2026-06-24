@@ -852,5 +852,26 @@ export default {
     create: { btn: '＋ 登记法规', category: '分类', org: '归属组织', ok: '确认登记' },
     change: { btn: '＋ 登记变更', ok: '确认登记' },
     assess: { btn: '影响评估', title: '法规变更·影响评估', scope: '受影响范围', scopePh: '如：涉及 KYC 制度、客户身份识别控制项', note: '处置说明', ok: '提交评估' }
+  },
+
+  // ---- 第三方供应商（VendorView）----
+  vendor: {
+    tag: 'VENDOR · 第三方供应商',
+    title: '第三方供应商',
+    list: '供应商',
+    assessHist: '评估历史',
+    empty: '暂无供应商',
+    assessEmpty: '该供应商暂无评估',
+    selectHint: '← 选择左侧一个供应商查看评估历史',
+    unassessed: '未评估',
+    gateTip: '未完成风险评估不得启用（准入门控）',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { code: '编号', name: '名称', risk: '风险', status: '状态', op: '操作' },
+    ath: { risk: '风险等级', score: '得分', assessor: '评估人', concl: '结论' },
+    status: { ONBOARDING: '准入中', ACTIVE: '合作中', SUSPENDED: '已暂停', TERMINATED: '已终止' },
+    level: { VERY_HIGH: '极高', HIGH: '高', MID: '中', LOW: '低', VERY_LOW: '极低' },
+    op: { assess: '评估', activate: '启用', suspend: '暂停', reactivate: '恢复' },
+    create: { btn: '＋ 登记供应商', category: '服务类别', criticality: '重要性', org: '归属组织', ok: '确认登记' },
+    assess: { title: '供应商风险评估', risk: '风险等级', score: '得分(0–100)', concl: '评估结论', ok: '提交评估' }
   }
 }
