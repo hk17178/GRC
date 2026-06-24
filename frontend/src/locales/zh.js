@@ -832,5 +832,25 @@ export default {
     listTitle: '调度提醒',
     empty: '暂无通知',
     th: { time: '时间', event: '事件', object: '对象', threshold: '触发阈值' }
+  },
+
+  // ---- 法规跟踪（RegulationView）----
+  reg: {
+    tag: 'REGULATION · 法规跟踪',
+    title: '法规跟踪',
+    lib: '法规库',
+    changes: '变更动态',
+    empty: '暂无法规',
+    changeEmpty: '该法规暂无变更动态',
+    selectHint: '← 选择左侧一条法规查看其变更动态',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { code: '编号', title: '标题', issuer: '发布机构', status: '状态' },
+    status: { TRACKING: '跟踪中', EFFECTIVE: '现行有效', SUPERSEDED: '已被取代', ABOLISHED: '已废止' },
+    cth: { type: '类型', date: '日期', desc: '说明', impact: '影响评估', op: '操作' },
+    changeType: { ENACTED: '新订', AMENDED: '修订', ABOLISHED: '废止' },
+    impact: { PENDING: '待评估', ASSESSED: '已评估' },
+    create: { btn: '＋ 登记法规', category: '分类', org: '归属组织', ok: '确认登记' },
+    change: { btn: '＋ 登记变更', ok: '确认登记' },
+    assess: { btn: '影响评估', title: '法规变更·影响评估', scope: '受影响范围', scopePh: '如：涉及 KYC 制度、客户身份识别控制项', note: '处置说明', ok: '提交评估' }
   }
 }

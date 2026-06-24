@@ -17,12 +17,12 @@ import OrgAssetView from '@/views/OrgAssetView.vue'
 import BoardView from '@/views/BoardView.vue'
 import MyTasksView from '@/views/MyTasksView.vue'
 import NotifyView from '@/views/NotifyView.vue'
+import RegulationView from '@/views/RegulationView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
 const PLACEHOLDER_PAGES = [
   { path: '/internal-audit', navKey: 'audit' },
-  { path: '/regulation', navKey: 'law' },
   { path: '/obligations', navKey: 'obligation' },
   { path: '/policy', navKey: 'policy' },
   { path: '/ai-assistant', navKey: 'ai' },
@@ -92,6 +92,13 @@ const routes = [
     name: 'notify',
     component: NotifyView,
     meta: { title: '通知中心', navKey: 'notify' }
+  },
+  {
+    // 法规跟踪：法规库 + 变更动态 + 影响评估闭环
+    path: '/regulation',
+    name: 'law',
+    component: RegulationView,
+    meta: { title: '法规跟踪', navKey: 'law' }
   },
   // 其余菜单项的占位路由（统一用 PlaceholderView，route name 即 navKey）
   ...PLACEHOLDER_PAGES.map((p) => ({

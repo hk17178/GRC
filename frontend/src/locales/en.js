@@ -771,5 +771,25 @@ export default {
     listTitle: 'Scheduled Reminders',
     empty: 'No notifications',
     th: { time: 'Time', event: 'Event', object: 'Object', threshold: 'Threshold' }
+  },
+
+  // ---- Regulation Tracking (RegulationView) ----
+  reg: {
+    tag: 'REGULATION · Tracking',
+    title: 'Regulation Tracking',
+    lib: 'Regulation Library',
+    changes: 'Changes',
+    empty: 'No regulations',
+    changeEmpty: 'No changes for this regulation',
+    selectHint: '← Select a regulation to view its changes',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { code: 'Code', title: 'Title', issuer: 'Issuer', status: 'Status' },
+    status: { TRACKING: 'Tracking', EFFECTIVE: 'Effective', SUPERSEDED: 'Superseded', ABOLISHED: 'Abolished' },
+    cth: { type: 'Type', date: 'Date', desc: 'Description', impact: 'Impact', op: 'Action' },
+    changeType: { ENACTED: 'Enacted', AMENDED: 'Amended', ABOLISHED: 'Abolished' },
+    impact: { PENDING: 'Pending', ASSESSED: 'Assessed' },
+    create: { btn: '＋ Add Regulation', category: 'Category', org: 'Organization', ok: 'Create' },
+    change: { btn: '＋ Add Change', ok: 'Create' },
+    assess: { btn: 'Assess Impact', title: 'Impact Assessment', scope: 'Affected Scope', scopePh: 'e.g. KYC policy, customer ID controls', note: 'Disposition', ok: 'Submit' }
   }
 }
