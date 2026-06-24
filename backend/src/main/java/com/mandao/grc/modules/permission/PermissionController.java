@@ -1,6 +1,8 @@
 package com.mandao.grc.modules.permission;
 
+import com.mandao.grc.modules.workflow.ApprovalDecision;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -48,11 +50,27 @@ public class PermissionController {
         return service.revokeRole(req.orgId(), req.userId(), req.roleId(), actor(user));
     }
 
-    /** 登记 SoD 豁免（经审批），放行原本被互斥拦截的授权。 */
-    @PostMapping("/sod-exception")
-    public SodException grantSodException(@RequestBody SodExceptionRequest req,
-                                          @RequestHeader(value = "X-User", required = false) String user) {
-        return service.grantSodException(req.orgId(), req.userId(), req.sodRuleId(), actor(user), req.reason());
+    /** 申请 SoD 豁免（A4 审批化）：登记 PENDING 并启动审批，暂不放行（PENDING 不生效）。申请人取 X-User。 */
+    @PostMapping("/sod-exceptions")
+    public SodException requestSodException(@RequestBody SodExceptionRequest req,
+                                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.requestSodException(req.orgId(), req.userId(), req.sodRuleId(), actor(user), req.reason(), actor(user));
+    }
+
+    /** 审批通过 SoD 豁免：自此放行该规则互斥授权。审批人取 X-User。 */
+    @PostMapping("/sod-exceptions/{id}/approve")
+    public SodException approveSodException(@PathVariable Long id,
+                                            @RequestBody(required = false) DecideRequest req,
+                                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideSodException(id, ApprovalDecision.APPROVED, actor(user), req == null ? null : req.comment());
+    }
+
+    /** 审批驳回 SoD 豁免：不放行。审批人取 X-User。 */
+    @PostMapping("/sod-exceptions/{id}/reject")
+    public SodException rejectSodException(@PathVariable Long id,
+                                           @RequestBody(required = false) DecideRequest req,
+                                           @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideSodException(id, ApprovalDecision.REJECTED, actor(user), req == null ? null : req.comment());
     }
 
     private String actor(String user) {
@@ -63,7 +81,11 @@ public class PermissionController {
     public record GrantRequest(Long orgId, Long userId, Long roleId) {
     }
 
-    /** SoD 豁免登记请求体。 */
+    /** SoD 豁免申请请求体。 */
     public record SodExceptionRequest(Long orgId, Long userId, Long sodRuleId, String reason) {
+    }
+
+    /** 审批处置请求体（意见可选）。 */
+    public record DecideRequest(String comment) {
     }
 }

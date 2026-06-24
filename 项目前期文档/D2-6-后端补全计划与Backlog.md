@@ -73,8 +73,12 @@
   RLS 隔离 + 留痕。/api/remediation-orders。RemediationOrderTest 4/4，既有内审用例同步改造，全量 101/101 绿。
 
 ### A4 · M8 权限与审批
-- [ ] UAR 决策 / SoD 例外走 Flowable 审批
-- [ ] 审批中心查询 API（我的待办审批、按域）
+- [x] SoD 例外走 Flowable 审批 —— ✅ SoD 豁免改「申请→审批」两段式：申请置 PENDING（不放行），
+  **审批通过才置 APPROVED 并被 enforceSod 视为有效豁免**，故 BLOCK 互斥授权须经审批通过的豁免方放行（红线更硬）。
+  V17 加 status/requester、approver/approved_at 放宽可空。/api/permissions/sod-exceptions(申请) + /{id}/approve|reject。
+  PermissionSodTest 增"仅申请未审批仍不放行"，既有"补豁免后可授予"改两步；全量 102/102 绿。
+- [ ] UAR 决策走审批（可选；当前 reviewer 即审阅决策人，决策已受控）
+- [ ] 审批中心查询 API（我的待办审批、按域）— 与前端「权限与审批」页一并 Phase D
 
 ### A5 · M11 监管事项
 - [ ] 年度合规计划（计划-分解-跟踪）

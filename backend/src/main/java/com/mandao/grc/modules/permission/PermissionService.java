@@ -1,6 +1,9 @@
 package com.mandao.grc.modules.permission;
 
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,19 +31,26 @@ import java.util.List;
 @Service
 public class PermissionService {
 
+    /** SoD 豁免审批的业务类型与审批候选组（Flowable）。 */
+    public static final String SOD_BIZ_TYPE = "SOD_EXCEPTION";
+    public static final String SOD_APPROVER_GROUP = "SOD_APPROVER";
+
     private final UserRoleOrgRepository userRoleOrgRepository;
     private final SodRuleRepository sodRuleRepository;
     private final SodExceptionRepository sodExceptionRepository;
     private final HashChainService hashChainService;
+    private final WorkflowService workflowService;
 
     public PermissionService(UserRoleOrgRepository userRoleOrgRepository,
                              SodRuleRepository sodRuleRepository,
                              SodExceptionRepository sodExceptionRepository,
-                             HashChainService hashChainService) {
+                             HashChainService hashChainService,
+                             WorkflowService workflowService) {
         this.userRoleOrgRepository = userRoleOrgRepository;
         this.sodRuleRepository = sodRuleRepository;
         this.sodExceptionRepository = sodExceptionRepository;
         this.hashChainService = hashChainService;
+        this.workflowService = workflowService;
     }
 
     /** 列出某 org 下某 user 的全部授权行（含已回收，受 RLS 裁剪）。 */
@@ -112,14 +122,50 @@ public class PermissionService {
      * @param approver  审批人
      * @param reason    豁免理由
      */
+    /**
+     * 申请 SoD 豁免（A4 审批化）：登记 PENDING 豁免并启动 Flowable 审批，【暂不放行】
+     * ——PENDING 豁免不被 {@link #enforceSod} 视为有效，故 BLOCK 互斥授权仍被拦截。审批通过后才生效。
+     */
     @Transactional
-    public SodException grantSodException(Long orgId, Long userId, Long sodRuleId,
-                                          String approver, String reason) {
+    public SodException requestSodException(Long orgId, Long userId, Long sodRuleId,
+                                            String requester, String reason, String actor) {
         SodException saved = sodExceptionRepository.save(
-                new SodException(orgId, userId, sodRuleId, approver, reason));
-        appendLog(orgId, "SOD_EXCEPTION_GRANT", approver, "SOD_EXCEPTION:" + saved.getId(),
-                "登记 SoD 豁免 user=" + userId + " rule=" + sodRuleId + " reason=" + reason);
+                new SodException(orgId, userId, sodRuleId, requester, reason)); // PENDING
+        appendLog(orgId, "SOD_EXCEPTION_REQUEST", actor, "SOD_EXCEPTION:" + saved.getId(),
+                "申请 SoD 豁免 user=" + userId + " rule=" + sodRuleId + " reason=" + reason);
+        // 启动审批流（与申请登记同事务原子）。审批人按候选组 SOD_APPROVER 派单。
+        workflowService.submit(SOD_BIZ_TYPE, saved.getId(), orgId, SOD_APPROVER_GROUP, actor);
         return saved;
+    }
+
+    /**
+     * 审批 SoD 豁免申请（A4 审批化核心，SoD 放行侧）：
+     * 定位该豁免进行中的审批任务 → {@link WorkflowService#decide} 完成 →
+     * 通过则置 APPROVED（自此被 enforceSod 视为有效放行）；驳回则置 REJECTED、不放行。同事务原子 + 留痕。
+     */
+    @Transactional
+    public SodException decideSodException(Long exceptionId, ApprovalDecision decision,
+                                           String approver, String comment) {
+        SodException ex = sodExceptionRepository.findById(exceptionId)
+                .orElseThrow(() -> new IllegalArgumentException("SoD 豁免申请不存在或不可见：id=" + exceptionId));
+        if (ex.getStatus() != SodExceptionStatus.PENDING) {
+            throw new IllegalStateException("仅待审批(PENDING)的 SoD 豁免可处置，当前状态：" + ex.getStatus());
+        }
+        Task task = workflowService.activeTask(SOD_BIZ_TYPE, exceptionId);
+        if (task == null) {
+            throw new IllegalStateException("SoD 豁免 id=" + exceptionId + " 无进行中的审批任务");
+        }
+        workflowService.decide(task.getId(), decision, approver, comment);
+        if (decision == ApprovalDecision.APPROVED) {
+            ex.approve(approver);
+            appendLog(ex.getOrgId(), "SOD_EXCEPTION_APPROVE", approver, "SOD_EXCEPTION:" + exceptionId,
+                    "SoD 豁免通过（自此放行该规则互斥授权）");
+        } else {
+            ex.reject(approver);
+            appendLog(ex.getOrgId(), "SOD_EXCEPTION_REJECT", approver, "SOD_EXCEPTION:" + exceptionId,
+                    "SoD 豁免驳回：" + (comment == null ? "" : comment));
+        }
+        return sodExceptionRepository.save(ex);
     }
 
     // ---------- 内部辅助 ----------
@@ -149,9 +195,9 @@ public class PermissionService {
             if (!holdsCounterpart) {
                 continue;  // 未持有互斥对手角色，不触发
             }
-            // 命中互斥：持有目标角色的互斥对手角色
+            // 命中互斥：持有目标角色的互斥对手角色。仅【审批通过(APPROVED)】的豁免视为有效放行。
             boolean exempted = !sodExceptionRepository
-                    .findByOrgIdAndUserIdAndSodRuleId(orgId, userId, rule.getId())
+                    .findByOrgIdAndUserIdAndSodRuleIdAndStatus(orgId, userId, rule.getId(), SodExceptionStatus.APPROVED)
                     .isEmpty();
             if (rule.isBlock()) {
                 // BLOCK 高敏：无有效豁免则硬阻断

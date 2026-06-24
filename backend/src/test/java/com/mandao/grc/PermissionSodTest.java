@@ -11,6 +11,9 @@ import com.mandao.grc.modules.permission.AccessReviewStatus;
 import com.mandao.grc.modules.permission.PermissionService;
 import com.mandao.grc.modules.permission.SodViolationException;
 import com.mandao.grc.modules.permission.UserRoleOrg;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RuntimeService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -81,6 +84,12 @@ class PermissionSodTest {
     @Autowired
     private HashChainService hashChainService;
 
+    @Autowired
+    private RuntimeService runtimeService;
+
+    @Autowired
+    private HistoryService historyService;
+
     private static final long ORG_PAY = 12L;   // 支付子公司
     private static final long ORG_CF = 13L;    // 消费金融
 
@@ -103,6 +112,12 @@ class PermissionSodTest {
     void clean() throws Exception {
         execAsOwner("TRUNCATE access_review_item, access_review, sod_exception, user_role_org, operation_log "
                 + "RESTART IDENTITY CASCADE");
+        // 清理 Flowable 运行态/历史：sod_exception id 因 RESTART IDENTITY 跨用例复用，会使
+        // 豁免审批 businessKey(SOD_EXCEPTION:{id}) 跨用例碰撞，须净化（生产 id 全局唯一无此问题）。
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> runtimeService.deleteProcessInstance(pi.getId(), "用例重置"));
+        historyService.createHistoricProcessInstanceQuery().list()
+                .forEach(hpi -> historyService.deleteHistoricProcessInstance(hpi.getId()));
     }
 
     @AfterEach
@@ -143,14 +158,28 @@ class PermissionSodTest {
                 () -> runAsOrg(ORG_PAY, () ->
                         permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_CHECKER, "admin")));
 
-        // 登记针对 (MAKER↔CHECKER) 规则的豁免
-        asOrg(ORG_PAY, () -> permissionService.grantSodException(
-                ORG_PAY, USER_PAY, SOD_RULE_MAKER_CHECKER, "ciso", "业务必要，经审批豁免"));
+        // 申请针对 (MAKER↔CHECKER) 规则的豁免并审批通过
+        Long exId = asOrg(ORG_PAY, () -> permissionService.requestSodException(
+                ORG_PAY, USER_PAY, SOD_RULE_MAKER_CHECKER, "owner", "业务必要，申请豁免", "owner").getId());
+        asOrg(ORG_PAY, () -> permissionService.decideSodException(
+                exId, ApprovalDecision.APPROVED, "ciso", "同意豁免"));
 
-        // 有豁免：放行
+        // 审批通过的豁免：放行
         UserRoleOrg checker = asOrg(ORG_PAY, () ->
                 permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_CHECKER, "admin"));
-        assertTrue(checker.isActive(), "补豁免后授予互斥角色应成功");
+        assertTrue(checker.isActive(), "豁免经审批通过后授予互斥角色应成功");
+    }
+
+    @Test
+    void SoD红线BLOCK_仅申请未审批仍不放行() {
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
+        // 仅申请豁免(PENDING)，未审批通过
+        asOrg(ORG_PAY, () -> permissionService.requestSodException(
+                ORG_PAY, USER_PAY, SOD_RULE_MAKER_CHECKER, "owner", "申请豁免", "owner"));
+        // PENDING 豁免不生效 → 授予互斥角色仍被 BLOCK 硬阻断（审批化红线）
+        assertThrows(SodViolationException.class,
+                () -> runAsOrg(ORG_PAY, () ->
+                        permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_CHECKER, "admin")));
     }
 
     @Test

@@ -11,6 +11,10 @@ import java.util.List;
  */
 public interface SodExceptionRepository extends JpaRepository<SodException, Long> {
 
-    /** 某 org 下某 user 针对某互斥规则的豁免（存在即视为有效放行）。 */
+    /** 某 org 下某 user 针对某互斥规则的豁免（全部状态）。 */
     List<SodException> findByOrgIdAndUserIdAndSodRuleId(Long orgId, Long userId, Long sodRuleId);
+
+    /** 某 org 下某 user 针对某互斥规则、指定状态的豁免——enforceSod 仅以 APPROVED 视为有效放行。 */
+    List<SodException> findByOrgIdAndUserIdAndSodRuleIdAndStatus(
+            Long orgId, Long userId, Long sodRuleId, SodExceptionStatus status);
 }
