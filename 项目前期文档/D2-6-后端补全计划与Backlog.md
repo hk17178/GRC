@@ -55,7 +55,9 @@
 - [x] KRI 监控 —— ✅ 新模块 modules/kri：指标(双阈值+方向 UPPER_BAD/LOWER_BAD)+ 测量时序，
   每次测量按方向评定 NORMAL/WARNING/CRITICAL 并回写最近态，CRITICAL 即红线触发并留痕；
   RLS 隔离 + 哈希链留痕；/api/kris CRUD+测量。KriMonitoringTest 4/4 绿。
-- [ ] 模板库、统一控件库、A-T-V（资产-威胁-脆弱）关联、评估-控件复用
+- [x] 统一控件库 —— ✅ 新模块 modules/control：控制项 + 一控多框架映射(MLPS/ISO27001/PCI_DSS/PBOC)，
+  同框架同条款判重、停用状态机；RLS 隔离 + 留痕。/api/controls CRUD+映射+停用。ControlLibraryTest 4/4 绿。
+- [ ] 评估模板库、A-T-V（资产-威胁-脆弱）关联、评估-控件复用
 
 ### A3 · M3 审计管理
 - [ ] 内部审计纳入（与外审共表或并列）
