@@ -15,7 +15,8 @@ export default {
     password: '密码',
     captcha: '验证码',
     cancel: '取消',
-    submitting: '提交中…'
+    submitting: '提交中…',
+    confirm: '确认'
   },
 
   // ---- 五主题名称（与 tokens.css / 原型主题选择器一致）----
@@ -887,5 +888,38 @@ export default {
     op: { start: '开始落实', fulfill: '标记已落实', nc: '标记不合规' },
     create: { btn: '＋ 登记义务', source: '来源', sourcePh: '如：PBOC-AML-2026', org: '归属组织', ok: '确认登记' },
     fulfill: { title: '标记已落实', evidence: '落实证据', evidencePh: '如：已上线监测系统、月报存档 #2026-06', ok: '确认落实' }
+  },
+
+  // ---- 建议与反馈（FeedbackView）----
+  fb: {
+    tag: 'FEEDBACK · 建议与反馈',
+    title: '建议与反馈',
+    list: '反馈',
+    empty: '暂无反馈',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { type: '类型', title: '标题', submitter: '提交人', handler: '处理人', status: '状态', op: '操作' },
+    type: { SUGGESTION: '建议', COMPLAINT: '投诉', BUG: '缺陷', QUESTION: '咨询' },
+    status: { SUBMITTED: '待受理', IN_PROGRESS: '处理中', RESOLVED: '已办结', CLOSED: '已关闭', REJECTED: '已驳回' },
+    op: { triage: '受理', resolve: '办结', close: '关闭', reject: '驳回' },
+    create: { btn: '＋ 提交反馈', content: '内容', org: '归属组织', ok: '确认提交' },
+    triage: { handler: '处理人', handlerPh: '指派处理人，如：合规部-张' },
+    resolve: { title: '办结反馈', resolution: '处置结果', resolutionPh: '说明处置结论与措施' }
+  },
+
+  // ---- 系统设置（SettingsView）----
+  set: {
+    tag: 'SETTINGS · 系统设置',
+    title: '系统设置',
+    list: '配置项',
+    empty: '暂无配置',
+    editableYes: '可改',
+    locked: '锁定',
+    lockedDash: '—',
+    lockTip: '系统锁定项不可修改',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { key: '键', category: '分组', type: '类型', value: '取值', editable: '可配置', op: '操作' },
+    op: { edit: '修改' },
+    create: { btn: '＋ 定义配置', editable: '允许租户修改', org: '归属组织', ok: '确认定义' },
+    edit: { title: '修改取值', value: '新取值', ok: '保存' }
   }
 }

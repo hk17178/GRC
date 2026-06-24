@@ -20,6 +20,8 @@ import NotifyView from '@/views/NotifyView.vue'
 import RegulationView from '@/views/RegulationView.vue'
 import VendorView from '@/views/VendorView.vue'
 import ObligationView from '@/views/ObligationView.vue'
+import FeedbackView from '@/views/FeedbackView.vue'
+import SettingsView from '@/views/SettingsView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
@@ -28,9 +30,7 @@ const PLACEHOLDER_PAGES = [
   { path: '/policy', navKey: 'policy' },
   { path: '/ai-assistant', navKey: 'ai' },
   { path: '/model-access', navKey: 'aimodel' },
-  { path: '/permission', navKey: 'perm' },
-  { path: '/feedback', navKey: 'feedback' },
-  { path: '/settings', navKey: 'settings' }
+  { path: '/permission', navKey: 'perm' }
 ]
 
 const routes = [
@@ -113,6 +113,20 @@ const routes = [
     name: 'obligation',
     component: ObligationView,
     meta: { title: '合规清单', navKey: 'obligation' }
+  },
+  {
+    // 建议与反馈：反馈生命周期（办结须留处置结果）
+    path: '/feedback',
+    name: 'feedback',
+    component: FeedbackView,
+    meta: { title: '建议与反馈', navKey: 'feedback' }
+  },
+  {
+    // 系统设置：租户键值配置（锁定项不可改）
+    path: '/settings',
+    name: 'settings',
+    component: SettingsView,
+    meta: { title: '系统设置', navKey: 'settings' }
   },
   // 其余菜单项的占位路由（统一用 PlaceholderView，route name 即 navKey）
   ...PLACEHOLDER_PAGES.map((p) => ({

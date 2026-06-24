@@ -15,7 +15,8 @@ export default {
     password: 'Password',
     captcha: 'Captcha',
     cancel: 'Cancel',
-    submitting: 'Submitting…'
+    submitting: 'Submitting…',
+    confirm: 'Confirm'
   },
 
   // ---- five themes ----
@@ -826,5 +827,38 @@ export default {
     op: { start: 'Start', fulfill: 'Mark Fulfilled', nc: 'Mark Non-compliant' },
     create: { btn: '＋ Add Obligation', source: 'Source', sourcePh: 'e.g. PBOC-AML-2026', org: 'Organization', ok: 'Create' },
     fulfill: { title: 'Mark Fulfilled', evidence: 'Evidence', evidencePh: 'e.g. monitoring system live, monthly report #2026-06', ok: 'Confirm' }
+  },
+
+  // ---- Feedback (FeedbackView) ----
+  fb: {
+    tag: 'FEEDBACK · Suggestions',
+    title: 'Suggestions & Feedback',
+    list: 'Feedback',
+    empty: 'No feedback',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { type: 'Type', title: 'Title', submitter: 'Submitter', handler: 'Handler', status: 'Status', op: 'Action' },
+    type: { SUGGESTION: 'Suggestion', COMPLAINT: 'Complaint', BUG: 'Bug', QUESTION: 'Question' },
+    status: { SUBMITTED: 'Submitted', IN_PROGRESS: 'In Progress', RESOLVED: 'Resolved', CLOSED: 'Closed', REJECTED: 'Rejected' },
+    op: { triage: 'Triage', resolve: 'Resolve', close: 'Close', reject: 'Reject' },
+    create: { btn: '＋ Submit Feedback', content: 'Content', org: 'Organization', ok: 'Submit' },
+    triage: { handler: 'Handler', handlerPh: 'Assign handler, e.g. Compliance-Zhang' },
+    resolve: { title: 'Resolve Feedback', resolution: 'Resolution', resolutionPh: 'Describe conclusion and actions' }
+  },
+
+  // ---- System Settings (SettingsView) ----
+  set: {
+    tag: 'SETTINGS · System',
+    title: 'System Settings',
+    list: 'Settings',
+    empty: 'No settings',
+    editableYes: 'Editable',
+    locked: 'Locked',
+    lockedDash: '—',
+    lockTip: 'System-locked setting cannot be modified',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { key: 'Key', category: 'Category', type: 'Type', value: 'Value', editable: 'Editable', op: 'Action' },
+    op: { edit: 'Edit' },
+    create: { btn: '＋ Define Setting', editable: 'Allow tenant edit', org: 'Organization', ok: 'Create' },
+    edit: { title: 'Edit Value', value: 'New Value', ok: 'Save' }
   }
 }
