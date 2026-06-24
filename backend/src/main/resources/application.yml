@@ -27,6 +27,17 @@ spring:
     password: postgres
     locations: classpath:db/migration
 
+# Flowable 工作流引擎（Phase A 横向审批能力）
+flowable:
+  # 引擎在启动时以 grc_app 连接自建/升级 ACT_* 引擎表（需 V10 已授予 grc_app CREATE 权）。
+  database-schema-update: "true"
+  # 审批以「用户任务」为主，暂不需要异步作业/定时器后台线程；关闭异步执行器，
+  # 既简化运行模型，也避免测试中后台线程干扰（与 grc.scheduler 测试关停同理）。
+  async-executor-activate: false
+  # 不启用 Flowable 自带 IDM 身份引擎——平台身份/权限由 M8 RBAC 统一管理，避免双源。
+  idm:
+    enabled: false
+
 # 调度/到期扫描内核
 grc:
   scheduler:

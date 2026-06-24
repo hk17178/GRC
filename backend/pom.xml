@@ -35,6 +35,17 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-aop</artifactId>
     </dependency>
+    <!-- Flowable 工作流引擎（仅 BPMN 流程引擎，Phase A 横向审批能力）。
+         版本 7.0.1 面向 Java 17 + Spring 6 / Spring Boot 3.x，与本工程 Boot 3.2.5 匹配。
+         自动配置会把流程引擎接到既有主 DataSource(grc_app) + Spring 事务管理器，
+         使审批流转与业务写入【同事务原子提交/回滚】。引擎表 ACT_* 无 org_id、不挂 RLS，
+         仅做编排；组织隔离仍由业务实体层 RLS 保证（见 OrgScopeAspect）。
+         schema 由引擎在 grc_app 连接下自建（见 V10 授予 grc_app CREATE 权）。 -->
+    <dependency>
+      <groupId>org.flowable</groupId>
+      <artifactId>flowable-spring-boot-starter-process</artifactId>
+      <version>7.0.1</version>
+    </dependency>
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-core</artifactId>

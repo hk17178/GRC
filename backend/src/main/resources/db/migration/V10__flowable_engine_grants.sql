@@ -1,0 +1,21 @@
+-- =============================================================
+-- V10 · Flowable 工作流引擎 schema 授权（Phase A 横向审批能力）
+-- =============================================================
+-- 背景：Flowable 引擎在应用启动时以运行期账号 grc_app 连接，自建/升级其 ACT_* 引擎表
+--       （database-schema-update=true）。但 grc_app 是【非 owner / NOBYPASSRLS】账号，
+--       V1 仅授予其 USAGE + 表级 DML，并未授予 schema public 的 CREATE 权；
+--       PostgreSQL 15+ 默认也不再向非 owner 开放 public 的 CREATE。
+--       故引擎自建表会因缺 CREATE 权失败。本迁移（以 owner 执行）补授该权限。
+--
+-- 安全说明（为何可接受）：
+--   1. ACT_* 是引擎【编排用】内部表，无 org_id、不挂 RLS——不承载受隔离的业务数据，
+--      组织隔离仍由业务实体层 RLS 保证（grc_app 仍 NOBYPASSRLS，业务表照常受限）。
+--   2. CREATE 权仅允许 grc_app 在 public 下新建对象，不削弱既有业务表的 RLS 强制。
+--   3. 让引擎与业务【共用 grc_app 连接/同一 Spring 事务】，是保证「审批流转与业务写入
+--      原子提交/回滚」的前提；若改用独立 owner 连接管理引擎，则失去该原子性。
+--
+-- 后续加固（非本期）：可将 ACT_* 迁入专用 schema（如 flowable）并仅在该 schema 授 CREATE，
+--   把 grc_app 的建表权收敛到引擎专属 schema，进一步缩小面。
+-- =============================================================
+
+GRANT CREATE ON SCHEMA public TO grc_app;

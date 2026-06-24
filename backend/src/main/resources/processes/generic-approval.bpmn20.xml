@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  GRC 通用单级审批流（Phase A 横向审批能力，供多模块复用）。
+
+  流程：提交(start) → 审批(userTask) → 结束(end)。
+  - 业务定位与组织上下文以流程变量携带：bizType（业务类型，如 POLICY/RISK_ACCEPTANCE）、
+    bizId（业务实体 id）、orgId（归属组织）、submitter（提交人）。
+  - 审批人路由用 candidateGroups=${approverGroup}（启动时以变量传入，便于按角色/组织派单）。
+  - 审批结论在完成任务时写入流程变量 decision(APPROVED|REJECTED)、approver、approveComment；
+    业务模块在流程结束后读取 decision 推进自身状态机（路由逻辑暂留在业务侧，保持 BPMN 极简）。
+
+  说明：ACT_* 引擎表无 org_id、不挂 RLS，仅做编排；组织隔离由业务实体层 RLS 保证。
+-->
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:flowable="http://flowable.org/bpmn"
+             targetNamespace="http://mandao.com/grc/workflow">
+
+  <process id="genericApproval" name="通用单级审批" isExecutable="true">
+
+    <startEvent id="start" name="提交"/>
+
+    <sequenceFlow id="flow-to-approve" sourceRef="start" targetRef="approveTask"/>
+
+    <userTask id="approveTask" name="审批" flowable:candidateGroups="${approverGroup}">
+      <documentation>审批人处置；完成时置流程变量 decision=APPROVED|REJECTED、approver、approveComment。</documentation>
+    </userTask>
+
+    <sequenceFlow id="flow-to-end" sourceRef="approveTask" targetRef="end"/>
+
+    <endEvent id="end" name="结束"/>
+
+  </process>
+</definitions>
