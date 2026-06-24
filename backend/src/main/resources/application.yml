@@ -26,3 +26,9 @@ spring:
     user: postgres
     password: postgres
     locations: classpath:db/migration
+
+# 调度/到期扫描内核
+grc:
+  scheduler:
+    enabled: true            # 测试中置 false，避免定时任务干扰
+    fixed-delay-ms: 900000   # 扫描间隔，默认 15 分钟
