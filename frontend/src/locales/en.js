@@ -750,5 +750,26 @@ export default {
       empty: 'No trail (or adjust filters)',
       th: { seq: 'Seq', time: 'Time', action: 'Action', actor: 'Actor', entity: 'Entity', detail: 'Detail', hash: 'Chain hash' }
     }
+  },
+
+  // ---- My Tasks (MyTasksView) ----
+  todo: {
+    tag: 'WORKBENCH · My Tasks',
+    title: 'My Tasks',
+    refresh: 'Refresh',
+    listTitle: 'Pending Work',
+    empty: 'No tasks',
+    th: { type: 'Type', matter: 'Item', due: 'Due', status: 'Status' },
+    type: { REMEDIATION: 'Remediation', COMPLIANCE_ITEM: 'Compliance Item', REG_FILING: 'Reg Filing' }
+  },
+
+  // ---- Notifications (NotifyView) ----
+  notify: {
+    tag: 'WORKBENCH · Notifications',
+    title: 'Notifications',
+    refresh: 'Refresh',
+    listTitle: 'Scheduled Reminders',
+    empty: 'No notifications',
+    th: { time: 'Time', event: 'Event', object: 'Object', threshold: 'Threshold' }
   }
 }

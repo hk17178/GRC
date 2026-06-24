@@ -15,18 +15,18 @@ import RiskAssessmentView from '@/views/RiskAssessmentView.vue'
 import RegulatoryAffairsView from '@/views/RegulatoryAffairsView.vue'
 import OrgAssetView from '@/views/OrgAssetView.vue'
 import BoardView from '@/views/BoardView.vue'
+import MyTasksView from '@/views/MyTasksView.vue'
+import NotifyView from '@/views/NotifyView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
 const PLACEHOLDER_PAGES = [
-  { path: '/my-tasks', navKey: 'todo' },
   { path: '/internal-audit', navKey: 'audit' },
   { path: '/regulation', navKey: 'law' },
   { path: '/obligations', navKey: 'obligation' },
   { path: '/policy', navKey: 'policy' },
   { path: '/ai-assistant', navKey: 'ai' },
   { path: '/vendor', navKey: 'vendor' },
-  { path: '/notify', navKey: 'notify' },
   { path: '/model-access', navKey: 'aimodel' },
   { path: '/permission', navKey: 'perm' },
   { path: '/feedback', navKey: 'feedback' },
@@ -78,6 +78,20 @@ const routes = [
     name: 'board',
     component: BoardView,
     meta: { title: '看板与留痕', navKey: 'board' }
+  },
+  {
+    // 我的待办：跨模块归并待处理工作
+    path: '/my-tasks',
+    name: 'todo',
+    component: MyTasksView,
+    meta: { title: '我的待办', navKey: 'todo' }
+  },
+  {
+    // 通知中心：调度内核派发的提醒
+    path: '/notify',
+    name: 'notify',
+    component: NotifyView,
+    meta: { title: '通知中心', navKey: 'notify' }
   },
   // 其余菜单项的占位路由（统一用 PlaceholderView，route name 即 navKey）
   ...PLACEHOLDER_PAGES.map((p) => ({

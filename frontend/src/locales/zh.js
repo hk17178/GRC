@@ -811,5 +811,26 @@ export default {
       empty: '暂无留痕（或调整过滤条件）',
       th: { seq: '序号', time: '时间', action: '动作', actor: '操作人', entity: '对象', detail: '详情', hash: '入链哈希' }
     }
+  },
+
+  // ---- 我的待办（MyTasksView）----
+  todo: {
+    tag: 'WORKBENCH · 我的待办',
+    title: '我的待办',
+    refresh: '刷新',
+    listTitle: '待处理工作',
+    empty: '暂无待办',
+    th: { type: '类型', matter: '事项', due: '期限', status: '状态' },
+    type: { REMEDIATION: '整改工单', COMPLIANCE_ITEM: '合规计划项', REG_FILING: '监管报送' }
+  },
+
+  // ---- 通知中心（NotifyView）----
+  notify: {
+    tag: 'WORKBENCH · 通知中心',
+    title: '通知中心',
+    refresh: '刷新',
+    listTitle: '调度提醒',
+    empty: '暂无通知',
+    th: { time: '时间', event: '事件', object: '对象', threshold: '触发阈值' }
   }
 }
