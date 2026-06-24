@@ -110,7 +110,10 @@
 - [x] **我的待办 + 通知中心** —— ✅ 新模块 modules/workbench：GET /api/workbench/todos（跨模块归并未验证整改/
   未完成合规项/待报送，RLS 按域）+ /api/workbench/notifications（调度内核 reminder_dispatch_log 经 IsolationContext
   可见组织过滤，内核表未启 RLS 故显式过滤）。WorkbenchTest 2/2。**横切聚合四件全完成**。
-- [ ] 未建模块：法规跟踪（法规库/订阅/影响分析）、合规清单（义务库/落实）、第三方供应商（准入/评估/监测）、
+- [x] **法规跟踪** —— ✅ 新模块 modules/regulation：法规库(状态机 TRACKING→EFFECTIVE→SUPERSEDED/ABOLISHED)
+  + 法规变更动态 + **影响评估闭环**(变更 PENDING→ASSESSED，记录受影响范围与处置，重复评估被拒)；终态不可再变；
+  RLS 隔离 + 留痕。/api/regulations。RegulationTrackingTest 4/4。
+- [ ] 未建模块：合规清单（义务库/落实）、第三方供应商（准入/评估/监测）、
   建议与反馈（CR-004）、系统设置（租户配置 + D1-8 可配置性）。
 
 ### Phase C · AI 接入
