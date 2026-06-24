@@ -52,7 +52,9 @@
   RiskAssessmentTest 8/8（含"申请后未审批仍拦截""驳回门控保持""留痕 8 条"）、RiskCloseGateWebTest 2/2 绿。
   ⚠️ 前端 CR-002「登记风险接受」按钮调旧 /accept，已改为 /request-acceptance + /accept-approve 两步，
      需 Phase D 重接（当前 grc-int-app 该按钮会 404，属 backend-first 预期）。
-- [ ] KRI 监控（指标/阈值/触发）
+- [x] KRI 监控 —— ✅ 新模块 modules/kri：指标(双阈值+方向 UPPER_BAD/LOWER_BAD)+ 测量时序，
+  每次测量按方向评定 NORMAL/WARNING/CRITICAL 并回写最近态，CRITICAL 即红线触发并留痕；
+  RLS 隔离 + 哈希链留痕；/api/kris CRUD+测量。KriMonitoringTest 4/4 绿。
 - [ ] 模板库、统一控件库、A-T-V（资产-威胁-脆弱）关联、评估-控件复用
 
 ### A3 · M3 审计管理
