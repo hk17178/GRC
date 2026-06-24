@@ -453,8 +453,15 @@
                 </td>
                 <td><span class="st" :class="findingStCls(f.status)"><span class="d"></span>{{ $t('risk.gate.fstatus.' + f.status) }}</span></td>
                 <td class="ops">
-                  <!-- 接受风险：仅在被门控拦截时提供放行入口 -->
-                  <button v-if="isGated(f)" class="btn ghost sm" @click="openAccept(f)">{{ $t('risk.gate.accept') }}</button>
+                  <!-- 风险接受（A5 审批化两步）：被门控且未申请 → 申请；已申请待审批 → 审批通过/驳回。
+                       (待审批态本会期内用 requestedIds 跟踪；Phase D 由后端暴露 PENDING 态持久化) -->
+                  <template v-if="isGated(f)">
+                    <button v-if="!requestedIds.has(f.id)" class="btn ghost sm" @click="openAccept(f)">{{ $t('risk.gate.requestAccept') }}</button>
+                    <template v-else>
+                      <button class="btn sm" :disabled="busyId === f.id" @click="approveAccept(f)">{{ $t('risk.gate.approveAccept') }}</button>
+                      <button class="btn ghost sm" :disabled="busyId === f.id" @click="rejectAccept(f)">{{ $t('risk.gate.rejectAccept') }}</button>
+                    </template>
+                  </template>
                   <!-- 关闭：OPEN/IN_TREATMENT → DONE；被门控时禁用 + 原因提示 -->
                   <button
                     v-if="f.status === 'OPEN' || f.status === 'IN_TREATMENT'"
@@ -482,21 +489,18 @@
         <p v-if="opError" class="cerr" style="padding: 0 16px 12px">{{ opError }}</p>
       </div>
 
-      <!-- 接受风险弹窗（高残余关闭的放行凭据：POST /accept → 回填 riskAcceptanceId → 解除门控）-->
+      <!-- 申请风险接受弹窗（A5：POST /request-acceptance 登记 PENDING + 启动审批；审批通过才回填、解除门控）-->
       <div v-if="showAccept" class="modal-mask" @click.self="showAccept = false">
         <div class="modal-card">
           <h3>{{ $t('risk.gate.acceptTitle') }}</h3>
           <p class="muted" style="margin: -6px 0 14px; font-size: 12.5px">{{ acceptTarget && acceptTarget.title }}</p>
-          <label class="fld">{{ $t('risk.gate.approver') }}
-            <input v-model="acceptForm.approver" />
-          </label>
           <label class="fld">{{ $t('risk.gate.reason') }}
             <input v-model="acceptForm.reason" :placeholder="$t('risk.gate.reasonPh')" />
           </label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showAccept = false">{{ $t('common.cancel') }}</button>
-            <button class="btn" :disabled="!acceptForm.approver || !acceptForm.reason || saving" @click="submitAccept">
+            <button class="btn" :disabled="!acceptForm.reason || saving" @click="submitAccept">
               {{ saving ? $t('common.submitting') : $t('risk.gate.acceptConfirm') }}
             </button>
           </div>
@@ -566,32 +570,68 @@ async function closeFinding(f, verify) {
   }
 }
 
-// ---- 接受风险弹窗（放行高残余关闭：登记 risk_acceptance 并回填凭据）----
+// ---- 风险接受（A5 审批化两步：申请 → 审批通过才回填放行凭据、解除门控）----
 const showAccept = ref(false)
 const acceptTarget = ref(null)
-const acceptForm = reactive({ approver: '', reason: '' })
+const acceptForm = reactive({ reason: '' })
+// 本会期内已提交申请、待审批的 finding id（Phase D 由后端暴露 PENDING 态后可去掉本地跟踪）
+const requestedIds = ref(new Set())
+
 function openAccept(f) {
   acceptTarget.value = f
-  acceptForm.approver = ''
   acceptForm.reason = ''
   opError.value = ''
   showAccept.value = true
 }
+/** 申请风险接受：POST /request-acceptance（PENDING，不放行）。 */
 async function submitAccept() {
   saving.value = true
   opError.value = ''
   try {
-    await api.post('/risk-findings/' + acceptTarget.value.id + '/accept', {
-      approver: acceptForm.approver,
-      reason: acceptForm.reason
-    })
+    await api.post('/risk-findings/' + acceptTarget.value.id + '/request-acceptance', { reason: acceptForm.reason })
+    const s = new Set(requestedIds.value)
+    s.add(acceptTarget.value.id)
+    requestedIds.value = s // 重新赋值触发响应式
     showAccept.value = false
-    await loadFindings() // 刷新：riskAcceptanceId 回填后门控解除，关闭按钮可用
+    await loadFindings()
   } catch (e) {
     opError.value = e.message
   } finally {
     saving.value = false
   }
+}
+/** 审批通过：POST /accept-approve → 回填 riskAcceptanceId、门控解除。 */
+async function approveAccept(f) {
+  busyId.value = f.id
+  opError.value = ''
+  try {
+    await api.post('/risk-findings/' + f.id + '/accept-approve', {})
+    await loadFindings()
+    clearRequested(f.id)
+  } catch (e) {
+    opError.value = e.message
+  } finally {
+    busyId.value = null
+  }
+}
+/** 审批驳回：POST /accept-reject → 不放行（门控保持）。 */
+async function rejectAccept(f) {
+  busyId.value = f.id
+  opError.value = ''
+  try {
+    await api.post('/risk-findings/' + f.id + '/accept-reject', {})
+    await loadFindings()
+    clearRequested(f.id)
+  } catch (e) {
+    opError.value = e.message
+  } finally {
+    busyId.value = null
+  }
+}
+function clearRequested(id) {
+  const s = new Set(requestedIds.value)
+  s.delete(id)
+  requestedIds.value = s
 }
 
 // ---- Tab1：评估任务表（真实后端数据 GET /api/assessments，非静态假数据）----

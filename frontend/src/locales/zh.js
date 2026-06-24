@@ -425,17 +425,18 @@ export default {
       th: { finding: '风险发现', inherent: '固有', residual: '残余', acceptance: '风险接受', status: '状态', ops: '操作' },
       missing: '缺接受·门控',
       gatedTip: '残余高/极高风险须先登记风险接受方可关闭（CR-002 残余风险关闭门控）',
-      accept: '登记风险接受',
+      requestAccept: '申请风险接受',
+      approveAccept: '审批通过',
+      rejectAccept: '驳回',
       close: '关闭',
       verify: '验证',
       verified: '已验证',
       empty: '该评估暂无风险发现',
       fstatus: { OPEN: '待处置', IN_TREATMENT: '处置中', DONE: '已关闭', VERIFIED: '已验证' },
-      acceptTitle: '登记风险接受',
-      approver: '接受审批人',
+      acceptTitle: '申请风险接受',
       reason: '接受理由',
-      reasonPh: '如：业务必要性 + 补偿性控制，经管理层批准',
-      acceptConfirm: '确认接受'
+      reasonPh: '如：业务必要性 + 补偿性控制，待管理层审批',
+      acceptConfirm: '提交申请'
     },
     // 顶部 Tab
     tab: {

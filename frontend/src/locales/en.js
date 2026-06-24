@@ -389,17 +389,18 @@ export default {
       th: { finding: 'Finding', inherent: 'Inherent', residual: 'Residual', acceptance: 'Acceptance', status: 'Status', ops: 'Actions' },
       missing: 'No acceptance · gated',
       gatedTip: 'High/Very-High residual risk must register a risk acceptance before it can be closed (CR-002 close-gate).',
-      accept: 'Register Acceptance',
+      requestAccept: 'Request Acceptance',
+      approveAccept: 'Approve',
+      rejectAccept: 'Reject',
       close: 'Close',
       verify: 'Verify',
       verified: 'Verified',
       empty: 'No risk findings for this assessment yet',
       fstatus: { OPEN: 'Open', IN_TREATMENT: 'In Treatment', DONE: 'Closed', VERIFIED: 'Verified' },
-      acceptTitle: 'Register Risk Acceptance',
-      approver: 'Approver',
+      acceptTitle: 'Request Risk Acceptance',
       reason: 'Reason',
-      reasonPh: 'e.g. business necessity + compensating controls, approved by management',
-      acceptConfirm: 'Confirm Acceptance'
+      reasonPh: 'e.g. business necessity + compensating controls, pending management approval',
+      acceptConfirm: 'Submit Request'
     },
     tab: {
       tasks: 'Assessments',
