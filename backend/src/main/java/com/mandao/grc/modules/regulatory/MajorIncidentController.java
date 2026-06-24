@@ -15,7 +15,7 @@ import java.util.List;
  * 重大事件报送 REST 端点：/api/major-incidents。
  *
  * 隔离/actor：可见范围由 X-User 头决定（切面注入 visible_orgs），actor 取 X-User。
- * 报送状态机：DRAFT → REPORTED → CLOSED。
+ * 报送状态机：DRAFT → REPORTED → CLOSED；severity 为平台五级 {@link MajorIncidentSeverity}。
  */
 @RestController
 @RequestMapping("/api/major-incidents")
@@ -60,6 +60,6 @@ public class MajorIncidentController {
     }
 
     /** 新建重大事件报送请求体。 */
-    public record CreateIncidentRequest(Long orgId, String title, String severity, OffsetDateTime occurredAt) {
+    public record CreateIncidentRequest(Long orgId, String title, MajorIncidentSeverity severity, OffsetDateTime occurredAt) {
     }
 }

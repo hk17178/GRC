@@ -12,7 +12,7 @@ import java.util.List;
  * 隔离/留痕范式同 {@link AssessmentService}：方法 @Transactional → 切面自动注入 visible_orgs，
  * RLS 裁剪 + WITH CHECK 校验；每次流转/接受调用 {@link HashChainService#append} 留痕。
  *
- * 状态机：OPEN → TREATING → DONE → VERIFIED。
+ * 状态机：OPEN → IN_TREATMENT → DONE → VERIFIED。
  *
  * ===== 关闭门控（CR-002 红线，本类的核心约束）=====
  * 当 residual_level ∈ {HIGH, VERY_HIGH} 时，若该 finding 尚无有效风险接受（risk_acceptance_id 未回填），
@@ -68,7 +68,7 @@ public class RiskFindingService {
     }
 
     /**
-     * 录入处置方案：OPEN → TREATING（仅 OPEN 态可设置）。
+     * 录入处置方案：OPEN → IN_TREATMENT（仅 OPEN 态可设置）。
      */
     @Transactional
     public RiskFinding setTreatment(Long id, String treatmentPlan, String actor) {
@@ -78,14 +78,14 @@ public class RiskFindingService {
                     "仅 OPEN 态风险发现可录入处置方案，当前状态：" + f.getStatus());
         }
         f.setTreatmentPlan(treatmentPlan);
-        f.setStatus(RiskFindingStatus.TREATING);
+        f.setStatus(RiskFindingStatus.IN_TREATMENT);
         RiskFinding saved = findingRepository.save(f);
         appendLog(saved, "FINDING_TREAT", actor, "录入处置方案");
         return saved;
     }
 
     /**
-     * 评估残余风险等级（可在 OPEN/TREATING 态设置，不改变状态）。
+     * 评估残余风险等级（可在 OPEN/IN_TREATMENT 态设置，不改变状态）。
      * 残余等级是关闭门控的判定依据，故单独留痕。
      */
     @Transactional
@@ -123,7 +123,7 @@ public class RiskFindingService {
     }
 
     /**
-     * 关闭：OPEN/TREATING → DONE，或 DONE → VERIFIED。
+     * 关闭：OPEN/IN_TREATMENT → DONE，或 DONE → VERIFIED。
      *
      * 【关闭门控 CR-002 红线】流转到 DONE/VERIFIED 前，先 {@link #assertClosable} 校验：
      * 高残余（HIGH/VERY_HIGH）且无有效 acceptance → 抛 {@link RiskCloseGateException}。
@@ -141,10 +141,10 @@ public class RiskFindingService {
             // DONE → VERIFIED
             transition(f, RiskFindingStatus.DONE, RiskFindingStatus.VERIFIED);
         } else {
-            // OPEN/TREATING → DONE
-            if (f.getStatus() != RiskFindingStatus.OPEN && f.getStatus() != RiskFindingStatus.TREATING) {
+            // OPEN/IN_TREATMENT → DONE
+            if (f.getStatus() != RiskFindingStatus.OPEN && f.getStatus() != RiskFindingStatus.IN_TREATMENT) {
                 throw new IllegalStateException(
-                        "仅 OPEN/TREATING 态可关闭到 DONE，当前状态：" + f.getStatus());
+                        "仅 OPEN/IN_TREATMENT 态可关闭到 DONE，当前状态：" + f.getStatus());
             }
             f.setStatus(RiskFindingStatus.DONE);
         }

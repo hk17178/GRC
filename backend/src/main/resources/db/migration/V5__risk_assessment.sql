@@ -5,7 +5,7 @@
 -- 要点：
 --   1) 扩展 V1 既有 assessment 最小表：增 status 状态机 / assessor / period，并补可写所需的 WITH CHECK；
 --      原 id 为手工赋值 BIGINT（含种子 101/102/201/202），新增独立序列承接 Service 新建，起始 1000 避开种子；
---   2) 新表 risk_finding（风险发现）：inherent/residual 五级，status 状态机 OPEN→TREATING→DONE→VERIFIED，
+--   2) 新表 risk_finding（风险发现）：inherent/residual 五级，status 状态机 OPEN→IN_TREATMENT→DONE→VERIFIED，
 --      risk_acceptance_id 回填字段（残余高/极高关闭门控的放行凭据）；
 --   3) 新表 risk_acceptance（风险接受）：高残余风险关闭的审批凭据；
 --   4) 三处 ENABLE RLS + USING/WITH CHECK（与业务表同口径，按 visible_orgs 裁剪含写入校验）；
@@ -37,7 +37,7 @@ GRANT USAGE, SELECT ON SEQUENCE assessment_id_seq TO grc_app;
 
 -- ---------- 风险发现主表 ----------
 -- 五级风险取值：VERY_LOW / LOW / MID / HIGH / VERY_HIGH（平台统一五级）
--- 状态机：OPEN → TREATING → DONE → VERIFIED
+-- 状态机：OPEN → IN_TREATMENT → DONE → VERIFIED
 CREATE TABLE risk_finding (
   id                  BIGSERIAL PRIMARY KEY,
   org_id              BIGINT       NOT NULL REFERENCES org(id),         -- 隔离锚点

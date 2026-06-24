@@ -40,9 +40,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * M3 审计管理集成测试（真实 PG + 应用切面 + RLS）。验证：
- *  1) 审计计划生命周期 PLANNED→IN_PROGRESS→REPORTED→CLOSED 通过，非法流转被拒；
- *  2) 【外审对外回函三段漏斗 红线】SUBMITTED→ACCEPTED→CONFIRMED_CLOSED 正序通过；
- *     跳级被拒、逆向被拒、非外审走漏斗被拒；唯 CONFIRMED_CLOSED 算闭环；
+ *  1) 审计计划生命周期 PLANNED→IN_PROGRESS→REPORTING→CLOSED 通过，非法流转被拒，取消(CANCELLED)可达；
+ *  2) 【外审对外回函三段漏斗 红线】SUBMITTED→ACCEPTED→CLOSED 正序通过；
+ *     跳级被拒、逆向被拒、非外审走漏斗被拒；唯 CLOSED 算闭环；
  *  3) 组织隔离：org12 的审计发现，在 org13 上下文中看不到；
  *  4) 留痕：流转/漏斗推进后对应 org 哈希链 verify 通过且有记录；
  *  5) 【调度兼容】扩展 audit_plan 后，ExpiryScanService.scanOnce 仍能对 EXTERNAL 计划产 EXT_AUDIT_PLAN_APPROACHING。
@@ -112,7 +112,7 @@ class AuditManagementTest {
 
         assertEquals(AuditPlanStatus.IN_PROGRESS,
                 asOrg(ORG_PAY, () -> planService.start(id, "auditor").getStatus()));
-        assertEquals(AuditPlanStatus.REPORTED,
+        assertEquals(AuditPlanStatus.REPORTING,
                 asOrg(ORG_PAY, () -> planService.report(id, "auditor").getStatus()));
         assertEquals(AuditPlanStatus.CLOSED,
                 asOrg(ORG_PAY, () -> planService.close(id, "lead").getStatus()));
@@ -122,7 +122,20 @@ class AuditManagementTest {
     void 计划非法流转_计划态直接关闭被拒() {
         Long id = asOrg(ORG_PAY, () ->
                 planService.create(ORG_PAY, "X", AuditType.INTERNAL, TODAY.plusDays(30), "creator").getId());
-        // PLANNED 不可直接 close（close 仅允许从 REPORTED）
+        // PLANNED 不可直接 close（close 仅允许从 REPORTING）
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> planService.close(id, "lead")));
+    }
+
+    @Test
+    void 计划取消_执行中可取消到终态() {
+        Long id = asOrg(ORG_PAY, () ->
+                planService.create(ORG_PAY, "拟取消外审", AuditType.EXTERNAL, TODAY.plusDays(30), "creator").getId());
+        // PLANNED → IN_PROGRESS → CANCELLED（终态）
+        asOrg(ORG_PAY, () -> planService.start(id, "auditor"));
+        assertEquals(AuditPlanStatus.CANCELLED,
+                asOrg(ORG_PAY, () -> planService.cancel(id, "lead").getStatus()));
+        // 已 CANCELLED（终态）不可再关闭
         assertThrows(IllegalStateException.class,
                 () -> runAsOrg(ORG_PAY, () -> planService.close(id, "lead")));
     }
@@ -142,8 +155,8 @@ class AuditManagementTest {
                 asOrg(ORG_PAY, () -> findingService.acceptResponse(fid, "auditor").getExternalResponseStatus()));
 
         AuditFinding closed = asOrg(ORG_PAY, () -> findingService.confirmClose(fid, "auditor"));
-        assertEquals(ExternalResponseStatus.CONFIRMED_CLOSED, closed.getExternalResponseStatus());
-        assertTrue(closed.getExternalResponseStatus().isClosed(), "唯 CONFIRMED_CLOSED 算外审闭环");
+        assertEquals(ExternalResponseStatus.CLOSED, closed.getExternalResponseStatus());
+        assertTrue(closed.getExternalResponseStatus().isClosed(), "唯 CLOSED 算外审闭环");
     }
 
     @Test

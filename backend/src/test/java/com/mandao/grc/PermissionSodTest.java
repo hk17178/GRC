@@ -37,15 +37,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * M8 权限审批集成测试（真实 PG + 应用切面 + RLS）。验证：
  *  1) 授予角色成功（权限四元组 org × user × role × active）；
- *  2) 【SoD 职责分离 红线】授予互斥角色被拒；补 SoD 豁免后可授予；
- *  3) 【UAR 权限审阅】createReview → start（快照）→ decideItem(REVOKE) 使 user_role_org.active=false → complete；
- *  4) 组织隔离：org12 的授权在 org13 上下文中看不到；
- *  5) 留痕：授权/审阅推进后对应 org 哈希链 verify 通过且有记录。
+ *  2) 【SoD·BLOCK 红线】授予互斥角色被拒（SodViolationException）；补 SoD 豁免后可授予；
+ *  3) 【SoD·DETECT 检测型】授予互斥角色【成功】（并集生效）且【登记冲突】（哈希链含 SOD_CONFLICT_DETECTED）；
+ *  4) 【UAR 权限审阅】createReview → start（快照）→ decideItem(REVOKE/DOWNGRADE) 使 active=false → complete；
+ *  5) 组织隔离：org12 的授权在 org13 上下文中看不到；
+ *  6) 留痕：授权/审阅推进后对应 org 哈希链 verify 通过且有记录。
  *
  * 种子（V1 app_user / V7 role+sod_rule）：
  *  - app_user：1 group_admin(org1)、2 pay_user(org12)、3 cf_user(org13)；
  *  - role：1 MAKER、2 CHECKER、3 RISK_OWNER、4 AUDITOR；
- *  - sod_rule：1 (MAKER↔CHECKER)、2 (RISK_OWNER↔AUDITOR)。
+ *  - sod_rule：1 (MAKER↔CHECKER, BLOCK 硬阻断)、2 (RISK_OWNER↔AUDITOR, DETECT 检测型)。
  *
  * 设计依据：需求文档 M8 权限审批（RBAC/权限四元组/UAR/SoD）、D1-3 §4.7、D2-5。
  */
@@ -88,7 +89,10 @@ class PermissionSodTest {
 
     private static final long ROLE_MAKER = 1L;
     private static final long ROLE_CHECKER = 2L;
-    private static final long SOD_RULE_MAKER_CHECKER = 1L;
+    private static final long ROLE_RISK_OWNER = 3L;
+    private static final long ROLE_AUDITOR = 4L;
+    private static final long SOD_RULE_MAKER_CHECKER = 1L;   // BLOCK 硬阻断
+    private static final long SOD_RULE_RISK_AUDITOR = 2L;    // DETECT 检测型
 
     /**
      * 每用例前清空 M8 业务表与操作日志（owner 连接，绕 RLS；grc_app 无删权）。
@@ -118,20 +122,20 @@ class PermissionSodTest {
         assertTrue(uro.isActive(), "新授予应为有效");
     }
 
-    // ---------- SoD 职责分离红线（核心） ----------
+    // ---------- SoD 职责分离红线（核心：BLOCK 阻断 / DETECT 检测） ----------
 
     @Test
-    void SoD红线_授予互斥角色被拒() {
+    void SoD红线BLOCK_授予互斥角色被拒() {
         // 先授予 MAKER
         asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
-        // 再授予互斥的 CHECKER → 被 SoD 红线拦截
+        // 再授予互斥的 CHECKER（rule1=BLOCK）→ 被 SoD 红线硬阻断
         assertThrows(SodViolationException.class,
                 () -> runAsOrg(ORG_PAY, () ->
                         permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_CHECKER, "admin")));
     }
 
     @Test
-    void SoD红线_补豁免后可授予互斥角色() {
+    void SoD红线BLOCK_补豁免后可授予互斥角色() {
         asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
 
         // 无豁免：被拒
@@ -150,13 +154,36 @@ class PermissionSodTest {
     }
 
     @Test
-    void SoD红线_回收互斥角色后可授予另一互斥角色() {
+    void SoD红线BLOCK_回收互斥角色后可授予另一互斥角色() {
         asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
         // 回收 MAKER（active=false）后，CHECKER 不再与有效角色互斥 → 可授予
         asOrg(ORG_PAY, () -> permissionService.revokeRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
         UserRoleOrg checker = asOrg(ORG_PAY, () ->
                 permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_CHECKER, "admin"));
         assertTrue(checker.isActive(), "回收互斥角色后授予应成功");
+    }
+
+    @Test
+    void SoD红线DETECT_授予互斥角色放行并登记冲突() {
+        // 先授予 RISK_OWNER
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_RISK_OWNER, "admin"));
+        // 再授予互斥的 AUDITOR（rule2=DETECT）→ 不阻断、放行，并集生效
+        UserRoleOrg auditor = asOrg(ORG_PAY, () ->
+                permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_AUDITOR, "admin"));
+        assertTrue(auditor.isActive(), "DETECT 检测型：授予互斥角色应放行成功");
+
+        // 并集照常生效：两条有效授权同时存在
+        List<UserRoleOrg> roles = asOrg(ORG_PAY, () ->
+                permissionService.listUserRoles(ORG_PAY, USER_PAY));
+        assertEquals(2, roles.size(), "DETECT 放行后两互斥角色应并集生效");
+        assertTrue(roles.stream().allMatch(UserRoleOrg::isActive), "两条授权均应有效");
+
+        // 登记了冲突：哈希链/operation_log 含一条 SOD_CONFLICT_DETECTED
+        assertEquals(1, countLogByAction(ORG_PAY, "SOD_CONFLICT_DETECTED"),
+                "DETECT 命中应登记一条 SOD_CONFLICT_DETECTED 冲突");
+        // 留痕链仍校验通过
+        assertTrue(asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY)).valid(),
+                "登记冲突后哈希链应仍校验通过");
     }
 
     // ---------- UAR 权限审阅 ----------
@@ -189,6 +216,35 @@ class PermissionSodTest {
 
         assertEquals(AccessReviewStatus.COMPLETED,
                 asOrg(ORG_PAY, () -> accessReviewService.completeReview(reviewId, "ciso").getStatus()));
+    }
+
+    @Test
+    void UAR_审阅降权使授权失效且decision记为DOWNGRADE() {
+        asOrg(ORG_PAY, () ->
+                permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));
+
+        Long reviewId = asOrg(ORG_PAY, () ->
+                accessReviewService.createReview(ORG_PAY, "2026Q2", "ciso", "ciso").getId());
+        asOrg(ORG_PAY, () -> accessReviewService.startReview(reviewId, "ciso"));
+
+        List<AccessReviewItem> items = asOrg(ORG_PAY, () -> accessReviewService.listItems(reviewId));
+        Long itemId = items.get(0).getId();
+
+        // DOWNGRADE → 联动 active=false，且 decision=DOWNGRADE（与 REVOKE 区分）
+        AccessReviewItem decided = asOrg(ORG_PAY, () ->
+                accessReviewService.decideItem(itemId, AccessReviewDecision.DOWNGRADE, "ciso"));
+        assertEquals(AccessReviewDecision.DOWNGRADE, decided.getDecision(), "decision 应记为 DOWNGRADE");
+
+        List<UserRoleOrg> roles = asOrg(ORG_PAY, () ->
+                permissionService.listUserRoles(ORG_PAY, USER_PAY));
+        assertEquals(1, roles.size());
+        assertFalse(roles.get(0).isActive(), "降权后 user_role_org.active 应为 false");
+
+        // 留痕用 ACCESS_REVIEW_DOWNGRADE 区分
+        assertEquals(1, countLogByAction(ORG_PAY, "ACCESS_REVIEW_DOWNGRADE"),
+                "降权应留痕一条 ACCESS_REVIEW_DOWNGRADE");
+        assertEquals(0, countLogByAction(ORG_PAY, "ACCESS_REVIEW_REVOKE"),
+                "降权不应误记为 REVOKE 留痕");
     }
 
     @Test
@@ -259,6 +315,22 @@ class PermissionSodTest {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
             s.executeUpdate(sql);
+        }
+    }
+
+    /** 以 owner 连接（绕 RLS）统计某 org 下指定 action 的 operation_log 留痕条数。 */
+    private long countLogByAction(long orgId, String action) {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             var ps = owner.prepareStatement(
+                     "SELECT count(*) FROM operation_log WHERE org_id = ? AND action = ?")) {
+            ps.setLong(1, orgId);
+            ps.setString(2, action);
+            try (var rs = ps.executeQuery()) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException(e);
         }
     }
 }

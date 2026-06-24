@@ -15,7 +15,7 @@ import java.util.List;
  * 报送日历 REST 端点：/api/reg-filings（参照 AuditPlanController 风格）。
  *
  * 隔离/actor：可见范围由 X-User 头决定（切面注入 visible_orgs），actor 取 X-User。
- * 报送生命周期：PLANNED → PREPARING → SUBMITTED → ACCEPTED。
+ * 报送生命周期：TO_DRAFT → DRAFTING → SUBMITTED → CLOSED。
  */
 @RestController
 @RequestMapping("/api/reg-filings")
@@ -55,10 +55,10 @@ public class RegFilingController {
         return service.submit(id, actor(user));
     }
 
-    @PostMapping("/{id}/accept")
-    public RegFiling accept(@PathVariable Long id,
-                            @RequestHeader(value = "X-User", required = false) String user) {
-        return service.accept(id, actor(user));
+    @PostMapping("/{id}/close")
+    public RegFiling close(@PathVariable Long id,
+                           @RequestHeader(value = "X-User", required = false) String user) {
+        return service.close(id, actor(user));
     }
 
     private String actor(String user) {

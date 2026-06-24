@@ -3,7 +3,7 @@
 -- 设计依据：D1-2（业务实体统一携带 org_id）、D1-3 §5.1（RLS 兜底）、D2-5（编码规范）。
 -- 要点：
 --   1) policy 制度主表 + policy_signoff 签署确认表，均携带 org_id 隔离锚点；
---   2) 状态机：DRAFT → PENDING_APPROVAL → PUBLISHED → ARCHIVED，PENDING_APPROVAL 可驳回回 DRAFT；
+--   2) 状态机：DRAFT → REVIEW → EFFECTIVE → DEPRECATED，REVIEW 可驳回回 DRAFT；
 --   3) 两表 ENABLE RLS + USING/WITH CHECK（与业务表同口径，按 visible_orgs 裁剪，含写入校验）；
 --   4) 仅授予 grc_app 必要权限；BIGSERIAL 序列需额外 GRANT USAGE,SELECT。
 -- 注：本迁移由 Flyway 以 owner 角色执行，PostgreSQL 原生 `::` 强转在此完全合法；
@@ -25,7 +25,7 @@ CREATE TABLE policy (
 );
 CREATE INDEX idx_policy_org ON policy(org_id);
 
--- ---------- 制度签署确认表（PUBLISHED 后由相关人员逐一签署确认已阅知/承诺执行） ----------
+-- ---------- 制度签署确认表（EFFECTIVE 后由相关人员逐一签署确认已阅知/承诺执行） ----------
 CREATE TABLE policy_signoff (
   id         BIGSERIAL PRIMARY KEY,
   policy_id  BIGINT       NOT NULL REFERENCES policy(id),  -- 所属制度

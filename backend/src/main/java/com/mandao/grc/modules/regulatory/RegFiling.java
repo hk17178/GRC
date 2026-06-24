@@ -25,7 +25,7 @@ import java.time.OffsetDateTime;
  * （避免 Hibernate 处理 PG 数组类型的额外配置），由库默认值兜底保障调度可用；
  * ExpiryScanService 命中 reminder_days 某天即产 REG_FILING_DUE。
  *
- * 状态机：PLANNED → PREPARING → SUBMITTED → ACCEPTED（见 {@link RegFilingService}）。
+ * 状态机：TO_DRAFT → DRAFTING → SUBMITTED → CLOSED（见 {@link RegFilingService}）。
  *
  * 设计依据：需求文档 M11、D1-2 §23、D2-5。
  */
@@ -56,7 +56,7 @@ public class RegFiling {
     /** 报送生命周期状态机当前态。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 24)
-    private RegFilingStatus status = RegFilingStatus.PLANNED;
+    private RegFilingStatus status = RegFilingStatus.TO_DRAFT;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
@@ -68,13 +68,13 @@ public class RegFiling {
     protected RegFiling() {
     }
 
-    /** 业务构造：以 PLANNED 态新建报送事项。 */
+    /** 业务构造：以 TO_DRAFT 态新建报送事项。 */
     public RegFiling(Long orgId, String title, String regulator, LocalDate statutoryDeadline) {
         this.orgId = orgId;
         this.title = title;
         this.regulator = regulator;
         this.statutoryDeadline = statutoryDeadline;
-        this.status = RegFilingStatus.PLANNED;
+        this.status = RegFilingStatus.TO_DRAFT;
     }
 
     @PrePersist

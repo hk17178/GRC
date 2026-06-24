@@ -15,8 +15,9 @@ import java.util.List;
  *
  * 状态机：DRAFT → REPORTED → CLOSED；非法流转抛 {@link IllegalStateException}。
  * report 流转时记录 reported_at（上报监管时刻）。
+ * severity 采用平台五级 {@link MajorIncidentSeverity}（VERY_LOW/LOW/MID/HIGH/VERY_HIGH）。
  *
- * 设计依据：需求文档 M11 监管事项（重大事件报送）、D1-2 §23、D2-5。
+ * 设计依据：需求文档 M11 监管事项（重大事件报送）、D1-2 §23、D2-5、DM-5 严重度对齐基线。
  */
 @Service
 public class MajorIncidentService {
@@ -42,7 +43,7 @@ public class MajorIncidentService {
 
     /** 新建重大事件报送（DRAFT 态）。 */
     @Transactional
-    public MajorIncidentReport create(Long orgId, String title, String severity,
+    public MajorIncidentReport create(Long orgId, String title, MajorIncidentSeverity severity,
                                       OffsetDateTime occurredAt, String actor) {
         MajorIncidentReport m = new MajorIncidentReport(orgId, title, severity, occurredAt);
         MajorIncidentReport saved = repository.save(m);

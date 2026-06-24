@@ -16,7 +16,7 @@ import java.util.List;
  * 资产台账 REST 端点：/api/assets。
  *
  * 隔离/actor：可见范围由 X-User 头决定（切面注入 visible_orgs），actor 取 X-User。
- * 合规属性筛查：GET /api/assets?filter=pi|crossBorder|chd|mlps 或 ?classification=CONFIDENTIAL。
+ * 合规属性筛查：GET /api/assets?filter=pi|crossBorder|chd|mlps 或 ?classification=SENSITIVE。
  * 状态机：ACTIVE → RETIRED。
  */
 @RestController
@@ -31,7 +31,7 @@ public class AssetController {
 
     /**
      * 列出资产，支持合规属性筛查：
-     * ?filter=pi / crossBorder / chd / mlps，或 ?classification=PUBLIC|INTERNAL|CONFIDENTIAL|SECRET。
+     * ?filter=pi / crossBorder / chd / mlps，或 ?classification=PUBLIC|INTERNAL|SENSITIVE。
      */
     @GetMapping
     public List<Asset> list(@RequestParam(required = false) String filter,

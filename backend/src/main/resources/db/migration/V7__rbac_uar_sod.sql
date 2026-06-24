@@ -37,12 +37,16 @@ CREATE TABLE role_permission (
   PRIMARY KEY (role_id, permission_id)
 );
 
--- SoD 互斥规则（全局字典）：role_a 与 role_b 互斥，同一 user 在同一 org 不得同时持有（除非经审批豁免）。
+-- SoD 互斥规则（全局字典）：role_a 与 role_b 互斥，同一 user 在同一 org 不得同时持有。
+-- enforce_mode（D1-3 §4.7·补 D6 红线语义）：
+--   DETECT（默认，检测型）：授予互斥角色【不阻断】、并集照常生效，仅登记冲突（SOD_CONFLICT_DETECTED）待例外审批；
+--   BLOCK（阻断型，高敏组合）：无有效 sod_exception 时【硬阻断】授权（抛 SodViolationException）。
 CREATE TABLE sod_rule (
-  id          BIGSERIAL PRIMARY KEY,
-  role_a_id   BIGINT NOT NULL REFERENCES role(id),
-  role_b_id   BIGINT NOT NULL REFERENCES role(id),
-  description VARCHAR(256)
+  id           BIGSERIAL PRIMARY KEY,
+  role_a_id    BIGINT NOT NULL REFERENCES role(id),
+  role_b_id    BIGINT NOT NULL REFERENCES role(id),
+  enforce_mode VARCHAR(8) NOT NULL DEFAULT 'DETECT',  -- DETECT(检测/默认) | BLOCK(硬阻断)
+  description  VARCHAR(256)
 );
 CREATE INDEX idx_sod_rule_a ON sod_rule(role_a_id);
 CREATE INDEX idx_sod_rule_b ON sod_rule(role_b_id);
@@ -89,7 +93,8 @@ CREATE TABLE access_review (
 CREATE INDEX idx_access_review_org ON access_review(org_id);
 
 -- ---------- org-scoped：UAR 逐项审阅决定 ----------
--- decision：PENDING(待决) / KEEP(保留) / REVOKE(撤销，撤销则把对应 user_role_org.active=false)。
+-- decision：PENDING(待决) / KEEP(保留) / REVOKE(撤销) / DOWNGRADE(降权)；
+--   REVOKE 与 DOWNGRADE 均把对应 user_role_org.active=false（本切片降权落地同撤销，仅 decision 值区分语义）。
 CREATE TABLE access_review_item (
   id                BIGSERIAL PRIMARY KEY,
   org_id            BIGINT       NOT NULL REFERENCES org(id),                    -- 隔离锚点
@@ -150,7 +155,9 @@ INSERT INTO role (id, code, name) VALUES
   (4, 'AUDITOR',       '审计员');
 SELECT setval('role_id_seq', (SELECT max(id) FROM role));
 
-INSERT INTO sod_rule (id, role_a_id, role_b_id, description) VALUES
-  (1, 1, 2, '发起人(MAKER)与审批人(CHECKER)职责分离，同一用户同一组织不得兼任'),
-  (2, 3, 4, '风险责任人(RISK_OWNER)与审计员(AUDITOR)职责分离');
+-- enforce_mode：MAKER↔CHECKER 为高敏组合 → BLOCK（硬阻断，需豁免）；
+--                RISK_OWNER↔AUDITOR 为一般组合 → DETECT（检测型，放行并登记冲突待例外审批）。
+INSERT INTO sod_rule (id, role_a_id, role_b_id, enforce_mode, description) VALUES
+  (1, 1, 2, 'BLOCK',  '发起人(MAKER)与审批人(CHECKER)职责分离，同一用户同一组织不得兼任（高敏·硬阻断）'),
+  (2, 3, 4, 'DETECT', '风险责任人(RISK_OWNER)与审计员(AUDITOR)职责分离（检测型·登记冲突待例外审批）');
 SELECT setval('sod_rule_id_seq', (SELECT max(id) FROM sod_rule));

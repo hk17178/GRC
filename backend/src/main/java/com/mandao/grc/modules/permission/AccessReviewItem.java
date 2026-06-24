@@ -41,7 +41,7 @@ public class AccessReviewItem {
     @Column(name = "user_role_org_id", nullable = false, updatable = false)
     private Long userRoleOrgId;
 
-    /** 审阅决定（PENDING/KEEP/REVOKE）。 */
+    /** 审阅决定（PENDING/KEEP/REVOKE/DOWNGRADE）。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 12)
     private AccessReviewDecision decision = AccessReviewDecision.PENDING;

@@ -13,8 +13,8 @@ import java.util.List;
  * 且位于 com.mandao.grc.modules 包，{@link com.mandao.grc.common.isolation.OrgScopeAspect}
  * 会在事务内自动注入 app.visible_orgs，随后 RLS 裁剪数据并校验写入（WITH CHECK）。
  *
- * 状态机：DRAFT → PENDING_APPROVAL → PUBLISHED → ARCHIVED；
- * PENDING_APPROVAL 可被驳回回 DRAFT。非法流转一律抛 {@link IllegalStateException}。
+ * 状态机：DRAFT → REVIEW → EFFECTIVE → DEPRECATED；
+ * REVIEW 可被驳回回 DRAFT。非法流转一律抛 {@link IllegalStateException}。
  *
  * 留痕：每次状态流转 / 签署后，调用 {@link HashChainService#append} 写入按 org 分链的
  * 防篡改哈希链（D1-3 §8 ADR-C）。HashChainService 自身 @Transactional，与本服务同事务/同连接，
@@ -68,56 +68,56 @@ public class PolicyService {
     }
 
     /**
-     * 提交审批：DRAFT → PENDING_APPROVAL。
+     * 提交评审：DRAFT → REVIEW。
      * 非 DRAFT 态调用属非法流转，抛 {@link IllegalStateException}。
      */
     @Transactional
     public Policy submitForApproval(Long id, String actor) {
         Policy policy = get(id);
-        transition(policy, PolicyStatus.DRAFT, PolicyStatus.PENDING_APPROVAL);
+        transition(policy, PolicyStatus.DRAFT, PolicyStatus.REVIEW);
         Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_SUBMIT", actor, "提交审批");
+        appendLog(saved, "POLICY_SUBMIT", actor, "提交评审");
         return saved;
     }
 
     /**
-     * 审批通过：PENDING_APPROVAL → PUBLISHED。
+     * 审批通过：REVIEW → EFFECTIVE。
      */
     @Transactional
     public Policy approve(Long id, String actor) {
         Policy policy = get(id);
-        transition(policy, PolicyStatus.PENDING_APPROVAL, PolicyStatus.PUBLISHED);
+        transition(policy, PolicyStatus.REVIEW, PolicyStatus.EFFECTIVE);
         Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_APPROVE", actor, "审批通过并发布");
+        appendLog(saved, "POLICY_APPROVE", actor, "审批通过并生效");
         return saved;
     }
 
     /**
-     * 审批驳回：PENDING_APPROVAL → DRAFT（退回起草人修改）。
+     * 审批驳回：REVIEW → DRAFT（退回起草人修改）。
      */
     @Transactional
     public Policy reject(Long id, String actor, String reason) {
         Policy policy = get(id);
-        transition(policy, PolicyStatus.PENDING_APPROVAL, PolicyStatus.DRAFT);
+        transition(policy, PolicyStatus.REVIEW, PolicyStatus.DRAFT);
         Policy saved = policyRepository.save(policy);
         appendLog(saved, "POLICY_REJECT", actor, "审批驳回，原因：" + (reason == null ? "" : reason));
         return saved;
     }
 
     /**
-     * 归档：PUBLISHED → ARCHIVED（终态）。
+     * 废止：EFFECTIVE → DEPRECATED（终态）。
      */
     @Transactional
     public Policy archive(Long id, String actor) {
         Policy policy = get(id);
-        transition(policy, PolicyStatus.PUBLISHED, PolicyStatus.ARCHIVED);
+        transition(policy, PolicyStatus.EFFECTIVE, PolicyStatus.DEPRECATED);
         Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_ARCHIVE", actor, "归档");
+        appendLog(saved, "POLICY_ARCHIVE", actor, "废止");
         return saved;
     }
 
     /**
-     * 签署确认：仅 PUBLISHED 态的制度可被签署。
+     * 签署确认：仅 EFFECTIVE 态的制度可被签署。
      *
      * 幂等/重复保护：同一制度同一签署人重复签署，由表上 UNIQUE(policy_id, signer) 在落库时拒绝
      * （抛出 DataIntegrityViolationException），事务回滚。
@@ -125,9 +125,9 @@ public class PolicyService {
     @Transactional
     public PolicySignoff signoff(Long policyId, String signer) {
         Policy policy = get(policyId);
-        if (policy.getStatus() != PolicyStatus.PUBLISHED) {
+        if (policy.getStatus() != PolicyStatus.EFFECTIVE) {
             throw new IllegalStateException(
-                    "仅已发布(PUBLISHED)制度可签署，当前状态：" + policy.getStatus());
+                    "仅已生效(EFFECTIVE)制度可签署，当前状态：" + policy.getStatus());
         }
         PolicySignoff signoff = new PolicySignoff(policy.getId(), policy.getOrgId(), signer);
         PolicySignoff saved = signoffRepository.save(signoff);

@@ -41,9 +41,10 @@ public class Assessment {
     @Column(length = 256)
     private String title;
 
-    /** 评估整体风险等级（五级 VERY_LOW/LOW/MID/HIGH/VERY_HIGH）。 */
+    /** 评估整体风险等级（五级 VERY_LOW/LOW/MID/HIGH/VERY_HIGH）。以枚举名持久化，DB 侧强约束取值。 */
+    @Enumerated(EnumType.STRING)
     @Column(name = "risk_level", length = 16)
-    private String riskLevel;
+    private RiskLevel riskLevel;
 
     /** 状态机当前态，以字符串持久化（与 DB 的 VARCHAR 一致，便于排查）。 */
     @Enumerated(EnumType.STRING)
@@ -94,7 +95,7 @@ public class Assessment {
     public Long getId() { return id; }
     public Long getOrgId() { return orgId; }
     public String getTitle() { return title; }
-    public String getRiskLevel() { return riskLevel; }
+    public RiskLevel getRiskLevel() { return riskLevel; }
     public AssessmentStatus getStatus() { return status; }
     public String getAssessor() { return assessor; }
     public String getPeriod() { return period; }

@@ -24,7 +24,7 @@ CREATE TABLE asset (
   asset_type      VARCHAR(24),                                    -- 资产类型（SYSTEM/APP/DATABASE/DEVICE 等）
   owner           VARCHAR(64),                                    -- 资产责任人
   -- 资产合规属性（CR-002）
-  classification  VARCHAR(16)  NOT NULL DEFAULT 'INTERNAL',       -- 分类分级 PUBLIC/INTERNAL/CONFIDENTIAL/SECRET
+  classification  VARCHAR(16)  NOT NULL DEFAULT 'INTERNAL',       -- 分类分级 PUBLIC/INTERNAL/SENSITIVE（公开/内部/敏感）
   contains_pi     BOOLEAN      NOT NULL DEFAULT false,            -- 是否含个人信息
   cross_border    BOOLEAN      NOT NULL DEFAULT false,            -- 是否涉及数据跨境
   mlps_filed      BOOLEAN      NOT NULL DEFAULT false,            -- 是否已等保备案（MLPS）

@@ -18,7 +18,7 @@ import java.time.OffsetDateTime;
  * 监管问询台账（M11 监管事项），映射 V8 reg_inquiry 表。
  *
  * 隔离锚点 org_id；可见/可写由 RLS 按 app.visible_orgs 自动裁剪（V8 已建 USING/WITH CHECK）。
- * 状态机：OPEN → RESPONDING → CLOSED（见 {@link RegInquiryService}）。
+ * 状态机：DRAFTING → REPLIED → AWAIT_FEEDBACK → CLOSED（见 {@link RegInquiryService}）。
  *
  * 设计依据：需求文档 M11、D1-2 §23、D2-5。
  */
@@ -49,7 +49,7 @@ public class RegInquiry {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private RegInquiryStatus status = RegInquiryStatus.OPEN;
+    private RegInquiryStatus status = RegInquiryStatus.DRAFTING;
 
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
@@ -60,14 +60,14 @@ public class RegInquiry {
     protected RegInquiry() {
     }
 
-    /** 业务构造：以 OPEN 态新建监管问询。 */
+    /** 业务构造：以 DRAFTING 态新建监管问询。 */
     public RegInquiry(Long orgId, String title, String regulator, LocalDate receivedDate, LocalDate dueDate) {
         this.orgId = orgId;
         this.title = title;
         this.regulator = regulator;
         this.receivedDate = receivedDate;
         this.dueDate = dueDate;
-        this.status = RegInquiryStatus.OPEN;
+        this.status = RegInquiryStatus.DRAFTING;
     }
 
     @PrePersist

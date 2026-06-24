@@ -30,11 +30,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * M1 制度体系生命周期集成测试（真实 PG + 应用切面 + RLS）。验证：
- *  1) 正常生命周期 DRAFT→PENDING_APPROVAL→PUBLISHED→ARCHIVED 通过；
- *  2) 非法流转（DRAFT 直接 archive、PUBLISHED 再 submit）被拒；
+ *  1) 正常生命周期 DRAFT→REVIEW→EFFECTIVE→DEPRECATED 通过；
+ *  2) 非法流转（DRAFT 直接 archive、EFFECTIVE 再 submit）被拒；
  *  3) 组织隔离：org12 的制度，在 org13 上下文中看不到；
  *  4) 留痕：流转后对应 org 的哈希链 verify 通过且有记录；
- *  5) 签署确认：PUBLISHED 后 signoff 成功，重复 signoff 被唯一约束拒。
+ *  5) 签署确认：EFFECTIVE 后 signoff 成功，重复 signoff 被唯一约束拒。
  *
  * scheduler.enabled=false 关闭定时器，避免无关后台扫描干扰本测试。
  * 设计依据：D1-2 制度生命周期、D1-3 §5.1/§8、D2-5。
@@ -94,11 +94,11 @@ class PolicyLifecycleTest {
         Long id = asOrg(ORG_PAY, () ->
                 policyService.create(ORG_PAY, "POL-001", "信息安全管理制度", "正文……", "drafter").getId());
 
-        assertEquals(PolicyStatus.PENDING_APPROVAL,
+        assertEquals(PolicyStatus.REVIEW,
                 asOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter").getStatus()));
-        assertEquals(PolicyStatus.PUBLISHED,
+        assertEquals(PolicyStatus.EFFECTIVE,
                 asOrg(ORG_PAY, () -> policyService.approve(id, "approver").getStatus()));
-        assertEquals(PolicyStatus.ARCHIVED,
+        assertEquals(PolicyStatus.DEPRECATED,
                 asOrg(ORG_PAY, () -> policyService.archive(id, "admin").getStatus()));
     }
 
@@ -111,7 +111,7 @@ class PolicyLifecycleTest {
         assertEquals(PolicyStatus.DRAFT,
                 asOrg(ORG_PAY, () -> policyService.reject(id, "approver", "需补充落地细则").getStatus()));
         // 驳回回到 DRAFT 后应可再次提交
-        assertEquals(PolicyStatus.PENDING_APPROVAL,
+        assertEquals(PolicyStatus.REVIEW,
                 asOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter").getStatus()));
     }
 
@@ -119,7 +119,7 @@ class PolicyLifecycleTest {
     void 非法流转_草稿直接归档被拒() {
         Long id = asOrg(ORG_PAY, () ->
                 policyService.create(ORG_PAY, "POL-003", "X", "Y", "drafter").getId());
-        // DRAFT 态不可直接 archive（archive 仅允许从 PUBLISHED）
+        // DRAFT 态不可直接 archive（archive 仅允许从 EFFECTIVE）
         assertThrows(IllegalStateException.class,
                 () -> runAsOrg(ORG_PAY, () -> policyService.archive(id, "admin")));
     }
@@ -130,7 +130,7 @@ class PolicyLifecycleTest {
                 policyService.create(ORG_PAY, "POL-004", "X", "Y", "drafter").getId());
         asOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter"));
         asOrg(ORG_PAY, () -> policyService.approve(id, "approver"));
-        // PUBLISHED 态不可再 submit（submit 仅允许从 DRAFT）
+        // EFFECTIVE 态不可再 submit（submit 仅允许从 DRAFT）
         assertThrows(IllegalStateException.class,
                 () -> runAsOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter")));
     }
@@ -169,7 +169,7 @@ class PolicyLifecycleTest {
         asOrg(ORG_PAY, () -> policyService.submitForApproval(id, "drafter"));
         asOrg(ORG_PAY, () -> policyService.approve(id, "approver"));
 
-        // PUBLISHED 后签署成功
+        // EFFECTIVE 后签署成功
         asOrg(ORG_PAY, () -> policyService.signoff(id, "zhangsan"));
 
         // 同一人重复签署被 UNIQUE(policy_id, signer) 约束拒绝

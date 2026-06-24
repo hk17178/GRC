@@ -48,21 +48,21 @@ public class PolicyController {
         return service.create(req.orgId(), req.code(), req.title(), req.content(), actor(user));
     }
 
-    /** 提交审批：DRAFT → PENDING_APPROVAL。 */
+    /** 提交评审：DRAFT → REVIEW。 */
     @PostMapping("/{id}/submit")
     public Policy submit(@PathVariable Long id,
                          @RequestHeader(value = "X-User", required = false) String user) {
         return service.submitForApproval(id, actor(user));
     }
 
-    /** 审批通过：PENDING_APPROVAL → PUBLISHED。 */
+    /** 审批通过：REVIEW → EFFECTIVE。 */
     @PostMapping("/{id}/approve")
     public Policy approve(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.approve(id, actor(user));
     }
 
-    /** 审批驳回：PENDING_APPROVAL → DRAFT。 */
+    /** 审批驳回：REVIEW → DRAFT。 */
     @PostMapping("/{id}/reject")
     public Policy reject(@PathVariable Long id,
                          @RequestBody(required = false) RejectRequest req,
@@ -70,14 +70,14 @@ public class PolicyController {
         return service.reject(id, actor(user), req == null ? null : req.reason());
     }
 
-    /** 归档：PUBLISHED → ARCHIVED。 */
+    /** 废止：EFFECTIVE → DEPRECATED。 */
     @PostMapping("/{id}/archive")
     public Policy archive(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.archive(id, actor(user));
     }
 
-    /** 签署确认（仅 PUBLISHED 可签）。 */
+    /** 签署确认（仅 EFFECTIVE 可签）。 */
     @PostMapping("/{id}/signoff")
     public PolicySignoff signoff(@PathVariable Long id,
                                  @RequestHeader(value = "X-User", required = false) String user) {

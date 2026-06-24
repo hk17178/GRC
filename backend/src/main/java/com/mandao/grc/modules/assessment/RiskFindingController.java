@@ -49,7 +49,7 @@ public class RiskFindingController {
                 req.inherentLevel(), actor(user));
     }
 
-    /** 录入处置方案：OPEN → TREATING。 */
+    /** 录入处置方案：OPEN → IN_TREATMENT。 */
     @PostMapping("/{id}/treatment")
     public RiskFinding setTreatment(@PathVariable Long id,
                                     @RequestBody TreatmentRequest req,
@@ -74,7 +74,7 @@ public class RiskFindingController {
     }
 
     /**
-     * 关闭：OPEN/TREATING → DONE（verify=false）或 DONE → VERIFIED（verify=true）。
+     * 关闭：OPEN/IN_TREATMENT → DONE（verify=false）或 DONE → VERIFIED（verify=true）。
      * 受 CR-002 残余风险关闭门控约束。
      */
     @PostMapping("/{id}/close")

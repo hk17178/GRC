@@ -14,10 +14,11 @@ import java.util.List;
  * RLS 裁剪 + WITH CHECK 校验；每步流转/决定调用 {@link HashChainService#append} 留痕。
  *
  * 审阅状态机：OPEN → IN_REVIEW → COMPLETED（非法流转抛 {@link IllegalStateException}）。
- * 仅 IN_REVIEW 态可对逐项做决定；decision=REVOKE 联动把对应 {@link UserRoleOrg} 置 active=false（撤销授权）。
+ * 仅 IN_REVIEW 态可对逐项做决定；decision=REVOKE/DOWNGRADE 均联动把对应 {@link UserRoleOrg} 置 active=false
+ *（REVOKE=撤销、DOWNGRADE=降权，本切片落地一致，仅 decision 值与留痕 action 区分语义）。
  *
  * 典型流程：createReview → startReview（快照该 org 当前全部有效授权为审阅项）
- *           → decideItem(KEEP/REVOKE) ... → completeReview。
+ *           → decideItem(KEEP/REVOKE/DOWNGRADE) ... → completeReview。
  *
  * 设计依据：需求文档 M8 权限审批（UAR）、D1-3 §4.7、D2-5。
  */
@@ -82,15 +83,15 @@ public class AccessReviewService {
     }
 
     /**
-     * 对某审阅项做决定（KEEP/REVOKE）。仅审阅处于 IN_REVIEW 态允许。
-     * REVOKE 时联动把对应 {@link UserRoleOrg} 置 active=false（撤销授权）。
+     * 对某审阅项做决定（KEEP/REVOKE/DOWNGRADE）。仅审阅处于 IN_REVIEW 态允许。
+     * REVOKE/DOWNGRADE 均联动把对应 {@link UserRoleOrg} 置 active=false（撤销/降权，本切片落地一致，留痕 action 区分）。
      *
-     * @param decision 必须是 KEEP 或 REVOKE（PENDING 非法）
+     * @param decision 必须是 KEEP、REVOKE 或 DOWNGRADE（PENDING 非法）
      */
     @Transactional
     public AccessReviewItem decideItem(Long itemId, AccessReviewDecision decision, String actor) {
         if (decision == null || decision == AccessReviewDecision.PENDING) {
-            throw new IllegalArgumentException("审阅决定必须为 KEEP 或 REVOKE，收到：" + decision);
+            throw new IllegalArgumentException("审阅决定必须为 KEEP、REVOKE 或 DOWNGRADE，收到：" + decision);
         }
         AccessReviewItem item = itemRepository.findById(itemId)
                 .orElseThrow(() -> new IllegalArgumentException("审阅项不存在或不可见：id=" + itemId));
@@ -104,7 +105,7 @@ public class AccessReviewService {
         item.setReviewedAt(OffsetDateTime.now());
         AccessReviewItem savedItem = itemRepository.save(item);
 
-        if (decision == AccessReviewDecision.REVOKE) {
+        if (decision == AccessReviewDecision.REVOKE || decision == AccessReviewDecision.DOWNGRADE) {
             UserRoleOrg uro = userRoleOrgRepository.findById(item.getUserRoleOrgId())
                     .orElseThrow(() -> new IllegalStateException(
                             "审阅项对应授权不存在或不可见：userRoleOrgId=" + item.getUserRoleOrgId()));
@@ -112,8 +113,13 @@ public class AccessReviewService {
                 uro.setActive(false);
                 userRoleOrgRepository.save(uro);
             }
-            appendLog(r.getOrgId(), "ACCESS_REVIEW_REVOKE", actor, "USER_ROLE_ORG:" + uro.getId(),
-                    "审阅撤销授权 reviewItem=" + itemId + " userRoleOrg=" + uro.getId());
+            if (decision == AccessReviewDecision.DOWNGRADE) {
+                appendLog(r.getOrgId(), "ACCESS_REVIEW_DOWNGRADE", actor, "USER_ROLE_ORG:" + uro.getId(),
+                        "审阅降权授权 reviewItem=" + itemId + " userRoleOrg=" + uro.getId());
+            } else {
+                appendLog(r.getOrgId(), "ACCESS_REVIEW_REVOKE", actor, "USER_ROLE_ORG:" + uro.getId(),
+                        "审阅撤销授权 reviewItem=" + itemId + " userRoleOrg=" + uro.getId());
+            }
         } else {
             appendLog(r.getOrgId(), "ACCESS_REVIEW_KEEP", actor, "ACCESS_REVIEW_ITEM:" + itemId,
                     "审阅保留授权 reviewItem=" + itemId + " userRoleOrg=" + item.getUserRoleOrgId());

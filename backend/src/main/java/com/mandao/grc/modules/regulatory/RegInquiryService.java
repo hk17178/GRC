@@ -13,9 +13,9 @@ import java.util.List;
  * 隔离/留痕范式同 {@link RegFilingService}：@Transactional → 切面注入 visible_orgs，RLS 裁剪 + WITH CHECK；
  * 每次流转 {@link HashChainService#append} 留痕（entity="REG_INQUIRY:{id}"）。
  *
- * 状态机：OPEN → RESPONDING → CLOSED；非法流转抛 {@link IllegalStateException}。
+ * 状态机：DRAFTING → REPLIED → AWAIT_FEEDBACK → CLOSED；非法流转抛 {@link IllegalStateException}。
  *
- * 设计依据：需求文档 M11 监管事项（监管问询）、D1-2 §23、D2-5。
+ * 设计依据：需求文档 M11 监管事项（监管问询）、D1-2 §23、D2-5、DM-5 状态机基线。
  */
 @Service
 public class RegInquiryService {
@@ -39,7 +39,7 @@ public class RegInquiryService {
                 .orElseThrow(() -> new IllegalArgumentException("监管问询不存在或不可见：id=" + id));
     }
 
-    /** 新建监管问询（OPEN 态）。 */
+    /** 新建监管问询（DRAFTING 态）。 */
     @Transactional
     public RegInquiry create(Long orgId, String title, String regulator,
                              LocalDate receivedDate, LocalDate dueDate, String actor) {
@@ -50,21 +50,31 @@ public class RegInquiryService {
         return saved;
     }
 
-    /** 开始答复：OPEN → RESPONDING。 */
+    /** 答复：DRAFTING → REPLIED。 */
     @Transactional
-    public RegInquiry respond(Long id, String actor) {
+    public RegInquiry reply(Long id, String actor) {
         RegInquiry q = get(id);
-        transition(q, RegInquiryStatus.OPEN, RegInquiryStatus.RESPONDING);
+        transition(q, RegInquiryStatus.DRAFTING, RegInquiryStatus.REPLIED);
         RegInquiry saved = repository.save(q);
-        appendLog(saved, "REG_INQUIRY_RESPOND", actor, "开始答复监管问询");
+        appendLog(saved, "REG_INQUIRY_REPLY", actor, "已答复监管问询");
         return saved;
     }
 
-    /** 了结：RESPONDING → CLOSED（终态）。 */
+    /** 转待反馈：REPLIED → AWAIT_FEEDBACK。 */
+    @Transactional
+    public RegInquiry awaitFeedback(Long id, String actor) {
+        RegInquiry q = get(id);
+        transition(q, RegInquiryStatus.REPLIED, RegInquiryStatus.AWAIT_FEEDBACK);
+        RegInquiry saved = repository.save(q);
+        appendLog(saved, "REG_INQUIRY_AWAIT_FEEDBACK", actor, "等待监管反馈");
+        return saved;
+    }
+
+    /** 了结：AWAIT_FEEDBACK → CLOSED（终态）。 */
     @Transactional
     public RegInquiry close(Long id, String actor) {
         RegInquiry q = get(id);
-        transition(q, RegInquiryStatus.RESPONDING, RegInquiryStatus.CLOSED);
+        transition(q, RegInquiryStatus.AWAIT_FEEDBACK, RegInquiryStatus.CLOSED);
         RegInquiry saved = repository.save(q);
         appendLog(saved, "REG_INQUIRY_CLOSE", actor, "了结监管问询");
         return saved;

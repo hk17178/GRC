@@ -6,6 +6,7 @@ import com.mandao.grc.modules.audit.ChainVerifyResult;
 import com.mandao.grc.modules.audit.HashChainService;
 import com.mandao.grc.modules.regulatory.MajorIncidentReport;
 import com.mandao.grc.modules.regulatory.MajorIncidentService;
+import com.mandao.grc.modules.regulatory.MajorIncidentSeverity;
 import com.mandao.grc.modules.regulatory.MajorIncidentStatus;
 import com.mandao.grc.modules.regulatory.RegFiling;
 import com.mandao.grc.modules.regulatory.RegFilingService;
@@ -44,7 +45,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * M11 监管事项集成测试（真实 PG + 应用切面 + RLS）。验证：
- *  1) 报送日历生命周期 PLANNED→PREPARING→SUBMITTED→ACCEPTED，非法流转被拒；
+ *  1) 报送日历生命周期 TO_DRAFT→DRAFTING→SUBMITTED→CLOSED，非法流转被拒；
  *  2) 【法定时限预警 红线】reg_filing statutory_deadline=今+10、reminder_days={15,10}（库级默认），
  *     ExpiryScanService.scanOnce(今) 产 1 条 REG_FILING_DUE，重复扫描幂等不再产；
  *  3) 监管问询/处罚约谈/重大事件 各一个生命周期用例；
@@ -114,25 +115,25 @@ class RegulatoryAffairsTest {
     // ---------- 报送日历生命周期 ----------
 
     @Test
-    void 报送生命周期_计划到受理全程通过() {
+    void 报送生命周期_待起草到了结全程通过() {
         Long id = asOrg(ORG_PAY, () ->
                 filingService.create(ORG_PAY, "反洗钱报表", "央行", TODAY.plusDays(30), "creator").getId());
 
-        assertEquals(RegFilingStatus.PREPARING,
+        assertEquals(RegFilingStatus.DRAFTING,
                 asOrg(ORG_PAY, () -> filingService.prepare(id, "officer").getStatus()));
         assertEquals(RegFilingStatus.SUBMITTED,
                 asOrg(ORG_PAY, () -> filingService.submit(id, "officer").getStatus()));
-        assertEquals(RegFilingStatus.ACCEPTED,
-                asOrg(ORG_PAY, () -> filingService.accept(id, "officer").getStatus()));
+        assertEquals(RegFilingStatus.CLOSED,
+                asOrg(ORG_PAY, () -> filingService.close(id, "officer").getStatus()));
     }
 
     @Test
-    void 报送非法流转_计划态直接受理被拒() {
+    void 报送非法流转_待起草态直接了结被拒() {
         Long id = asOrg(ORG_PAY, () ->
                 filingService.create(ORG_PAY, "X", "央行", TODAY.plusDays(30), "creator").getId());
-        // PLANNED 不可直接 accept（accept 仅允许从 SUBMITTED）
+        // TO_DRAFT 不可直接 close（close 仅允许从 SUBMITTED）
         assertThrows(IllegalStateException.class,
-                () -> runAsOrg(ORG_PAY, () -> filingService.accept(id, "officer")));
+                () -> runAsOrg(ORG_PAY, () -> filingService.close(id, "officer")));
     }
 
     // ---------- 法定时限预警（红线，核心） ----------
@@ -170,12 +171,14 @@ class RegulatoryAffairsTest {
     // ---------- 监管问询生命周期 ----------
 
     @Test
-    void 监管问询_收到答复了结全程通过() {
+    void 监管问询_起草答复待反馈了结全程通过() {
         Long id = asOrg(ORG_PAY, () ->
                 inquiryService.create(ORG_PAY, "数据报送问询", "银保监", TODAY, TODAY.plusDays(15), "officer").getId());
 
-        assertEquals(RegInquiryStatus.RESPONDING,
-                asOrg(ORG_PAY, () -> inquiryService.respond(id, "officer").getStatus()));
+        assertEquals(RegInquiryStatus.REPLIED,
+                asOrg(ORG_PAY, () -> inquiryService.reply(id, "officer").getStatus()));
+        assertEquals(RegInquiryStatus.AWAIT_FEEDBACK,
+                asOrg(ORG_PAY, () -> inquiryService.awaitFeedback(id, "officer").getStatus()));
         assertEquals(RegInquiryStatus.CLOSED,
                 asOrg(ORG_PAY, () -> inquiryService.close(id, "officer").getStatus()));
     }
@@ -199,10 +202,11 @@ class RegulatoryAffairsTest {
     @Test
     void 重大事件_草稿上报了结全程通过() {
         Long id = asOrg(ORG_PAY, () ->
-                incidentService.create(ORG_PAY, "系统中断", "HIGH", OffsetDateTime.now(), "officer").getId());
+                incidentService.create(ORG_PAY, "系统中断", MajorIncidentSeverity.HIGH, OffsetDateTime.now(), "officer").getId());
 
         MajorIncidentReport reported = asOrg(ORG_PAY, () -> incidentService.report(id, "officer"));
         assertEquals(MajorIncidentStatus.REPORTED, reported.getStatus());
+        assertEquals(MajorIncidentSeverity.HIGH, reported.getSeverity(), "严重度应为平台五级 HIGH");
         assertTrue(reported.getReportedAt() != null, "上报后应记录 reported_at");
         assertEquals(MajorIncidentStatus.CLOSED,
                 asOrg(ORG_PAY, () -> incidentService.close(id, "officer").getStatus()));
@@ -230,7 +234,7 @@ class RegulatoryAffairsTest {
                 filingService.create(ORG_PAY, "留痕报送", "央行", TODAY.plusDays(30), "c").getId()); // CREATE=1
         asOrg(ORG_PAY, () -> filingService.prepare(id, "o"));   // PREPARE=2
         asOrg(ORG_PAY, () -> filingService.submit(id, "o"));    // SUBMIT=3
-        asOrg(ORG_PAY, () -> filingService.accept(id, "o"));    // ACCEPT=4
+        asOrg(ORG_PAY, () -> filingService.close(id, "o"));     // CLOSE=4
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");

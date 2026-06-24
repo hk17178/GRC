@@ -4,8 +4,8 @@ package com.mandao.grc.modules.assessment;
  * 风险发现状态机枚举。
  *
  * 合法流转（其余一律非法，由 {@link RiskFindingService} 校验并抛异常）：
- *   OPEN --setTreatment--> TREATING
- *   OPEN / TREATING --close--> DONE
+ *   OPEN --setTreatment--> IN_TREATMENT
+ *   OPEN / IN_TREATMENT --close--> DONE
  *   DONE --close(verify)--> VERIFIED
  *
  * 关闭门控（CR-002 红线）：当残余等级为 HIGH / VERY_HIGH 且无有效风险接受时，
@@ -19,7 +19,7 @@ public enum RiskFindingStatus {
     OPEN,
 
     /** 处置中：已制定处置方案并执行。 */
-    TREATING,
+    IN_TREATMENT,
 
     /** 已处置：处置完成（关闭，受残余风险门控约束）。 */
     DONE,

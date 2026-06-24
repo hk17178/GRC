@@ -13,7 +13,7 @@ import java.time.OffsetDateTime;
 /**
  * 制度签署确认（M1）。
  *
- * 制度发布（PUBLISHED）后，相关人员逐一签署确认已阅知并承诺执行。
+ * 制度生效（EFFECTIVE）后，相关人员逐一签署确认已阅知并承诺执行。
  * 表上 UNIQUE(policy_id, signer) 保证同一制度同一签署人只签一次（幂等/重复被拒）。
  * 携带 org_id 隔离锚点，与制度同口径受 RLS 裁剪。
  */

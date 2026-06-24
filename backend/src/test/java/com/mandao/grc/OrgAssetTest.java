@@ -133,7 +133,7 @@ class OrgAssetTest {
     void 资产登记_含合规属性且可按属性筛查() {
         // 含 PI + 跨境 + CHD + 等保备案 的高敏资产
         asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "核心支付库", "DATABASE", "dba",
-                AssetClassification.SECRET, true, true, true, true, "CRITICAL", "admin"));
+                AssetClassification.SENSITIVE, true, true, true, true, "CRITICAL", "admin"));
         // 一个普通内部资产（无任何合规标记）
         asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "内网门户", "APP", "ops",
                 AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
@@ -146,7 +146,7 @@ class OrgAssetTest {
         assertEquals(1, asOrg(ORG_PAY, () -> assetService.listContainingChd()).size(), "含CHD资产应为1");
         assertEquals(1, asOrg(ORG_PAY, () -> assetService.listMlpsFiled()).size(), "等保备案资产应为1");
         assertEquals(1, asOrg(ORG_PAY, () ->
-                assetService.listByClassification(AssetClassification.SECRET)).size(), "机密资产应为1");
+                assetService.listByClassification(AssetClassification.SENSITIVE)).size(), "敏感资产应为1");
     }
 
     @Test
@@ -201,7 +201,7 @@ class OrgAssetTest {
         Long id = asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "留痕资产", "SYSTEM", "ops",
                 AssetClassification.INTERNAL, true, false, false, false, "MEDIUM", "a").getId()); // REGISTER=1
         asOrg(ORG_PAY, () -> assetService.update(id, "留痕资产", "SYSTEM", "ops",
-                AssetClassification.CONFIDENTIAL, true, true, false, false, "HIGH", "a"));         // UPDATE=2
+                AssetClassification.SENSITIVE, true, true, false, false, "HIGH", "a"));            // UPDATE=2
         asOrg(ORG_PAY, () -> assetService.retire(id, "a"));                                        // RETIRE=3
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));

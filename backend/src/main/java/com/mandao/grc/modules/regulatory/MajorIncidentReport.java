@@ -35,9 +35,10 @@ public class MajorIncidentReport {
     @Column(length = 256)
     private String title;
 
-    /** 严重度。 */
+    /** 严重度（平台五级：VERY_LOW/LOW/MID/HIGH/VERY_HIGH）。 */
+    @Enumerated(EnumType.STRING)
     @Column(length = 12)
-    private String severity;
+    private MajorIncidentSeverity severity;
 
     /** 事件发生时刻。 */
     @Column(name = "occurred_at")
@@ -61,7 +62,7 @@ public class MajorIncidentReport {
     }
 
     /** 业务构造：以 DRAFT 态新建重大事件报送。 */
-    public MajorIncidentReport(Long orgId, String title, String severity, OffsetDateTime occurredAt) {
+    public MajorIncidentReport(Long orgId, String title, MajorIncidentSeverity severity, OffsetDateTime occurredAt) {
         this.orgId = orgId;
         this.title = title;
         this.severity = severity;
@@ -86,7 +87,7 @@ public class MajorIncidentReport {
     public Long getId() { return id; }
     public Long getOrgId() { return orgId; }
     public String getTitle() { return title; }
-    public String getSeverity() { return severity; }
+    public MajorIncidentSeverity getSeverity() { return severity; }
     public OffsetDateTime getOccurredAt() { return occurredAt; }
     public OffsetDateTime getReportedAt() { return reportedAt; }
     public MajorIncidentStatus getStatus() { return status; }

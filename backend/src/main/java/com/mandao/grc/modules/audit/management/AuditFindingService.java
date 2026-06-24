@@ -17,12 +17,12 @@ import java.util.List;
  *
  * ===== 外部审计对外回函三段漏斗（M3 红线，本类的核心约束）=====
  * external_response_status 仅 audit_type=EXTERNAL 的发现可用，单向推进、不可跳级、不可逆向：
- *   SUBMITTED(已提交外部机构) → ACCEPTED(外方受理) → CONFIRMED_CLOSED(外方确认关闭)
+ *   SUBMITTED(已提交外部机构) → ACCEPTED(外方受理) → CLOSED(外方确认关闭)
  * 三个推进方法各自只推进一段：{@link #submitResponse}/{@link #acceptResponse}/{@link #confirmClose}；
  * 校验逻辑统一收敛于 {@link #advanceFunnel}：
  *   1) 非外审发现走漏斗 → 抛 {@link AuditFunnelException}；
  *   2) 目标段必须是当前段的相邻下一段（起点 null→SUBMITTED）；跳级/逆向/原地重复一律抛 {@link AuditFunnelException}；
- *   3) 唯 CONFIRMED_CLOSED 算外审闭环（{@link ExternalResponseStatus#isClosed()}）。
+ *   3) 唯 CLOSED 算外审闭环（{@link ExternalResponseStatus#isClosed()}）。
  *
  * 设计依据：需求文档 M3 审计管理（外审三段漏斗红线）、D2-5。
  */
@@ -126,10 +126,10 @@ public class AuditFindingService {
         return advanceFunnel(id, ExternalResponseStatus.ACCEPTED, actor);
     }
 
-    /** 漏斗第三段（闭环）：ACCEPTED → CONFIRMED_CLOSED（外方确认关闭）。仅外审。 */
+    /** 漏斗第三段（闭环）：ACCEPTED → CLOSED（外方确认关闭）。仅外审。 */
     @Transactional
     public AuditFinding confirmClose(Long id, String actor) {
-        return advanceFunnel(id, ExternalResponseStatus.CONFIRMED_CLOSED, actor);
+        return advanceFunnel(id, ExternalResponseStatus.CLOSED, actor);
     }
 
     // ---------- 内部辅助 ----------

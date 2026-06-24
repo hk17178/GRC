@@ -13,7 +13,8 @@ import java.util.List;
  * 隔离：方法 @Transactional 且位于 com.mandao.grc.modules 包 → {@link com.mandao.grc.common.isolation.OrgScopeAspect}
  * 在事务内自动注入 app.visible_orgs，RLS 裁剪数据并校验写入（WITH CHECK，V3 已为 audit_plan 建）。
  *
- * 计划生命周期状态机：PLANNED → IN_PROGRESS → REPORTED → CLOSED；非法流转抛 {@link IllegalStateException}。
+ * 计划生命周期状态机：PLANNED → IN_PROGRESS → REPORTING → CLOSED；
+ * 另允许 PLANNED/IN_PROGRESS → CANCELLED（取消，终态）。非法流转抛 {@link IllegalStateException}。
  *
  * 留痕：每次流转后 {@link HashChainService#append} 写入按 org 分链的防篡改哈希链（entity="AUDIT_PLAN:{id}"）。
  *
@@ -72,23 +73,40 @@ public class AuditPlanService {
         return saved;
     }
 
-    /** 出具报告：IN_PROGRESS → REPORTED。 */
+    /** 出具报告：IN_PROGRESS → REPORTING。 */
     @Transactional
     public AuditPlan report(Long id, String actor) {
         AuditPlan p = get(id);
-        transition(p, AuditPlanStatus.IN_PROGRESS, AuditPlanStatus.REPORTED);
+        transition(p, AuditPlanStatus.IN_PROGRESS, AuditPlanStatus.REPORTING);
         AuditPlan saved = repository.save(p);
         appendLog(saved, "AUDIT_PLAN_REPORT", actor, "出具审计报告");
         return saved;
     }
 
-    /** 关闭审计：REPORTED → CLOSED（终态）。 */
+    /** 关闭审计：REPORTING → CLOSED（终态）。 */
     @Transactional
     public AuditPlan close(Long id, String actor) {
         AuditPlan p = get(id);
-        transition(p, AuditPlanStatus.REPORTED, AuditPlanStatus.CLOSED);
+        transition(p, AuditPlanStatus.REPORTING, AuditPlanStatus.CLOSED);
         AuditPlan saved = repository.save(p);
         appendLog(saved, "AUDIT_PLAN_CLOSE", actor, "关闭审计计划");
+        return saved;
+    }
+
+    /** 取消审计：PLANNED 或 IN_PROGRESS → CANCELLED（终态）。 */
+    @Transactional
+    public AuditPlan cancel(Long id, String actor) {
+        AuditPlan p = get(id);
+        AuditPlanStatus from = p.getStatus();
+        if (from != AuditPlanStatus.PLANNED && from != AuditPlanStatus.IN_PROGRESS) {
+            throw new IllegalStateException(
+                    "非法状态流转：审计计划 id=" + p.getId()
+                            + " 当前状态=" + from
+                            + "，仅允许从 PLANNED / IN_PROGRESS 取消到 CANCELLED");
+        }
+        p.setStatus(AuditPlanStatus.CANCELLED);
+        AuditPlan saved = repository.save(p);
+        appendLog(saved, "AUDIT_PLAN_CANCEL", actor, "取消审计计划");
         return saved;
     }
 

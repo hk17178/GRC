@@ -17,7 +17,7 @@
 -- =====================================================================
 
 -- ---------- 报送日历（到期源；法定时限预警红线）----------
--- status 状态机：PLANNED → PREPARING → SUBMITTED → ACCEPTED
+-- status 状态机：TO_DRAFT → DRAFTING → SUBMITTED → CLOSED
 -- statutory_deadline + reminder_days 为调度内核到期源（命中 reminder_days 某天产 REG_FILING_DUE）。
 CREATE TABLE reg_filing (
   id                  BIGSERIAL PRIMARY KEY,
@@ -26,7 +26,7 @@ CREATE TABLE reg_filing (
   regulator           VARCHAR(64),                                    -- 监管机构
   statutory_deadline  DATE         NOT NULL,                          -- 法定报送时限（到期源锚点）
   reminder_days       INT[]        NOT NULL DEFAULT '{15,10}',        -- 报送前 N 天预警（与 audit_plan 同构）
-  status              VARCHAR(24)  NOT NULL DEFAULT 'PLANNED',        -- 报送生命周期状态机当前态
+  status              VARCHAR(24)  NOT NULL DEFAULT 'TO_DRAFT',       -- 报送生命周期状态机当前态（TO_DRAFT/DRAFTING/SUBMITTED/CLOSED）
   created_at          TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at          TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
@@ -41,7 +41,7 @@ GRANT SELECT, INSERT, UPDATE ON reg_filing TO grc_app;
 GRANT USAGE, SELECT ON SEQUENCE reg_filing_id_seq TO grc_app;
 
 -- ---------- 监管问询台账 ----------
--- status 状态机：OPEN → RESPONDING → CLOSED
+-- status 状态机：DRAFTING → REPLIED → AWAIT_FEEDBACK → CLOSED
 CREATE TABLE reg_inquiry (
   id             BIGSERIAL PRIMARY KEY,
   org_id         BIGINT       NOT NULL REFERENCES org(id),            -- 隔离锚点
@@ -49,7 +49,7 @@ CREATE TABLE reg_inquiry (
   regulator      VARCHAR(64),                                         -- 监管机构
   received_date  DATE,                                                -- 收到问询日
   due_date       DATE,                                                -- 答复截止日
-  status         VARCHAR(16)  NOT NULL DEFAULT 'OPEN',                -- 问询处置状态机当前态
+  status         VARCHAR(16)  NOT NULL DEFAULT 'DRAFTING',            -- 问询处置状态机当前态（DRAFTING/REPLIED/AWAIT_FEEDBACK/CLOSED）
   created_at     TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at     TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
@@ -91,7 +91,8 @@ CREATE TABLE major_incident_report (
   id            BIGSERIAL PRIMARY KEY,
   org_id        BIGINT       NOT NULL REFERENCES org(id),             -- 隔离锚点
   title         VARCHAR(256),                                         -- 事件标题
-  severity      VARCHAR(12),                                          -- 严重度
+  severity      VARCHAR(12)
+                  CHECK (severity IN ('VERY_LOW','LOW','MID','HIGH','VERY_HIGH')),  -- 严重度（平台五级；与 RiskLevel/AuditSeverity 同口径）
   occurred_at   TIMESTAMPTZ,                                          -- 事件发生时刻
   reported_at   TIMESTAMPTZ,                                          -- 上报监管时刻
   status        VARCHAR(16)  NOT NULL DEFAULT 'DRAFT',                -- 报送状态机当前态

@@ -16,7 +16,8 @@ import java.util.List;
  *
  * 隔离/actor：可见范围由 X-User 头决定（切面注入 visible_orgs），actor 取 X-User。
  *
- * 计划生命周期：PLANNED → IN_PROGRESS → REPORTED → CLOSED；非法流转由 Service 抛 IllegalStateException。
+ * 计划生命周期：PLANNED → IN_PROGRESS → REPORTING → CLOSED；另 PLANNED/IN_PROGRESS → CANCELLED；
+ * 非法流转由 Service 抛 IllegalStateException。
  */
 @RestController
 @RequestMapping("/api/audit-plans")
@@ -54,18 +55,25 @@ public class AuditPlanController {
         return service.start(id, actor(user));
     }
 
-    /** 出具报告：IN_PROGRESS → REPORTED。 */
+    /** 出具报告：IN_PROGRESS → REPORTING。 */
     @PostMapping("/{id}/report")
     public AuditPlan report(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.report(id, actor(user));
     }
 
-    /** 关闭审计：REPORTED → CLOSED。 */
+    /** 关闭审计：REPORTING → CLOSED。 */
     @PostMapping("/{id}/close")
     public AuditPlan close(@PathVariable Long id,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));
+    }
+
+    /** 取消审计：PLANNED / IN_PROGRESS → CANCELLED。 */
+    @PostMapping("/{id}/cancel")
+    public AuditPlan cancel(@PathVariable Long id,
+                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.cancel(id, actor(user));
     }
 
     private String actor(String user) {

@@ -26,7 +26,8 @@ import java.time.OffsetDateTime;
  *  - {@code reminderDays}（V3 INT[] 列）有库级 DEFAULT '{15,10}'，由 Service 显式 INSERT 时按 V3 默认填充，
  *    本实体不映射该数组列（避免 Hibernate 处理 PG 数组类型的额外配置），交由库默认值保障调度可用。
  *
- * 状态机（M3 业务生命周期）：PLANNED → IN_PROGRESS → REPORTED → CLOSED（见 {@link AuditPlanService}）。
+ * 状态机（M3 业务生命周期）：PLANNED → IN_PROGRESS → REPORTING → CLOSED；
+ * 另允许 PLANNED/IN_PROGRESS → CANCELLED（见 {@link AuditPlanService}）。
  */
 @Entity
 @Table(name = "audit_plan")

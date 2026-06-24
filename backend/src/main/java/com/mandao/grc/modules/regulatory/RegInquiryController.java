@@ -15,7 +15,7 @@ import java.util.List;
  * 监管问询 REST 端点：/api/reg-inquiries。
  *
  * 隔离/actor：可见范围由 X-User 头决定（切面注入 visible_orgs），actor 取 X-User。
- * 处置状态机：OPEN → RESPONDING → CLOSED。
+ * 处置状态机：DRAFTING → REPLIED → AWAIT_FEEDBACK → CLOSED。
  */
 @RestController
 @RequestMapping("/api/reg-inquiries")
@@ -44,10 +44,16 @@ public class RegInquiryController {
                 req.receivedDate(), req.dueDate(), actor(user));
     }
 
-    @PostMapping("/{id}/respond")
-    public RegInquiry respond(@PathVariable Long id,
-                              @RequestHeader(value = "X-User", required = false) String user) {
-        return service.respond(id, actor(user));
+    @PostMapping("/{id}/reply")
+    public RegInquiry reply(@PathVariable Long id,
+                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.reply(id, actor(user));
+    }
+
+    @PostMapping("/{id}/await-feedback")
+    public RegInquiry awaitFeedback(@PathVariable Long id,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.awaitFeedback(id, actor(user));
     }
 
     @PostMapping("/{id}/close")
