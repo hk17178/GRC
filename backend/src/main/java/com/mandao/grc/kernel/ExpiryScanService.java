@@ -21,6 +21,10 @@ import java.util.List;
  *
  * 本切片演示外审计划临近提醒：当 plan_start_date - today 命中 reminder_days 中某天，产
  * EXT_AUDIT_PLAN_APPROACHING。生产可按同一骨架扩展其它到期源（监管报送/认证有效期/复评等）。
+ *
+ * M11 扩展：新增报送日历到期源——当 reg_filing.statutory_deadline - today 命中 reminder_days 中某天，产
+ * REG_FILING_DUE（法定时限预警红线）。与 audit_plan 段同构，复用 reminder_dispatch_log 幂等台账
+ * (object_type='REG_FILING') 与 domain_event 件箱；reg_filing 表空则该段不产事件。
  */
 @Service
 public class ExpiryScanService {
@@ -92,6 +96,47 @@ public class ExpiryScanService {
                 emitted++;
             }
         }
+
+        // 6) M11 报送日历段（法定时限预警红线）：与 audit_plan 段同构。
+        // statutory_deadline - today 命中 reminder_days 某天即到提醒日；id::text 一类强转在原生查询里改 CAST。
+        @SuppressWarnings("unchecked")
+        List<Object[]> filingHits = em.createNativeQuery(
+                        "SELECT rf.id, rf.org_id, rf.title, rd "
+                                + "FROM reg_filing rf, unnest(rf.reminder_days) AS rd "
+                                + "WHERE (rf.statutory_deadline - CAST(:today AS date)) = rd")
+                .setParameter("today", today.toString())
+                .getResultList();
+
+        for (Object[] r : filingHits) {
+            long filingId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String title = (String) r[2];
+            int reminderDay = ((Number) r[3]).intValue();
+
+            // 幂等登记：仅当首次登记成功（插入 1 行）才产事件
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id) "
+                                    + "VALUES ('REG_FILING', :fid, 'REG_FILING_DUE', :tk, :org) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("fid", filingId)
+                    .setParameter("tk", String.valueOf(reminderDay))
+                    .setParameter("org", orgId)
+                    .executeUpdate();
+
+            if (inserted == 1) {
+                String payload = "{\"regFilingId\":" + filingId
+                        + ",\"reminderDay\":" + reminderDay
+                        + ",\"title\":\"" + jsonEscape(title) + "\"}";
+                em.createNativeQuery(
+                                "INSERT INTO domain_event(event_type, org_id, payload) "
+                                        + "VALUES ('REG_FILING_DUE', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", orgId)
+                        .setParameter("payload", payload)
+                        .executeUpdate();
+                emitted++;
+            }
+        }
+
         return new ScanResult(emitted, false);
     }
 
