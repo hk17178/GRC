@@ -381,6 +381,26 @@ export default {
     newAssess: '＋ New Assessment',
     // new-assessment dialog
     create: { obj: 'Assessment Object', objPh: 'e.g. Core Payment Gateway MLPS self-assessment', assessor: 'Assessor', period: 'Period', org: 'Organization', orgPay: 'Payment Co.', orgConsumer: 'Consumer Finance', confirm: 'Create' },
+    // Risk findings · close-gate (CR-002 red-line)
+    gate: {
+      title: 'Risk Findings · Close-Gate',
+      badge: 'CR-002 Red-line',
+      scaffoldNote: 'The index / level distribution / risk-point list above are prototype visual scaffolding; the “Risk Findings · Close-Gate” below is live backend data with the CR-002 red-line.',
+      th: { finding: 'Finding', inherent: 'Inherent', residual: 'Residual', acceptance: 'Acceptance', status: 'Status', ops: 'Actions' },
+      missing: 'No acceptance · gated',
+      gatedTip: 'High/Very-High residual risk must register a risk acceptance before it can be closed (CR-002 close-gate).',
+      accept: 'Register Acceptance',
+      close: 'Close',
+      verify: 'Verify',
+      verified: 'Verified',
+      empty: 'No risk findings for this assessment yet',
+      fstatus: { OPEN: 'Open', IN_TREATMENT: 'In Treatment', DONE: 'Closed', VERIFIED: 'Verified' },
+      acceptTitle: 'Register Risk Acceptance',
+      approver: 'Approver',
+      reason: 'Reason',
+      reasonPh: 'e.g. business necessity + compensating controls, approved by management',
+      acceptConfirm: 'Confirm Acceptance'
+    },
     tab: {
       tasks: 'Assessments',
       templates: 'Templates',

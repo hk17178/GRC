@@ -121,7 +121,7 @@
                   v-for="r in liveTasks"
                   :key="r.id"
                   class="clk"
-                  @click="drill = true"
+                  @click="drillInto(r)"
                 >
                   <td class="code">{{ r.id }}</td>
                   <td>{{ r.title }}</td>
@@ -329,14 +329,17 @@
       <div class="phead">
         <div>
           <span class="bk" @click="drill = false">{{ $t('risk.report.back') }}</span>
-          <div class="kqt">RA-2026-028 · ISO 27001</div>
-          <h1>{{ $t('risk.report.title') }}</h1>
+          <div class="kqt">RA-{{ drillId }} · {{ $t('risk.tag') }}</div>
+          <h1>{{ drillTitle || $t('risk.report.title') }}</h1>
         </div>
         <div class="sp"></div>
         <span class="st wait" style="margin-right: 8px"><span class="d"></span>{{ $t('risk.report.pending') }}</span>
         <button class="btn ghost">{{ $t('risk.report.exportPdf') }}</button>
         <button class="btn">{{ $t('risk.report.sign') }}</button>
       </div>
+
+      <!-- 诚实标注：上方分析图示为原型视觉示意，仅「风险发现·关闭门控」为真实后端数据与红线 -->
+      <div class="note-strip">{{ $t('risk.gate.scaffoldNote') }}</div>
 
       <!-- 报告 KPI 四卡：综合风险指数下钻 -->
       <div class="kpibar k4">
@@ -412,34 +415,91 @@
         </div>
       </div>
 
-      <!-- 风险处置与残余风险（固有→处置→残余→管理层/责任人接受） -->
+      <!-- ===== 风险发现 · 关闭门控（CR-002 红线，真实后端 GET /api/risk-findings）=====
+           残余高/极高且无有效风险接受 → 关闭按钮禁用 + 标明原因；登记风险接受后放行。
+           后端 RiskFindingService.assertClosable 强制同样规则（纵深防御）。 -->
       <div class="card">
-        <div class="ch"><h3>{{ $t('risk.report.residual.title') }}</h3></div>
+        <div class="ch">
+          <h3>{{ $t('risk.gate.title') }}</h3>
+          <span class="redline-badge">{{ $t('risk.gate.badge') }}</span>
+        </div>
         <div class="cb" style="overflow-x: auto; padding-bottom: 6px">
-          <table style="min-width: 740px">
+          <table style="min-width: 780px">
             <thead>
               <tr>
-                <th>{{ $t('risk.report.residual.th.point') }}</th>
-                <th>{{ $t('risk.report.residual.th.inherent') }}</th>
-                <th>{{ $t('risk.report.residual.th.decision') }}</th>
-                <th>{{ $t('risk.report.residual.th.measure') }}</th>
-                <th>{{ $t('risk.report.residual.th.residual') }}</th>
-                <th>{{ $t('risk.report.residual.th.accept') }}</th>
+                <th>{{ $t('risk.gate.th.finding') }}</th>
+                <th>{{ $t('risk.gate.th.inherent') }}</th>
+                <th>{{ $t('risk.gate.th.residual') }}</th>
+                <th>{{ $t('risk.gate.th.acceptance') }}</th>
+                <th>{{ $t('risk.gate.th.status') }}</th>
+                <th>{{ $t('risk.gate.th.ops') }}</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(r, i) in residualRows" :key="i">
-                <td>{{ $t('risk.report.residual.rows.' + r.key + '.point') }}</td>
-                <td><span class="tag" :class="r.inhCls">{{ $t('risk.levelDist.' + r.inhLvl) }}·{{ r.inhVal }}</span></td>
-                <td><span class="pill" :class="r.decCls">{{ $t('risk.report.residual.decision.' + r.dec) }}</span></td>
-                <td>{{ $t('risk.report.residual.rows.' + r.key + '.measure') }}</td>
-                <td><span class="tag" :class="r.resCls">{{ $t('risk.levelDist.' + r.resLvl) }}·{{ r.resVal }}</span></td>
+              <tr v-for="f in findings" :key="f.id">
+                <td><span class="code">#{{ f.id }}</span> {{ f.title }}</td>
                 <td>
-                  <span class="st" :class="r.acClass"><span class="d"></span>{{ $t('risk.report.residual.accept.' + r.ac) }}</span>
+                  <span v-if="f.inherentLevel" class="tag" :class="riskCls(f.inherentLevel)">{{ $t(riskLabel(f.inherentLevel)) }}</span>
+                  <span v-else>—</span>
                 </td>
+                <td>
+                  <span v-if="f.residualLevel" class="tag" :class="riskCls(f.residualLevel)">{{ $t(riskLabel(f.residualLevel)) }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td>
+                  <span v-if="f.riskAcceptanceId" class="st ok"><span class="d"></span>#{{ f.riskAcceptanceId }}</span>
+                  <span v-else-if="isGated(f)" class="st over" :title="$t('risk.gate.gatedTip')"><span class="d"></span>{{ $t('risk.gate.missing') }}</span>
+                  <span v-else>—</span>
+                </td>
+                <td><span class="st" :class="findingStCls(f.status)"><span class="d"></span>{{ $t('risk.gate.fstatus.' + f.status) }}</span></td>
+                <td class="ops">
+                  <!-- 接受风险：仅在被门控拦截时提供放行入口 -->
+                  <button v-if="isGated(f)" class="btn ghost sm" @click="openAccept(f)">{{ $t('risk.gate.accept') }}</button>
+                  <!-- 关闭：OPEN/IN_TREATMENT → DONE；被门控时禁用 + 原因提示 -->
+                  <button
+                    v-if="f.status === 'OPEN' || f.status === 'IN_TREATMENT'"
+                    class="btn sm"
+                    :disabled="isGated(f) || busyId === f.id"
+                    :title="isGated(f) ? $t('risk.gate.gatedTip') : ''"
+                    @click="closeFinding(f, false)"
+                  >{{ $t('risk.gate.close') }}</button>
+                  <!-- 验证：DONE → VERIFIED -->
+                  <button
+                    v-else-if="f.status === 'DONE'"
+                    class="btn ghost sm"
+                    :disabled="busyId === f.id"
+                    @click="closeFinding(f, true)"
+                  >{{ $t('risk.gate.verify') }}</button>
+                  <span v-else-if="f.status === 'VERIFIED'" class="muted">{{ $t('risk.gate.verified') }}</span>
+                </td>
+              </tr>
+              <tr v-if="!findings.length">
+                <td colspan="6" class="emptyrow">{{ findingsError || $t('risk.gate.empty') }}</td>
               </tr>
             </tbody>
           </table>
+        </div>
+        <p v-if="opError" class="cerr" style="padding: 0 16px 12px">{{ opError }}</p>
+      </div>
+
+      <!-- 接受风险弹窗（高残余关闭的放行凭据：POST /accept → 回填 riskAcceptanceId → 解除门控）-->
+      <div v-if="showAccept" class="modal-mask" @click.self="showAccept = false">
+        <div class="modal-card">
+          <h3>{{ $t('risk.gate.acceptTitle') }}</h3>
+          <p class="muted" style="margin: -6px 0 14px; font-size: 12.5px">{{ acceptTarget && acceptTarget.title }}</p>
+          <label class="fld">{{ $t('risk.gate.approver') }}
+            <input v-model="acceptForm.approver" />
+          </label>
+          <label class="fld">{{ $t('risk.gate.reason') }}
+            <input v-model="acceptForm.reason" :placeholder="$t('risk.gate.reasonPh')" />
+          </label>
+          <p v-if="opError" class="cerr">{{ opError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showAccept = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!acceptForm.approver || !acceptForm.reason || saving" @click="submitAccept">
+              {{ saving ? $t('common.submitting') : $t('risk.gate.acceptConfirm') }}
+            </button>
+          </div>
         </div>
       </div>
     </section>
@@ -457,6 +517,82 @@ const activeTab = ref('tasks')
 
 // ---- 下钻：评估报告视图开关（点击任务行进入，← 返回）----
 const drill = ref(false)
+
+// ---- 下钻：进入某评估 → 拉取其风险发现（真实后端）+ CR-002 关闭门控 ----
+const drillId = ref(null)
+const drillTitle = ref('')
+const findings = ref([])
+const findingsError = ref('')
+const opError = ref('') // 关闭/接受等写操作的错误（含后端门控 409 消息）
+const busyId = ref(null) // 正在流转的 finding id，避免重复点击
+
+async function drillInto(r) {
+  drill.value = true
+  drillId.value = r.id
+  drillTitle.value = r.title
+  await loadFindings()
+}
+async function loadFindings() {
+  findingsError.value = ''
+  opError.value = ''
+  try {
+    findings.value = await api.get('/risk-findings?assessmentId=' + drillId.value)
+  } catch (e) {
+    findingsError.value = e.message
+    findings.value = []
+  }
+}
+
+// 关闭门控判定（与后端 RiskFindingService.assertClosable 一致）：
+// 残余 HIGH/VERY_HIGH 且无有效风险接受凭据 → 关闭被拦截。前端据此禁用按钮并标因。
+function isGated(f) {
+  return (f.residualLevel === 'HIGH' || f.residualLevel === 'VERY_HIGH') && !f.riskAcceptanceId
+}
+const FINDING_STATUS_CLS = { OPEN: 'wait', IN_TREATMENT: 'doing', DONE: 'ok', VERIFIED: 'ok' }
+const findingStCls = (s) => FINDING_STATUS_CLS[s] || 'wait'
+
+// 关闭/验证流转：POST /close?verify=…。即便前端放行，后端仍强制门控；
+// 若被拦截（409 RISK_CLOSE_GATE）则把后端消息显示出来（纵深防御、红线可见）。
+async function closeFinding(f, verify) {
+  busyId.value = f.id
+  opError.value = ''
+  try {
+    await api.post('/risk-findings/' + f.id + '/close?verify=' + verify, {})
+    await loadFindings()
+  } catch (e) {
+    opError.value = e.message
+  } finally {
+    busyId.value = null
+  }
+}
+
+// ---- 接受风险弹窗（放行高残余关闭：登记 risk_acceptance 并回填凭据）----
+const showAccept = ref(false)
+const acceptTarget = ref(null)
+const acceptForm = reactive({ approver: '', reason: '' })
+function openAccept(f) {
+  acceptTarget.value = f
+  acceptForm.approver = ''
+  acceptForm.reason = ''
+  opError.value = ''
+  showAccept.value = true
+}
+async function submitAccept() {
+  saving.value = true
+  opError.value = ''
+  try {
+    await api.post('/risk-findings/' + acceptTarget.value.id + '/accept', {
+      approver: acceptForm.approver,
+      reason: acceptForm.reason
+    })
+    showAccept.value = false
+    await loadFindings() // 刷新：riskAcceptanceId 回填后门控解除，关闭按钮可用
+  } catch (e) {
+    opError.value = e.message
+  } finally {
+    saving.value = false
+  }
+}
 
 // ---- Tab1：评估任务表（真实后端数据 GET /api/assessments，非静态假数据）----
 // 字段以后端为准：后端现有 id/title/riskLevel/status；模板/进度/截止等列后端暂无
@@ -569,12 +705,6 @@ const pointRows = [
   { key: 'log', lvl: 'l', cls: 'l' }
 ]
 
-// ---- 下钻报告：风险处置与残余风险（固有→残余→管理层/责任人接受）----
-const residualRows = [
-  { key: 'shared', inhLvl: 'h', inhCls: 'h', inhVal: 16, dec: 'mitigate', decCls: 'blue', resLvl: 'm', resCls: 'm', resVal: 8, ac: 'pending', acClass: 'wait' },
-  { key: 'tls', inhLvl: 'h', inhCls: 'h', inhVal: 15, dec: 'mitigate', decCls: 'blue', resLvl: 'm', resCls: 'm', resVal: 7, ac: 'pending', acClass: 'wait' },
-  { key: 'backup', inhLvl: 'm', inhCls: 'm', inhVal: 9, dec: 'accept', decCls: '', resLvl: 'm', resCls: 'm', resVal: 9, ac: 'accepted', acClass: 'ok' }
-]
 </script>
 
 <style scoped>
@@ -1139,5 +1269,46 @@ tbody tr.clk {
 .btn[disabled] {
   opacity: 0.55;
   cursor: not-allowed;
+}
+
+/* ---- CR-002 关闭门控相关 ---- */
+.redline-badge {
+  margin-left: 10px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--danger);
+  background: var(--danger-tint, rgba(180, 35, 45, 0.1));
+  border: 1px solid var(--danger);
+}
+.note-strip {
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  background: var(--info-tint, rgba(40, 90, 150, 0.08));
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--info, #3a6ea5);
+  border-radius: var(--radius-md);
+}
+.btn.sm {
+  height: 28px;
+  padding: 0 12px;
+  font-size: 12.5px;
+}
+td.ops {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.muted {
+  color: var(--text-3, var(--text-2));
+  font-size: 12.5px;
+}
+.emptyrow {
+  text-align: center;
+  color: var(--text-2);
+  padding: 18px 0;
 }
 </style>

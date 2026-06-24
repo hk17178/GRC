@@ -417,6 +417,26 @@ export default {
     newAssess: '＋ 发起评估',
     // 发起评估弹窗
     create: { obj: '评估对象', objPh: '如：核心支付网关等保自评', assessor: '评估人', period: '评估周期', org: '归属组织', orgPay: '支付科技', orgConsumer: '消费金融', confirm: '确认发起' },
+    // 风险发现 · 关闭门控（CR-002 红线）
+    gate: {
+      title: '风险发现 · 关闭门控',
+      badge: 'CR-002 红线',
+      scaffoldNote: '上方综合指数 / 等级分布 / 风险点清单为原型视觉示意；下方「风险发现 · 关闭门控」为真实后端数据与 CR-002 红线。',
+      th: { finding: '风险发现', inherent: '固有', residual: '残余', acceptance: '风险接受', status: '状态', ops: '操作' },
+      missing: '缺接受·门控',
+      gatedTip: '残余高/极高风险须先登记风险接受方可关闭（CR-002 残余风险关闭门控）',
+      accept: '登记风险接受',
+      close: '关闭',
+      verify: '验证',
+      verified: '已验证',
+      empty: '该评估暂无风险发现',
+      fstatus: { OPEN: '待处置', IN_TREATMENT: '处置中', DONE: '已关闭', VERIFIED: '已验证' },
+      acceptTitle: '登记风险接受',
+      approver: '接受审批人',
+      reason: '接受理由',
+      reasonPh: '如：业务必要性 + 补偿性控制，经管理层批准',
+      acceptConfirm: '确认接受'
+    },
     // 顶部 Tab
     tab: {
       tasks: '评估任务',
