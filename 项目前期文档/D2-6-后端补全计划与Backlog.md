@@ -122,7 +122,11 @@
 - [x] **建议与反馈**（CR-004）—— ✅ 新模块 modules/feedback：反馈(建议/投诉/缺陷/咨询)状态机
   SUBMITTED→IN_PROGRESS→RESOLVED→CLOSED(可 REJECTED)；**办结闭环红线**:办结须填处置结果；RLS 隔离 + 留痕。
   /api/feedback。FeedbackTest 4/4。
-- [ ] 未建模块：系统设置（租户配置 + D1-8 可配置性）。
+- [x] **系统设置**（租户配置 + D1-8 可配置性）—— ✅ 新模块 modules/settings：键值配置(按 org 分租户)，
+  值类型(STRING/INT/BOOL/JSON)校验；**系统锁定项(editable=false)不可改红线**；配置变更入链留痕。
+  /api/settings。SystemSettingTest 4/4。
+
+> **🎉 Phase B 全完成**：横切聚合 4 件(态势/留痕/待办/通知) + 未建模块 5 件(法规跟踪/供应商/合规清单/建议反馈/系统设置)。
 
 ### Phase C · AI 接入
 - [ ] AI 接入（pgvector 向量库 + 检索增强问答「AI 智能问答」+「模型接入」配置，CR-004）——需先定模型/密钥与本地部署方案。
