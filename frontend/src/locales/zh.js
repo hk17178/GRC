@@ -947,5 +947,20 @@ export default {
     op: { edit: '修改' },
     create: { btn: '＋ 定义配置', editable: '允许租户修改', org: '归属组织', ok: '确认定义' },
     edit: { title: '修改取值', value: '新取值', ok: '保存' }
+  },
+
+  // ---- 制度发布（PolicyView · M1）----
+  policy: {
+    tag: 'POLICY · 制度发布',
+    title: '制度发布',
+    list: '制度',
+    empty: '暂无制度',
+    deprecated: '已废止',
+    org: { pay: '支付科技', consumer: '消费金融' },
+    th: { code: '编号', title: '标题', version: '版本', status: '状态', op: '操作' },
+    status: { DRAFT: '草稿', REVIEW: '评审中', EFFECTIVE: '现行有效', DEPRECATED: '已废止' },
+    op: { submit: '提交评审', approve: '审批通过', reject: '驳回', signoff: '签署', archive: '废止' },
+    create: { btn: '＋ 新建制度', content: '正文', org: '归属组织', ok: '确认新建' },
+    reject: { title: '驳回制度评审', reason: '驳回原因', reasonPh: '说明驳回理由' }
   }
 }

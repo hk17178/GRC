@@ -885,5 +885,20 @@ export default {
     op: { edit: 'Edit' },
     create: { btn: '＋ Define Setting', editable: 'Allow tenant edit', org: 'Organization', ok: 'Create' },
     edit: { title: 'Edit Value', value: 'New Value', ok: 'Save' }
+  },
+
+  // ---- Policy Publishing (PolicyView · M1) ----
+  policy: {
+    tag: 'POLICY · Publishing',
+    title: 'Policy Publishing',
+    list: 'Policies',
+    empty: 'No policies',
+    deprecated: 'Deprecated',
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    th: { code: 'Code', title: 'Title', version: 'Version', status: 'Status', op: 'Action' },
+    status: { DRAFT: 'Draft', REVIEW: 'In Review', EFFECTIVE: 'Effective', DEPRECATED: 'Deprecated' },
+    op: { submit: 'Submit', approve: 'Approve', reject: 'Reject', signoff: 'Sign Off', archive: 'Archive' },
+    create: { btn: '＋ New Policy', content: 'Content', org: 'Organization', ok: 'Create' },
+    reject: { title: 'Reject Policy Review', reason: 'Reason', reasonPh: 'Explain rejection reason' }
   }
 }
