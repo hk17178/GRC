@@ -1,32 +1,119 @@
 package com.mandao.grc.modules.assessment;
 
+import com.mandao.grc.modules.audit.HashChainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
 /**
- * 风险评估业务服务。
+ * 风险评估业务服务（M2 风险评估）。
  *
- * 注意：本服务【不再手动注入隔离上下文】——只要方法带 @Transactional 且位于 modules 包，
- * {@link com.mandao.grc.common.isolation.OrgScopeAspect} 会在事务内自动注入 app.visible_orgs，
- * 随后 RLS 依据其裁剪数据。业务代码因此只关注业务，隔离由平台统一保证。
+ * 隔离：本服务【不手动注入隔离上下文，也不手写 org 过滤】——只要方法带 @Transactional
+ * 且位于 com.mandao.grc.modules 包，{@link com.mandao.grc.common.isolation.OrgScopeAspect}
+ * 会在事务内自动注入 app.visible_orgs，随后 RLS 裁剪数据并校验写入（WITH CHECK）。
+ *
+ * 评估状态机：DRAFT → IN_PROGRESS → PENDING_REVIEW → COMPLETED；
+ * PENDING_REVIEW 可退回 IN_PROGRESS。非法流转一律抛 {@link IllegalStateException}。
+ *
+ * 留痕：每次状态流转后调用 {@link HashChainService#append} 写入按 org 分链的防篡改哈希链。
+ * HashChainService 与本服务同事务/同连接，共享 visible_orgs 注入，留痕与业务一致提交/回滚。
+ *
+ * 设计依据：D1-2（评估生命周期）、D1-3 §5.1/§8、D2-5 编码规范。
  */
 @Service
 public class AssessmentService {
 
     private final AssessmentRepository repository;
+    private final HashChainService hashChainService;
 
-    public AssessmentService(AssessmentRepository repository) {
+    public AssessmentService(AssessmentRepository repository, HashChainService hashChainService) {
         this.repository = repository;
+        this.hashChainService = hashChainService;
     }
 
-    /**
-     * 列出当前主体可见组织范围内的风险评估。
-     * findAll() 不带任何 org 过滤——隔离完全由切面注入 + RLS 兜底保证。
-     */
+    /** 列出当前主体可见组织范围内的评估（无 org 过滤，靠切面 + RLS）。 */
     @Transactional(readOnly = true)
     public List<Assessment> list() {
         return repository.findAll();
+    }
+
+    /** 按 id 取评估（仅能取到可见组织内的；不可见则视为不存在）。 */
+    @Transactional(readOnly = true)
+    public Assessment get(Long id) {
+        return repository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("评估不存在或不可见：id=" + id));
+    }
+
+    /**
+     * 新建草稿评估。
+     *
+     * @param orgId 归属组织（必须在当前 visible_orgs 内，否则 RLS WITH CHECK 拒绝写入）
+     * @param actor 操作人（用于留痕）
+     */
+    @Transactional
+    public Assessment create(Long orgId, String title, String assessor, String period, String actor) {
+        Assessment a = new Assessment(orgId, title, assessor, period);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_CREATE", actor, "新建评估草稿 title=" + title);
+        return saved;
+    }
+
+    /** 开始评估：DRAFT → IN_PROGRESS。 */
+    @Transactional
+    public Assessment start(Long id, String actor) {
+        Assessment a = get(id);
+        transition(a, AssessmentStatus.DRAFT, AssessmentStatus.IN_PROGRESS);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_START", actor, "开始评估");
+        return saved;
+    }
+
+    /** 提交复核：IN_PROGRESS → PENDING_REVIEW。 */
+    @Transactional
+    public Assessment submitForReview(Long id, String actor) {
+        Assessment a = get(id);
+        transition(a, AssessmentStatus.IN_PROGRESS, AssessmentStatus.PENDING_REVIEW);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_SUBMIT", actor, "提交复核");
+        return saved;
+    }
+
+    /** 复核驳回：PENDING_REVIEW → IN_PROGRESS（退回继续评估）。 */
+    @Transactional
+    public Assessment reject(Long id, String actor, String reason) {
+        Assessment a = get(id);
+        transition(a, AssessmentStatus.PENDING_REVIEW, AssessmentStatus.IN_PROGRESS);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_REJECT", actor, "复核驳回，原因：" + (reason == null ? "" : reason));
+        return saved;
+    }
+
+    /** 完成评估：PENDING_REVIEW → COMPLETED（终态）。 */
+    @Transactional
+    public Assessment complete(Long id, String actor) {
+        Assessment a = get(id);
+        transition(a, AssessmentStatus.PENDING_REVIEW, AssessmentStatus.COMPLETED);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_COMPLETE", actor, "评估完成");
+        return saved;
+    }
+
+    // ---------- 内部辅助 ----------
+
+    /** 校验并执行一次合法流转：当前态须 == expectedFrom，否则视为非法流转抛异常。 */
+    private void transition(Assessment a, AssessmentStatus expectedFrom, AssessmentStatus to) {
+        if (a.getStatus() != expectedFrom) {
+            throw new IllegalStateException(
+                    "非法状态流转：评估 id=" + a.getId()
+                            + " 当前状态=" + a.getStatus()
+                            + "，仅允许从 " + expectedFrom + " 流转到 " + to);
+        }
+        a.setStatus(to);
+    }
+
+    /** 统一留痕入口：entity 统一格式 "ASSESSMENT:{id}"，便于审计按对象检索。 */
+    private void appendLog(Assessment a, String action, String actor, String detail) {
+        hashChainService.append(a.getOrgId(), action, actor, "ASSESSMENT:" + a.getId(), detail);
     }
 }
