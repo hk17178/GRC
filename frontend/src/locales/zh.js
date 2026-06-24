@@ -44,7 +44,8 @@ export default {
     tabLocal: '本地账号',
     ssoHint: '企业统一身份认证，请输入您的 AD 域账号',
     domainAccount: '域账号',
-    domainPlaceholder: 'DOMAIN\\用户名 或 user@corp.com',
+    // vue-i18n 把 '@' 视为链接消息语法，邮箱里的 '@' 须用字面插值 {'@'} 转义，否则消息编译失败导致整页空白
+    domainPlaceholder: "DOMAIN\\用户名 或 user{'@'}corp.com",
     localAccount: '账号 / 企业邮箱',
     localNote:
       '本地账号仅用于 AD 不可用时的应急 / 管理员登录，登录行为将被审计留痕',

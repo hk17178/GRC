@@ -44,7 +44,8 @@ export default {
     tabLocal: 'Local Account',
     ssoHint: 'Corporate single sign-on — enter your AD domain credentials',
     domainAccount: 'Domain Account',
-    domainPlaceholder: 'DOMAIN\\username or user@corp.com',
+    // vue-i18n treats '@' as linked-message syntax; escape the '@' in the email via literal interpolation {'@'} or message compilation fails (blank page)
+    domainPlaceholder: "DOMAIN\\username or user{'@'}corp.com",
     localAccount: 'Account / Email',
     localNote:
       'Local accounts are for break-glass / admin use when AD is unavailable; all logins are audited.',
