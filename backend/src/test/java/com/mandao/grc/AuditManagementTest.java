@@ -14,6 +14,7 @@ import com.mandao.grc.modules.audit.management.AuditPlanStatus;
 import com.mandao.grc.modules.audit.management.AuditSeverity;
 import com.mandao.grc.modules.audit.management.AuditType;
 import com.mandao.grc.modules.audit.management.ExternalResponseStatus;
+import com.mandao.grc.modules.audit.management.RemediationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -76,6 +77,9 @@ class AuditManagementTest {
 
     @Autowired
     private AuditFindingService findingService;
+
+    @Autowired
+    private RemediationService remediationService;
 
     @Autowired
     private HashChainService hashChainService;
@@ -234,6 +238,14 @@ class AuditManagementTest {
 
         assertEquals(AuditFindingStatus.ANALYZING,
                 asOrg(ORG_PAY, () -> findingService.analyze(fid, "a").getStatus()));
+
+        // 验证闭环：须有一条已验证的整改工单方可标记已整改（派单→开始→提交→验证）
+        Long oid = asOrg(ORG_PAY, () ->
+                remediationService.create(fid, "owner", TODAY.plusDays(7), "整改措施", "lead").getId());
+        asOrg(ORG_PAY, () -> remediationService.start(oid, "owner"));
+        asOrg(ORG_PAY, () -> remediationService.submit(oid, "已整改", "owner"));
+        asOrg(ORG_PAY, () -> remediationService.verify(oid, "a"));
+
         assertEquals(AuditFindingStatus.REMEDIATED,
                 asOrg(ORG_PAY, () -> findingService.remediate(fid, "a").getStatus()));
         assertEquals(AuditFindingStatus.CLOSED,

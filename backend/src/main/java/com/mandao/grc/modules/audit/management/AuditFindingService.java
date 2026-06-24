@@ -32,13 +32,16 @@ public class AuditFindingService {
     private final AuditFindingRepository findingRepository;
     private final AuditPlanRepository planRepository;
     private final HashChainService hashChainService;
+    private final RemediationOrderRepository remediationOrderRepository;
 
     public AuditFindingService(AuditFindingRepository findingRepository,
                                AuditPlanRepository planRepository,
-                               HashChainService hashChainService) {
+                               HashChainService hashChainService,
+                               RemediationOrderRepository remediationOrderRepository) {
         this.findingRepository = findingRepository;
         this.planRepository = planRepository;
         this.hashChainService = hashChainService;
+        this.remediationOrderRepository = remediationOrderRepository;
     }
 
     /** 列出某审计计划下的全部发现（受 RLS 裁剪）。 */
@@ -92,13 +95,20 @@ public class AuditFindingService {
         return saved;
     }
 
-    /** 完成整改：ANALYZING → REMEDIATED。 */
+    /**
+     * 完成整改：ANALYZING → REMEDIATED。
+     * 【整改验证闭环红线】须该发现已有 ≥1 条 VERIFIED 整改工单，否则禁止标记为已整改。
+     */
     @Transactional
     public AuditFinding remediate(Long id, String actor) {
         AuditFinding f = get(id);
+        if (!remediationOrderRepository.existsByFindingIdAndStatus(id, RemediationStatus.VERIFIED)) {
+            throw new IllegalStateException(
+                    "审计发现 id=" + id + " 无已验证的整改工单，不能标记为已整改（整改验证闭环）");
+        }
         transition(f, AuditFindingStatus.ANALYZING, AuditFindingStatus.REMEDIATED);
         AuditFinding saved = findingRepository.save(f);
-        appendLog(saved, "AUDIT_FINDING_REMEDIATE", actor, "完成整改");
+        appendLog(saved, "AUDIT_FINDING_REMEDIATE", actor, "完成整改（整改工单已验证闭环）");
         return saved;
     }
 

@@ -67,8 +67,10 @@
 > **A2(M2 风险评估)全部完成**：风险接受审批 / KRI / 统一控件库 / 模板库+实例化 / A-T-V。
 
 ### A3 · M3 审计管理
-- [ ] 内部审计纳入（与外审共表或并列）
-- [ ] 整改工单（finding→整改任务→验证闭环）
+- [x] 内部审计纳入 —— ✅ 既有 AuditType 已含 INTERNAL/EXTERNAL/REGULATORY，内审为一等类型；外审漏斗仅外审可用。
+- [x] 整改工单（finding→整改任务→验证闭环）—— ✅ 新增 RemediationOrder(派单→开始→提交→验证，
+  退回返工)；**验证闭环红线**：发现须有 ≥1 条 VERIFIED 工单方可标记已整改(AuditFindingService.remediate 强制)。
+  RLS 隔离 + 留痕。/api/remediation-orders。RemediationOrderTest 4/4，既有内审用例同步改造，全量 101/101 绿。
 
 ### A4 · M8 权限与审批
 - [ ] UAR 决策 / SoD 例外走 Flowable 审批
