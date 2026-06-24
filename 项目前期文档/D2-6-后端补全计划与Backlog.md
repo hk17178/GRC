@@ -119,7 +119,10 @@
 - [x] **合规清单** —— ✅ 新模块 modules/obligation：合规义务库 + 落实追踪(状态机 PENDING→IN_PROGRESS→FULFILLED，
   可 NON_COMPLIANT 后整改回 IN_PROGRESS)；**落实闭环红线**:标记已落实须留证据(无证据被拒)；RLS 隔离 + 留痕。
   /api/obligations。ObligationTest 4/4。
-- [ ] 未建模块：建议与反馈（CR-004）、系统设置（租户配置 + D1-8 可配置性）。
+- [x] **建议与反馈**（CR-004）—— ✅ 新模块 modules/feedback：反馈(建议/投诉/缺陷/咨询)状态机
+  SUBMITTED→IN_PROGRESS→RESOLVED→CLOSED(可 REJECTED)；**办结闭环红线**:办结须填处置结果；RLS 隔离 + 留痕。
+  /api/feedback。FeedbackTest 4/4。
+- [ ] 未建模块：系统设置（租户配置 + D1-8 可配置性）。
 
 ### Phase C · AI 接入
 - [ ] AI 接入（pgvector 向量库 + 检索增强问答「AI 智能问答」+「模型接入」配置，CR-004）——需先定模型/密钥与本地部署方案。
