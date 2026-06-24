@@ -900,5 +900,33 @@ export default {
     op: { submit: 'Submit', approve: 'Approve', reject: 'Reject', signoff: 'Sign Off', archive: 'Archive' },
     create: { btn: '＋ New Policy', content: 'Content', org: 'Organization', ok: 'Create' },
     reject: { title: 'Reject Policy Review', reason: 'Reason', reasonPh: 'Explain rejection reason' }
+  },
+
+  // ---- Permission & Separation of Duties (PermissionView · M8) ----
+  perm: {
+    tag: 'PERMISSION · Access & SoD',
+    title: 'Permission & SoD',
+    sodRules: 'SoD Rules',
+    sodRulesSub: 'system-level · mutually-exclusive role pairs',
+    rth: { pair: 'Exclusive Pair', mode: 'Mode', desc: 'Description' },
+    mode: { BLOCK: 'Hard Block', DETECT: 'Detective' },
+    ruleDesc: { 1: 'Maker and Checker cannot be held by the same user in the same org (high-sensitivity, blocked at grant)', 2: 'Risk Owner and Auditor separation (detective, conflict logged pending exception)' },
+    grantTitle: 'User Role Grants',
+    user: 'User',
+    query: 'Query',
+    grantRole: 'Grant Role',
+    active: 'Active',
+    revoked: 'Revoked',
+    noGrant: 'No grants for this user',
+    gth: { role: 'Role', by: 'Granted By', state: 'State', op: 'Action' },
+    op: { grant: 'Grant', revoke: 'Revoke', requestEx: 'Request Exception', approveEx: 'Approve', rejectEx: 'Reject' },
+    exTitle: 'SoD Exceptions',
+    exSub: 'request → approve',
+    exRule: 'Conflict Rule',
+    exReason: 'Reason',
+    exReasonPh: 'Business necessity & compensating controls',
+    exEmpty: 'No exception requests this session',
+    exStatus: { PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected' },
+    exth: { rule: 'Rule', user: 'User', status: 'Status', op: 'Action' }
   }
 }

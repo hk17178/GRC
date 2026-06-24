@@ -1,6 +1,8 @@
 package com.mandao.grc.common.web;
 
 import com.mandao.grc.modules.assessment.RiskCloseGateException;
+import com.mandao.grc.modules.permission.SodViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -75,5 +77,30 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleNotFound(IllegalArgumentException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ApiError("NOT_FOUND", ex.getMessage()));
+    }
+
+    /**
+     * M8 SoD 职责分离红线拦截（授权时命中互斥角色且无有效豁免）→ 409 CONFLICT。
+     *
+     * 与 CR-002 关闭门控同级——单列为可精确识别的红线（code=SOD_VIOLATION）：若不显式映射，
+     * SodViolationException 作为未捕获 RuntimeException 会被 Spring 默认按 500 泛化返回，
+     * 前端就无法把"职责分离冲突·需先审批豁免"与普通系统错误区分，红线在端到端不可见。
+     */
+    @ExceptionHandler(SodViolationException.class)
+    public ResponseEntity<ApiError> handleSodViolation(SodViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError("SOD_VIOLATION", ex.getMessage()));
+    }
+
+    /**
+     * 数据完整性冲突（唯一约束/外键等，如同组织同年度重复登记年度计划命中 uk_*）→ 409 CONFLICT。
+     *
+     * 不回传底层 SQL/约束名（避免泄露库结构），给稳定可读的中文消息；code=DATA_CONFLICT。
+     * 否则此类冲突会被默认按 500 返回，创建类操作（制度/计划/控件等唯一编码）UX 体验差。
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError("DATA_CONFLICT", "数据冲突：已存在重复记录或违反唯一约束"));
     }
 }

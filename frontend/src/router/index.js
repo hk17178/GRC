@@ -23,14 +23,14 @@ import ObligationView from '@/views/ObligationView.vue'
 import FeedbackView from '@/views/FeedbackView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import PolicyView from '@/views/PolicyView.vue'
+import PermissionView from '@/views/PermissionView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
 const PLACEHOLDER_PAGES = [
   { path: '/internal-audit', navKey: 'audit' },
   { path: '/ai-assistant', navKey: 'ai' },
-  { path: '/model-access', navKey: 'aimodel' },
-  { path: '/permission', navKey: 'perm' }
+  { path: '/model-access', navKey: 'aimodel' }
 ]
 
 const routes = [
@@ -120,6 +120,13 @@ const routes = [
     name: 'policy',
     component: PolicyView,
     meta: { title: '制度发布', navKey: 'policy' }
+  },
+  {
+    // 权限与职责分离：用户角色授权 + SoD 红线 + 例外审批（M8）
+    path: '/permission',
+    name: 'perm',
+    component: PermissionView,
+    meta: { title: '权限与职责分离', navKey: 'perm' }
   },
   {
     // 建议与反馈：反馈生命周期（办结须留处置结果）

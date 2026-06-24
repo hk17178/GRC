@@ -962,5 +962,33 @@ export default {
     op: { submit: '提交评审', approve: '审批通过', reject: '驳回', signoff: '签署', archive: '废止' },
     create: { btn: '＋ 新建制度', content: '正文', org: '归属组织', ok: '确认新建' },
     reject: { title: '驳回制度评审', reason: '驳回原因', reasonPh: '说明驳回理由' }
+  },
+
+  // ---- 权限与职责分离（PermissionView · M8）----
+  perm: {
+    tag: 'PERMISSION · 权限与 SoD',
+    title: '权限与职责分离',
+    sodRules: 'SoD 职责分离规则',
+    sodRulesSub: '系统级·互斥角色对',
+    rth: { pair: '互斥角色对', mode: '强制模式', desc: '说明' },
+    mode: { BLOCK: '硬阻断', DETECT: '检测型' },
+    ruleDesc: { 1: '发起人与审批人不得由同一用户在同一组织兼任（高敏·授权即阻断）', 2: '风险责任人与审计员职责分离（检测型·登记冲突待例外审批）' },
+    grantTitle: '用户角色授权',
+    user: '用户',
+    query: '查询授权',
+    grantRole: '授予角色',
+    active: '在用',
+    revoked: '已收回',
+    noGrant: '该用户暂无授权',
+    gth: { role: '角色', by: '授予人', state: '状态', op: '操作' },
+    op: { grant: '授权', revoke: '收回', requestEx: '申请例外', approveEx: '审批通过', rejectEx: '驳回' },
+    exTitle: 'SoD 例外',
+    exSub: '申请 → 审批两步',
+    exRule: '冲突规则',
+    exReason: '申请理由',
+    exReasonPh: '说明业务必要性与补偿控制',
+    exEmpty: '本会期暂无例外申请',
+    exStatus: { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' },
+    exth: { rule: '规则', user: '用户', status: '状态', op: '操作' }
   }
 }
