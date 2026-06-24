@@ -94,6 +94,169 @@ export default {
     crumbCurrent: '合规态势总览'
   },
 
+  // ---- 各页面包屑（顶栏 group / current 两段，对齐原型 crumb 映射）----
+  // 用法：crumb.<routeKey>.g（分组）/ .c（当前页）
+  crumb: {
+    dashboard: { g: '概览', c: '合规态势总览' },
+    extaudit: { g: '业务', c: '外部审计' },
+    todo: { g: '概览', c: '我的待办' },
+    audit: { g: '业务', c: '内部审计' },
+    risk: { g: '业务', c: '风险评估' },
+    law: { g: '业务', c: '法规跟踪' },
+    regaffairs: { g: '业务', c: '监管事项' },
+    obligation: { g: '业务', c: '合规清单' },
+    policy: { g: '业务', c: '制度体系' },
+    ai: { g: '业务', c: 'AI 智能问答' },
+    vendor: { g: '业务', c: '第三方供应商' },
+    org: { g: '资产与组织', c: '组织与资产' },
+    notify: { g: '系统管理', c: '通知中心' },
+    aimodel: { g: '系统管理', c: '模型接入' },
+    perm: { g: '系统管理', c: '权限与审批' },
+    board: { g: '系统管理', c: '看板与留痕' },
+    feedback: { g: '系统管理', c: '建议与反馈' },
+    settings: { g: '系统管理', c: '系统设置' }
+  },
+
+  // ---- 全局浮动 AI 助手按钮 ----
+  aiFab: {
+    title: 'AI 助手'
+  },
+
+  // ---- 占位页（尚未复原的菜单项，点击进入此页保证不报错）----
+  placeholder: {
+    tag: '建设中',
+    title: '{name}',
+    desc: '该模块原型尚未复原，敬请期待。当前可正常导航、主题与语言切换均生效。'
+  },
+
+  // ---- 外部审计（M3-EXT，严格对齐驾驶舱版原型 #view-extaudit）----
+  extaudit: {
+    tag: 'M3-EXT · 外部审计',
+    title: '外部审计',
+    register: '＋ 登记外审任务',
+    // 子公司分段
+    seg: { all: '集团', pay: '支付科技', consumer: '消费金融', tech: '数科' },
+    // 三个 Tab
+    tab: { tasks: '外审任务', findings: '外部审计发现', remed: '整改跟踪' },
+    // KPI
+    kpi: {
+      active: '进行中外审',
+      bodies: '外部审计机构',
+      openFindings: '外部发现(未闭环)',
+      toRemed: '待整改',
+      certPassed: '本年通过认证'
+    },
+    // 外审任务表
+    tasks: {
+      title: '外部审计任务',
+      sub: '按组织隔离',
+      th: {
+        id: '编号',
+        cert: '认证体系',
+        body: '审计机构',
+        owner: '责任单位',
+        cycle: '周期',
+        planStart: '计划开始',
+        status: '状态'
+      },
+      // 状态标签
+      status: {
+        onsite: '现场审计中',
+        pendingReply: '待回复发现',
+        remediating: '整改中',
+        awaitReg: '待监管回复',
+        passed: '已通过'
+      }
+    },
+    // 认证体系分布
+    dist: { title: '按认证体系分布' },
+    // 认证有效期临近
+    expiry: {
+      title: '认证有效期临近',
+      pci: 'PCI DSS（支付科技）',
+      iso: 'ISO 27001（集团）',
+      mlps: '等保三级（支付科技）',
+      pciLeft: '剩 28 天',
+      isoLeft: '剩 73 天',
+      mlpsLeft: '剩 120 天'
+    },
+    // 计划临近提醒（企微）
+    remind: {
+      title: '计划临近提醒（企微）',
+      sub: '计划开始前自动提醒',
+      leadDays: '提前天数（可配）',
+      leadDaysV: '15 天 / 10 天',
+      bot: '接收企微机器人',
+      botV: '外审通知群机器人',
+      task: 'EA-2026-07 等保测评',
+      taskV: '计划 07-10 · 剩 14 天',
+      status: '状态',
+      statusV: '启用'
+    },
+    // 外部审计发现表
+    findings: {
+      title: '外部审计发现',
+      sub: '来自外部机构',
+      th: {
+        id: '发现编号',
+        source: '来源外审',
+        issue: '问题',
+        cert: '认证体系',
+        sev: '严重度',
+        owner: '责任单位',
+        status: '整改状态'
+      },
+      issue: {
+        chd: '持卡人数据传输未全程加密',
+        access: '访问评审记录不完整',
+        log: '备付金日志留存不足',
+        baseline: '部分主机基线未达标',
+        privacy: '隐私告知文案待完善'
+      },
+      status: { remediating: '整改中', toRemed: '待整改', verified: '已验证' }
+    },
+    // 发现按严重度（五级）
+    sevDist: {
+      title: '发现按严重度（五级）',
+      vh: '极高',
+      h: '高',
+      m: '中',
+      l: '低',
+      vl: '极低'
+    },
+    // 整改任务表
+    remTasks: {
+      title: '外部发现整改任务（含企微通知状态）',
+      th: {
+        task: '任务',
+        source: '来源发现',
+        owner: '责任人',
+        due: '截止',
+        notify: '企微通知',
+        status: '状态'
+      },
+      notify: { dueSoon: '已通知·期限临近', escalated: '已升级上级', notified: '已通知' },
+      status: { remediating: '整改中', overdue: '逾期', pending: '待处理' }
+    },
+    // 对外闭环漏斗
+    funnel: {
+      title: '对外闭环漏斗',
+      external: '外部发现',
+      internalFix: '内部整改',
+      internalVerified: '内部已验证',
+      submitted: '已向外部机构提交',
+      accepted: '外方受理',
+      closed: '外方确认关闭'
+    },
+    // 对外回函与受理
+    reply: {
+      title: '对外回函与受理',
+      th: { audit: '外审', report: '报告', submitted: '提交日', accepted: '外方受理', conclusion: '结论' },
+      accepted: { underReview: '审核中', accepted: '已受理' },
+      conclusion: { pending: '待确认', moreEvidence: '要求二次举证', closed: '确认关闭' }
+    }
+  },
+
   // ---- 子公司名（热力矩阵 / 整改率共用）----
   'dash.sub.hq': '集团总部',
   'dash.sub.pay': '支付子公司',

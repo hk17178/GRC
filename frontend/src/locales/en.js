@@ -94,6 +94,155 @@ export default {
     crumbCurrent: 'Compliance Posture'
   },
 
+  // ---- per-page breadcrumb (group / current), mirrors prototype crumb map ----
+  crumb: {
+    dashboard: { g: 'Overview', c: 'Compliance Posture' },
+    extaudit: { g: 'Business', c: 'External Audit' },
+    todo: { g: 'Overview', c: 'My Tasks' },
+    audit: { g: 'Business', c: 'Internal Audit' },
+    risk: { g: 'Business', c: 'Risk Assessment' },
+    law: { g: 'Business', c: 'Regulation Tracking' },
+    regaffairs: { g: 'Business', c: 'Regulatory Affairs' },
+    obligation: { g: 'Business', c: 'Obligations' },
+    policy: { g: 'Business', c: 'Policy System' },
+    ai: { g: 'Business', c: 'AI Assistant' },
+    vendor: { g: 'Business', c: 'Third-party Vendors' },
+    org: { g: 'Assets & Org', c: 'Org & Assets' },
+    notify: { g: 'System', c: 'Notifications' },
+    aimodel: { g: 'System', c: 'Model Access' },
+    perm: { g: 'System', c: 'Permissions & Approval' },
+    board: { g: 'System', c: 'Board & Audit Trail' },
+    feedback: { g: 'System', c: 'Feedback' },
+    settings: { g: 'System', c: 'Settings' }
+  },
+
+  // ---- global floating AI assistant button ----
+  aiFab: {
+    title: 'AI Assistant'
+  },
+
+  // ---- placeholder page (menu items not yet restored) ----
+  placeholder: {
+    tag: 'Under Construction',
+    title: '{name}',
+    desc: 'This module prototype has not been restored yet. Navigation, theming and language switching all work normally.'
+  },
+
+  // ---- External Audit (M3-EXT, mirrors prototype #view-extaudit) ----
+  extaudit: {
+    tag: 'M3-EXT · External Audit',
+    title: 'External Audit',
+    register: '＋ Register Audit',
+    seg: { all: 'Group', pay: 'PaySvc', consumer: 'Consumer Fin.', tech: 'DataTech' },
+    tab: { tasks: 'Audit Tasks', findings: 'Audit Findings', remed: 'Remediation' },
+    kpi: {
+      active: 'Active Audits',
+      bodies: 'Audit Bodies',
+      openFindings: 'Open Findings',
+      toRemed: 'To Remediate',
+      certPassed: 'Certs Passed (Yr)'
+    },
+    tasks: {
+      title: 'External Audit Tasks',
+      sub: 'Org-isolated',
+      th: {
+        id: 'ID',
+        cert: 'Certification',
+        body: 'Audit Body',
+        owner: 'Owner Unit',
+        cycle: 'Cycle',
+        planStart: 'Plan Start',
+        status: 'Status'
+      },
+      status: {
+        onsite: 'On-site Audit',
+        pendingReply: 'Findings Pending',
+        remediating: 'Remediating',
+        awaitReg: 'Awaiting Regulator',
+        passed: 'Passed'
+      }
+    },
+    dist: { title: 'By Certification' },
+    expiry: {
+      title: 'Certs Expiring',
+      pci: 'PCI DSS (PaySvc)',
+      iso: 'ISO 27001 (Group)',
+      mlps: 'MLPS L3 (PaySvc)',
+      pciLeft: '28 days left',
+      isoLeft: '73 days left',
+      mlpsLeft: '120 days left'
+    },
+    remind: {
+      title: 'Plan-Approach Reminder (WeChat)',
+      sub: 'Auto-remind before plan start',
+      leadDays: 'Lead days (configurable)',
+      leadDaysV: '15d / 10d',
+      bot: 'WeChat bot recipient',
+      botV: 'Audit notification bot',
+      task: 'EA-2026-07 MLPS Assessment',
+      taskV: 'Plan 07-10 · 14d left',
+      status: 'Status',
+      statusV: 'Enabled'
+    },
+    findings: {
+      title: 'External Audit Findings',
+      sub: 'From External Bodies',
+      th: {
+        id: 'Finding ID',
+        source: 'Source Audit',
+        issue: 'Issue',
+        cert: 'Certification',
+        sev: 'Severity',
+        owner: 'Owner Unit',
+        status: 'Status'
+      },
+      issue: {
+        chd: 'CHD not fully encrypted in transit',
+        access: 'Access-review records incomplete',
+        log: 'Reserve-fund log retention insufficient',
+        baseline: 'Some host baselines non-compliant',
+        privacy: 'Privacy notice needs improvement'
+      },
+      status: { remediating: 'Remediating', toRemed: 'To Remediate', verified: 'Verified' }
+    },
+    sevDist: {
+      title: 'Findings by Severity (5)',
+      vh: 'Very High',
+      h: 'High',
+      m: 'Medium',
+      l: 'Low',
+      vl: 'Very Low'
+    },
+    remTasks: {
+      title: 'Remediation Tasks (w/ WeChat status)',
+      th: {
+        task: 'Task',
+        source: 'Source Finding',
+        owner: 'Owner',
+        due: 'Due',
+        notify: 'WeChat Notify',
+        status: 'Status'
+      },
+      notify: { dueSoon: 'Notified · Due Soon', escalated: 'Escalated', notified: 'Notified' },
+      status: { remediating: 'Remediating', overdue: 'Overdue', pending: 'Pending' }
+    },
+    funnel: {
+      title: 'External Closure Funnel',
+      external: 'External Findings',
+      internalFix: 'Internal Fix',
+      internalVerified: 'Internally Verified',
+      submitted: 'Submitted to Body',
+      accepted: 'Accepted by Body',
+      closed: 'Closed by Body'
+    },
+    reply: {
+      title: 'External Reply & Acceptance',
+      th: { audit: 'Audit', report: 'Report', submitted: 'Submitted', accepted: 'Accepted by Body', conclusion: 'Conclusion' },
+      accepted: { underReview: 'Under Review', accepted: 'Accepted' },
+      conclusion: { pending: 'Pending', moreEvidence: 'More Evidence Req.', closed: 'Closed' }
+    }
+  },
+
   // ---- subsidiary names (shared by heatmap / remediation) ----
   'dash.sub.hq': 'Group HQ',
   'dash.sub.pay': 'Payment Co.',

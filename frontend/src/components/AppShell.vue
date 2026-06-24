@@ -44,7 +44,7 @@
     <div class="main">
       <header class="top">
         <div class="crumb">
-          {{ $t('dashboard.crumb') }} / <b>{{ $t('dashboard.crumbCurrent') }}</b>
+          {{ $t('crumb.' + activeKey + '.g') }} / <b>{{ $t('crumb.' + activeKey + '.c') }}</b>
         </div>
         <div class="right">
           <LangSwitch />
@@ -73,6 +73,16 @@
         <slot />
       </div>
     </div>
+
+    <!-- ===== 全局浮动「AI 助手」按钮（左下角，所有页可见）=====
+         复原驾驶舱版原型 <button class="fab" id="aiFab">：渐变方圆角 +
+         右上角金色 AI 角标 + 对话气泡图标。当前点击仅占位（console），不接后端。 -->
+    <button class="fab" :title="$t('aiFab.title')" @click="onAiFab">
+      <span class="badge">AI</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+    </button>
   </div>
 </template>
 
@@ -85,13 +95,33 @@ import ThemeSwitch from '@/components/ThemeSwitch.vue'
 const route = useRoute()
 const router = useRouter()
 
-// 菜单键 → 已实现路由名的映射（当前仅驾驶舱接入真实页面，其余为占位高亮）
+// 菜单键 → 路由名映射。
+// 约定：占位路由的 route name 直接取 navKey；仅驾驶舱/外部审计两条命名不同，单独列出。
+// 与 router/index.js 的 PLACEHOLDER_PAGES（name=navKey）保持一致。
 const ROUTE_BY_KEY = {
-  dashboard: 'dashboard'
+  dashboard: 'dashboard',
+  extaudit: 'external-audit',
+  todo: 'todo',
+  audit: 'audit',
+  risk: 'risk',
+  law: 'law',
+  regaffairs: 'regaffairs',
+  obligation: 'obligation',
+  policy: 'policy',
+  ai: 'ai',
+  vendor: 'vendor',
+  org: 'org',
+  notify: 'notify',
+  aimodel: 'aimodel',
+  perm: 'perm',
+  board: 'board',
+  feedback: 'feedback',
+  settings: 'settings'
 }
 
-// 当前激活菜单：优先按当前路由推断（驾驶舱页高亮"合规态势"），否则默认 dashboard
+// 当前激活菜单：优先按当前路由的 meta.navKey 推断，回退按 route name 反查，再回退 dashboard
 const activeKey = computed(() => {
+  if (route.meta?.navKey) return route.meta.navKey
   const hit = Object.keys(ROUTE_BY_KEY).find((k) => ROUTE_BY_KEY[k] === route.name)
   return hit || 'dashboard'
 })
@@ -136,12 +166,18 @@ const menu = [
   }
 ]
 
-// 菜单点击：已接入路由的项跳转对应页面，其余仅停留（占位）
+// 菜单点击：跳转对应路由（外部审计/驾驶舱为真实页，其余为占位页）
 function onNav(key) {
   const name = ROUTE_BY_KEY[key]
   if (name && route.name !== name) {
     router.push({ name })
   }
+}
+
+// 浮动 AI 助手按钮点击：当前仅占位（不接后端），打印日志便于联调
+function onAiFab() {
+  // eslint-disable-next-line no-console
+  console.log('[AI 助手] 浮动按钮点击（占位，后续接入 AI 合规助手面板）')
 }
 </script>
 
@@ -427,5 +463,45 @@ function onNav(key) {
   padding: 22px 24px 40px;
   flex: 1;
   overflow-y: auto;
+}
+
+/* ===== 全局浮动「AI 助手」按钮 fab（严格对齐原型 .fab）===== */
+.fab {
+  position: fixed;
+  bottom: 18px;
+  left: 18px;
+  z-index: 62;
+  width: 50px;
+  height: 50px;
+  border-radius: 15px;
+  border: 0;
+  cursor: pointer;
+  background: linear-gradient(145deg, var(--accent-bright), var(--accent-strong));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-2);
+}
+.fab svg {
+  width: 21px;
+  height: 21px;
+}
+.fab .badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-gold);
+  border: 2px solid #fff;
+  font-size: 8.5px;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
 }
 </style>
