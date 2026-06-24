@@ -243,6 +243,120 @@ export default {
     }
   },
 
+  // ---- Regulatory Affairs (M11, mirrors cockpit prototype #view-regaffairs) ----
+  regaffairs: {
+    tag: 'Regulatory Affairs',
+    title: 'Regulatory Affairs',
+    register: '＋ Register Item',
+    seg: { all: 'Group', pay: 'PaySvc', consumer: 'Consumer Finance' },
+    kpi: {
+      dueMonth: 'Due This Month',
+      dueMonthSub: '2 statutory deadlines approaching',
+      overdue: 'Overdue Reports',
+      openInquiry: 'Open Inquiries',
+      penaltyOpen: 'Open Penalty Fixes',
+      majorReport: 'Major Incident Report',
+      majorReportSub: 'This qtr'
+    },
+    tab: {
+      calendar: 'Reporting Calendar',
+      plan: 'Annual Compliance Plan',
+      inquiry: 'Inquiries',
+      penalty: 'Penalties & Talks',
+      major: 'Major Incident Report'
+    },
+    calendar: {
+      title: 'Reporting Calendar',
+      sub: 'Statutory Deadline',
+      th: { item: 'Report Item', regulator: 'Regulator', type: 'Type', deadline: 'Statutory Deadline', owner: 'Owner', status: 'Status' },
+      itemPbocStat: 'Payment Business Statistical Report',
+      itemAml: 'AML Report',
+      itemPi: 'PI Protection Compliance Report',
+      itemReserve: 'Reserve-Fund Custody Report',
+      regPboc: 'PBOC',
+      regAml: 'AML Center',
+      regCac: 'CAC',
+      typeMonthly: 'Monthly',
+      typeQuarterly: 'Quarterly',
+      typeAnnual: 'Annual',
+      due0705: '07-05 (2 days left)',
+      stDrafting: 'Drafting',
+      stToDraft: 'To Draft',
+      stSubmitted: 'Submitted',
+      // Owners (avatar shows first letter)
+      ownerChen: 'Chen Qiang',
+      ownerLi: 'Li Na',
+      ownerWang: 'Wang Fang',
+      ownerZhang: 'Zhang Wei'
+    },
+    achieve: {
+      title: 'Reporting (YTD)',
+      onTime: 'On-time Rate',
+      monthly: 'Monthly',
+      quarterly: 'Quarterly'
+    },
+    upcoming: {
+      title: 'Upcoming',
+      d2: '2 days left',
+      d7: '7 days left',
+      d12: '12 days left'
+    },
+    inquiry: {
+      title: 'Inquiries',
+      add: '＋ Add Inquiry',
+      th: { id: 'ID', regulator: 'Regulator', subject: 'Subject', received: 'Received', replyDue: 'Reply Due', replyLog: 'Reply Record', status: 'Status' },
+      regPboc: 'PBOC',
+      regCac: 'CAC',
+      regNafr: 'NAFR',
+      subjLargeTxn: 'Inquiry on large-transaction monitoring',
+      subjPiExport: 'Statement on PI export',
+      subjOutsource: 'Outsourcing risk management status',
+      stReplyDrafting: 'Drafting Reply',
+      stReplied: 'Replied · Logged',
+      stAwaitFeedback: 'Awaiting Feedback',
+      stClosed: 'Closed'
+    },
+    penalty: {
+      title: 'Penalty & Talk Register',
+      add: '＋ Register',
+      th: { id: 'ID', type: 'Type', regulator: 'Regulator', reason: 'Reason', date: 'Date', remediation: 'Remediation Req.', replyStatus: 'Reply Status' },
+      typeTalk: 'Talk',
+      typePenalty: 'Penalty',
+      regPboc: 'PBOC',
+      regLocalPboc: 'Local PBOC',
+      reasonKyc: 'Merchant KYC not fully implemented',
+      reasonReserve: 'Reserve-fund management violation',
+      remed30d: 'Remediate & report within 30 days',
+      remedFine: 'Time-bound remediation + fine',
+      stRemediating: 'Remediating · Reply Due',
+      stRepliedClosed: 'Replied · Closed'
+    },
+    major: {
+      info: 'Major risk/security incidents must be reported within regulatory deadlines (e.g., PBOC major-incident reporting); manage deadlines, versions and receipts here.',
+      emptyTitle: 'No major incidents this quarter',
+      emptyDesc: 'When a major incident occurs, file the regulatory report here and track the receipt; linked to incidents, remediation and evidence.'
+    },
+    plan: {
+      kpi: { total: 'Annual Items', done: 'Completed', doing: 'In Progress', overdue: 'Overdue' },
+      title: '2026 Annual Compliance Plan',
+      add: '＋ Add Item',
+      th: { item: 'Item', category: 'Category', dept: 'Owner Dept.', planDone: 'Target', progress: 'Progress', status: 'Status' },
+      itemMlps: 'MLPS L3 Assessment (PaySvc)',
+      itemPiTrain: 'Company-wide PI Protection Training',
+      itemAmlInspect: 'AML Special Inspection',
+      itemDataSelf: 'Data Security Compliance Self-Assessment',
+      catAssess: 'Assessment',
+      catTrain: 'Training',
+      catInspect: 'Inspection',
+      catSelf: 'Self-Assess',
+      deptInfosec: 'InfoSec Dept.',
+      deptCompliance: 'Compliance Dept.',
+      stDoing: 'In Progress',
+      stDone: 'Completed',
+      stOverdue: 'Overdue'
+    }
+  },
+
   // ---- Risk Assessment (M2, mirrors cockpit prototype #view-risk and drill-downs) ----
   risk: {
     tag: 'M2 · Risk Assessment',

@@ -257,6 +257,135 @@ export default {
     }
   },
 
+  // ---- 监管事项（M11，严格对齐驾驶舱版原型 #view-regaffairs）----
+  regaffairs: {
+    tag: '监管事项',
+    title: '监管事项',
+    register: '＋ 登记监管事项',
+    // 子公司分段
+    seg: { all: '集团', pay: '支付科技', consumer: '消费金融' },
+    // KPI 五卡
+    kpi: {
+      dueMonth: '本月待报送',
+      dueMonthSub: '2 项法定时限临近',
+      overdue: '逾期报送',
+      openInquiry: '未结问询',
+      penaltyOpen: '处罚整改未闭环',
+      majorReport: '重大事件报送',
+      majorReportSub: '本季'
+    },
+    // 五个 Tab
+    tab: {
+      calendar: '报送日历',
+      plan: '年度合规计划',
+      inquiry: '监管问询',
+      penalty: '处罚与约谈',
+      major: '重大事件报送'
+    },
+    // Tab1 · 报送日历
+    calendar: {
+      title: '监管报送日历',
+      sub: '法定时限',
+      th: { item: '报送事项', regulator: '监管机构', type: '类型', deadline: '法定时限', owner: '责任人', status: '状态' },
+      // 报送事项名称
+      itemPbocStat: '支付业务统计报表',
+      itemAml: '反洗钱报告',
+      itemPi: '个人信息保护合规报告',
+      itemReserve: '备付金存管报表',
+      // 监管机构
+      regPboc: '人民银行',
+      regAml: '反洗钱中心',
+      regCac: '网信办',
+      // 类型
+      typeMonthly: '月报',
+      typeQuarterly: '季报',
+      typeAnnual: '年报',
+      // 法定时限文案
+      due0705: '07-05（剩 2 天）',
+      // 状态
+      stDrafting: '编制中',
+      stToDraft: '待编制',
+      stSubmitted: '已报送',
+      // 责任人（avatar 取姓氏首字）
+      ownerChen: '陈强',
+      ownerLi: '李娜',
+      ownerWang: '王芳',
+      ownerZhang: '张伟'
+    },
+    // Tab1 右栏 · 报送达成
+    achieve: {
+      title: '报送达成（本年）',
+      onTime: '按时报送率',
+      monthly: '月报',
+      quarterly: '季报'
+    },
+    // Tab1 右栏 · 临近报送
+    upcoming: {
+      title: '临近报送',
+      d2: '剩 2 天',
+      d7: '剩 7 天',
+      d12: '剩 12 天'
+    },
+    // Tab2 · 监管问询
+    inquiry: {
+      title: '监管问询',
+      add: '＋ 登记问询',
+      th: { id: '编号', regulator: '监管机构', subject: '事项', received: '收文日', replyDue: '答复期限', replyLog: '答复留痕', status: '状态' },
+      regPboc: '人民银行',
+      regCac: '网信办',
+      regNafr: '金融监管总局',
+      subjLargeTxn: '大额交易监测机制问询',
+      subjPiExport: '个人信息出境情况说明',
+      subjOutsource: '外包风险管理情况',
+      stReplyDrafting: '答复编制中',
+      stReplied: '已答复·留痕',
+      stAwaitFeedback: '待监管反馈',
+      stClosed: '已办结'
+    },
+    // Tab3 · 处罚与约谈台账
+    penalty: {
+      title: '处罚与约谈台账',
+      add: '＋ 登记',
+      th: { id: '编号', type: '类型', regulator: '监管机构', reason: '事由', date: '日期', remediation: '整改要求', replyStatus: '回函状态' },
+      typeTalk: '约谈',
+      typePenalty: '行政处罚',
+      regPboc: '人民银行',
+      regLocalPboc: '属地央行',
+      reasonKyc: '商户实名制落实不到位',
+      reasonReserve: '备付金管理违规',
+      remed30d: '30 日内整改并报告',
+      remedFine: '限期整改+罚款',
+      stRemediating: '整改中·待回函',
+      stRepliedClosed: '已回函·监管办结'
+    },
+    // Tab4 · 重大事件报送
+    major: {
+      info: '重大风险/安全事件须按监管时限上报（如人民银行重大事件报告制度）；此处管理报送的时限、版本与回执留痕。',
+      emptyTitle: '本季无重大事件报送',
+      emptyDesc: '发生重大事件时，从此处发起监管报送并跟踪回执；与安全事件、整改、证据留痕联动。'
+    },
+    // Tab5 · 年度合规计划
+    plan: {
+      kpi: { total: '年度合规事项', done: '已完成', doing: '进行中', overdue: '逾期' },
+      title: '2026 年度合规计划',
+      add: '＋ 新增事项',
+      th: { item: '事项', category: '类别', dept: '责任部门', planDone: '计划完成', progress: '进度', status: '状态' },
+      itemMlps: '等保三级测评（支付科技）',
+      itemPiTrain: '全员个人信息保护培训',
+      itemAmlInspect: '反洗钱专项检查',
+      itemDataSelf: '数据安全合规自评',
+      catAssess: '测评',
+      catTrain: '培训',
+      catInspect: '检查',
+      catSelf: '自评',
+      deptInfosec: '信息安全部',
+      deptCompliance: '合规部',
+      stDoing: '进行中',
+      stDone: '已完成',
+      stOverdue: '逾期'
+    }
+  },
+
   // ---- 风险评估（M2，严格对齐驾驶舱版原型 #view-risk 及其下钻视图）----
   risk: {
     tag: 'M2 · 风险评估',
