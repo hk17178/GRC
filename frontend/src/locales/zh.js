@@ -573,16 +573,17 @@ export default {
     seg: { all: '全集团', pay: '支付科技', consumer: '消费金融', tech: '数科' },
     due: { pending: '待处理 {v}', overdue: '逾期 {v}' },
 
-    // KPI 指标卡（l=标题, s=辅助说明）
+    scaffoldNote: '上方 KPI 指标卡为真实后端跨模块汇总；下方热力矩阵 / 体系达成度为原型视觉示意（后端暂无该聚合）。',
+    // KPI 指标卡（l=标题, s=辅助说明）——接 /api/dashboard/summary 真实计数
     kpi: {
-      composite: { l: '综合风险指数', s: '构成与归因 →' },
-      highRisk: { l: '高风险项(未关闭)', s: '含逾期整改 12 项' },
-      remedRate: { l: '整改完成率', s: '本季关闭 184/234' },
-      kriBreach: { l: 'KRI 超阈值', s: '2 紧急·SIEM/日志/漏洞' },
-      signoff: { l: '制度签署确认率', s: '核心制度·未确认 312 人' },
-      delivery: { l: '通知送达率', s: '近30天4,182条·失败33' },
-      active: { l: '进行中评估/审计', s: '评估 14 · 审计 9' },
-      vendorHigh: { l: '供应商高风险', s: '1 起事件触发复评' }
+      openRisk: { l: '未关闭风险发现', s: '风险评估·处置中' },
+      gated: { l: '被门控发现', s: '残余高·未放行(CR-002)' },
+      kriWarn: { l: 'KRI 预警', s: '触及预警阈值' },
+      kriCrit: { l: 'KRI 严重', s: '达严重阈值·红线' },
+      openAudit: { l: '未关闭审计发现', s: '内/外审待闭环' },
+      pendingFiling: { l: '待报送', s: '未报送/复核中' },
+      effPolicy: { l: '现行有效制度', s: '已发布生效' },
+      pendingSod: { l: '待审批 SoD 豁免', s: '职责分离例外' }
     },
 
     // 热力矩阵

@@ -530,16 +530,17 @@ export default {
     seg: { all: 'Group', pay: 'Payment', consumer: 'Consumer Fin.', tech: 'Tech' },
     due: { pending: 'Pending {v}', overdue: 'Overdue {v}' },
 
-    // KPI cards (l=label, s=hint)
+    scaffoldNote: 'KPI cards above are live cross-module backend aggregates; the heat matrix / framework attainment below are prototype visual scaffolding (no backend aggregate yet).',
+    // KPI cards (l=label, s=hint) — bound to /api/dashboard/summary live counts
     kpi: {
-      composite: { l: 'Composite Risk Index', s: 'Breakdown & attribution →' },
-      highRisk: { l: 'Open High Risks', s: 'incl. 12 overdue remediation' },
-      remedRate: { l: 'Remediation Rate', s: 'Closed 184/234 this qtr' },
-      kriBreach: { l: 'KRI Breaches', s: '2 critical · SIEM/Log/Vuln' },
-      signoff: { l: 'Policy Sign-off Rate', s: 'Core policies · 312 unconfirmed' },
-      delivery: { l: 'Delivery Rate', s: '4,182 in 30d · 33 failed' },
-      active: { l: 'Active Assess./Audits', s: 'Assess 14 · Audit 9' },
-      vendorHigh: { l: 'High-Risk Vendors', s: '1 incident triggered re-assessment' }
+      openRisk: { l: 'Open Risk Findings', s: 'Risk assessment · in treatment' },
+      gated: { l: 'Gated Findings', s: 'High residual · not released (CR-002)' },
+      kriWarn: { l: 'KRI Warning', s: 'Warning threshold hit' },
+      kriCrit: { l: 'KRI Critical', s: 'Critical threshold · red-line' },
+      openAudit: { l: 'Open Audit Findings', s: 'Internal/external pending' },
+      pendingFiling: { l: 'Pending Filings', s: 'To-draft / under review' },
+      effPolicy: { l: 'Effective Policies', s: 'Published & effective' },
+      pendingSod: { l: 'Pending SoD Waivers', s: 'Segregation-of-duties exceptions' }
     },
 
     // heatmap

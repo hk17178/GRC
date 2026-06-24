@@ -72,6 +72,9 @@
         </div>
       </div>
 
+      <!-- 诚实标注：上方 KPI 卡为真实后端汇总；下方热力矩阵/体系达成度为原型视觉示意（后端暂无该聚合）。 -->
+      <div class="dash-note">{{ $t('dash.scaffoldNote') }}</div>
+
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
       <div class="dgrid">
         <!-- 子公司 × 风险域 · 热力矩阵（span 6 · 等宽列） -->
@@ -216,26 +219,47 @@
 </template>
 
 <script setup>
-// 驾驶舱主页：结构/样式 1:1 取自原型，数值为原型静态示例值
-import { ref } from 'vue'
+// 驾驶舱主页：视觉/样式 1:1 取自原型；KPI 指标卡接真实后端 /api/dashboard/summary（按域汇总）。
+// 热力矩阵 / 体系达成度等分析图为原型视觉示意（后端暂无该聚合，标注示意，不臆造）。
+import { ref, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import { api } from '@/api/client.js'
 
 // ---- 子公司分段切换（页头右侧 seg）----
 const segs = ['all', 'pay', 'consumer', 'tech']
 const activeSeg = ref(0)
 
-// ---- KPI 指标卡组（8 张，原型 kpibar 顺序与配色一致）----
-// vColor/bar 直接引用 tokens.css 语义令牌；pct 为进度条宽度
-const kpis = [
-  { key: 'composite', v: '62.4', delta: '▲3.1', deltaDir: 'dn', pct: 62, bar: 'var(--warning)' },
-  { key: 'highRisk', v: '37', delta: '▲5', deltaDir: 'dn', vColor: 'var(--danger)', pct: 48, bar: 'var(--danger)' },
-  { key: 'remedRate', v: '78.6', suffix: '%', delta: '▲4.2', deltaDir: 'up', vColor: 'var(--success)', pct: 78, bar: 'var(--success)' },
-  { key: 'kriBreach', v: '6', suffix: '/24', vColor: 'var(--warning)', pct: 25, bar: 'var(--warning)' },
-  { key: 'signoff', v: '91.3', suffix: '%', vColor: 'var(--info)', pct: 91, bar: 'var(--info)' },
-  { key: 'delivery', v: '99.2', suffix: '%', vColor: 'var(--success)', pct: 99, bar: 'var(--success)' },
-  { key: 'active', v: '23', pct: 40, bar: 'var(--accent)' },
-  { key: 'vendorHigh', v: '4', delta: '▲1', deltaDir: 'dn', vColor: 'var(--danger)', pct: 33, bar: 'var(--danger)' }
-]
+// ---- 合规态势汇总（真实后端：跨模块按可见组织计数）----
+const summary = ref(null)
+const loadError = ref('')
+onMounted(async () => {
+  try {
+    summary.value = await api.get('/dashboard/summary')
+  } catch (e) {
+    loadError.value = e.message
+  }
+})
+const dv = (x) => (summary.value ? x : '—')        // 未加载到则诚实显「—」
+const pct = (x) => (x == null ? 0 : Math.min(x * 12, 100)) // 进度条宽度（装饰，按计数缩放封顶）
+
+// ---- KPI 指标卡组（8 张，保留原型卡片视觉；数值全部接真实汇总）----
+const kpis = computed(() => {
+  const r = summary.value?.risk || {}
+  const a = summary.value?.audit || {}
+  const g = summary.value?.regulatory || {}
+  const p = summary.value?.policy || {}
+  const m = summary.value?.permission || {}
+  return [
+    { key: 'openRisk', v: dv(r.openFindings), bar: 'var(--accent)', pct: pct(r.openFindings) },
+    { key: 'gated', v: dv(r.gatedFindings), vColor: 'var(--danger)', bar: 'var(--danger)', pct: pct(r.gatedFindings) },
+    { key: 'kriWarn', v: dv(r.kriWarning), vColor: 'var(--warning)', bar: 'var(--warning)', pct: pct(r.kriWarning) },
+    { key: 'kriCrit', v: dv(r.kriCritical), vColor: 'var(--danger)', bar: 'var(--danger)', pct: pct(r.kriCritical) },
+    { key: 'openAudit', v: dv(a.openFindings), bar: 'var(--accent)', pct: pct(a.openFindings) },
+    { key: 'pendingFiling', v: dv(g.pendingFilings), vColor: 'var(--warning)', bar: 'var(--warning)', pct: pct(g.pendingFilings) },
+    { key: 'effPolicy', v: dv(p.effective), vColor: 'var(--info)', bar: 'var(--info)', pct: pct(p.effective) },
+    { key: 'pendingSod', v: dv(m.pendingSodExceptions), vColor: 'var(--warning)', bar: 'var(--warning)', pct: pct(m.pendingSodExceptions) }
+  ]
+})
 
 // ---- 热力矩阵：风险域列（等宽）与子公司行 ----
 const heatDomains = ['infosec', 'data', 'continuity', 'thirdparty', 'reg', 'control']
@@ -731,5 +755,16 @@ const feed = [
 .feed .tx {
   font-size: 12px;
   line-height: 1.45;
+}
+/* 诚实标注条：区分真实 KPI 与原型示意分析图 */
+.dash-note {
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--info-tint, rgba(40, 90, 150, 0.08));
+  border: 1px solid var(--surface-border);
+  border-left: 3px solid var(--info, #3a6ea5);
+  border-radius: var(--radius-md);
 }
 </style>
