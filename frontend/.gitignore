@@ -1,0 +1,17 @@
+# 依赖与构建产物
+node_modules
+dist
+dist-ssr
+
+# 本地与日志
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# 编辑器
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea

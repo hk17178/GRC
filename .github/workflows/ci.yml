@@ -1,7 +1,6 @@
 # CI 流水线：每次 push / PR 自动构建并跑测试，红则不合并。
 # 落实 D2-5 §四「测试跑绿才提交」。后端用 Testcontainers 起真实 PG 跑隔离等红线用例
-# （GitHub 托管 Runner 内置 Docker，Testcontainers 可用）。
-# 前端 CI 将随 frontend/ 工程创建时补充。
+# （GitHub 托管 Runner 内置 Docker，Testcontainers 可用）；前端跑构建（组件测试随 Vitest 接入后补）。
 name: CI
 
 on:
@@ -24,6 +23,27 @@ jobs:
           java-version: '17'
           cache: maven
 
-      - name: 构建并测试（含 Testcontainers 隔离红线用例）
+      - name: 构建并测试（含 Testcontainers 隔离/留痕/调度/制度 红线用例）
         working-directory: backend
         run: mvn -B verify
+
+  frontend:
+    name: 前端构建（npm ci & build）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: 安装依赖
+        working-directory: frontend
+        run: npm ci
+
+      - name: 构建（严格复原原型的 Vue 工程须可构建）
+        working-directory: frontend
+        run: npm run build
