@@ -1,6 +1,9 @@
 package com.mandao.grc.modules.assessment;
 
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -25,16 +28,23 @@ import java.util.List;
 @Service
 public class RiskFindingService {
 
+    /** 风险接受审批的业务类型与审批候选组（Flowable）。 */
+    public static final String ACCEPT_BIZ_TYPE = "RISK_ACCEPTANCE";
+    public static final String ACCEPT_APPROVER_GROUP = "RISK_ACCEPT_APPROVER";
+
     private final RiskFindingRepository findingRepository;
     private final RiskAcceptanceRepository acceptanceRepository;
     private final HashChainService hashChainService;
+    private final WorkflowService workflowService;
 
     public RiskFindingService(RiskFindingRepository findingRepository,
                               RiskAcceptanceRepository acceptanceRepository,
-                              HashChainService hashChainService) {
+                              HashChainService hashChainService,
+                              WorkflowService workflowService) {
         this.findingRepository = findingRepository;
         this.acceptanceRepository = acceptanceRepository;
         this.hashChainService = hashChainService;
+        this.workflowService = workflowService;
     }
 
     /** 列出某评估下的全部风险发现（受 RLS 裁剪）。 */
@@ -102,24 +112,66 @@ public class RiskFindingService {
     }
 
     /**
-     * 接受风险：登记一条 risk_acceptance 并回填 finding.risk_acceptance_id。
-     * 这是高残余风险得以关闭的放行凭据（CR-002 门控的"放行"侧）。
+     * 申请风险接受（A2 审批化）：登记一条 PENDING 接受并启动 Flowable 审批流，【暂不放行】
+     * ——不回填 finding.risk_acceptance_id，故 CR-002 门控对关闭仍生效。审批通过后才放行。
      *
-     * @param approver 接受审批人
-     * @param reason   接受理由
+     * 防重：已有有效（已通过）接受、或已有进行中的接受审批，均拒绝重复申请（亦避免 businessKey 冲突）。
+     *
+     * @param requester 申请人
+     * @param reason    接受理由
      */
     @Transactional
-    public RiskAcceptance accept(Long findingId, String approver, String reason, String actor) {
+    public RiskAcceptance requestAcceptance(Long findingId, String requester, String reason, String actor) {
         RiskFinding f = get(findingId);
-        RiskAcceptance acceptance = new RiskAcceptance(f.getOrgId(), f.getId(), approver, reason);
+        if (f.getRiskAcceptanceId() != null) {
+            throw new IllegalStateException("风险发现 id=" + findingId + " 已有有效风险接受，无需重复申请");
+        }
+        if (workflowService.activeTask(ACCEPT_BIZ_TYPE, f.getId()) != null) {
+            throw new IllegalStateException("风险发现 id=" + findingId + " 已有待审批的风险接受申请");
+        }
+        RiskAcceptance acceptance = new RiskAcceptance(f.getOrgId(), f.getId(), requester, reason); // PENDING
         RiskAcceptance saved = acceptanceRepository.save(acceptance);
-        // 回填放行凭据
-        f.setRiskAcceptanceId(saved.getId());
-        findingRepository.save(f);
-        hashChainService.append(f.getOrgId(), "FINDING_ACCEPT", actor,
-                "FINDING:" + f.getId(),
-                "接受风险 approver=" + approver + " acceptanceId=" + saved.getId());
+        appendLog(f, "RISK_ACCEPT_REQUEST", actor,
+                "申请风险接受 requester=" + requester + " acceptanceId=" + saved.getId());
+        // 启动审批流（与申请登记同事务原子）。审批人按候选组 RISK_ACCEPT_APPROVER 派单。
+        workflowService.submit(ACCEPT_BIZ_TYPE, f.getId(), f.getOrgId(), ACCEPT_APPROVER_GROUP, actor);
         return saved;
+    }
+
+    /**
+     * 审批风险接受申请（A2 审批化核心，CR-002 放行侧）：
+     * 定位该发现进行中的接受审批任务 → {@link WorkflowService#decide} 完成（推进流程 + 审批留痕）→
+     * 通过则置 acceptance=APPROVED 并【回填 finding.risk_acceptance_id（门控解除）】；驳回则置 REJECTED、不放行。
+     * 审批与放行回填【同事务原子】。
+     *
+     * @param decision 审批结论（通过/驳回）
+     * @param approver 审批人（留痕 actor）
+     * @param comment  审批意见（驳回原因，可空）
+     */
+    @Transactional
+    public RiskAcceptance decideAcceptance(Long findingId, ApprovalDecision decision, String approver, String comment) {
+        RiskFinding f = get(findingId);
+        RiskAcceptance acceptance = acceptanceRepository
+                .findFirstByFindingIdAndStatusOrderByIdDesc(f.getId(), AcceptanceStatus.PENDING)
+                .orElseThrow(() -> new IllegalStateException("风险发现 id=" + findingId + " 无待审批的风险接受申请"));
+        Task task = workflowService.activeTask(ACCEPT_BIZ_TYPE, f.getId());
+        if (task == null) {
+            throw new IllegalStateException("风险发现 id=" + findingId + " 无进行中的风险接受审批任务");
+        }
+        // 先完成审批任务，再据结论放行/驳回——同事务，一致提交/回滚。
+        workflowService.decide(task.getId(), decision, approver, comment);
+        if (decision == ApprovalDecision.APPROVED) {
+            acceptance.approve(approver);
+            f.setRiskAcceptanceId(acceptance.getId()); // 回填放行凭据 → CR-002 门控解除
+            findingRepository.save(f);
+            appendLog(f, "RISK_ACCEPT_APPROVE", approver,
+                    "风险接受通过，放行凭据 acceptanceId=" + acceptance.getId());
+        } else {
+            acceptance.reject(approver);
+            appendLog(f, "RISK_ACCEPT_REJECT", approver,
+                    "风险接受驳回：" + (comment == null ? "" : comment));
+        }
+        return acceptanceRepository.save(acceptance);
     }
 
     /**

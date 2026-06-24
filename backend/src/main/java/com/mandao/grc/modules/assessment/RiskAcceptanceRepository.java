@@ -3,6 +3,7 @@ package com.mandao.grc.modules.assessment;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 风险接受仓储。
@@ -13,4 +14,7 @@ public interface RiskAcceptanceRepository extends JpaRepository<RiskAcceptance, 
 
     /** 列出某风险发现的全部风险接受记录（仍受 RLS 裁剪）。 */
     List<RiskAcceptance> findByFindingId(Long findingId);
+
+    /** 取某风险发现指定状态、最新的一条接受记录（用于审批处置时定位 PENDING 申请）。 */
+    Optional<RiskAcceptance> findFirstByFindingIdAndStatusOrderByIdDesc(Long findingId, AcceptanceStatus status);
 }

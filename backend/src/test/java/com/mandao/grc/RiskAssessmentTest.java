@@ -11,6 +11,9 @@ import com.mandao.grc.modules.assessment.RiskFindingStatus;
 import com.mandao.grc.modules.assessment.RiskLevel;
 import com.mandao.grc.modules.audit.ChainVerifyResult;
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import org.flowable.engine.HistoryService;
+import org.flowable.engine.RuntimeService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -31,6 +34,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -75,6 +79,12 @@ class RiskAssessmentTest {
     @Autowired
     private HashChainService hashChainService;
 
+    @Autowired
+    private RuntimeService runtimeService;
+
+    @Autowired
+    private HistoryService historyService;
+
     private static final long ORG_PAY = 12L;   // 支付子公司
     private static final long ORG_CF = 13L;     // 消费金融
 
@@ -92,6 +102,12 @@ class RiskAssessmentTest {
             // 清除 Service 新建的评估（id >= 1000），保留 V1 手工种子（101/102/201/202）。
             s.executeUpdate("DELETE FROM assessment WHERE id >= 1000");
         }
+        // 清理 Flowable 运行态/历史：finding id 因 RESTART IDENTITY 跨用例复用，会使
+        // 风险接受审批 businessKey(RISK_ACCEPTANCE:{findingId}) 跨用例碰撞，须净化（生产 id 全局唯一无此问题）。
+        runtimeService.createProcessInstanceQuery().list()
+                .forEach(pi -> runtimeService.deleteProcessInstance(pi.getId(), "用例重置"));
+        historyService.createHistoricProcessInstanceQuery().list()
+                .forEach(hpi -> historyService.deleteHistoricProcessInstance(hpi.getId()));
     }
 
     @AfterEach
@@ -140,8 +156,14 @@ class RiskAssessmentTest {
         assertThrows(RiskCloseGateException.class,
                 () -> runAsOrg(ORG_PAY, () -> findingService.close(fid, false, "assessor1")));
 
-        // 补登记风险接受（回填 risk_acceptance_id）
-        asOrg(ORG_PAY, () -> findingService.accept(fid, "ciso", "残余可接受，纳入持续监控", "ciso"));
+        // 申请风险接受（PENDING，尚未放行）——审批化后，仅申请不足以放行，门控仍应拦截关闭
+        asOrg(ORG_PAY, () -> findingService.requestAcceptance(fid, "owner1", "残余可接受，纳入持续监控", "owner1"));
+        assertThrows(RiskCloseGateException.class,
+                () -> runAsOrg(ORG_PAY, () -> findingService.close(fid, false, "assessor1")),
+                "仅申请未经审批通过时，门控仍应拦截关闭");
+
+        // 审批通过 → 回填放行凭据，CR-002 门控解除
+        asOrg(ORG_PAY, () -> findingService.decideAcceptance(fid, ApprovalDecision.APPROVED, "ciso", "同意接受"));
 
         // 放行：现可关闭到 DONE
         assertEquals(RiskFindingStatus.DONE,
@@ -197,6 +219,25 @@ class RiskAssessmentTest {
         assertTrue(cfView.isEmpty(), "org13 不应看到 org12 的风险发现");
     }
 
+    @Test
+    void 风险接受审批驳回_门控保持不可关闭() {
+        Long aid = asOrg(ORG_PAY, () ->
+                assessmentService.create(ORG_PAY, "驳回评估", "a", "2026Q2", "creator").getId());
+        Long fid = asOrg(ORG_PAY, () ->
+                findingService.createFinding(ORG_PAY, aid, "高残余项", RiskLevel.VERY_HIGH, "a").getId());
+        asOrg(ORG_PAY, () -> findingService.setResidual(fid, RiskLevel.VERY_HIGH, "a"));
+
+        // 申请接受 → 审批驳回（不放行）
+        asOrg(ORG_PAY, () -> findingService.requestAcceptance(fid, "owner1", "申请接受", "owner1"));
+        asOrg(ORG_PAY, () -> findingService.decideAcceptance(fid, ApprovalDecision.REJECTED, "ciso", "残余过高不予接受"));
+
+        // 驳回后未回填放行凭据 → CR-002 门控仍拦截关闭
+        assertThrows(RiskCloseGateException.class,
+                () -> runAsOrg(ORG_PAY, () -> findingService.close(fid, false, "a")));
+        RiskFinding f = asOrg(ORG_PAY, () -> findingService.get(fid));
+        assertNull(f.getRiskAcceptanceId(), "驳回后不应回填放行凭据");
+    }
+
     // ---------- 留痕 ----------
 
     @Test
@@ -207,12 +248,14 @@ class RiskAssessmentTest {
         Long fid = asOrg(ORG_PAY, () ->
                 findingService.createFinding(ORG_PAY, aid, "f", RiskLevel.HIGH, "a").getId()); // FINDING_CREATE = 2
         asOrg(ORG_PAY, () -> findingService.setResidual(fid, RiskLevel.HIGH, "a"));            // FINDING_RESIDUAL = 3
-        asOrg(ORG_PAY, () -> findingService.accept(fid, "ciso", "ok", "ciso"));               // FINDING_ACCEPT = 4
-        asOrg(ORG_PAY, () -> findingService.close(fid, false, "a"));                          // FINDING_CLOSE = 5
+        // 接受审批两段：申请(RISK_ACCEPT_REQUEST + WORKFLOW_SUBMIT) → 通过(WORKFLOW_DECIDE + RISK_ACCEPT_APPROVE)
+        asOrg(ORG_PAY, () -> findingService.requestAcceptance(fid, "owner1", "ok", "owner1"));   // 4,5
+        asOrg(ORG_PAY, () -> findingService.decideAcceptance(fid, ApprovalDecision.APPROVED, "ciso", "ok")); // 6,7
+        asOrg(ORG_PAY, () -> findingService.close(fid, false, "a"));                          // FINDING_CLOSE = 8
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");
-        assertEquals(5, r.count(), "应有 5 条 M2 操作留痕");
+        assertEquals(8, r.count(), "应有 8 条 M2 操作留痕（含接受审批两段 + 工作流两条）");
     }
 
     // ---------- 测试辅助：在指定 org 可见上下文中执行 ----------

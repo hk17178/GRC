@@ -109,15 +109,18 @@ class RiskCloseGateWebTest {
     }
 
     @Test
-    void 门控_登记风险接受后再关闭_HTTP返回200且状态变DONE() throws Exception {
+    void 门控_风险接受审批通过后再关闭_HTTP返回200且状态变DONE() throws Exception {
         Long fid = createFinding(101L, "数据出境无评估", "VERY_HIGH");
         setResidual(fid, "VERY_HIGH");
 
-        // 登记风险接受（放行凭据）
-        mockMvc.perform(post("/api/risk-findings/{id}/accept", fid)
+        // 申请风险接受（PENDING，尚未放行）→ 审批通过（回填放行凭据）
+        mockMvc.perform(post("/api/risk-findings/{id}/request-acceptance", fid)
                         .header("X-User", USER)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"approver\":\"ciso\",\"reason\":\"残余可接受，纳入持续监控\"}"))
+                        .content("{\"reason\":\"残余可接受，纳入持续监控\"}"))
+                .andReturn();
+        mockMvc.perform(post("/api/risk-findings/{id}/accept-approve", fid)
+                        .header("X-User", USER))
                 .andReturn();
 
         // 放行后 close → 断言 200 且状态 DONE

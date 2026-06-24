@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.assessment;
 
+import com.mandao.grc.modules.workflow.ApprovalDecision;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -65,12 +66,31 @@ public class RiskFindingController {
         return service.setResidual(id, req.residualLevel(), actor(user));
     }
 
-    /** 接受风险（登记 risk_acceptance 并回填）——高残余关闭的放行凭据。 */
-    @PostMapping("/{id}/accept")
-    public RiskAcceptance accept(@PathVariable Long id,
-                                 @RequestBody AcceptRequest req,
-                                 @RequestHeader(value = "X-User", required = false) String user) {
-        return service.accept(id, req.approver(), req.reason(), actor(user));
+    /**
+     * 申请风险接受（A2 审批化）：登记 PENDING 接受并启动审批流，暂不放行（门控仍生效）。
+     * 申请人取 X-User。
+     */
+    @PostMapping("/{id}/request-acceptance")
+    public RiskAcceptance requestAcceptance(@PathVariable Long id,
+                                            @RequestBody(required = false) RequestAcceptanceRequest req,
+                                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.requestAcceptance(id, actor(user), req == null ? null : req.reason(), actor(user));
+    }
+
+    /** 审批通过风险接受：回填放行凭据 → CR-002 门控解除。审批人取 X-User。 */
+    @PostMapping("/{id}/accept-approve")
+    public RiskAcceptance acceptApprove(@PathVariable Long id,
+                                        @RequestBody(required = false) DecideRequest req,
+                                        @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideAcceptance(id, ApprovalDecision.APPROVED, actor(user), req == null ? null : req.comment());
+    }
+
+    /** 审批驳回风险接受：不放行（门控保持）。审批人取 X-User。 */
+    @PostMapping("/{id}/accept-reject")
+    public RiskAcceptance acceptReject(@PathVariable Long id,
+                                       @RequestBody(required = false) DecideRequest req,
+                                       @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideAcceptance(id, ApprovalDecision.REJECTED, actor(user), req == null ? null : req.comment());
     }
 
     /**
@@ -100,7 +120,11 @@ public class RiskFindingController {
     public record ResidualRequest(RiskLevel residualLevel) {
     }
 
-    /** 风险接受请求体。 */
-    public record AcceptRequest(String approver, String reason) {
+    /** 申请风险接受请求体（理由可选）。 */
+    public record RequestAcceptanceRequest(String reason) {
+    }
+
+    /** 审批处置请求体（意见/驳回原因可选）。 */
+    public record DecideRequest(String comment) {
     }
 }

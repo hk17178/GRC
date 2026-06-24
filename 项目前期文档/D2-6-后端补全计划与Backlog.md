@@ -47,7 +47,11 @@
 - [ ] 版本管理与差异（version/diff、生效/废止）
 
 ### A2 · M2 风险评估
-- [ ] 风险接受走 Flowable 审批（与 CR-002 关闭门控衔接：审批通过才回填 acceptance）
+- [x] 风险接受走 Flowable 审批 —— ✅ 改「申请→审批」两段式：申请置 PENDING 不放行，审批**通过才回填**
+  finding.risk_acceptance_id（CR-002 门控解除），驳回不放行。红线更硬（高残余关闭须经审批通过的接受）。
+  RiskAssessmentTest 8/8（含"申请后未审批仍拦截""驳回门控保持""留痕 8 条"）、RiskCloseGateWebTest 2/2 绿。
+  ⚠️ 前端 CR-002「登记风险接受」按钮调旧 /accept，已改为 /request-acceptance + /accept-approve 两步，
+     需 Phase D 重接（当前 grc-int-app 该按钮会 404，属 backend-first 预期）。
 - [ ] KRI 监控（指标/阈值/触发）
 - [ ] 模板库、统一控件库、A-T-V（资产-威胁-脆弱）关联、评估-控件复用
 
