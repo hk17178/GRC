@@ -30,7 +30,36 @@
           <h1>{{ $t('risk.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <button class="btn">{{ $t('risk.newAssess') }}</button>
+        <button class="btn" @click="openCreate">{{ $t('risk.newAssess') }}</button>
+      </div>
+
+      <!-- 登记弹窗：发起评估 → POST /api/assessments → 刷新列表（端到端写） -->
+      <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
+        <div class="modal-card">
+          <h3>{{ $t('risk.newAssess') }}</h3>
+          <label class="fld">{{ $t('risk.create.obj') }}
+            <input v-model="form.title" :placeholder="$t('risk.create.objPh')" />
+          </label>
+          <label class="fld">{{ $t('risk.create.assessor') }}
+            <input v-model="form.assessor" />
+          </label>
+          <label class="fld">{{ $t('risk.create.period') }}
+            <input v-model="form.period" placeholder="2026Q2" />
+          </label>
+          <label class="fld">{{ $t('risk.create.org') }}
+            <select v-model="form.orgId">
+              <option :value="12">{{ $t('risk.create.orgPay') }}</option>
+              <option :value="13">{{ $t('risk.create.orgConsumer') }}</option>
+            </select>
+          </label>
+          <p v-if="createError" class="cerr">{{ createError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showCreate = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!form.title || saving" @click="submitCreate">
+              {{ saving ? $t('common.submitting') : $t('risk.create.confirm') }}
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- ===== Tab 切换 ===== -->
@@ -418,7 +447,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
@@ -441,6 +470,38 @@ onMounted(async () => {
     loadError.value = e.message
   }
 })
+
+// ---- 发起评估：登记弹窗 → POST /api/assessments → 刷新列表 ----
+const showCreate = ref(false)
+const saving = ref(false)
+const createError = ref('')
+const form = reactive({ title: '', assessor: '', period: '', orgId: 12 })
+function openCreate() {
+  form.title = ''
+  form.assessor = ''
+  form.period = ''
+  form.orgId = 12
+  createError.value = ''
+  showCreate.value = true
+}
+async function submitCreate() {
+  saving.value = true
+  createError.value = ''
+  try {
+    await api.post('/assessments', {
+      orgId: form.orgId,
+      title: form.title,
+      assessor: form.assessor || null,
+      period: form.period || null
+    })
+    liveTasks.value = await api.get('/assessments') // 创建后刷新列表
+    showCreate.value = false
+  } catch (e) {
+    createError.value = e.message
+  } finally {
+    saving.value = false
+  }
+}
 // 五级风险等级 → 既有 levelDist 样式键 / i18n 标签键
 const LEVEL_KEY = { VERY_HIGH: 'vh', HIGH: 'h', MID: 'm', LOW: 'l', VERY_LOW: 'vl' }
 const riskCls = (lv) => LEVEL_KEY[lv] || 'm'
@@ -1012,5 +1073,71 @@ tbody tr.clk {
 /* ---- 朱砂 t-gov 表头底色（用更具体的 .view-risk 限定，避免污染其它页）---- */
 :global(body.t-gov .view-risk thead th) {
   background: var(--accent-tint);
+}
+
+/* ---- 登记弹窗（发起评估）---- */
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+.modal-card {
+  width: 420px;
+  max-width: 92vw;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: 22px 24px;
+}
+.modal-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+  color: var(--text-1);
+}
+.modal-card .fld {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text-2);
+  margin-bottom: 12px;
+}
+.modal-card .fld input,
+.modal-card .fld select {
+  display: block;
+  width: 100%;
+  height: 38px;
+  margin-top: 5px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+}
+.modal-card .cerr {
+  color: var(--danger);
+  font-size: 12.5px;
+  margin: 0 0 12px;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 8px;
+}
+.btn.ghost {
+  background: var(--bg);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.btn[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 </style>

@@ -13,7 +13,9 @@ export default {
     rememberMe: 'Remember me',
     forgotPwd: 'Forgot password?',
     password: 'Password',
-    captcha: 'Captcha'
+    captcha: 'Captcha',
+    cancel: 'Cancel',
+    submitting: 'Submitting…'
   },
 
   // ---- five themes ----
@@ -375,6 +377,8 @@ export default {
     tag: 'M2 · Risk Assessment',
     title: 'Risk Assessment Loop',
     newAssess: '＋ New Assessment',
+    // new-assessment dialog
+    create: { obj: 'Assessment Object', objPh: 'e.g. Core Payment Gateway MLPS self-assessment', assessor: 'Assessor', period: 'Period', org: 'Organization', orgPay: 'Payment Co.', orgConsumer: 'Consumer Finance', confirm: 'Create' },
     tab: {
       tasks: 'Assessments',
       templates: 'Templates',

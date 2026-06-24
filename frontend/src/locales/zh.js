@@ -13,7 +13,9 @@ export default {
     rememberMe: '记住我',
     forgotPwd: '忘记密码？',
     password: '密码',
-    captcha: '验证码'
+    captcha: '验证码',
+    cancel: '取消',
+    submitting: '提交中…'
   },
 
   // ---- 五主题名称（与 tokens.css / 原型主题选择器一致）----
@@ -411,6 +413,8 @@ export default {
     tag: 'M2 · 风险评估',
     title: '风险评估闭环',
     newAssess: '＋ 发起评估',
+    // 发起评估弹窗
+    create: { obj: '评估对象', objPh: '如：核心支付网关等保自评', assessor: '评估人', period: '评估周期', org: '归属组织', orgPay: '支付科技', orgConsumer: '消费金融', confirm: '确认发起' },
     // 顶部 Tab
     tab: {
       tasks: '评估任务',
