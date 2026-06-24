@@ -88,13 +88,101 @@ export default {
     searchPlaceholder: '搜索…（试试 TLS1.1）'
   },
 
-  // ---- 仪表盘占位页 ----
+  // ---- 仪表盘外壳（面包屑等）----
   dashboard: {
     crumb: '概览',
-    crumbCurrent: '合规态势总览',
+    crumbCurrent: '合规态势总览'
+  },
+
+  // ---- 子公司名（热力矩阵 / 整改率共用）----
+  'dash.sub.hq': '集团总部',
+  'dash.sub.pay': '支付子公司',
+  'dash.sub.consumer': '消费金融',
+  'dash.sub.wealth': '财富管理',
+  'dash.sub.tech': '数科子公司',
+  'dash.sub.factoring': '保理子公司',
+
+  // ---- 驾驶舱主页 ----
+  dash: {
+    overviewTag: 'Group Overview · 2026 Q2',
     title: '合规态势',
     subtitle: '全集团 · 数据截至 06-22 09:00 · 准实时',
-    placeholder:
-      '仪表盘内容占位 —— 后续将按高保真原型「驾驶舱版」逐步复原 KPI、热力矩阵、KRI 监控等组件。'
+    editLayout: '编辑布局',
+    addWidget: '添加组件',
+    overdue: '逾期{n}',
+    seg: { all: '全集团', pay: '支付科技', consumer: '消费金融', tech: '数科' },
+    due: { pending: '待处理 {v}', overdue: '逾期 {v}' },
+
+    // KPI 指标卡（l=标题, s=辅助说明）
+    kpi: {
+      composite: { l: '综合风险指数', s: '构成与归因 →' },
+      highRisk: { l: '高风险项(未关闭)', s: '含逾期整改 12 项' },
+      remedRate: { l: '整改完成率', s: '本季关闭 184/234' },
+      kriBreach: { l: 'KRI 超阈值', s: '2 紧急·SIEM/日志/漏洞' },
+      signoff: { l: '制度签署确认率', s: '核心制度·未确认 312 人' },
+      delivery: { l: '通知送达率', s: '近30天4,182条·失败33' },
+      active: { l: '进行中评估/审计', s: '评估 14 · 审计 9' },
+      vendorHigh: { l: '供应商高风险', s: '1 起事件触发复评' }
+    },
+
+    // 热力矩阵
+    heat: {
+      title: '子公司 × 风险域 · 热力矩阵',
+      sub: '综合风险值 0–100',
+      domain: {
+        infosec: '信息安全',
+        data: '数据合规',
+        continuity: '业务连续',
+        thirdparty: '第三方',
+        reg: '监管合规',
+        control: '内控'
+      }
+    },
+
+    // 整改完成率 · 分子公司
+    remed: { title: '整改完成率 · 分子公司' },
+
+    // KRI 持续监控
+    kri: {
+      title: 'KRI 持续监控',
+      sub: 'SIEM/日志/漏洞',
+      item: {
+        vulnFix: { t: '高危漏洞修复时效(天)', src: '漏洞管理 · 阈值≤15', th: '超标 56%' },
+        privAcct: { t: '特权账号未审查数', src: 'SIEM · 阈值=0', th: '紧急' },
+        logRetain: { t: '日志留存周期(天)', src: '日志平台 · 阈值≥180', th: '达标' },
+        apiErr: { t: '第三方接口异常率', src: 'SIEM · 阈值≤0.5%', th: '超标' },
+        exportApprove: { t: '数据导出审批合规率', src: '日志平台 · 阈值≥99%', th: '正常' }
+      }
+    },
+
+    // 体系合规达成度
+    frame: { title: '体系合规达成度', sub: '控制点覆盖率' },
+
+    // 待我审批
+    approve: {
+      title: '待我审批',
+      all: '全部 {n} →',
+      type: { report: '报告签批', assess: '评估确认', policy: '制度发布', reassess: '复评审批' },
+      item: {
+        mlps: { t: '支付核心系统等保测评报告', m: '起敏 · 信息安全负责人' },
+        consumerForm: { t: '消费金融季度评估表单确认', m: '王建国 · 部门负责人' },
+        dataExit: { t: '《数据出境管理办法 v2.5》发布', m: '李强 · 制度发布审批人' },
+        reassess: { t: '云擎科技非计划性复评结论', m: '陈伟 · 集团管理层' }
+      }
+    },
+
+    // 实时事件流
+    feed: {
+      title: '重点关注 · 实时事件流',
+      yesterday: '昨日',
+      badge: { over: '逾期', kri: 'KRI', law: '法规', aud: '审计', rev: '复评' },
+      item: {
+        overdue: '支付子公司「特权账号定期审查」整改逾期 3 天，已升级至直属上级',
+        kri: '漏洞修复时效超阈值(23.4>15 天)，触发预警并推送运维负责人',
+        law: '人民银行发布支付机构监管条例实施细则，命中 4 条制度待复核',
+        audit: '消费金融 Q2 合规审计报告完成签批，发现 14 项已转整改',
+        review: '供应商「云擎科技」被曝数据泄露，自动触发非计划性复评任务'
+      }
+    }
   }
 }

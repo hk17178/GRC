@@ -77,12 +77,24 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 
-// 当前激活菜单（默认合规态势）
-const activeKey = ref('dashboard')
+const route = useRoute()
+const router = useRouter()
+
+// 菜单键 → 已实现路由名的映射（当前仅驾驶舱接入真实页面，其余为占位高亮）
+const ROUTE_BY_KEY = {
+  dashboard: 'dashboard'
+}
+
+// 当前激活菜单：优先按当前路由推断（驾驶舱页高亮"合规态势"），否则默认 dashboard
+const activeKey = computed(() => {
+  const hit = Object.keys(ROUTE_BY_KEY).find((k) => ROUTE_BY_KEY[k] === route.name)
+  return hit || 'dashboard'
+})
 
 // 菜单信息架构（对齐驾驶舱版原型 nav 分组与顺序）
 const menu = [
@@ -124,9 +136,12 @@ const menu = [
   }
 ]
 
-// 菜单点击：此版仅高亮（业务页后续接入路由）
+// 菜单点击：已接入路由的项跳转对应页面，其余仅停留（占位）
 function onNav(key) {
-  activeKey.value = key
+  const name = ROUTE_BY_KEY[key]
+  if (name && route.name !== name) {
+    router.push({ name })
+  }
 }
 </script>
 
@@ -135,6 +150,9 @@ function onNav(key) {
 .app {
   display: flex;
   min-height: 100vh;
+  /* 显式视口宽度：与 LoginView .login-root 同理——否则该 flex 根容器在整页加载时
+     会收缩到「侧栏宽度 + 主区 0」导致主区塌缩成窄条（默认主题下尤为明显）。 */
+  width: 100vw;
 }
 .side {
   width: 226px;
