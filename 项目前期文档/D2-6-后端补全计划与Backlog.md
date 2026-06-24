@@ -60,7 +60,11 @@
 - [x] 评估模板库 + 评估-控件复用 —— ✅ modules/assessment 增模板(框架/状态机 DRAFT→PUBLISHED→RETIRED)
   + 模板项(引用控件) + 实例化(→ 新建评估 + 评估项逐条拷贝含 control_id 复用) + 逐项评估(符合性结论)。
   发布/实例化门控；RLS 隔离 + 留痕。/api/assessment-templates + /api/assessment-items。TemplateLibraryTest 4/4 绿。
-- [ ] A-T-V（资产-威胁-脆弱）关联（衔接 M6 资产）
+- [x] A-T-V（资产-威胁-脆弱）—— ✅ 新模块 modules/atv：威胁库 + 脆弱性库 + 风险场景(资产×威胁×脆弱)，
+  固有等级由可能性×影响经风险矩阵派生平台五级；创建场景经 AssetService 校验资产可见(桥接 M6)；
+  组合判重、重评重算、越界校验；RLS 隔离 + 留痕。AtvRiskScenarioTest 5/5 绿。
+
+> **A2(M2 风险评估)全部完成**：风险接受审批 / KRI / 统一控件库 / 模板库+实例化 / A-T-V。
 
 ### A3 · M3 审计管理
 - [ ] 内部审计纳入（与外审共表或并列）
