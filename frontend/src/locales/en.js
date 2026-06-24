@@ -559,5 +559,129 @@ export default {
         review: 'Vendor "Yunqing Tech" reported data breach, unplanned re-assessment auto-triggered'
       }
     }
+  },
+
+  // ========================================================
+  // Org & Assets page (OrgAssetView · M6)
+  // Prototype #view-org: Org Structure / Asset Register / ROPA — 3 tabs
+  // ========================================================
+  orgasset: {
+    tag: 'M6 · Org & Assets',
+    title: 'Org & Asset Register',
+    adSync: 'AD sync',
+    register: '＋ Register Asset',
+    tab: {
+      org: 'Org Structure',
+      asset: 'Asset Register',
+      ropa: 'Processing Activities (ROPA)'
+    },
+    tree: {
+      title: 'Org Tree (AD sync)',
+      manualSync: 'Sync now',
+      hq: 'Group HQ',
+      payCo: 'PaySvc Subsidiary',
+      payDepts: 'R&D / Ops / Risk depts',
+      merchantCo: 'Merchant Svc Subsidiary',
+      dataCo: 'DataTech Subsidiary',
+      overseasCo: 'Overseas Subsidiary',
+      people128: '128 people',
+      people312: '312 people',
+      people256: '256 people',
+      people189: '189 people',
+      people98: '98 people'
+    },
+    adStatus: {
+      title: 'AD Sync Status',
+      lastSync: 'Last Sync',
+      lastSyncVal: 'Today 06:00',
+      users: 'Users Synced',
+      disabled: 'Disabled (Left)',
+      deprovision: 'Deprovision SLA',
+      deprovisionVal: '≤ sync cycle',
+      status: 'Status',
+      statusVal: 'Healthy'
+    },
+    kpi: {
+      total: 'Total Assets',
+      systems: 'Systems',
+      highCrit: 'High Criticality',
+      coverage: 'Assess. Coverage'
+    },
+    asset: {
+      title: 'Asset Register',
+      sub: 'with Data/Compliance Attrs',
+      th: {
+        id: 'ID',
+        name: 'Name',
+        type: 'Type',
+        dataClass: 'Data Class.',
+        pi: 'Personal Info',
+        crossBorder: 'Cross-border',
+        mlps: 'MLPS Level',
+        chd: 'CHD',
+        criticality: 'Criticality'
+      },
+      coreGw: 'Core Payment GW',
+      merchantSettle: 'Merchant Settlement',
+      crossClearing: 'Cross-border Clearing',
+      dataWarehouse: 'Data Warehouse',
+      yunqing: 'YunQing Tech',
+      typeSystem: 'Systems',
+      typeVendor: 'Vendor',
+      sensitive: 'Sensitive',
+      internal: 'Internal',
+      yes: 'Yes',
+      no: 'No',
+      l3: 'L3',
+      l2: 'L2',
+      high: 'High',
+      mid: 'Mid'
+    },
+    dist: {
+      title: 'Asset Type Dist.',
+      system: 'Systems',
+      process: 'Processes',
+      data: 'Data Assets',
+      vendor: 'Vendors'
+    },
+    ropa: {
+      title: 'Records of Processing (ROPA)',
+      sub: 'PIPL statutory register',
+      add: '＋ Add Activity',
+      th: {
+        activity: 'Activity',
+        purpose: 'Purpose',
+        piType: 'PI Type',
+        volume: 'Volume',
+        sensitive: 'Sensitive',
+        export: 'Cross-border',
+        retention: 'Retention',
+        owner: 'Owner'
+      },
+      merchantSettle: 'Merchant settlement',
+      crossClearing: 'Cross-border clearing',
+      riskModel: 'Risk modeling',
+      service: 'Customer follow-up',
+      clearing: 'Clearing & settlement',
+      crossPay: 'Cross-border payment',
+      antiFraud: 'Anti-fraud',
+      quality: 'Service quality',
+      idCard: 'Identity/Card number',
+      idTxn: 'Identity/Txn details',
+      deviceBehavior: 'Device/Behavior',
+      phoneCall: 'Phone/Call',
+      vMillion: 'Millions',
+      vHundredK: 'Hundred-thousands',
+      vTenMillion: 'Tens of millions',
+      y10: '10 years',
+      y5: '5 years',
+      y2: '2 years',
+      yes: 'Yes',
+      no: 'No',
+      ownerLi: 'Li Na',
+      ownerLiu: 'Liu Yang',
+      ownerWang: 'Wang Fang',
+      ownerChen: 'Chen Qiang'
+    }
   }
 }

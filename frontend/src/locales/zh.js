@@ -595,5 +595,147 @@ export default {
         review: '供应商「云擎科技」被曝数据泄露，自动触发非计划性复评任务'
       }
     }
+  },
+
+  // ========================================================
+  // 组织与资产页（OrgAssetView · M6）
+  // 对应原型 #view-org：组织架构 / 资产台账 / 个人信息处理活动(ROPA) 三 Tab
+  // ========================================================
+  orgasset: {
+    tag: 'M6 · 资产与组织',
+    title: '组织架构与资产台账',
+    adSync: 'AD 同步',
+    register: '＋ 登记资产',
+    // 三个 Tab
+    tab: {
+      org: '组织架构',
+      asset: '资产台账',
+      ropa: '个人信息处理活动(ROPA)'
+    },
+    // ---- Tab1 组织架构 ----
+    tree: {
+      title: '组织树（AD 同步）',
+      manualSync: '手动同步',
+      // 组织节点
+      hq: '集团总部',
+      payCo: '支付科技子公司',
+      payDepts: '研发部 / 运维部 / 风控部',
+      merchantCo: '商户服务子公司',
+      dataCo: '数据科技子公司',
+      overseasCo: '海外业务子公司',
+      // 人数后缀
+      people128: '128 人',
+      people312: '312 人',
+      people256: '256 人',
+      people189: '189 人',
+      people98: '98 人'
+    },
+    // AD 同步态势侧卡
+    adStatus: {
+      title: 'AD 同步态势',
+      lastSync: '最近同步',
+      lastSyncVal: '今天 06:00',
+      users: '同步用户',
+      disabled: '停用（离职）',
+      deprovision: '离职回收时效',
+      deprovisionVal: '≤同步周期',
+      status: '状态',
+      statusVal: '正常'
+    },
+    // ---- Tab2 资产台账 ----
+    kpi: {
+      total: '资产总数',
+      systems: '信息系统',
+      highCrit: '高重要性',
+      coverage: '评估覆盖率'
+    },
+    asset: {
+      title: '资产台账',
+      sub: '含数据/合规属性',
+      th: {
+        id: '编号',
+        name: '名称',
+        type: '类型',
+        dataClass: '数据分级',
+        pi: '个人信息',
+        crossBorder: '跨境',
+        mlps: '等保定级',
+        chd: '持卡人数据',
+        criticality: '重要性'
+      },
+      // 资产名称
+      coreGw: '核心支付网关',
+      merchantSettle: '商户结算系统',
+      crossClearing: '跨境清算接口',
+      dataWarehouse: '数据仓库平台',
+      yunqing: '云擎科技',
+      // 类型 pill
+      typeSystem: '信息系统',
+      typeVendor: '供应商',
+      // 分级 / 标识
+      sensitive: '敏感',
+      internal: '内部',
+      yes: '是',
+      no: '否',
+      l3: '三级',
+      l2: '二级',
+      high: '高',
+      mid: '中'
+    },
+    // 资产类型分布 bars
+    dist: {
+      title: '资产类型分布',
+      system: '信息系统',
+      process: '业务流程',
+      data: '数据资产',
+      vendor: '供应商'
+    },
+    // ---- Tab3 ROPA ----
+    ropa: {
+      title: '个人信息处理活动记录（ROPA）',
+      sub: 'PIPL 法定台账',
+      add: '＋ 新增活动',
+      th: {
+        activity: '处理活动',
+        purpose: '处理目的',
+        piType: '个人信息类型',
+        volume: '数据量级',
+        sensitive: '敏感',
+        export: '出境',
+        retention: '保留期',
+        owner: '责任人'
+      },
+      // 处理活动
+      merchantSettle: '商户结算',
+      crossClearing: '跨境清算',
+      riskModel: '风控建模',
+      service: '客服回访',
+      // 目的
+      clearing: '清算结算',
+      crossPay: '跨境支付',
+      antiFraud: '反欺诈',
+      quality: '服务质量',
+      // 个人信息类型
+      idCard: '身份/银行卡号',
+      idTxn: '身份/交易明细',
+      deviceBehavior: '设备/行为',
+      phoneCall: '手机号/通话',
+      // 量级
+      vMillion: '百万级',
+      vHundredK: '十万级',
+      vTenMillion: '千万级',
+      // 保留期
+      y10: '10 年',
+      y5: '5 年',
+      y2: '2 年',
+      // 是否
+      yes: '是',
+      no: '否',
+      // 责任人
+      ownerLi: '李娜',
+      ownerLiu: '刘洋',
+      ownerWang: '王芳',
+      ownerChen: '陈强'
+    }
   }
 }

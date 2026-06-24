@@ -13,6 +13,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import ExternalAuditView from '@/views/ExternalAuditView.vue'
 import RiskAssessmentView from '@/views/RiskAssessmentView.vue'
 import RegulatoryAffairsView from '@/views/RegulatoryAffairsView.vue'
+import OrgAssetView from '@/views/OrgAssetView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
@@ -24,7 +25,6 @@ const PLACEHOLDER_PAGES = [
   { path: '/policy', navKey: 'policy' },
   { path: '/ai-assistant', navKey: 'ai' },
   { path: '/vendor', navKey: 'vendor' },
-  { path: '/org', navKey: 'org' },
   { path: '/notify', navKey: 'notify' },
   { path: '/model-access', navKey: 'aimodel' },
   { path: '/permission', navKey: 'perm' },
@@ -64,6 +64,13 @@ const routes = [
     name: 'regaffairs',
     component: RegulatoryAffairsView,
     meta: { title: '监管事项', navKey: 'regaffairs' }
+  },
+  {
+    // 组织与资产（M6）：route name 维持 navKey 约定「org」，保证左侧菜单高亮 + 面包屑
+    path: '/org',
+    name: 'org',
+    component: OrgAssetView,
+    meta: { title: '组织与资产', navKey: 'org' }
   },
   // 其余菜单项的占位路由（统一用 PlaceholderView，route name 即 navKey）
   ...PLACEHOLDER_PAGES.map((p) => ({
