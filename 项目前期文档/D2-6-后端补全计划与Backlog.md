@@ -57,7 +57,10 @@
   RLS 隔离 + 哈希链留痕；/api/kris CRUD+测量。KriMonitoringTest 4/4 绿。
 - [x] 统一控件库 —— ✅ 新模块 modules/control：控制项 + 一控多框架映射(MLPS/ISO27001/PCI_DSS/PBOC)，
   同框架同条款判重、停用状态机；RLS 隔离 + 留痕。/api/controls CRUD+映射+停用。ControlLibraryTest 4/4 绿。
-- [ ] 评估模板库、A-T-V（资产-威胁-脆弱）关联、评估-控件复用
+- [x] 评估模板库 + 评估-控件复用 —— ✅ modules/assessment 增模板(框架/状态机 DRAFT→PUBLISHED→RETIRED)
+  + 模板项(引用控件) + 实例化(→ 新建评估 + 评估项逐条拷贝含 control_id 复用) + 逐项评估(符合性结论)。
+  发布/实例化门控；RLS 隔离 + 留痕。/api/assessment-templates + /api/assessment-items。TemplateLibraryTest 4/4 绿。
+- [ ] A-T-V（资产-威胁-脆弱）关联（衔接 M6 资产）
 
 ### A3 · M3 审计管理
 - [ ] 内部审计纳入（与外审共表或并列）
