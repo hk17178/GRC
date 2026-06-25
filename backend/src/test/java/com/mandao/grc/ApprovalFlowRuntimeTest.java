@@ -6,6 +6,7 @@ import com.mandao.grc.modules.workflow.ApprovalFlowService;
 import com.mandao.grc.modules.workflow.ApproverType;
 import com.mandao.grc.modules.workflow.CountersignMode;
 import com.mandao.grc.modules.workflow.FlowGraph;
+import com.mandao.grc.modules.workflow.NodeType;
 import org.flowable.engine.HistoryService;
 import org.flowable.engine.RuntimeService;
 import org.flowable.engine.TaskService;
@@ -139,6 +140,90 @@ class ApprovalFlowRuntimeTest {
         // n1 或签 2 人全驳回 → 节点不过 → 驳回结束
         completeAll(pi, "REJECT");
         assertEquals(0, runtimeService.createProcessInstanceQuery().processInstanceId(pi).count(), "实例应结束");
+        assertEquals("REJECTED", outcome(pi));
+    }
+
+    // ---------- 通用发布/启动辅助 ----------
+    private String publish(FlowGraph g) {
+        Long id = asOrg(ORG_PAY, () -> service.createDraft(ORG_PAY, ApprovalBizType.POLICY_PUBLISH, "t", g).getId());
+        asOrg(ORG_PAY, () -> service.publish(id));
+        return "approvalFlow" + id;
+    }
+
+    private FlowGraph.FlowNode node(String key, NodeType t) {
+        return new FlowGraph.FlowNode(key, t, null, null, null, null, null, null, null, null);
+    }
+
+    private FlowGraph.FlowNode approval(String key, String role) {
+        return new FlowGraph.FlowNode(key, NodeType.APPROVAL, key, ApproverType.ROLE,
+                List.of(role), CountersignMode.ANY, 1, null, null, null);
+    }
+
+    private FlowGraph.FlowNode end(String key, String outcome) {
+        return new FlowGraph.FlowNode(key, NodeType.END, null, null, null, null, null, null, null, outcome);
+    }
+
+    private FlowGraph.FlowEdge edge(String f, String t) {
+        return new FlowGraph.FlowEdge(f, t, null);
+    }
+
+    // ---------- 并行：分叉(a1‖a2) → 合流 → 通过 ----------
+    @Test
+    void 并行_两分支全通过_APPROVED() {
+        FlowGraph g = new FlowGraph(
+                List.of(node("start", NodeType.START), node("sp", NodeType.PARALLEL_SPLIT),
+                        approval("a1", "CHECKER"), approval("a2", "AUDITOR"),
+                        node("jn", NodeType.PARALLEL_JOIN), end("end", "APPROVED")),
+                List.of(edge("start", "sp"), edge("sp", "a1"), edge("sp", "a2"),
+                        edge("a1", "jn"), edge("a2", "jn"), edge("jn", "end")));
+        String pi = runtimeService.startProcessInstanceByKey(publish(g), "POLICY:1").getId();
+        assertEquals(2, taskService.createTaskQuery().processInstanceId(pi).count(), "并行应同时派 2 个任务");
+        completeAll(pi, "APPROVE");
+        assertEquals(0, runtimeService.createProcessInstanceQuery().processInstanceId(pi).count());
+        assertEquals("APPROVED", outcome(pi));
+    }
+
+    @Test
+    void 并行_一分支驳回_整体REJECTED() {
+        FlowGraph g = new FlowGraph(
+                List.of(node("start", NodeType.START), node("sp", NodeType.PARALLEL_SPLIT),
+                        approval("a1", "CHECKER"), approval("a2", "AUDITOR"),
+                        node("jn", NodeType.PARALLEL_JOIN), end("end", "APPROVED")),
+                List.of(edge("start", "sp"), edge("sp", "a1"), edge("sp", "a2"),
+                        edge("a1", "jn"), edge("a2", "jn"), edge("jn", "end")));
+        String pi = runtimeService.startProcessInstanceByKey(publish(g), "POLICY:1").getId();
+        // 任一分支驳回 → terminate → 整体 REJECTED
+        var first = taskService.createTaskQuery().processInstanceId(pi).list().get(0);
+        taskService.complete(first.getId(), Map.of("decision", "REJECT"));
+        assertEquals(0, runtimeService.createProcessInstanceQuery().processInstanceId(pi).count());
+        assertEquals("REJECTED", outcome(pi));
+    }
+
+    // ---------- 条件：金额≥100 走加审→通过；否则默认→驳回 ----------
+    private FlowGraph conditionGraph() {
+        FlowGraph.FlowNode cond = node("cond", NodeType.CONDITION);
+        return new FlowGraph(
+                List.of(node("start", NodeType.START), approval("n1", "CHECKER"), cond,
+                        approval("n2", "RISK_OWNER"), end("end_ok", "APPROVED"), end("end_no", "REJECTED")),
+                List.of(edge("start", "n1"), edge("n1", "cond"),
+                        new FlowGraph.FlowEdge("cond", "n2", "amount ge 100"),
+                        edge("cond", "end_no"), edge("n2", "end_ok")));
+    }
+
+    @Test
+    void 条件_高金额走加审_APPROVED() {
+        String pi = runtimeService.startProcessInstanceByKey(publish(conditionGraph()), "POLICY:1",
+                Map.of("amount", 200)).getId();
+        completeAll(pi, "APPROVE"); // n1 通过 → 条件 amount>=100 → n2
+        completeAll(pi, "APPROVE"); // n2 通过 → end_ok
+        assertEquals("APPROVED", outcome(pi));
+    }
+
+    @Test
+    void 条件_低金额走默认_REJECTED() {
+        String pi = runtimeService.startProcessInstanceByKey(publish(conditionGraph()), "POLICY:1",
+                Map.of("amount", 50)).getId();
+        completeAll(pi, "APPROVE"); // n1 通过 → 条件默认 → end_no(REJECTED)
         assertEquals("REJECTED", outcome(pi));
     }
 

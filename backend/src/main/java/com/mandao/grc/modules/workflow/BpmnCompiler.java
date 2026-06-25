@@ -2,6 +2,7 @@ package com.mandao.grc.modules.workflow;
 
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -28,19 +29,19 @@ public class BpmnCompiler {
     public Compiled compile(ApprovalFlow flow, FlowGraph g) {
         String pkey = "approvalFlow" + flow.getId();
         Map<String, FlowGraph.FlowNode> byKey = new HashMap<>();
-        Map<String, String> passTarget = new HashMap<>(); // 节点 → 其唯一通过出边目标
+        String startKey = null;
         for (FlowGraph.FlowNode n : g.nodes()) {
             byKey.put(n.key(), n);
-        }
-        String firstNode = null;
-        for (FlowGraph.FlowEdge e : (g.edges() == null ? List.<FlowGraph.FlowEdge>of() : g.edges())) {
-            FlowGraph.FlowNode src = byKey.get(e.from());
-            if (src != null && src.type() == NodeType.START) {
-                firstNode = e.to();
-            } else {
-                passTarget.put(e.from(), e.to());
+            if (n.type() == NodeType.START) {
+                startKey = n.key();
             }
         }
+        // 每节点出边列表（条件/并行分叉有多条；审批/合流/开始恰一条）
+        Map<String, List<FlowGraph.FlowEdge>> outs = new HashMap<>();
+        for (FlowGraph.FlowEdge e : (g.edges() == null ? List.<FlowGraph.FlowEdge>of() : g.edges())) {
+            outs.computeIfAbsent(e.from(), k -> new ArrayList<>()).add(e);
+        }
+        String firstNode = (startKey != null && outs.containsKey(startKey)) ? outs.get(startKey).get(0).to() : null;
 
         StringBuilder sb = new StringBuilder(1024);
         sb.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n");
@@ -73,10 +74,29 @@ public class BpmnCompiler {
                 case END -> sb.append(endXml(n.key(), "APPROVED".equals(n.outcome()) ? "APPROVED" : "REJECTED", false));
                 case APPROVAL -> {
                     rejectUsed = true;
-                    appendApproval(sb, n, passTarget.get(n.key()));
+                    appendApproval(sb, n, outs.get(n.key()).get(0).to());
                 }
-                case CONDITION, PARALLEL_SPLIT, PARALLEL_JOIN ->
-                        throw new FlowValidationException("节点类型 " + n.type() + " 的编译尚未接入（后续增量）；当前支持 开始/审批/结束");
+                case PARALLEL_SPLIT -> {
+                    sb.append("    <parallelGateway id=\"").append(n.key()).append("\"/>\n");
+                    int i = 0;
+                    for (FlowGraph.FlowEdge e : outs.getOrDefault(n.key(), List.of())) {
+                        sb.append(flowXml(n.key() + "_o" + (i++), n.key(), e.to(), null));
+                    }
+                }
+                case PARALLEL_JOIN -> {
+                    sb.append("    <parallelGateway id=\"").append(n.key()).append("\"/>\n");
+                    sb.append(flowXml(n.key() + "_o", n.key(), outs.get(n.key()).get(0).to(), null));
+                }
+                case CONDITION -> {
+                    String defId = n.key() + "_def";
+                    sb.append("    <exclusiveGateway id=\"").append(n.key()).append("\" default=\"").append(defId).append("\"/>\n");
+                    int i = 0;
+                    for (FlowGraph.FlowEdge e : outs.getOrDefault(n.key(), List.of())) {
+                        boolean isDefault = (e.condition() == null || e.condition().isBlank());
+                        String fid = isDefault ? defId : n.key() + "_c" + (i++);
+                        sb.append(flowXml(fid, n.key(), e.to(), isDefault ? null : "${" + e.condition() + "}"));
+                    }
+                }
             }
         }
 
@@ -140,8 +160,9 @@ public class BpmnCompiler {
         if (cond == null) {
             return "    <sequenceFlow id=\"" + id + "\" sourceRef=\"" + from + "\" targetRef=\"" + to + "\"/>\n";
         }
+        // 条件表达式做 XML 转义；Flowable 解析时会还原实体，JUEL 求值正常（兼容用户条件中的 < > &）
         return "    <sequenceFlow id=\"" + id + "\" sourceRef=\"" + from + "\" targetRef=\"" + to + "\">\n"
-                + "      <conditionExpression xsi:type=\"tFormalExpression\">" + cond + "</conditionExpression>\n"
+                + "      <conditionExpression xsi:type=\"tFormalExpression\">" + esc(cond) + "</conditionExpression>\n"
                 + "    </sequenceFlow>\n";
     }
 
