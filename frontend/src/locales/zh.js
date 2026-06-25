@@ -991,7 +991,28 @@ export default {
     exReasonPh: '说明业务必要性与补偿控制',
     exEmpty: '本会期暂无例外申请',
     exStatus: { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' },
-    exth: { rule: '规则', user: '用户', status: '状态', op: '操作' }
+    exth: { rule: '规则', user: '用户', status: '状态', op: '操作' },
+    // 访问复核 UAR
+    uar: {
+      title: '访问复核（UAR）',
+      sub: '周期性权限再认证',
+      period: '复核周期',
+      reviewer: '复核人',
+      reviewerPh: '如：合规部-李',
+      org: '归属组织',
+      create: '新建复核',
+      batches: '复核批次',
+      items: '审阅项',
+      empty: '本会期暂无复核批次',
+      itemEmpty: '该批次暂无审阅项（开始后快照有效授权）',
+      selectHint: '← 选择左侧一个批次查看审阅项',
+      grantRef: '授权 #{id}',
+      th: { period: '周期', status: '状态', op: '操作' },
+      ith: { grant: '授权', decision: '决定', op: '操作' },
+      status: { OPEN: '待开始', IN_REVIEW: '复核中', COMPLETED: '已完成' },
+      decision: { PENDING: '待定', KEEP: '保留', REVOKE: '收回' },
+      op: { start: '开始', complete: '完成', keep: '保留', revoke: '收回' }
+    }
   },
 
   // ---- AI 智能问答（AiAssistantView · RAG）----

@@ -928,7 +928,27 @@ export default {
     exReasonPh: 'Business necessity & compensating controls',
     exEmpty: 'No exception requests this session',
     exStatus: { PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected' },
-    exth: { rule: 'Rule', user: 'User', status: 'Status', op: 'Action' }
+    exth: { rule: 'Rule', user: 'User', status: 'Status', op: 'Action' },
+    uar: {
+      title: 'Access Review (UAR)',
+      sub: 'periodic recertification',
+      period: 'Period',
+      reviewer: 'Reviewer',
+      reviewerPh: 'e.g. Compliance-Li',
+      org: 'Organization',
+      create: 'New Review',
+      batches: 'Review Batches',
+      items: 'Review Items',
+      empty: 'No review batches this session',
+      itemEmpty: 'No items (active grants are snapshotted on start)',
+      selectHint: '← Select a batch to view its items',
+      grantRef: 'Grant #{id}',
+      th: { period: 'Period', status: 'Status', op: 'Action' },
+      ith: { grant: 'Grant', decision: 'Decision', op: 'Action' },
+      status: { OPEN: 'Open', IN_REVIEW: 'In Review', COMPLETED: 'Completed' },
+      decision: { PENDING: 'Pending', KEEP: 'Keep', REVOKE: 'Revoke' },
+      op: { start: 'Start', complete: 'Complete', keep: 'Keep', revoke: 'Revoke' }
+    }
   },
 
   // ---- AI Assistant (AiAssistantView · RAG) ----

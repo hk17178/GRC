@@ -102,12 +102,74 @@
           </div>
         </div>
       </div>
+
+      <!-- 访问复核（UAR · 周期性权限再认证）-->
+      <div class="card">
+        <div class="ch">
+          <h3>{{ $t('perm.uar.title') }}</h3>
+          <span class="sub">{{ $t('perm.uar.sub') }}</span>
+        </div>
+        <div class="cb">
+          <div class="bar">
+            <label>{{ $t('perm.uar.period') }}<input v-model="uarForm.period" placeholder="2026H1" /></label>
+            <label>{{ $t('perm.uar.reviewer') }}<input v-model="uarForm.reviewer" :placeholder="$t('perm.uar.reviewerPh')" /></label>
+            <label>{{ $t('perm.uar.org') }}
+              <select v-model.number="uarForm.orgId"><option :value="12">{{ orgName(12) }}</option><option :value="13">{{ orgName(13) }}</option></select>
+            </label>
+            <button class="btn sm" :disabled="!uarForm.period || busy" @click="createReview">{{ $t('perm.uar.create') }}</button>
+          </div>
+
+          <div class="g g-1-1" style="margin-top: 14px">
+            <!-- 复核批次（本会期）-->
+            <div>
+              <div class="mini-h">{{ $t('perm.uar.batches') }}</div>
+              <table>
+                <thead><tr><th>#</th><th>{{ $t('perm.uar.th.period') }}</th><th>{{ $t('perm.uar.th.status') }}</th><th>{{ $t('perm.uar.th.op') }}</th></tr></thead>
+                <tbody>
+                  <tr v-for="r in reviews" :key="r.id" class="clk" :class="{ on: r.id === selReviewId }" @click="selectReview(r)">
+                    <td class="code">#{{ r.id }}</td>
+                    <td>{{ r.period }}</td>
+                    <td><span class="st" :class="UAR_CLS[r.status]"><span class="d"></span>{{ $t('perm.uar.status.' + r.status) }}</span></td>
+                    <td class="ops" @click.stop>
+                      <button v-if="r.status === 'OPEN'" class="btn sm" :disabled="busy" @click="reviewAct(r, 'start')">{{ $t('perm.uar.op.start') }}</button>
+                      <button v-else-if="r.status === 'IN_REVIEW'" class="btn ghost sm" :disabled="busy" @click="reviewAct(r, 'complete')">{{ $t('perm.uar.op.complete') }}</button>
+                    </td>
+                  </tr>
+                  <tr v-if="!reviews.length"><td colspan="4" class="emptyrow">{{ $t('perm.uar.empty') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <!-- 审阅项（选中批次）-->
+            <div>
+              <div class="mini-h">{{ $t('perm.uar.items') }}</div>
+              <div v-if="!selReviewId" class="hint">{{ $t('perm.uar.selectHint') }}</div>
+              <table v-else>
+                <thead><tr><th>{{ $t('perm.uar.ith.grant') }}</th><th>{{ $t('perm.uar.ith.decision') }}</th><th>{{ $t('perm.uar.ith.op') }}</th></tr></thead>
+                <tbody>
+                  <tr v-for="it in reviewItems" :key="it.id">
+                    <td class="code">{{ $t('perm.uar.grantRef', { id: it.userRoleOrgId }) }}</td>
+                    <td><span class="st" :class="DECISION_CLS[it.decision]"><span class="d"></span>{{ $t('perm.uar.decision.' + it.decision) }}</span></td>
+                    <td class="ops">
+                      <template v-if="it.decision === 'PENDING'">
+                        <button class="btn sm" :disabled="busy" @click="decideItem(it, 'KEEP')">{{ $t('perm.uar.op.keep') }}</button>
+                        <button class="btn ghost sm danger" :disabled="busy" @click="decideItem(it, 'REVOKE')">{{ $t('perm.uar.op.revoke') }}</button>
+                      </template>
+                    </td>
+                  </tr>
+                  <tr v-if="!reviewItems.length"><td colspan="3" class="emptyrow">{{ $t('perm.uar.itemEmpty') }}</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p v-if="uarError" class="cerr">{{ uarError }}</p>
+        </div>
+      </div>
     </section>
   </AppShell>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
@@ -186,6 +248,44 @@ async function decideEx(e, op) {
     exceptions.value = exceptions.value.map((x) => (x.id === e.id ? updated : x))
   } catch (err) { exError.value = err.message } finally { busy.value = false }
 }
+
+// ---- 访问复核 UAR（无 list-all 端点 → 本会期跟踪 create 返回的批次）----
+const UAR_CLS = { OPEN: 'wait', IN_REVIEW: 'doing', COMPLETED: 'ok' }
+const DECISION_CLS = { PENDING: 'wait', KEEP: 'ok', REVOKE: 'over' }
+const uarForm = reactive({ period: '2026H1', reviewer: '', orgId: 12 })
+const reviews = ref([])
+const selReviewId = ref(null)
+const reviewItems = ref([])
+const uarError = ref('')
+
+async function createReview() {
+  busy.value = true; uarError.value = ''
+  try {
+    const r = await api.post('/access-reviews', { orgId: uarForm.orgId, period: uarForm.period, reviewer: uarForm.reviewer })
+    reviews.value = [r, ...reviews.value.filter((x) => x.id !== r.id)]
+  } catch (e) { uarError.value = e.message } finally { busy.value = false }
+}
+async function selectReview(r) {
+  selReviewId.value = r.id
+  try { reviewItems.value = await api.get('/access-reviews/' + r.id + '/items') } catch (e) { reviewItems.value = [] }
+}
+// 批次流转：start(快照有效授权为审阅项) / complete
+async function reviewAct(r, op) {
+  busy.value = true; uarError.value = ''
+  try {
+    const updated = await api.post('/access-reviews/' + r.id + '/' + op, {})
+    reviews.value = reviews.value.map((x) => (x.id === r.id ? updated : x))
+    if (selReviewId.value === r.id) await selectReview({ id: r.id })
+  } catch (e) { uarError.value = e.message } finally { busy.value = false }
+}
+// 审阅项决定：KEEP / REVOKE
+async function decideItem(it, decision) {
+  busy.value = true; uarError.value = ''
+  try {
+    await api.post('/access-reviews/items/' + it.id + '/decide', { decision })
+    if (selReviewId.value) await selectReview({ id: selReviewId.value })
+  } catch (e) { uarError.value = e.message } finally { busy.value = false }
+}
 </script>
 
 <style scoped>
@@ -227,6 +327,9 @@ td.ops { display: flex; gap: 6px; align-items: center; }
 .st.wait .d { background: var(--text-3); }
 .emptyrow { text-align: center; color: var(--text-2); padding: 16px 0; }
 .hint { color: var(--text-3); font-size: 12px; padding: 10px 0 0; }
+.mini-h { font-size: 11.5px; font-weight: 700; color: var(--text-2); margin-bottom: 8px; }
+tbody tr.clk { cursor: pointer; }
+tbody tr.on { background: var(--accent-tint); }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 8px 0 0; }
 .redline-msg { margin: 12px 0 0; padding: 9px 12px; font-size: 12.5px; font-weight: 600; color: var(--danger); background: var(--danger-tint, rgba(180,35,45,0.1)); border: 1px solid var(--danger); border-radius: var(--radius-md); }
 .ok-msg { margin: 12px 0 0; padding: 9px 12px; font-size: 12.5px; font-weight: 600; color: var(--success); background: var(--success-tint, rgba(40,150,90,0.1)); border: 1px solid var(--success); border-radius: var(--radius-md); }
