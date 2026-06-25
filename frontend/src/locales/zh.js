@@ -291,7 +291,7 @@ export default {
     calendar: {
       title: '监管报送日历',
       sub: '法定时限',
-      th: { item: '报送事项', regulator: '监管机构', type: '类型', deadline: '法定时限', owner: '责任人', status: '状态' },
+      th: { item: '报送事项', regulator: '监管机构', type: '类型', deadline: '法定时限', owner: '责任人', status: '状态', op: '操作' },
       // 报送事项名称
       itemPbocStat: '支付业务统计报表',
       itemAml: '反洗钱报告',
@@ -411,7 +411,9 @@ export default {
     // 占位提示（后端无对应字段/能力）
     dash: '—',
     // 报送日历状态枚举 RegFilingStatus → 中文
-    filingStatus: { TO_DRAFT: '待编制', DRAFTING: '编制中', SUBMITTED: '已报送', CLOSED: '已办结' },
+    filingStatus: { TO_DRAFT: '待编制', DRAFTING: '编制中', PENDING_REVIEW: '待审批', SUBMITTED: '已报送', CLOSED: '已办结' },
+    // 报送审批两步化操作
+    filingOp: { prepare: '准备', submit: '提交评审', approve: '审批通过', reject: '驳回', close: '关闭' },
     // 监管问询状态枚举 RegInquiryStatus → 中文
     inquiryStatus: { DRAFTING: '答复编制中', REPLIED: '已答复', AWAIT_FEEDBACK: '待监管反馈', CLOSED: '已办结' },
     // 处罚约谈状态枚举 RegPenaltyStatus → 中文

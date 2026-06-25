@@ -273,7 +273,7 @@ export default {
     calendar: {
       title: 'Reporting Calendar',
       sub: 'Statutory Deadline',
-      th: { item: 'Report Item', regulator: 'Regulator', type: 'Type', deadline: 'Statutory Deadline', owner: 'Owner', status: 'Status' },
+      th: { item: 'Report Item', regulator: 'Regulator', type: 'Type', deadline: 'Statutory Deadline', owner: 'Owner', status: 'Status', op: 'Action' },
       itemPbocStat: 'Payment Business Statistical Report',
       itemAml: 'AML Report',
       itemPi: 'PI Protection Compliance Report',
@@ -379,7 +379,8 @@ export default {
     // ---- Real backend integration (DM-5) ----
     emptyRow: 'No data (live backend)',
     dash: '—',
-    filingStatus: { TO_DRAFT: 'To Draft', DRAFTING: 'Drafting', SUBMITTED: 'Submitted', CLOSED: 'Closed' },
+    filingStatus: { TO_DRAFT: 'To Draft', DRAFTING: 'Drafting', PENDING_REVIEW: 'Pending Review', SUBMITTED: 'Submitted', CLOSED: 'Closed' },
+    filingOp: { prepare: 'Prepare', submit: 'Submit', approve: 'Approve', reject: 'Reject', close: 'Close' },
     inquiryStatus: { DRAFTING: 'Drafting Reply', REPLIED: 'Replied', AWAIT_FEEDBACK: 'Awaiting Feedback', CLOSED: 'Closed' },
     penaltyStatus: { OPEN: 'Open', RECTIFYING: 'Rectifying', CLOSED: 'Closed' },
     incidentStatus: { DRAFT: 'Draft', REPORTED: 'Reported', CLOSED: 'Closed' },

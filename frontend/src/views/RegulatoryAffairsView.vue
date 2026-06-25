@@ -139,6 +139,7 @@
                   <th>{{ $t('regaffairs.calendar.th.deadline') }}</th>
                   <th>{{ $t('regaffairs.calendar.th.owner') }}</th>
                   <th>{{ $t('regaffairs.calendar.th.status') }}</th>
+                  <th>{{ $t('regaffairs.calendar.th.op') }}</th>
                 </tr>
               </thead>
               <tbody>
@@ -153,9 +154,20 @@
                   <td>
                     <span class="st" :class="filingStCls(r.status)"><span class="d"></span>{{ filingStLabel(r.status) }}</span>
                   </td>
+                  <!-- 报送审批两步化：准备 → 提交评审 → 审批通过/驳回 → 关闭（仿 CR-002）-->
+                  <td class="ops">
+                    <button v-if="r.status === 'TO_DRAFT'" class="btn ghost sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'prepare')">{{ $t('regaffairs.filingOp.prepare') }}</button>
+                    <button v-else-if="r.status === 'DRAFTING'" class="btn sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'submit-for-review')">{{ $t('regaffairs.filingOp.submit') }}</button>
+                    <template v-else-if="r.status === 'PENDING_REVIEW'">
+                      <button class="btn sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'approve-submit')">{{ $t('regaffairs.filingOp.approve') }}</button>
+                      <button class="btn ghost sm danger" :disabled="filingBusy === r.id" @click="filingAct(r, 'reject-submit')">{{ $t('regaffairs.filingOp.reject') }}</button>
+                    </template>
+                    <button v-else-if="r.status === 'SUBMITTED'" class="btn ghost sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'close')">{{ $t('regaffairs.filingOp.close') }}</button>
+                    <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
+                  </td>
                 </tr>
                 <tr v-if="!filings.length">
-                  <td colspan="6" class="emptyrow">{{ filingsError || $t('regaffairs.emptyRow') }}</td>
+                  <td colspan="7" class="emptyrow">{{ filingsError || $t('regaffairs.emptyRow') }}</td>
                 </tr>
               </tbody>
             </table>
@@ -484,6 +496,20 @@ async function submitCreate() {
   }
 }
 
+// ---- 报送审批两步化：准备/提交评审/审批通过/驳回/关闭 → 刷新报送日历 ----
+const filingBusy = ref(null)
+async function filingAct(r, op) {
+  filingBusy.value = r.id
+  try {
+    await api.post('/reg-filings/' + r.id + '/' + op, {})
+    filings.value = await api.get('/reg-filings')
+  } catch (e) {
+    filingsError.value = e.message
+  } finally {
+    filingBusy.value = null
+  }
+}
+
 // ---- KPI 卡：能派生的取真实计数，派生不了在模板里显「—」----
 // 待报送数 = reg-filings 中 status∈{TO_DRAFT,DRAFTING}
 const kpiDueToSubmit = computed(() =>
@@ -805,11 +831,19 @@ onMounted(loadPlans)
   background: var(--success);
 }
 
-/* ---- 年度合规计划 Tab 专用 ---- */
+/* ---- 年度合规计划 Tab + 报送审批两步化 专用 ---- */
 .btn.sm {
   height: 28px;
   padding: 0 12px;
   font-size: 12px;
+}
+.btn.ghost.danger {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.muted {
+  color: var(--text-3);
+  font-size: 11.5px;
 }
 tbody tr.clk {
   cursor: pointer;
