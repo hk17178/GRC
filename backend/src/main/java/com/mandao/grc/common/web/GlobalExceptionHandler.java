@@ -2,6 +2,7 @@ package com.mandao.grc.common.web;
 
 import com.mandao.grc.modules.assessment.RiskCloseGateException;
 import com.mandao.grc.modules.permission.SodViolationException;
+import com.mandao.grc.modules.rbac.ForbiddenException;
 import com.mandao.grc.modules.workflow.FlowValidationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
@@ -115,5 +116,15 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleFlowValidation(FlowValidationException ex) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(new ApiError("FLOW_INVALID", ex.getMessage()));
+    }
+
+    /**
+     * 功能级 RBAC 无权限拦截（已登录但无该操作权限）→ 403 FORBIDDEN，code=FORBIDDEN。
+     * 与 401(未登录) 区分：前端据此提示"无操作权限"而非跳登录。
+     */
+    @ExceptionHandler(ForbiddenException.class)
+    public ResponseEntity<ApiError> handleForbidden(ForbiddenException ex) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(new ApiError("FORBIDDEN", ex.getMessage()));
     }
 }

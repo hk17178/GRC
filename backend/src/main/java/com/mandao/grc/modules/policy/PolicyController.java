@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.policy;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +44,7 @@ public class PolicyController {
 
     /** 新建草稿制度。 */
     @PostMapping
+    @RequiresPermission("policy.create")
     public Policy create(@RequestBody CreatePolicyRequest req,
                          @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.title(), req.content(), actor(user));
@@ -50,6 +52,7 @@ public class PolicyController {
 
     /** 提交评审：DRAFT → REVIEW。 */
     @PostMapping("/{id}/submit")
+    @RequiresPermission("policy.submit")
     public Policy submit(@PathVariable Long id,
                          @RequestHeader(value = "X-User", required = false) String user) {
         return service.submitForApproval(id, actor(user));
@@ -57,6 +60,7 @@ public class PolicyController {
 
     /** 审批通过：REVIEW → EFFECTIVE。 */
     @PostMapping("/{id}/approve")
+    @RequiresPermission("policy.decide")
     public Policy approve(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.approve(id, actor(user));
@@ -64,6 +68,7 @@ public class PolicyController {
 
     /** 审批驳回：REVIEW → DRAFT。 */
     @PostMapping("/{id}/reject")
+    @RequiresPermission("policy.decide")
     public Policy reject(@PathVariable Long id,
                          @RequestBody(required = false) RejectRequest req,
                          @RequestHeader(value = "X-User", required = false) String user) {
@@ -72,6 +77,7 @@ public class PolicyController {
 
     /** 废止：EFFECTIVE → DEPRECATED。 */
     @PostMapping("/{id}/archive")
+    @RequiresPermission("policy.signoff")
     public Policy archive(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.archive(id, actor(user));
@@ -79,6 +85,7 @@ public class PolicyController {
 
     /** 签署确认（仅 EFFECTIVE 可签）。 */
     @PostMapping("/{id}/signoff")
+    @RequiresPermission("policy.signoff")
     public PolicySignoff signoff(@PathVariable Long id,
                                  @RequestHeader(value = "X-User", required = false) String user) {
         return service.signoff(id, actor(user));

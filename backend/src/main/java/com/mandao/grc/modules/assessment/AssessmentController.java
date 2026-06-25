@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.assessment;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,6 +41,7 @@ public class AssessmentController {
 
     /** 新建草稿评估。 */
     @PostMapping
+    @RequiresPermission("risk.create")
     public Assessment create(@RequestBody CreateAssessmentRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.title(), req.assessor(), req.period(), actor(user));

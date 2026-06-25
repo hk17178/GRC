@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.workflow;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,12 +46,14 @@ public class ApprovalFlowController {
 
     /** 新建草稿。 */
     @PostMapping
+    @RequiresPermission("approvalflow.save")
     public ApprovalFlow create(@RequestBody CreateFlowRequest req) {
         return service.createDraft(req.orgId(), req.bizType(), req.name(), req.graph());
     }
 
     /** 更新草稿（名称 + 画布）。 */
     @PutMapping("/{id}")
+    @RequiresPermission("approvalflow.save")
     public ApprovalFlow update(@PathVariable Long id, @RequestBody UpdateFlowRequest req) {
         return service.updateDraft(id, req.name(), req.graph());
     }
@@ -64,6 +67,7 @@ public class ApprovalFlowController {
 
     /** 发布：校验 → 编译 BPMN → 部署 → 置 ACTIVE。 */
     @PostMapping("/{id}/publish")
+    @RequiresPermission("approvalflow.publish")
     public ApprovalFlow publish(@PathVariable Long id) {
         return service.publish(id);
     }

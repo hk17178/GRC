@@ -1,6 +1,7 @@
 package com.mandao.grc.modules.assessment;
 
 import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -71,6 +72,7 @@ public class RiskFindingController {
      * 申请人取 X-User。
      */
     @PostMapping("/{id}/request-acceptance")
+    @RequiresPermission("risk.requestAccept")
     public RiskAcceptance requestAcceptance(@PathVariable Long id,
                                             @RequestBody(required = false) RequestAcceptanceRequest req,
                                             @RequestHeader(value = "X-User", required = false) String user) {
@@ -79,6 +81,7 @@ public class RiskFindingController {
 
     /** 审批通过风险接受：回填放行凭据 → CR-002 门控解除。审批人取 X-User。 */
     @PostMapping("/{id}/accept-approve")
+    @RequiresPermission("risk.approveAccept")
     public RiskAcceptance acceptApprove(@PathVariable Long id,
                                         @RequestBody(required = false) DecideRequest req,
                                         @RequestHeader(value = "X-User", required = false) String user) {
@@ -87,6 +90,7 @@ public class RiskFindingController {
 
     /** 审批驳回风险接受：不放行（门控保持）。审批人取 X-User。 */
     @PostMapping("/{id}/accept-reject")
+    @RequiresPermission("risk.approveAccept")
     public RiskAcceptance acceptReject(@PathVariable Long id,
                                        @RequestBody(required = false) DecideRequest req,
                                        @RequestHeader(value = "X-User", required = false) String user) {
@@ -98,6 +102,7 @@ public class RiskFindingController {
      * 受 CR-002 残余风险关闭门控约束。
      */
     @PostMapping("/{id}/close")
+    @RequiresPermission("risk.closeFinding")
     public RiskFinding close(@PathVariable Long id,
                              @RequestParam(defaultValue = "false") boolean verify,
                              @RequestHeader(value = "X-User", required = false) String user) {
