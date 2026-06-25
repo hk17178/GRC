@@ -26,6 +26,7 @@ import PolicyView from '@/views/PolicyView.vue'
 import PermissionView from '@/views/PermissionView.vue'
 import AiAssistantView from '@/views/AiAssistantView.vue'
 import ModelAccessView from '@/views/ModelAccessView.vue'
+import ApprovalFlowDesignerView from '@/views/ApprovalFlowDesignerView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
@@ -141,6 +142,13 @@ const routes = [
     name: 'aimodel',
     component: ModelAccessView,
     meta: { title: '模型接入', navKey: 'aimodel' }
+  },
+  {
+    // 审批流配置：Vue Flow 可视化画布（增强② P1.4）
+    path: '/approval-flows',
+    name: 'approvalflow',
+    component: ApprovalFlowDesignerView,
+    meta: { title: '审批流配置', navKey: 'approvalflow' }
   },
   {
     // 建议与反馈：反馈生命周期（办结须留处置结果）

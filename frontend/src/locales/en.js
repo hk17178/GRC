@@ -81,6 +81,7 @@ export default {
     notify: 'Notifications',
     aimodel: 'Model Access',
     perm: 'Permissions & Approval',
+    approvalflow: 'Approval Flows',
     board: 'Board & Audit Trail',
     feedback: 'Feedback',
     settings: 'Settings'
@@ -114,6 +115,7 @@ export default {
     notify: { g: 'System', c: 'Notifications' },
     aimodel: { g: 'System', c: 'Model Access' },
     perm: { g: 'System', c: 'Permissions & Approval' },
+    approvalflow: { g: 'System', c: 'Approval Flows' },
     board: { g: 'System', c: 'Board & Audit Trail' },
     feedback: { g: 'System', c: 'Feedback' },
     settings: { g: 'System', c: 'Settings' }
@@ -994,5 +996,36 @@ export default {
     provOpenai: 'OpenAI-compatible (OpenAI / Qwen / DeepSeek / Kimi / GLM / local vLLM·Ollama…)',
     keyDeploy: '(injected at deploy, not shown)',
     keyWarn: 'For security, the API key is injected only via deployment env vars. The UI provides no key-entry field and never echoes the key.'
+  },
+
+  // ---- Approval Flow Designer (Vue Flow canvas) ----
+  flow: {
+    tag: 'APPROVAL FLOW · Designer',
+    title: 'Approval Flow Designer',
+    pickFlow: '— Pick flow —',
+    new: '＋ New',
+    palette: 'Nodes',
+    props: 'Properties',
+    save: 'Save',
+    validate: 'Validate',
+    publish: 'Publish',
+    namePh: 'Flow name',
+    selectHint: 'Click a node or edge on the canvas to edit',
+    connectHint: 'Drag from a node’s right dot to the next node’s left dot to connect; click an edge to set a condition.',
+    condHint: 'Condition uses JUEL, e.g. amount ge 100; empty = default branch.',
+    delNode: 'Delete node',
+    delEdge: 'Delete edge',
+    edge: 'Edge',
+    biz: { POLICY_PUBLISH: 'Policy Publish', RISK_ACCEPT: 'Risk Accept', SOD_EXCEPTION: 'SoD Exception', REG_FILING: 'Reg Filing' },
+    status: { DRAFT: 'Draft', ACTIVE: 'Active', RETIRED: 'Retired' },
+    node: { START: 'Start', APPROVAL: 'Approval', CONDITION: 'Condition', PARALLEL_SPLIT: 'Parallel Split', PARALLEL_JOIN: 'Parallel Join', END: 'End' },
+    at: { ROLE: 'By Role', USER: 'By User', GROUP: 'By Group' },
+    mode: { ANY: 'Any-of (N approve)', ALL: 'All-of (countersign)' },
+    oc: { APPROVED: 'Approved', REJECTED: 'Rejected' },
+    f: {
+      name: 'Node name', approverType: 'Approver source', approvers: 'Approvers', approversPh: 'role/user, comma-separated, e.g. CHECKER,RISK_OWNER',
+      mode: 'Completion', required: 'Required approvals', timeout: 'Timeout (h)', timeoutPh: '0 = off',
+      escType: 'Escalate type', escRef: 'Escalate to', outcome: 'Outcome', condition: 'Condition', conditionPh: 'e.g. amount ge 100 (empty=default)'
+    }
   }
 }

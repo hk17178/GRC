@@ -81,6 +81,7 @@ export default {
     notify: '通知中心',
     aimodel: '模型接入',
     perm: '权限与审批',
+    approvalflow: '审批流配置',
     board: '看板与留痕',
     feedback: '建议与反馈',
     settings: '系统设置'
@@ -115,6 +116,7 @@ export default {
     notify: { g: '系统管理', c: '通知中心' },
     aimodel: { g: '系统管理', c: '模型接入' },
     perm: { g: '系统管理', c: '权限与审批' },
+    approvalflow: { g: '系统管理', c: '审批流配置' },
     board: { g: '系统管理', c: '看板与留痕' },
     feedback: { g: '系统管理', c: '建议与反馈' },
     settings: { g: '系统管理', c: '系统设置' }
@@ -1058,5 +1060,36 @@ export default {
     provOpenai: 'OpenAI 兼容（OpenAI / 通义 / DeepSeek / Kimi / 智谱 / 本地 vLLM·Ollama…）',
     keyDeploy: '（部署时注入，界面不展示）',
     keyWarn: '出于安全，API 密钥仅经部署环境变量注入，平台界面不提供密钥录入框、也不回显密钥。'
+  },
+
+  // ---- 审批流配置（ApprovalFlowDesignerView · Vue Flow 画布）----
+  flow: {
+    tag: 'APPROVAL FLOW · 审批流配置',
+    title: '审批流配置',
+    pickFlow: '— 选择流程 —',
+    new: '＋ 新建',
+    palette: '节点面板',
+    props: '属性',
+    save: '保存',
+    validate: '校验',
+    publish: '发布生效',
+    namePh: '流程名称',
+    selectHint: '点击画布上的节点或连线以编辑属性',
+    connectHint: '从节点右侧圆点拖到下一节点左侧圆点即可连线；点连线设条件。',
+    condHint: '条件用 JUEL，如 amount ge 100；留空为默认分支。',
+    delNode: '删除节点',
+    delEdge: '删除连线',
+    edge: '连线',
+    biz: { POLICY_PUBLISH: '制度发布', RISK_ACCEPT: '风险接受', SOD_EXCEPTION: 'SoD 例外', REG_FILING: '监管报送' },
+    status: { DRAFT: '草稿', ACTIVE: '生效', RETIRED: '停用' },
+    node: { START: '开始', APPROVAL: '审批节点', CONDITION: '条件', PARALLEL_SPLIT: '并行分叉', PARALLEL_JOIN: '并行合流', END: '结束' },
+    at: { ROLE: '按角色', USER: '指定人', GROUP: '审批组' },
+    mode: { ANY: '或签（任一/任 N 通过）', ALL: '会签（全部通过）' },
+    oc: { APPROVED: '通过', REJECTED: '驳回' },
+    f: {
+      name: '节点名称', approverType: '审批人来源', approvers: '审批人', approversPh: '角色码/用户，逗号分隔，如 CHECKER,RISK_OWNER',
+      mode: '完成逻辑', required: '或签通过人数', timeout: '超时(小时)', timeoutPh: '0=不启用',
+      escType: '升级目标类型', escRef: '升级目标', outcome: '结束结论', condition: '条件表达式', conditionPh: '如 amount ge 100（留空=默认）'
+    }
   }
 }
