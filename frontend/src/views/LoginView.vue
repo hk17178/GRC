@@ -353,7 +353,7 @@ async function onSubmit() {
   const pwd = pane.value === 'sso' ? sso.value.pwd : local.value.pwd
   try {
     const u = await api.post('/auth/login', { username: acct, password: pwd })
-    setUser(u)
+    await setUser(u)
     router.push('/dashboard')
   } catch (e) {
     loginError.value = e.status === 401 ? t('login.badCred') : t('login.loginFail') + e.message

@@ -183,11 +183,16 @@ const router = createRouter({
 
 // ---- 认证守卫（增强③ R1）----
 // 除登录页外，所有路由要求已登录；首次进入时探测会话(/auth/me)，未登录跳登录页。
-import { authState, refreshAuth } from '@/auth.js'
+import { authState, refreshAuth, canSee } from '@/auth.js'
 router.beforeEach(async (to) => {
   if (to.name === 'login') return true
   if (!authState.ready) await refreshAuth()
   if (!authState.user) return { name: 'login' }
+  // 菜单可见性门控（增强③ R4）：访问隐藏菜单 → 回态势页
+  const navKey = to.meta?.navKey
+  if (navKey && Object.keys(authState.perms).length > 0 && !canSee(navKey) && navKey !== 'dashboard') {
+    return { name: 'dashboard' }
+  }
   return true
 })
 

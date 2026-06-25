@@ -16,7 +16,8 @@ export default {
     captcha: 'Captcha',
     cancel: 'Cancel',
     submitting: 'Submitting…',
-    confirm: 'Confirm'
+    confirm: 'Confirm',
+    noPerm: 'Read-only: no permission'
   },
 
   // ---- five themes ----
@@ -91,7 +92,8 @@ export default {
 
   // ---- topbar ----
   top: {
-    searchPlaceholder: 'Search… (try TLS1.1)'
+    searchPlaceholder: 'Search… (try TLS1.1)',
+    logout: 'Logout'
   },
 
   // ---- dashboard shell (breadcrumb) ----

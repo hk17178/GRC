@@ -18,7 +18,7 @@
         </div>
       </div>
       <nav class="nav">
-        <template v-for="grp in menu" :key="grp.group">
+        <template v-for="grp in visibleMenu" :key="grp.group">
           <div class="grp">{{ $t('navGroup.' + grp.group) }}</div>
           <a
             v-for="it in grp.items"
@@ -64,7 +64,11 @@
             </svg>
             <span class="dot"></span>
           </div>
-          <div class="av">陈</div>
+          <div class="userbox">
+            <div class="av" :title="displayName">{{ avatarChar }}</div>
+            <span class="uname">{{ displayName }}</span>
+            <button class="logout" :title="$t('top.logout')" @click="logout">{{ $t('top.logout') }}</button>
+          </div>
         </div>
       </header>
 
@@ -91,9 +95,22 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
+import { api } from '@/api/client.js'
+import { authState, canSee, clearUser } from '@/auth.js'
 
 const route = useRoute()
 const router = useRouter()
+
+// 当前登录人显示名 + 头像首字（增强③ R4）
+const displayName = computed(() => authState.user?.displayName || authState.user?.username || '')
+const avatarChar = computed(() => (displayName.value || '·').charAt(0))
+
+/** 登出：清后端 Cookie + 前端态 → 回登录页。 */
+async function logout() {
+  try { await api.post('/auth/logout', {}) } catch (e) { /* 忽略 */ }
+  clearUser()
+  router.push({ name: 'login' })
+}
 
 // 菜单键 → 路由名映射。
 // 约定：占位路由的 route name 直接取 navKey；仅驾驶舱/外部审计两条命名不同，单独列出。
@@ -167,6 +184,16 @@ const menu = [
     ]
   }
 ]
+
+// 按权限过滤菜单（增强③ R4）：仅显示对该菜单非 HIDDEN（RW/RO）的项；空分组隐藏。
+// 权限未就绪时(authState.perms 为空)显示全部，避免登录瞬时空菜单闪烁。
+const visibleMenu = computed(() => {
+  const hasPerms = Object.keys(authState.perms).length > 0
+  if (!hasPerms) return menu
+  return menu
+    .map((grp) => ({ group: grp.group, items: grp.items.filter((it) => canSee(it.key)) }))
+    .filter((grp) => grp.items.length > 0)
+})
 
 // 菜单点击：跳转对应路由（外部审计/驾驶舱为真实页，其余为占位页）
 function onNav(key) {
@@ -460,6 +487,34 @@ function onAiFab() {
   justify-content: center;
   font-weight: 700;
   font-size: 14px;
+}
+.userbox {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.userbox .uname {
+  font-size: 12.5px;
+  color: var(--text-2);
+  font-weight: 600;
+  max-width: 90px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.userbox .logout {
+  border: 1px solid var(--surface-border);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-family: inherit;
+}
+.userbox .logout:hover {
+  color: var(--danger);
+  border-color: var(--danger);
 }
 .content {
   padding: 22px 24px 40px;

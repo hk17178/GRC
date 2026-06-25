@@ -16,7 +16,8 @@ export default {
     captcha: '验证码',
     cancel: '取消',
     submitting: '提交中…',
-    confirm: '确认'
+    confirm: '确认',
+    noPerm: '只读：无操作权限'
   },
 
   // ---- 五主题名称（与 tokens.css / 原型主题选择器一致）----
@@ -91,7 +92,8 @@ export default {
 
   // ---- 顶栏 ----
   top: {
-    searchPlaceholder: '搜索…（试试 TLS1.1）'
+    searchPlaceholder: '搜索…（试试 TLS1.1）',
+    logout: '退出'
   },
 
   // ---- 仪表盘外壳（面包屑等）----

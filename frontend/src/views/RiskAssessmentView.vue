@@ -30,7 +30,7 @@
           <h1>{{ $t('risk.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <button class="btn" @click="openCreate">{{ $t('risk.newAssess') }}</button>
+        <button class="btn" :disabled="!canWrite('risk.create')" :title="canWrite('risk.create') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('risk.newAssess') }}</button>
       </div>
 
       <!-- 登记弹窗：发起评估 → POST /api/assessments → 刷新列表（端到端写） -->
@@ -576,6 +576,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 // ---- Tab 切换 ----
 const tabs = ['tasks', 'templates', 'controls', 'kri']
