@@ -66,6 +66,7 @@ class ApprovalFlowRuntimeTest {
     @Autowired private RuntimeService runtimeService;
     @Autowired private TaskService taskService;
     @Autowired private HistoryService historyService;
+    @Autowired private org.flowable.engine.ManagementService managementService;
 
     private static final long ORG_PAY = 12L;
 
@@ -225,6 +226,28 @@ class ApprovalFlowRuntimeTest {
                 Map.of("amount", 50)).getId();
         completeAll(pi, "APPROVE"); // n1 通过 → 条件默认 → end_no(REJECTED)
         assertEquals("REJECTED", outcome(pi));
+    }
+
+    // ---------- 超时自动升级：定时器触发 → 改派升级目标 ----------
+    @Test
+    void 超时自动升级_改派升级目标审批_通过() {
+        FlowGraph g = new FlowGraph(
+                List.of(node("start", NodeType.START),
+                        new FlowGraph.FlowNode("n1", NodeType.APPROVAL, "初审", ApproverType.ROLE,
+                                List.of("CHECKER"), CountersignMode.ANY, 1, 24, new FlowGraph.Escalation(ApproverType.ROLE, "RISK_OWNER"), null),
+                        end("end", "APPROVED")),
+                List.of(edge("start", "n1"), edge("n1", "end")));
+        String pi = runtimeService.startProcessInstanceByKey(publish(g), "POLICY:1").getId();
+        // 初审任务在 CHECKER，超时未处理 → 手动触发边界定时器
+        assertEquals(1, taskService.createTaskQuery().processInstanceId(pi).taskCandidateGroup("CHECKER").count());
+        var timer = managementService.createTimerJobQuery().processInstanceId(pi).singleResult();
+        managementService.moveTimerToExecutableJob(timer.getId());
+        managementService.executeJob(timer.getId());
+        // 升级任务出现并改派给 RISK_OWNER；其通过 → APPROVED
+        var esc = taskService.createTaskQuery().processInstanceId(pi).taskCandidateGroup("RISK_OWNER").list();
+        assertEquals(1, esc.size(), "超时后应改派升级目标 RISK_OWNER");
+        taskService.complete(esc.get(0).getId(), Map.of("decision", "APPROVE"));
+        assertEquals("APPROVED", outcome(pi));
     }
 
     private <T> T asOrg(long orgId, Supplier<T> action) {

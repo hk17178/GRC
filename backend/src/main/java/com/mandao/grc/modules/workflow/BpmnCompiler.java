@@ -138,6 +138,23 @@ public class BpmnCompiler {
                 : "${decision eq 'APPROVE'}";
         sb.append(flowXml(key + "_pass", gw, pass, passCond));
         sb.append(flowXml(key + "_fail", gw, "end_rejected", null));
+
+        // 超时自动升级：中断型边界定时器 → 升级审批任务(改派升级目标) → 独立决定网关
+        if (n.timeoutHours() != null && n.timeoutHours() > 0
+                && n.escalateTo() != null && n.escalateTo().ref() != null && !n.escalateTo().ref().isBlank()) {
+            String esc = key + "_esc";
+            String escgw = key + "_escgw";
+            sb.append("    <boundaryEvent id=\"").append(key).append("_to\" attachedToRef=\"").append(key).append("\" cancelActivity=\"true\">\n")
+              .append("      <timerEventDefinition><timeDuration>PT").append(n.timeoutHours()).append("H</timeDuration></timerEventDefinition>\n")
+              .append("    </boundaryEvent>\n");
+            sb.append("    <userTask id=\"").append(esc).append("\" name=\"").append(esc(n.name())).append("·超时升级\" ")
+              .append(assignAttr(n.escalateTo().type(), n.escalateTo().ref())).append("/>\n");
+            sb.append("    <exclusiveGateway id=\"").append(escgw).append("\" default=\"").append(key).append("_escfail\"/>\n");
+            sb.append(flowXml(key + "_to_esc", key + "_to", esc, null));
+            sb.append(flowXml(key + "_esc_gw", esc, escgw, null));
+            sb.append(flowXml(key + "_escpass", escgw, pass, "${decision eq 'APPROVE'}"));
+            sb.append(flowXml(key + "_escfail", escgw, "end_rejected", null));
+        }
     }
 
     /** 结束事件（带结论回写监听；rejected 额外 terminate）。 */
