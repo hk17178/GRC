@@ -992,5 +992,48 @@ export default {
     exEmpty: '本会期暂无例外申请',
     exStatus: { PENDING: '待审批', APPROVED: '已通过', REJECTED: '已驳回' },
     exth: { rule: '规则', user: '用户', status: '状态', op: '操作' }
+  },
+
+  // ---- AI 智能问答（AiAssistantView · RAG）----
+  ai: {
+    tag: 'AI · 智能问答',
+    title: 'AI 智能问答',
+    you: '你',
+    placeholder: '就制度、法规、合规义务向知识库提问。回答仅依据已录入的知识，并标注引用来源。',
+    askPh: '输入问题，回车或点「提问」…',
+    ask: '提问',
+    asking: '检索中…',
+    thinking: '检索并生成中…',
+    citations: '引用来源',
+    mode: { local: '本地离线模式' },
+    kb: '知识库',
+    kbEmpty: '暂无知识，先录入制度/法规',
+    dth: { title: '标题', type: '类型', chunks: '切块', status: '状态' },
+    stype: { POLICY: '制度', REGULATION: '法规', OBLIGATION: '义务', MANUAL: '手工' },
+    dstatus: { PENDING: '待索引', INDEXED: '已索引' },
+    org: { pay: '支付科技', consumer: '消费金融' },
+    ingest: { btn: '＋ 录入知识', ref: '来源引用', content: '正文', contentPh: '粘贴制度/法规正文，将自动切块并向量化', org: '归属组织', ok: '录入并索引' }
+  },
+
+  // ---- 模型接入（ModelAccessView）----
+  aimodel: {
+    tag: 'MODEL · 模型接入',
+    title: '模型接入',
+    refresh: '刷新状态',
+    current: '当前 AI 配置',
+    llm: '生成模型（LLM）',
+    embedding: '嵌入模型',
+    network: '数据出境',
+    local: '本地离线 · 未接大模型',
+    embLocal: '本地确定性嵌入',
+    noEgress: '不出境（全本地）',
+    egress: '问答上下文出境 Anthropic',
+    localNote: '当前为本地离线模式：向量检索 + 离线摘要，全程不出网、不需密钥，数据不出境。仅返回检索摘要，不生成式作答。',
+    claudeNote: '当前接入 Claude：问答时检索片段与问题会发送至 Anthropic 云生成回答。请确保符合数据出境与合规要求（PIPL/等保）。',
+    howto: '切换指引',
+    deploySide: '部署侧配置',
+    howtoLead: '提供方与密钥由部署环境变量控制（应用重启生效），不在本界面录入：',
+    keyDeploy: '（部署时注入，界面不展示）',
+    keyWarn: '出于安全，API 密钥仅经部署环境变量注入，平台界面不提供密钥录入框、也不回显密钥。'
   }
 }

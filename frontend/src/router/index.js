@@ -24,13 +24,13 @@ import FeedbackView from '@/views/FeedbackView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import PolicyView from '@/views/PolicyView.vue'
 import PermissionView from '@/views/PermissionView.vue'
+import AiAssistantView from '@/views/AiAssistantView.vue'
+import ModelAccessView from '@/views/ModelAccessView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
 const PLACEHOLDER_PAGES = [
-  { path: '/internal-audit', navKey: 'audit' },
-  { path: '/ai-assistant', navKey: 'ai' },
-  { path: '/model-access', navKey: 'aimodel' }
+  { path: '/internal-audit', navKey: 'audit' }
 ]
 
 const routes = [
@@ -127,6 +127,20 @@ const routes = [
     name: 'perm',
     component: PermissionView,
     meta: { title: '权限与职责分离', navKey: 'perm' }
+  },
+  {
+    // AI 智能问答：基于知识库的检索增强问答（CR-004 RAG）
+    path: '/ai-assistant',
+    name: 'ai',
+    component: AiAssistantView,
+    meta: { title: 'AI 智能问答', navKey: 'ai' }
+  },
+  {
+    // 模型接入：AI 提供方/嵌入配置状态 + 切换指引
+    path: '/model-access',
+    name: 'aimodel',
+    component: ModelAccessView,
+    meta: { title: '模型接入', navKey: 'aimodel' }
   },
   {
     // 建议与反馈：反馈生命周期（办结须留处置结果）

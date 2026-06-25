@@ -929,5 +929,48 @@ export default {
     exEmpty: 'No exception requests this session',
     exStatus: { PENDING: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected' },
     exth: { rule: 'Rule', user: 'User', status: 'Status', op: 'Action' }
+  },
+
+  // ---- AI Assistant (AiAssistantView · RAG) ----
+  ai: {
+    tag: 'AI · Assistant',
+    title: 'AI Assistant',
+    you: 'You',
+    placeholder: 'Ask the knowledge base about policies, regulations, obligations. Answers cite their sources and use only ingested knowledge.',
+    askPh: 'Type a question, Enter or click Ask…',
+    ask: 'Ask',
+    asking: 'Searching…',
+    thinking: 'Retrieving & generating…',
+    citations: 'Citations',
+    mode: { local: 'Local Offline' },
+    kb: 'Knowledge Base',
+    kbEmpty: 'No knowledge yet — ingest policies/regulations',
+    dth: { title: 'Title', type: 'Type', chunks: 'Chunks', status: 'Status' },
+    stype: { POLICY: 'Policy', REGULATION: 'Regulation', OBLIGATION: 'Obligation', MANUAL: 'Manual' },
+    dstatus: { PENDING: 'Pending', INDEXED: 'Indexed' },
+    org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
+    ingest: { btn: '＋ Ingest', ref: 'Source Ref', content: 'Content', contentPh: 'Paste policy/regulation text; auto-chunked & embedded', org: 'Organization', ok: 'Ingest & Index' }
+  },
+
+  // ---- Model Access (ModelAccessView) ----
+  aimodel: {
+    tag: 'MODEL · Access',
+    title: 'Model Access',
+    refresh: 'Refresh',
+    current: 'Current AI Config',
+    llm: 'LLM',
+    embedding: 'Embedding',
+    network: 'Data Egress',
+    local: 'Local Offline · no LLM',
+    embLocal: 'Local deterministic',
+    noEgress: 'No egress (all local)',
+    egress: 'Context sent to Anthropic',
+    localNote: 'Local offline mode: vector retrieval + offline summary. No network, no key, no data egress. Returns retrieval summary only, not generative answers.',
+    claudeNote: 'Claude enabled: retrieved snippets and the question are sent to Anthropic to generate answers. Ensure data-egress & compliance (PIPL/MLPS).',
+    howto: 'How to Switch',
+    deploySide: 'deployment-side',
+    howtoLead: 'Provider and key are set via deployment env vars (effective on restart), not entered here:',
+    keyDeploy: '(injected at deploy, not shown)',
+    keyWarn: 'For security, the API key is injected only via deployment env vars. The UI provides no key-entry field and never echoes the key.'
   }
 }
