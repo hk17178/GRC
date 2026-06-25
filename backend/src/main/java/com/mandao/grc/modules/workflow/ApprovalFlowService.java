@@ -1,10 +1,12 @@
 package com.mandao.grc.modules.workflow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.flowable.engine.RepositoryService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * 审批流配置服务（P1.1：草稿管理 + 校验）。
@@ -20,11 +22,16 @@ public class ApprovalFlowService {
 
     private final ApprovalFlowRepository repo;
     private final FlowGraphValidator validator;
+    private final BpmnCompiler compiler;
+    private final RepositoryService repositoryService;
     private final ObjectMapper objectMapper;
 
-    public ApprovalFlowService(ApprovalFlowRepository repo, FlowGraphValidator validator, ObjectMapper objectMapper) {
+    public ApprovalFlowService(ApprovalFlowRepository repo, FlowGraphValidator validator, BpmnCompiler compiler,
+                               RepositoryService repositoryService, ObjectMapper objectMapper) {
         this.repo = repo;
         this.validator = validator;
+        this.compiler = compiler;
+        this.repositoryService = repositoryService;
         this.objectMapper = objectMapper;
     }
 
@@ -61,6 +68,31 @@ public class ApprovalFlowService {
     @Transactional(readOnly = true)
     public void validate(Long id) {
         validator.validate(parse(get(id).getGraphJson()));
+    }
+
+    /**
+     * 发布：校验 → 编译成 BPMN → 部署给 Flowable → 置 ACTIVE（同组织同业务类型旧 ACTIVE 自动停用）。
+     *
+     * 部署与业务写入同事务原子；流程 key 稳定为 approvalFlow{id}，重发布在 Flowable 内升版本。
+     */
+    @Transactional
+    public ApprovalFlow publish(Long id) {
+        ApprovalFlow flow = get(id);
+        FlowGraph graph = parse(flow.getGraphJson());
+        validator.validate(graph);
+        BpmnCompiler.Compiled compiled = compiler.compile(flow, graph);
+
+        repositoryService.createDeployment()
+                .name("approval-" + flow.getOrgId() + "-" + flow.getBizType() + "-" + flow.getId())
+                .addString(compiled.processKey() + ".bpmn20.xml", compiled.bpmnXml())
+                .deploy();
+
+        // 同组织同业务类型仅一条 ACTIVE：先停用旧的（满足 DB 部分唯一索引）
+        Optional<ApprovalFlow> prev = repo.findFirstByBizTypeAndStatus(flow.getBizType(), FlowStatus.ACTIVE);
+        prev.filter(p -> !p.getId().equals(id)).ifPresent(p -> { p.retire(); repo.save(p); });
+
+        flow.activate(compiled.processKey());
+        return repo.save(flow);
     }
 
     /** 停用。 */
