@@ -2,6 +2,7 @@ package com.mandao.grc.common.web;
 
 import com.mandao.grc.modules.assessment.RiskCloseGateException;
 import com.mandao.grc.modules.permission.SodViolationException;
+import com.mandao.grc.modules.workflow.FlowValidationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -102,5 +103,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDataIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ApiError("DATA_CONFLICT", "数据冲突：已存在重复记录或违反唯一约束"));
+    }
+
+    /**
+     * 审批流画布校验失败（结构/属性不合法）→ 400 BAD_REQUEST。
+     *
+     * 校验失败是"请求内容问题"（流程画错/属性缺失），与不存在(404)、状态冲突(409)区分；
+     * code=FLOW_INVALID，message 聚合所有问题点，前端可直接展示给配置人员逐条修正。
+     */
+    @ExceptionHandler(FlowValidationException.class)
+    public ResponseEntity<ApiError> handleFlowValidation(FlowValidationException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(new ApiError("FLOW_INVALID", ex.getMessage()));
     }
 }
