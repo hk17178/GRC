@@ -990,6 +990,8 @@ export default {
     howto: 'How to Switch',
     deploySide: 'deployment-side',
     howtoLead: 'Provider and key are set via deployment env vars (effective on restart), not entered here:',
+    provClaude: 'Claude (Anthropic)',
+    provOpenai: 'OpenAI-compatible (OpenAI / Qwen / DeepSeek / Kimi / GLM / local vLLM·Ollama…)',
     keyDeploy: '(injected at deploy, not shown)',
     keyWarn: 'For security, the API key is injected only via deployment env vars. The UI provides no key-entry field and never echoes the key.'
   }

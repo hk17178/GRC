@@ -51,6 +51,11 @@ public class AiQaService {
         return llm.name();
     }
 
+    /** 当前模型标识（前端展示用）。 */
+    public String model() {
+        return llm.model();
+    }
+
     private String snippet(String content) {
         if (content == null) {
             return "";

@@ -53,10 +53,10 @@ public class AiController {
         return qa.ask(req.question(), req.topK());
     }
 
-    /** 当前 AI 配置状态（提供方/嵌入维度），供「模型接入」页展示。 */
+    /** 当前 AI 配置状态（提供方/模型/嵌入维度），供「模型接入」页展示。 */
     @GetMapping("/status")
     public AiStatus status() {
-        return new AiStatus(qa.provider(), embedding.dim(), "local".equals(qa.provider()));
+        return new AiStatus(qa.provider(), qa.model(), embedding.dim(), "local".equals(qa.provider()));
     }
 
     /** 摄入请求体。 */
@@ -67,7 +67,7 @@ public class AiController {
     public record AskRequest(String question, Integer topK) {
     }
 
-    /** AI 状态：当前提供方、嵌入维度、是否本地离线模式。 */
-    public record AiStatus(String provider, int embeddingDim, boolean offline) {
+    /** AI 状态：当前提供方、模型、嵌入维度、是否本地离线模式。 */
+    public record AiStatus(String provider, String model, int embeddingDim, boolean offline) {
     }
 }

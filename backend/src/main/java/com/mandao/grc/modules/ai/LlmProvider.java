@@ -12,8 +12,13 @@ import java.util.List;
  */
 public interface LlmProvider {
 
-    /** 提供方标识（用于前端展示当前 AI 模式，如 local / claude）。 */
+    /** 提供方标识（用于前端展示当前 AI 模式，如 local / claude / openai-compatible）。 */
     String name();
+
+    /** 当前模型标识（用于前端展示具体模型名）。默认与提供方标识相同。 */
+    default String model() {
+        return name();
+    }
 
     /**
      * 依据问题与知识库检索片段生成回答。

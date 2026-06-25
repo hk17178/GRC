@@ -17,7 +17,7 @@
           <div class="ch"><h3>{{ $t('aimodel.current') }}</h3></div>
           <div class="cb">
             <div class="row"><span class="k">{{ $t('aimodel.llm') }}</span>
-              <span class="st" :class="status.offline ? 'wait' : 'ok'"><span class="d"></span>{{ status.offline ? $t('aimodel.local') : 'Claude · ' + status.provider }}</span>
+              <span class="st" :class="status.offline ? 'wait' : 'ok'"><span class="d"></span>{{ status.offline ? $t('aimodel.local') : status.provider + ' · ' + status.model }}</span>
             </div>
             <div class="row"><span class="k">{{ $t('aimodel.embedding') }}</span><b>{{ $t('aimodel.embLocal') }} · {{ status.embeddingDim }}d</b></div>
             <div class="row"><span class="k">{{ $t('aimodel.network') }}</span>
@@ -33,9 +33,22 @@
           <div class="cb">
             <p class="lead">{{ $t('aimodel.howtoLead') }}</p>
             <div class="env">
-              <div class="ek">GRC_AI_PROVIDER</div><div class="ev">local <span class="sep">|</span> claude</div>
-              <div class="ek">ANTHROPIC_API_KEY</div><div class="ev">{{ $t('aimodel.keyDeploy') }}</div>
-              <div class="ek">GRC_AI_CLAUDE_MODEL</div><div class="ev">claude-opus-4-8</div>
+              <div class="ek">GRC_AI_PROVIDER</div><div class="ev">local <span class="sep">|</span> claude <span class="sep">|</span> openai</div>
+            </div>
+            <div class="prov">
+              <div class="pt">{{ $t('aimodel.provClaude') }}</div>
+              <div class="env">
+                <div class="ek">ANTHROPIC_API_KEY</div><div class="ev">{{ $t('aimodel.keyDeploy') }}</div>
+                <div class="ek">GRC_AI_CLAUDE_MODEL</div><div class="ev">claude-opus-4-8</div>
+              </div>
+            </div>
+            <div class="prov">
+              <div class="pt">{{ $t('aimodel.provOpenai') }}</div>
+              <div class="env">
+                <div class="ek">GRC_AI_OPENAI_BASE_URL</div><div class="ev">https://…/v1</div>
+                <div class="ek">GRC_AI_OPENAI_API_KEY</div><div class="ev">{{ $t('aimodel.keyDeploy') }}</div>
+                <div class="ek">GRC_AI_OPENAI_MODEL</div><div class="ev">qwen-plus / deepseek-chat / …</div>
+              </div>
             </div>
             <p class="warn">🔒 {{ $t('aimodel.keyWarn') }}</p>
           </div>
@@ -50,7 +63,7 @@ import { reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
-const status = reactive({ provider: 'local', offline: true, embeddingDim: 1024 })
+const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })
 async function loadStatus() { try { Object.assign(status, await api.get('/ai/status')) } catch (e) { /* 保持默认 */ } }
 onMounted(loadStatus)
 </script>
@@ -84,5 +97,7 @@ onMounted(loadStatus)
 .env .ek { font-family: var(--font-mono, monospace); font-weight: 700; color: var(--accent-strong); }
 .env .ev { font-family: var(--font-mono, monospace); color: var(--text-2); }
 .env .sep { color: var(--text-3); margin: 0 4px; }
+.prov { margin-top: 12px; }
+.prov .pt { font-size: 11px; font-weight: 700; color: var(--text-2); margin-bottom: 6px; }
 .warn { margin: 14px 0 0; padding: 9px 12px; font-size: 12px; color: var(--text-2); background: var(--warning-tint); border: 1px solid var(--border); border-left: 3px solid #a87d22; border-radius: var(--radius-md); line-height: 1.6; }
 </style>

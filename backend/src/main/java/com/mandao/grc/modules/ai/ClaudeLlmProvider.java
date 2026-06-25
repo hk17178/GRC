@@ -44,6 +44,11 @@ public class ClaudeLlmProvider implements LlmProvider {
     }
 
     @Override
+    public String model() {
+        return model;
+    }
+
+    @Override
     public String generate(String question, List<String> contextSnippets) {
         if (apiKey == null || apiKey.isBlank()) {
             return "AI 提供方已配置为 Claude，但未注入 API 密钥（grc.ai.claude.api-key / 环境变量 ANTHROPIC_API_KEY）。"

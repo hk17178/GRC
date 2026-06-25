@@ -1054,6 +1054,8 @@ export default {
     howto: '切换指引',
     deploySide: '部署侧配置',
     howtoLead: '提供方与密钥由部署环境变量控制（应用重启生效），不在本界面录入：',
+    provClaude: 'Claude（Anthropic 云）',
+    provOpenai: 'OpenAI 兼容（OpenAI / 通义 / DeepSeek / Kimi / 智谱 / 本地 vLLM·Ollama…）',
     keyDeploy: '（部署时注入，界面不展示）',
     keyWarn: '出于安全，API 密钥仅经部署环境变量注入，平台界面不提供密钥录入框、也不回显密钥。'
   }

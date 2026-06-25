@@ -9,7 +9,7 @@
         <div><div class="kqt">{{ $t('ai.tag') }}</div><h1>{{ $t('ai.title') }}</h1></div>
         <div class="sp"></div>
         <span class="mode" :class="status.offline ? 'off' : 'on'">
-          <span class="d"></span>{{ status.offline ? $t('ai.mode.local') : 'Claude · ' + status.provider }}
+          <span class="d"></span>{{ status.offline ? $t('ai.mode.local') : status.model }}
         </span>
       </div>
 
@@ -94,7 +94,7 @@ import { ref, reactive, nextTick, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
-const status = reactive({ provider: 'local', offline: true, embeddingDim: 1024 })
+const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })
 const docs = ref([])
 const messages = ref([])
 const q = ref('')

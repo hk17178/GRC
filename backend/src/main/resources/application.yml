@@ -46,13 +46,22 @@ grc:
 
   # AI 接入（CR-004 · RAG）。默认全本地离线，不出网、不需密钥；生产按需切换。
   ai:
-    # 生成端 LLM 提供方：local（本地离线·不编造，默认）| claude（Anthropic 云）
+    # 生成端 LLM 提供方：
+    #   local（本地离线·不编造，默认）
+    #   claude（Anthropic 云）
+    #   openai（OpenAI-兼容：OpenAI/通义千问/DeepSeek/Kimi/智谱，及本地 vLLM/Ollama/Xinference 等，填 base-url+key+model）
     provider: ${GRC_AI_PROVIDER:local}
     claude:
       # 密钥仅经环境变量注入，代码/配置文件不含明文密钥
       api-key: ${ANTHROPIC_API_KEY:}
       model: ${GRC_AI_CLAUDE_MODEL:claude-opus-4-8}
       base-url: ${GRC_AI_CLAUDE_BASE_URL:https://api.anthropic.com}
+      max-tokens: 1024
+    # 通用 OpenAI-兼容端点（base-url 指向到 /v1）。本地私有化模型可满足数据不出境
+    openai:
+      api-key: ${GRC_AI_OPENAI_API_KEY:}
+      base-url: ${GRC_AI_OPENAI_BASE_URL:https://api.openai.com/v1}
+      model: ${GRC_AI_OPENAI_MODEL:gpt-4o-mini}
       max-tokens: 1024
     # 嵌入提供方：local（本地确定性·默认）| voyage（待接入）。维度须与 kb_chunk.embedding=vector(1024) 一致
     embedding:
