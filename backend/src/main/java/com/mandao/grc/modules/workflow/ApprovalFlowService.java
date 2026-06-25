@@ -103,6 +103,23 @@ public class ApprovalFlowService {
         return repo.save(flow);
     }
 
+    /**
+     * 灌一套"默认单节点"审批流并发布（用于现有业务的初始迁移：行为=当前单审批，但从此可在画布改）。
+     * 开始 → 单审批(指定角色·或签即任一通过) → 通过结束。
+     */
+    @Transactional
+    public ApprovalFlow seedDefault(Long orgId, ApprovalBizType bizType, String approverRole) {
+        FlowGraph g = new FlowGraph(
+                List.of(
+                        new FlowGraph.FlowNode("start", NodeType.START, null, null, null, null, null, null, null, null),
+                        new FlowGraph.FlowNode("n1", NodeType.APPROVAL, "审批", ApproverType.ROLE,
+                                List.of(approverRole), CountersignMode.ANY, 1, null, null, null),
+                        new FlowGraph.FlowNode("end", NodeType.END, null, null, null, null, null, null, null, "APPROVED")),
+                List.of(new FlowGraph.FlowEdge("start", "n1", null), new FlowGraph.FlowEdge("n1", "end", null)));
+        ApprovalFlow flow = createDraft(orgId, bizType, bizType + " 默认审批流", g);
+        return publish(flow.getId());
+    }
+
     // ---------- 内部辅助 ----------
 
     /** 反序列化 graph_json → FlowGraph（供校验器/编译器使用）。 */
