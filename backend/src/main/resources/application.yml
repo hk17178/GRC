@@ -44,6 +44,12 @@ grc:
     enabled: true            # 测试中置 false，避免定时任务干扰
     fixed-delay-ms: 900000   # 扫描间隔，默认 15 分钟
 
+  # 认证（增强③ R1）。JWT 密钥仅环境注入，配置/代码不含生产密钥
+  auth:
+    jwt:
+      secret: ${GRC_JWT_SECRET:dev-only-secret-change-me-please-32bytes!!}
+      ttl-hours: 12
+
   # AI 接入（CR-004 · RAG）。默认全本地离线，不出网、不需密钥；生产按需切换。
   ai:
     # 生成端 LLM 提供方：

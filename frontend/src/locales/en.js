@@ -53,7 +53,9 @@ export default {
     localNote:
       'Local accounts are for break-glass / admin use when AD is unavailable; all logins are audited.',
     foot1: '© 2026 Mandao GRC · Authorized access only',
-    foot2: 'All access is audit-logged · MLPS L3 · Org-isolated'
+    foot2: 'All access is audit-logged · MLPS L3 · Org-isolated',
+    badCred: 'Invalid username or password',
+    loginFail: 'Login failed: '
   },
 
   // ---- nav groups ----

@@ -181,4 +181,14 @@ const router = createRouter({
   routes
 })
 
+// ---- 认证守卫（增强③ R1）----
+// 除登录页外，所有路由要求已登录；首次进入时探测会话(/auth/me)，未登录跳登录页。
+import { authState, refreshAuth } from '@/auth.js'
+router.beforeEach(async (to) => {
+  if (to.name === 'login') return true
+  if (!authState.ready) await refreshAuth()
+  if (!authState.user) return { name: 'login' }
+  return true
+})
+
 export default router

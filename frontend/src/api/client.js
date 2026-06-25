@@ -10,24 +10,15 @@
 
 const BASE = '/api'
 
-// 开发期当前用户桩：决定后端按哪个主体的 visibleOrgs 做 RLS 裁剪。
-// group_admin=集团可见全部；pay_user/cf_user=仅本子公司。真实登录后由会话提供。
-let currentUser = localStorage.getItem('grc-dev-user') || 'group_admin'
-
-/** 设置开发期当前用户（供联调切换主体观察隔离效果）。 */
-export function setDevUser(u) {
-  currentUser = u
-  localStorage.setItem('grc-dev-user', u)
-}
-
-/** 当前开发期用户。 */
-export function getDevUser() {
-  return currentUser
-}
+// 增强③ R1：身份改为真实登录的 httpOnly Cookie(grc_token)，请求自动携带(credentials:'include')；
+// 不再发送 X-User 头——前端强制登录。未登录/令牌失效时后端返回 401，本客户端统一跳登录页。
+// 回调（由 main.js 注入）：收到 401 时执行（通常 router → /login）。
+let onUnauthorized = null
+export function setUnauthorizedHandler(fn) { onUnauthorized = fn }
 
 async function request(method, path, body) {
-  const headers = { 'X-User': currentUser }
-  const opts = { method, headers }
+  const headers = {}
+  const opts = { method, headers, credentials: 'include' }
   if (body !== undefined) {
     headers['Content-Type'] = 'application/json'
     opts.body = JSON.stringify(body)
@@ -36,7 +27,10 @@ async function request(method, path, body) {
   const text = await resp.text()
   const data = text ? JSON.parse(text) : null
   if (!resp.ok) {
-    // 后端业务异常/校验失败：抛出带状态码与消息，供页面提示
+    // 401 未认证：跳登录（登录接口自身的 401 由调用方处理，不在此跳转）
+    if (resp.status === 401 && !path.startsWith('/auth/') && onUnauthorized) {
+      onUnauthorized()
+    }
     const msg = (data && (data.message || data.error)) || ('HTTP ' + resp.status)
     const err = new Error(msg)
     err.status = resp.status

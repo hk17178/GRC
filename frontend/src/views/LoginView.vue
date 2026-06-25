@@ -102,6 +102,9 @@
             </button>
           </div>
 
+          <!-- 登录错误提示（增强③ R1）-->
+          <div v-if="loginError" class="loginerr">{{ loginError }}</div>
+
           <!-- 统一身份(AD)：默认登录方式，输入域账号 -->
           <div v-show="pane === 'sso'" class="apane show">
             <div class="ssohint">{{ $t('login.ssoHint') }}</div>
@@ -257,9 +260,13 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
+import { api } from '@/api/client.js'
+import { setUser } from '@/auth.js'
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const loginError = ref('')
+const submitting = ref(false)
 
 // 认证面板：默认统一身份(AD)
 const pane = ref('sso')
@@ -268,16 +275,16 @@ const pane = ref('sso')
 const ssoPwdShow = ref(false)
 const localPwdShow = ref(false)
 
-// 两套表单数据（默认值对齐原型预填）
+// 两套表单数据（预填可直接登录的种子账号，便于演示；上线改回域账号占位）
 const sso = ref({
-  account: 'CORP\\chen.compliance',
-  pwd: '123456',
+  account: 'group_admin',
+  pwd: 'demo1234',
   captcha: '',
   remember: true
 })
 const local = ref({
-  account: 'admin.local',
-  pwd: '123456',
+  account: 'pay_user',
+  pwd: 'demo1234',
   captcha: '',
   remember: false
 })
@@ -336,9 +343,23 @@ const loginSlogan = computed(() => {
 // 忘记密码链接（系统设置 → 平台标识）
 const forgotUrl = computed(() => localStorage.getItem('grc-forgot-url') || '')
 
-// 登录提交：占位——进入仪表盘
-function onSubmit() {
-  router.push('/dashboard')
+// 登录提交：调真实后端 /api/auth/login（增强③ R1）。
+// 成功→后端置 httpOnly Cookie，前端记录用户并进仪表盘；失败→提示。
+async function onSubmit() {
+  if (submitting.value) return
+  loginError.value = ''
+  submitting.value = true
+  const acct = pane.value === 'sso' ? sso.value.account : local.value.account
+  const pwd = pane.value === 'sso' ? sso.value.pwd : local.value.pwd
+  try {
+    const u = await api.post('/auth/login', { username: acct, password: pwd })
+    setUser(u)
+    router.push('/dashboard')
+  } catch (e) {
+    loginError.value = e.status === 401 ? t('login.badCred') : t('login.loginFail') + e.message
+  } finally {
+    submitting.value = false
+  }
 }
 </script>
 
@@ -619,6 +640,15 @@ function onSubmit() {
   line-height: 1.7;
   margin-bottom: 16px;
   text-align: center;
+}
+.loginerr {
+  margin-bottom: 16px;
+  padding: 9px 12px;
+  font-size: 12.5px;
+  color: var(--danger);
+  background: var(--danger-tint, rgba(180, 35, 45, 0.1));
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
 }
 .localnote {
   margin-top: 16px;
