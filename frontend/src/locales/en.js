@@ -85,6 +85,7 @@ export default {
     aimodel: 'Model Access',
     perm: 'Permissions & Approval',
     approvalflow: 'Approval Flows',
+    rbacconfig: 'Permission Config',
     board: 'Board & Audit Trail',
     feedback: 'Feedback',
     settings: 'Settings'
@@ -120,6 +121,7 @@ export default {
     aimodel: { g: 'System', c: 'Model Access' },
     perm: { g: 'System', c: 'Permissions & Approval' },
     approvalflow: { g: 'System', c: 'Approval Flows' },
+    rbacconfig: { g: 'System', c: 'Permission Config' },
     board: { g: 'System', c: 'Board & Audit Trail' },
     feedback: { g: 'System', c: 'Feedback' },
     settings: { g: 'System', c: 'Settings' }
@@ -1031,5 +1033,24 @@ export default {
       mode: 'Completion', required: 'Required approvals', timeout: 'Timeout (h)', timeoutPh: '0 = off',
       escType: 'Escalate type', escRef: 'Escalate to', outcome: 'Outcome', condition: 'Condition', conditionPh: 'e.g. amount ge 100 (empty=default)'
     }
+  },
+
+  // ---- Permission Config (RbacConfigView · R5) ----
+  rbac: {
+    tag: 'RBAC · Permission Config',
+    title: 'Permission Config',
+    roles: 'Roles',
+    matrix: 'Permission Matrix',
+    newRole: '＋ New Role',
+    create: 'Create',
+    save: 'Save Matrix',
+    super: 'Super',
+    superNote: 'Super admins have read-write on all menus/buttons; no per-item config needed.',
+    selectHint: '← Select a role to configure its menu/button permissions',
+    resource: 'Resource (menu/button)',
+    level: 'Level',
+    roleCode: 'Role Code',
+    roleName: 'Role Name',
+    lv: { RW: 'R/W', RO: 'Read', HIDDEN: 'Hidden' }
   }
 }

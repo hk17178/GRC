@@ -85,6 +85,7 @@ export default {
     aimodel: '模型接入',
     perm: '权限与审批',
     approvalflow: '审批流配置',
+    rbacconfig: '权限配置',
     board: '看板与留痕',
     feedback: '建议与反馈',
     settings: '系统设置'
@@ -121,6 +122,7 @@ export default {
     aimodel: { g: '系统管理', c: '模型接入' },
     perm: { g: '系统管理', c: '权限与审批' },
     approvalflow: { g: '系统管理', c: '审批流配置' },
+    rbacconfig: { g: '系统管理', c: '权限配置' },
     board: { g: '系统管理', c: '看板与留痕' },
     feedback: { g: '系统管理', c: '建议与反馈' },
     settings: { g: '系统管理', c: '系统设置' }
@@ -1095,5 +1097,24 @@ export default {
       mode: '完成逻辑', required: '或签通过人数', timeout: '超时(小时)', timeoutPh: '0=不启用',
       escType: '升级目标类型', escRef: '升级目标', outcome: '结束结论', condition: '条件表达式', conditionPh: '如 amount ge 100（留空=默认）'
     }
+  },
+
+  // ---- 权限配置（RbacConfigView · 增强③ R5）----
+  rbac: {
+    tag: 'RBAC · 权限配置',
+    title: '权限配置',
+    roles: '角色',
+    matrix: '权限矩阵',
+    newRole: '＋ 新建角色',
+    create: '确认新建',
+    save: '保存矩阵',
+    super: '超管',
+    superNote: '超级管理员对全部菜单/按钮均为读写，无需逐项配置。',
+    selectHint: '← 选择左侧一个角色配置其菜单/按钮权限',
+    resource: '资源（菜单/按钮）',
+    level: '权限级别',
+    roleCode: '角色编码',
+    roleName: '角色名称',
+    lv: { RW: '读写', RO: '只读', HIDDEN: '隐藏' }
   }
 }
