@@ -4,9 +4,12 @@ import com.mandao.grc.common.isolation.IsolationContext;
 import com.mandao.grc.modules.assessment.Assessment;
 import com.mandao.grc.modules.assessment.AssessmentService;
 import com.mandao.grc.modules.assessment.TemplateService;
+import com.mandao.grc.modules.assessment.RiskCloseGateException;
+import com.mandao.grc.modules.assessment.RiskLevel;
 import com.mandao.grc.modules.assessment.form.AssessmentFormService;
 import com.mandao.grc.modules.assessment.form.DocxFormParser;
 import com.mandao.grc.modules.assessment.form.FormSchema;
+import com.mandao.grc.modules.assessment.form.ScoringService;
 import com.mandao.grc.modules.assessment.form.TemplateForm;
 import com.mandao.grc.modules.control.ControlFramework;
 import org.apache.poi.xwpf.usermodel.XWPFDocument;
@@ -72,6 +75,7 @@ class AssessmentFormTest {
     @Autowired private AssessmentFormService formService;
     @Autowired private TemplateService templateService;
     @Autowired private AssessmentService assessmentService;
+    @Autowired private ScoringService scoringService;
 
     private static final long ORG_PAY = 12L;
     private static final long ORG_CF = 13L;
@@ -176,6 +180,47 @@ class AssessmentFormTest {
         assertTrue(asOrg(ORG_CF, () -> formService.listForms(tplId)).isEmpty(), "org13 不应看到 org12 的表单");
     }
 
+    @Test
+    void 打分_可能性乘影响映射五级() {
+        assertEquals(RiskLevel.VERY_LOW, scoringService.levelOf(1, 1));   // 1
+        assertEquals(RiskLevel.LOW, scoringService.levelOf(2, 3));        // 6
+        assertEquals(RiskLevel.MID, scoringService.levelOf(3, 3));        // 9
+        assertEquals(RiskLevel.HIGH, scoringService.levelOf(4, 5));       // 20
+        assertEquals(RiskLevel.VERY_HIGH, scoringService.levelOf(5, 5));  // 25
+    }
+
+    @Test
+    void 残余聚合_完成门控_管理层签批放行() {
+        Long tplId = asOrg(ORG_PAY, () -> templateService.create(ORG_PAY, "TPL-GATE", "风评门控",
+                ControlFramework.ISO27001, null, null, "c").getId());
+        TemplateForm form = asOrg(ORG_PAY, () -> formService.uploadForm(tplId, null, sampleDocx()));
+        asOrg(ORG_PAY, () -> formService.activate(form.getId()));
+
+        Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "门控评估", "张三", "2026Q2", tplId, "c"));
+        // 绑定表单（首访）+ 填写：风险点清单含一行 残余风险=HIGH
+        asOrg(ORG_PAY, () -> formService.getAssessmentForm(a.getId()));
+        Map<String, Object> answers = Map.of(
+                "风险点清单", List.of(Map.of("控制点", "ACL-01", "残余风险", "HIGH")));
+        RiskLevel overall = asOrg(ORG_PAY, () -> formService.saveAnswers(a.getId(), answers));
+        assertEquals(RiskLevel.HIGH, overall, "聚合整体残余应为 HIGH");
+        assertEquals(RiskLevel.HIGH, asOrg(ORG_PAY, () -> assessmentService.get(a.getId()).getRiskLevel()),
+                "整体残余应写回评估");
+
+        // 推进到待复核
+        asOrg(ORG_PAY, () -> assessmentService.start(a.getId(), "c"));
+        asOrg(ORG_PAY, () -> assessmentService.submitForReview(a.getId(), "c"));
+
+        // 残余高 + 未签批 → 完成被门控（CR-002 红线）
+        assertThrows(RiskCloseGateException.class,
+                () -> runAsOrg(ORG_PAY, () -> assessmentService.complete(a.getId(), "c")));
+
+        // 管理层接受签批 → 放行完成
+        asOrg(ORG_PAY, () -> assessmentService.signOff(a.getId(), "ceo", "知悉并接受", true));
+        assertEquals(com.mandao.grc.modules.assessment.AssessmentStatus.COMPLETED,
+                asOrg(ORG_PAY, () -> assessmentService.complete(a.getId(), "c").getStatus()),
+                "签批后应可完成");
+    }
+
     // ---------- 辅助 ----------
 
     /** 造一份含 标题/标量占位符/明细表 的 .docx 字节。 */
@@ -212,6 +257,15 @@ class AssessmentFormTest {
         IsolationContext.set(List.of(orgId));
         try {
             return action.get();
+        } finally {
+            IsolationContext.clear();
+        }
+    }
+
+    private void runAsOrg(long orgId, java.util.concurrent.Callable<?> action) throws Exception {
+        IsolationContext.set(List.of(orgId));
+        try {
+            action.call();
         } finally {
             IsolationContext.clear();
         }

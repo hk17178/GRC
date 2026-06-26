@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 风险评估表单引擎 REST 端点（P1）。
@@ -69,11 +70,12 @@ public class AssessmentFormController {
         return service.getAssessmentForm(id);
     }
 
-    /** 保存某评估的填写值。 */
+    /** 保存某评估的填写值，返回聚合出的整体残余等级（驱动看板/任务列表 + 完成门控）。 */
     @PutMapping("/assessments/{id}/answers")
     @RequiresPermission("risk")
-    public void saveAnswers(@PathVariable Long id, @RequestBody Object answers) {
-        service.saveAnswers(id, answers);
+    public Map<String, Object> saveAnswers(@PathVariable Long id, @RequestBody Object answers) {
+        var level = service.saveAnswers(id, answers);
+        return java.util.Collections.singletonMap("riskLevel", level == null ? null : level.name());
     }
 
     /**

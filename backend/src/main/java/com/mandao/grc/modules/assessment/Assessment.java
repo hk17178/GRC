@@ -63,6 +63,22 @@ public class Assessment {
     @Column(name = "template_id")
     private Long templateId;
 
+    /** 管理层签批：签批人。 */
+    @Column(name = "mgmt_signer", length = 64)
+    private String mgmtSigner;
+
+    /** 管理层签批：时间。 */
+    @Column(name = "mgmt_signed_at")
+    private OffsetDateTime mgmtSignedAt;
+
+    /** 管理层签批：意见。 */
+    @Column(name = "mgmt_opinion", columnDefinition = "TEXT")
+    private String mgmtOpinion;
+
+    /** 管理层签批：是否接受残余风险（CR-002 完成门控放行依据）。 */
+    @Column(name = "mgmt_accepted", nullable = false)
+    private boolean mgmtAccepted = false;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -110,6 +126,23 @@ public class Assessment {
     public String getAssessor() { return assessor; }
     public String getPeriod() { return period; }
     public Long getTemplateId() { return templateId; }
+    public String getMgmtSigner() { return mgmtSigner; }
+    public OffsetDateTime getMgmtSignedAt() { return mgmtSignedAt; }
+    public String getMgmtOpinion() { return mgmtOpinion; }
+    public boolean isMgmtAccepted() { return mgmtAccepted; }
+
+    /** 由打分服务在保存填写后写入整体残余等级（驱动看板/任务列表风险等级 + 完成门控）。 */
+    public void setRiskLevel(RiskLevel riskLevel) {
+        this.riskLevel = riskLevel;
+    }
+
+    /** 记录一次管理层签批。 */
+    public void signOff(String signer, String opinion, boolean accepted) {
+        this.mgmtSigner = signer;
+        this.mgmtOpinion = opinion;
+        this.mgmtAccepted = accepted;
+        this.mgmtSignedAt = OffsetDateTime.now();
+    }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 

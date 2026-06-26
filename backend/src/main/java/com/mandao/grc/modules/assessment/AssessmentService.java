@@ -101,13 +101,38 @@ public class AssessmentService {
         return saved;
     }
 
-    /** 完成评估：PENDING_REVIEW → COMPLETED（终态）。 */
+    /**
+     * 完成评估：PENDING_REVIEW → COMPLETED（终态）。
+     *
+     * CR-002 红线门控：整体残余等级为高/极高（HIGH/VERY_HIGH）时，须先有管理层接受签批
+     * （{@link Assessment#isMgmtAccepted()}），否则抛 {@link RiskCloseGateException}（→409）阻断完成。
+     */
     @Transactional
     public Assessment complete(Long id, String actor) {
         Assessment a = get(id);
+        RiskLevel lv = a.getRiskLevel();
+        if ((lv == RiskLevel.HIGH || lv == RiskLevel.VERY_HIGH) && !a.isMgmtAccepted()) {
+            throw new RiskCloseGateException(
+                    "整体残余风险为" + (lv == RiskLevel.VERY_HIGH ? "极高" : "高") + "，须经管理层接受签批后方可完成评估");
+        }
         transition(a, AssessmentStatus.PENDING_REVIEW, AssessmentStatus.COMPLETED);
         Assessment saved = repository.save(a);
         appendLog(saved, "ASSESSMENT_COMPLETE", actor, "评估完成");
+        return saved;
+    }
+
+    /**
+     * 管理层签批：记录签批人/意见/是否接受残余风险。
+     *
+     * accepted=true 即为接受残余风险，放行高/极高残余评估的完成门控（CR-002）。
+     */
+    @Transactional
+    public Assessment signOff(Long id, String signer, String opinion, boolean accepted) {
+        Assessment a = get(id);
+        a.signOff(signer, opinion, accepted);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_SIGNOFF", signer,
+                "管理层签批，" + (accepted ? "接受残余风险" : "不接受") + "：" + (opinion == null ? "" : opinion));
         return saved;
     }
 

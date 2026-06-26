@@ -439,7 +439,10 @@
       </div>
 
       <!-- 表单引擎 P1：按模板 .docx 解析出的规范评估表单（真实后端，可填写保存） -->
-      <AssessmentFormFill :assessment-id="drillId" />
+      <AssessmentFormFill :assessment-id="drillId" @saved="onFormSaved" />
+
+      <!-- 表单引擎 P2：整体残余等级 + 管理层接受签批（CR-002 完成门控） -->
+      <AssessmentSignoff :assessment-id="drillId" ref="signoffRef" />
 
       <!-- 诚实标注：下方分析图示为原型视觉示意；「评估表单」与「风险发现·关闭门控」为真实后端数据与红线 -->
       <div class="note-strip">{{ $t('risk.gate.scaffoldNote') }}</div>
@@ -617,6 +620,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import AssessmentFormFill from '@/components/AssessmentFormFill.vue'
+import AssessmentSignoff from '@/components/AssessmentSignoff.vue'
 import { api } from '@/api/client.js'
 import { canWrite } from '@/auth.js'
 
@@ -626,6 +630,13 @@ const activeTab = ref('tasks')
 
 // ---- 下钻：评估报告视图开关（点击任务行进入，← 返回）----
 const drill = ref(false)
+
+// 表单引擎 P2：保存表单后刷新签批面板的整体残余等级；并刷新任务列表的风险等级列
+const signoffRef = ref(null)
+async function onFormSaved() {
+  if (signoffRef.value) signoffRef.value.reload()
+  try { liveTasks.value = await api.get('/assessments') } catch (e) { /* 忽略 */ }
+}
 
 // ---- 下钻：进入某评估 → 拉取其风险发现（真实后端）+ CR-002 关闭门控 ----
 const drillId = ref(null)

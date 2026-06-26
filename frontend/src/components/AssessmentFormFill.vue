@@ -118,11 +118,13 @@ import { api } from '../api/client'
 import { canWrite } from '../auth'
 
 const props = defineProps({ assessmentId: { type: [Number, String], default: null } })
+const emit = defineEmits(['saved'])
 
 const LEVELS = [
   { v: 'VERY_LOW', l: '极低' }, { v: 'LOW', l: '低' }, { v: 'MID', l: '中' },
   { v: 'HIGH', l: '高' }, { v: 'VERY_HIGH', l: '极高' }
 ]
+const lvlLabel = (v) => (LEVELS.find(x => x.v === v)?.l) || v
 
 const loading = ref(false)
 const error = ref('')
@@ -190,9 +192,10 @@ async function save() {
   error.value = ''
   try {
     // 直接提交模型（标量 + 明细表数组），后端按 key 存 JSON
-    await api.put('/assessments/' + props.assessmentId + '/answers', JSON.parse(JSON.stringify(model)))
-    okMsg.value = '已保存'
-    setTimeout(() => (okMsg.value = ''), 2500)
+    const res = await api.put('/assessments/' + props.assessmentId + '/answers', JSON.parse(JSON.stringify(model)))
+    okMsg.value = res && res.riskLevel ? '已保存 · 整体残余等级：' + lvlLabel(res.riskLevel) : '已保存'
+    emit('saved', res && res.riskLevel)   // 通知父组件刷新签批面板的整体等级
+    setTimeout(() => (okMsg.value = ''), 3000)
   } catch (e) {
     error.value = e.message
   } finally {

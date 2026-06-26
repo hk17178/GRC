@@ -72,7 +72,7 @@ public class AssessmentController {
         return service.reject(id, actor(user), req == null ? null : req.reason());
     }
 
-    /** 完成评估：PENDING_REVIEW → COMPLETED。 */
+    /** 完成评估：PENDING_REVIEW → COMPLETED（残余高/极高需管理层签批，否则 409）。 */
     @PostMapping("/{id}/complete")
     @RequiresPermission("risk")
     public Assessment complete(@PathVariable Long id,
@@ -80,8 +80,26 @@ public class AssessmentController {
         return service.complete(id, actor(user));
     }
 
-    /** actor 占位策略：取 X-User，缺省 anonymous。 */
+    /** 管理层签批：记录意见 + 是否接受残余风险（放行高/极高残余评估的完成门控）。 */
+    @PostMapping("/{id}/signoff")
+    @RequiresPermission("risk")
+    public Assessment signoff(@PathVariable Long id,
+                             @RequestBody SignoffRequest req,
+                             @RequestHeader(value = "X-User", required = false) String user) {
+        return service.signOff(id, actor(user), req == null ? null : req.opinion(),
+                req != null && req.accepted());
+    }
+
+    /**
+     * actor 归属策略：优先取登录态（JWT Cookie 解析出的当前用户），其次兼容旧 X-User 头，再缺省 anonymous。
+     *
+     * R1 认证切到 httpOnly Cookie 后前端不再发 X-User，签批/留痕等审计归属须取真实登录人。
+     */
     private String actor(String user) {
+        String current = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
@@ -91,5 +109,9 @@ public class AssessmentController {
 
     /** 驳回请求体（原因可选）。 */
     public record RejectRequest(String reason) {
+    }
+
+    /** 管理层签批请求体。 */
+    public record SignoffRequest(String opinion, boolean accepted) {
     }
 }

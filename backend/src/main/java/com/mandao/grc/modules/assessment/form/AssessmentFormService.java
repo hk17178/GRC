@@ -1,14 +1,17 @@
 package com.mandao.grc.modules.assessment.form;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mandao.grc.modules.assessment.Assessment;
 import com.mandao.grc.modules.assessment.AssessmentRepository;
 import com.mandao.grc.modules.assessment.AssessmentTemplate;
 import com.mandao.grc.modules.assessment.AssessmentTemplateRepository;
+import com.mandao.grc.modules.assessment.RiskLevel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -31,17 +34,20 @@ public class AssessmentFormService {
     private final AssessmentAnswerRepository answerRepo;
     private final AssessmentTemplateRepository templateRepo;
     private final AssessmentRepository assessmentRepo;
+    private final ScoringService scoringService;
     private final ObjectMapper objectMapper;
 
     public AssessmentFormService(DocxFormParser parser, TemplateFormRepository formRepo,
                                  AssessmentAnswerRepository answerRepo,
                                  AssessmentTemplateRepository templateRepo,
-                                 AssessmentRepository assessmentRepo, ObjectMapper objectMapper) {
+                                 AssessmentRepository assessmentRepo,
+                                 ScoringService scoringService, ObjectMapper objectMapper) {
         this.parser = parser;
         this.formRepo = formRepo;
         this.answerRepo = answerRepo;
         this.templateRepo = templateRepo;
         this.assessmentRepo = assessmentRepo;
+        this.scoringService = scoringService;
         this.objectMapper = objectMapper;
     }
 
@@ -134,13 +140,41 @@ public class AssessmentFormService {
         return AssessmentFormView.of(form.getId(), readJson(form.getSchemaJson()), readAnswers("{}"));
     }
 
-    /** 保存填写值（评估须已绑定表单；answers 为字段/列表键值 JSON）。 */
+    /**
+     * 保存填写值（评估须已绑定表单；answers 为字段/列表键值 JSON）。
+     *
+     * 保存后按打分服务聚合整体残余等级 → 写回 assessment.riskLevel（驱动看板/任务列表风险等级
+     * 与 CR-002 完成门控）。返回聚合出的整体等级（无可判定为 null）。
+     */
     @Transactional
-    public void saveAnswers(Long assessmentId, Object answers) {
+    public RiskLevel saveAnswers(Long assessmentId, Object answers) {
         AssessmentAnswer ans = answerRepo.findByAssessmentId(assessmentId)
                 .orElseThrow(() -> new IllegalStateException("该评估尚未绑定表单，无法保存填写"));
         ans.setAnswersJson(writeJson(answers));
         answerRepo.save(ans);
+
+        // 聚合整体残余等级并写回评估
+        FormSchema schema = formRepo.findById(ans.getFormVersionId())
+                .map(f -> readJson(f.getSchemaJson())).orElse(null);
+        RiskLevel overall = scoringService.overallResidual(schema, asMap(answers));
+        if (overall != null) {
+            Assessment a = assessmentRepo.findById(assessmentId).orElse(null);
+            if (a != null) {
+                a.setRiskLevel(overall);
+                assessmentRepo.save(a);
+            }
+        }
+        return overall;
+    }
+
+    /** 把任意填写值规整为 Map（供打分聚合用）。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object answers) {
+        try {
+            return objectMapper.convertValue(answers, new TypeReference<Map<String, Object>>() { });
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     // ---------- JSON 辅助 ----------
