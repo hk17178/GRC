@@ -53,9 +53,21 @@ public class AssessmentService {
      */
     @Transactional
     public Assessment create(Long orgId, String title, String assessor, String period, String actor) {
-        Assessment a = new Assessment(orgId, title, assessor, period);
+        return create(orgId, title, assessor, period, null, actor);
+    }
+
+    /**
+     * 新建草稿评估（可关联来源模板，供表单引擎渲染填写界面）。
+     *
+     * @param templateId 来源评估模板 id（可空）
+     */
+    @Transactional
+    public Assessment create(Long orgId, String title, String assessor, String period,
+                             Long templateId, String actor) {
+        Assessment a = new Assessment(orgId, title, assessor, period, templateId);
         Assessment saved = repository.save(a);
-        appendLog(saved, "ASSESSMENT_CREATE", actor, "新建评估草稿 title=" + title);
+        appendLog(saved, "ASSESSMENT_CREATE", actor, "新建评估草稿 title=" + title
+                + (templateId == null ? "" : "（模板#" + templateId + "）"));
         return saved;
     }
 

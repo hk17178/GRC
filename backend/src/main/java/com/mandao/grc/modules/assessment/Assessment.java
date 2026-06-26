@@ -59,6 +59,10 @@ public class Assessment {
     @Column(length = 16)
     private String period;
 
+    /** 来源评估模板（可空）。表单引擎据此找模板的 ACTIVE 表单渲染填写界面。 */
+    @Column(name = "template_id")
+    private Long templateId;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -71,10 +75,16 @@ public class Assessment {
 
     /** 业务构造：以草稿态新建一项评估。时间戳由 {@link #onCreate()} 在落库前补齐。 */
     public Assessment(Long orgId, String title, String assessor, String period) {
+        this(orgId, title, assessor, period, null);
+    }
+
+    /** 业务构造（带来源模板）：以草稿态新建一项评估。 */
+    public Assessment(Long orgId, String title, String assessor, String period, Long templateId) {
         this.orgId = orgId;
         this.title = title;
         this.assessor = assessor;
         this.period = period;
+        this.templateId = templateId;
         this.status = AssessmentStatus.DRAFT;
     }
 
@@ -99,6 +109,7 @@ public class Assessment {
     public AssessmentStatus getStatus() { return status; }
     public String getAssessor() { return assessor; }
     public String getPeriod() { return period; }
+    public Long getTemplateId() { return templateId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 

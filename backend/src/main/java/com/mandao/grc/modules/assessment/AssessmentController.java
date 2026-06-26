@@ -44,7 +44,7 @@ public class AssessmentController {
     @RequiresPermission("risk.create")
     public Assessment create(@RequestBody CreateAssessmentRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
-        return service.create(req.orgId(), req.title(), req.assessor(), req.period(), actor(user));
+        return service.create(req.orgId(), req.title(), req.assessor(), req.period(), req.templateId(), actor(user));
     }
 
     /** 开始评估：DRAFT → IN_PROGRESS。 */
@@ -85,8 +85,8 @@ public class AssessmentController {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
-    /** 新建评估请求体。 */
-    public record CreateAssessmentRequest(Long orgId, String title, String assessor, String period) {
+    /** 新建评估请求体（templateId 可空：关联来源模板则启用表单引擎填写）。 */
+    public record CreateAssessmentRequest(Long orgId, String title, String assessor, String period, Long templateId) {
     }
 
     /** 驳回请求体（原因可选）。 */

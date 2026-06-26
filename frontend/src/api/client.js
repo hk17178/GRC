@@ -40,9 +40,29 @@ async function request(method, path, body) {
   return data
 }
 
+// 文件上传：发送 multipart/form-data（不手设 Content-Type，由浏览器带 boundary）。
+// 用于风险评估表单引擎上传 .docx 模板等场景。错误处理与 request 一致。
+async function upload(path, formData) {
+  const resp = await fetch(BASE + path, { method: 'POST', body: formData, credentials: 'include' })
+  const text = await resp.text()
+  const data = text ? JSON.parse(text) : null
+  if (!resp.ok) {
+    if (resp.status === 401 && !path.startsWith('/auth/') && onUnauthorized) {
+      onUnauthorized()
+    }
+    const msg = (data && (data.message || data.error)) || ('HTTP ' + resp.status)
+    const err = new Error(msg)
+    err.status = resp.status
+    err.body = data
+    throw err
+  }
+  return data
+}
+
 export const api = {
   get: (path) => request('GET', path),
   post: (path, body) => request('POST', path, body),
   put: (path, body) => request('PUT', path, body),
-  del: (path) => request('DELETE', path)
+  del: (path) => request('DELETE', path),
+  upload
 }

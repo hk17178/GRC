@@ -1,0 +1,91 @@
+package com.mandao.grc.modules.assessment.form;
+
+import com.mandao.grc.modules.rbac.RequiresPermission;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * 风险评估表单引擎 REST 端点（P1）。
+ *
+ * 模板侧（/api/assessment-templates/...）：上传 .docx、列出版本、启用——均属风险评估配置，写权限门控 "risk"。
+ * 评估侧（/api/assessments/...）：取填写界面（读）、保存填写（写，门控 "risk"）。
+ */
+@RestController
+@RequestMapping("/api")
+public class AssessmentFormController {
+
+    private final AssessmentFormService service;
+
+    public AssessmentFormController(AssessmentFormService service) {
+        this.service = service;
+    }
+
+    // ---------- 模板侧 ----------
+
+    /** 上传 .docx 模板 → 解析 → 生成 DRAFT 表单版本。 */
+    @PostMapping("/assessment-templates/{id}/form")
+    @RequiresPermission("risk")
+    public FormVersionView uploadForm(@PathVariable Long id,
+                                      @RequestParam("file") MultipartFile file,
+                                      @RequestParam(value = "name", required = false) String name) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("未收到 .docx 文件");
+        }
+        TemplateForm form = service.uploadForm(id, name, file.getBytes());
+        return FormVersionView.of(form, service.schemaOf(form));
+    }
+
+    /** 列出某模板的全部表单版本。 */
+    @GetMapping("/assessment-templates/{id}/forms")
+    public List<FormVersionView> listForms(@PathVariable Long id) {
+        return service.listForms(id).stream()
+                .map(f -> FormVersionView.meta(f))
+                .toList();
+    }
+
+    /** 启用某表单版本（同模板仅一条 ACTIVE）。 */
+    @PostMapping("/assessment-templates/forms/{formId}/activate")
+    @RequiresPermission("risk")
+    public FormVersionView activate(@PathVariable Long formId) {
+        TemplateForm form = service.activate(formId);
+        return FormVersionView.of(form, service.schemaOf(form));
+    }
+
+    // ---------- 评估侧 ----------
+
+    /** 取某评估的填写界面（schema + answers）。 */
+    @GetMapping("/assessments/{id}/form")
+    public AssessmentFormService.AssessmentFormView assessmentForm(@PathVariable Long id) {
+        return service.getAssessmentForm(id);
+    }
+
+    /** 保存某评估的填写值。 */
+    @PutMapping("/assessments/{id}/answers")
+    @RequiresPermission("risk")
+    public void saveAnswers(@PathVariable Long id, @RequestBody Object answers) {
+        service.saveAnswers(id, answers);
+    }
+
+    /**
+     * 表单版本视图。schema 仅在需要时附带（列表接口不带 docx/schema 以省流量）。
+     */
+    public record FormVersionView(Long id, Long templateId, Integer versionNo, String name,
+                                  String status, FormSchema schema) {
+        static FormVersionView meta(TemplateForm f) {
+            return new FormVersionView(f.getId(), f.getTemplateId(), f.getVersionNo(), f.getName(), f.getStatus(), null);
+        }
+        static FormVersionView of(TemplateForm f, FormSchema schema) {
+            return new FormVersionView(f.getId(), f.getTemplateId(), f.getVersionNo(), f.getName(), f.getStatus(), schema);
+        }
+    }
+}

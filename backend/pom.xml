@@ -58,6 +58,13 @@
       <scope>runtime</scope>
     </dependency>
 
+    <!-- 风险评估表单引擎：解析上传的 .docx 模板（占位符→表单 schema；P3 回填导出） -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.2.5</version>
+    </dependency>
+
     <!-- 认证：BCrypt 口令哈希（仅 crypto 模块，不引全量 Spring Security） -->
     <dependency>
       <groupId>org.springframework.security</groupId>
