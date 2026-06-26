@@ -134,8 +134,7 @@ const ROUTE_BY_KEY = {
   board: 'board',
   feedback: 'feedback',
   settings: 'settings',
-  approvalflow: 'approvalflow',
-  rbacconfig: 'rbacconfig'
+  approvalflow: 'approvalflow'
 }
 
 // 当前激活菜单：优先按当前路由的 meta.navKey 推断，回退按 route name 反查，再回退 dashboard
@@ -179,7 +178,6 @@ const menu = [
       { key: 'aimodel' },
       { key: 'perm' },
       { key: 'approvalflow' },
-      { key: 'rbacconfig' },
       { key: 'board' },
       { key: 'feedback', cnt: 6 },
       { key: 'settings' }

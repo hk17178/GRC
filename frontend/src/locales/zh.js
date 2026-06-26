@@ -83,9 +83,8 @@ export default {
     org: '组织与资产',
     notify: '通知中心',
     aimodel: '模型接入',
-    perm: '权限与审批',
+    perm: '权限管理',
     approvalflow: '审批流配置',
-    rbacconfig: '权限配置',
     board: '看板与留痕',
     feedback: '建议与反馈',
     settings: '系统设置'
@@ -120,9 +119,8 @@ export default {
     org: { g: '资产与组织', c: '组织与资产' },
     notify: { g: '系统管理', c: '通知中心' },
     aimodel: { g: '系统管理', c: '模型接入' },
-    perm: { g: '系统管理', c: '权限与审批' },
+    perm: { g: '系统管理', c: '权限管理' },
     approvalflow: { g: '系统管理', c: '审批流配置' },
-    rbacconfig: { g: '系统管理', c: '权限配置' },
     board: { g: '系统管理', c: '看板与留痕' },
     feedback: { g: '系统管理', c: '建议与反馈' },
     settings: { g: '系统管理', c: '系统设置' }

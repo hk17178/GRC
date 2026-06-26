@@ -9,9 +9,22 @@
   <AppShell>
     <section class="view view-perm">
       <div class="phead">
-        <div><div class="kqt">{{ $t('perm.tag') }}</div><h1>{{ $t('perm.title') }}</h1></div>
+        <div><div class="kqt">{{ $t('perm.tag') }}</div><h1>权限管理</h1></div>
       </div>
 
+      <!-- ⑧ 合并：原「权限与审批」+「权限配置」两菜单理顺为本页两个 Tab -->
+      <div class="tabbar">
+        <button :class="{ on: tab === 'access' }" @click="tab = 'access'">用户授权 · 职责分离 · 访问复核</button>
+        <button :class="{ on: tab === 'matrix' }" @click="tab = 'matrix'">角色权限矩阵</button>
+      </div>
+
+      <!-- Tab · 角色权限矩阵（原「权限配置」）-->
+      <div v-show="tab === 'matrix'">
+        <RbacMatrix />
+      </div>
+
+      <!-- Tab · 用户授权 / 职责分离 / 访问复核（原「权限与审批」）-->
+      <div v-show="tab === 'access'">
       <!-- SoD 规则（系统参考）-->
       <div class="card">
         <div class="ch"><h3>{{ $t('perm.sodRules') }}</h3><span class="sub">{{ $t('perm.sodRulesSub') }}</span></div>
@@ -164,6 +177,7 @@
           <p v-if="uarError" class="cerr">{{ uarError }}</p>
         </div>
       </div>
+      </div><!-- /tab access -->
     </section>
   </AppShell>
 </template>
@@ -171,7 +185,11 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import RbacMatrix from '@/components/RbacMatrix.vue'
 import { api } from '@/api/client.js'
+
+// ⑧ 合并：本页两 Tab（access=用户授权/SoD/UAR；matrix=角色权限矩阵）
+const tab = ref('access')
 
 // ---- 系统级参考数据（对齐后端种子：role / sod_rule / app_user）----
 const ROLES = [
@@ -348,4 +366,9 @@ tbody tr.on { background: var(--accent-tint); }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 8px 0 0; }
 .redline-msg { margin: 12px 0 0; padding: 9px 12px; font-size: 12.5px; font-weight: 600; color: var(--danger); background: var(--danger-tint, rgba(180,35,45,0.1)); border: 1px solid var(--danger); border-radius: var(--radius-md); }
 .ok-msg { margin: 12px 0 0; padding: 9px 12px; font-size: 12.5px; font-weight: 600; color: var(--success); background: var(--success-tint, rgba(40,150,90,0.1)); border: 1px solid var(--success); border-radius: var(--radius-md); }
+/* ⑧ Tab 切换条 */
+.tabbar { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--surface-border); }
+.tabbar button { border: 0; background: none; color: var(--text-2); font-size: 13px; font-weight: 600; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
+.tabbar button:hover { color: var(--text-1); }
+.tabbar button.on { color: var(--accent-strong); border-bottom-color: var(--accent-strong); }
 </style>

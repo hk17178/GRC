@@ -83,9 +83,8 @@ export default {
     org: 'Org & Assets',
     notify: 'Notifications',
     aimodel: 'Model Access',
-    perm: 'Permissions & Approval',
+    perm: 'Permissions',
     approvalflow: 'Approval Flows',
-    rbacconfig: 'Permission Config',
     board: 'Board & Audit Trail',
     feedback: 'Feedback',
     settings: 'Settings'
@@ -119,9 +118,8 @@ export default {
     org: { g: 'Assets & Org', c: 'Org & Assets' },
     notify: { g: 'System', c: 'Notifications' },
     aimodel: { g: 'System', c: 'Model Access' },
-    perm: { g: 'System', c: 'Permissions & Approval' },
+    perm: { g: 'System', c: 'Permissions' },
     approvalflow: { g: 'System', c: 'Approval Flows' },
-    rbacconfig: { g: 'System', c: 'Permission Config' },
     board: { g: 'System', c: 'Board & Audit Trail' },
     feedback: { g: 'System', c: 'Feedback' },
     settings: { g: 'System', c: 'Settings' }

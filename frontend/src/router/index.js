@@ -27,7 +27,6 @@ import PermissionView from '@/views/PermissionView.vue'
 import AiAssistantView from '@/views/AiAssistantView.vue'
 import ModelAccessView from '@/views/ModelAccessView.vue'
 import ApprovalFlowDesignerView from '@/views/ApprovalFlowDesignerView.vue'
-import RbacConfigView from '@/views/RbacConfigView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
@@ -152,11 +151,9 @@ const routes = [
     meta: { title: '审批流配置', navKey: 'approvalflow' }
   },
   {
-    // 权限配置：角色 × 资源 权限矩阵（增强③ R5）
+    // ⑧ 权限配置已并入「权限管理」(/permission 的「角色权限矩阵」Tab)，旧路径重定向
     path: '/rbac-config',
-    name: 'rbacconfig',
-    component: RbacConfigView,
-    meta: { title: '权限配置', navKey: 'rbacconfig' }
+    redirect: '/permission'
   },
   {
     // 建议与反馈：反馈生命周期（办结须留处置结果）
