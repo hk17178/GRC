@@ -30,8 +30,9 @@
           <h1>{{ $t('orgasset.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <button class="btn ghost">{{ $t('orgasset.adSync') }}</button>
-        <button class="btn">{{ $t('orgasset.register') }}</button>
+        <button v-if="activeTab === 'org'" class="btn" :disabled="!canWrite('org')"
+                :title="canWrite('org') ? '' : $t('common.noPerm')" @click="openOrgAdd(null)">＋ 新增子组织</button>
+        <button v-else class="btn">{{ $t('orgasset.register') }}</button>
       </div>
 
       <!-- ===== Tab 切换 ===== -->
@@ -46,53 +47,76 @@
         </button>
       </div>
 
-      <!-- ========== Tab1 · 组织架构 ========== -->
+      <!-- ========== Tab1 · 组织架构（手动配置组织树，真实后端 /api/orgs）========== -->
       <div v-show="activeTab === 'org'" class="tabpane">
         <div class="g g-main-side">
-          <!-- 左：组织树（AD 同步）-->
+          <!-- 左：组织树（手动维护）-->
           <div class="card">
             <div class="ch">
               <h3>{{ $t('orgasset.tree.title') }}</h3>
-              <span class="more">{{ $t('orgasset.tree.manualSync') }}</span>
+              <span class="more">手动配置（新增 / 重命名 / 删除）</span>
             </div>
             <div class="cb">
-              <div class="tree">
-                <div
-                  v-for="n in treeNodes"
-                  :key="n.label"
-                  class="tn"
-                  :class="n.lv"
-                >
-                  <span class="dot2"></span>{{ $t(n.label) }}
-                  <span v-if="n.cnt" class="cnt">{{ $t(n.cnt) }}</span>
+              <div class="otree">
+                <div v-for="n in orgs" :key="n.id" class="orow" :style="{ paddingLeft: (depth(n) * 18) + 'px' }">
+                  <span class="dot2"></span>
+                  <span class="onm">{{ n.name }}</span>
+                  <span class="ocode">{{ n.code }}</span>
+                  <span class="opill">{{ orgTypeLabel(n.orgType) }}</span>
+                  <span class="ospc"></span>
+                  <template v-if="canWrite('org')">
+                    <button class="mini" title="新增子组织" @click="openOrgAdd(n)">＋</button>
+                    <button class="mini" title="重命名" @click="openRename(n)">✎</button>
+                    <button class="mini danger" title="删除" @click="delOrg(n)">🗑</button>
+                  </template>
                 </div>
+                <div v-if="!orgs.length" class="hint">{{ orgError || '加载组织树…' }}</div>
               </div>
+              <div v-if="orgMsg" class="ok-msg">{{ orgMsg }}</div>
             </div>
           </div>
 
-          <!-- 右：AD 同步态势侧卡 -->
+          <!-- 右：手动配置说明侧卡（替代 AD 同步） -->
           <div class="sidecard">
-            <h4>{{ $t('orgasset.adStatus.title') }}</h4>
-            <div class="srow">
-              <span>{{ $t('orgasset.adStatus.lastSync') }}</span>
-              <b>{{ $t('orgasset.adStatus.lastSyncVal') }}</b>
-            </div>
-            <div class="srow">
-              <span>{{ $t('orgasset.adStatus.users') }}</span>
-              <b>983</b>
-            </div>
-            <div class="srow">
-              <span>{{ $t('orgasset.adStatus.disabled') }}</span>
-              <b style="color: var(--danger)">12</b>
-            </div>
-            <div class="srow">
-              <span>{{ $t('orgasset.adStatus.deprovision') }}</span>
-              <b>{{ $t('orgasset.adStatus.deprovisionVal') }}</b>
-            </div>
-            <div class="srow">
-              <span>{{ $t('orgasset.adStatus.status') }}</span>
-              <span class="st ok"><span class="d"></span>{{ $t('orgasset.adStatus.statusVal') }}</span>
-            </div>
+            <h4>组织树 · 手动配置</h4>
+            <p class="sidenote">组织架构由管理员手动维护，不依赖 AD 同步。可在任意节点新增子组织、重命名，或删除无子组织的叶子节点。</p>
+            <div class="srow"><span>组织节点数</span><b>{{ orgs.length }}</b></div>
+            <div class="srow"><span>层级</span><b>{{ maxDepth }} 级</b></div>
+            <div class="srow"><span>维护方式</span><span class="st ok"><span class="d"></span>手动</span></div>
+            <p class="sidenote" style="margin-top:10px;color:var(--text-3)">删除组织不会级联清理其下业务数据，请先确认无在用资产/记录。</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 组织 新增/重命名 弹窗 -->
+      <div v-if="orgModal" class="modal-mask" @click.self="orgModal = null">
+        <div class="modal-card">
+          <h3>{{ orgModal === 'add' ? '新增子组织' : '重命名组织' }}</h3>
+          <template v-if="orgModal === 'add'">
+            <label class="fld">上级组织
+              <select v-model.number="of.parentId">
+                <option v-for="n in orgs" :key="n.id" :value="n.id">{{ '　'.repeat(depth(n)) + n.name }}</option>
+              </select>
+            </label>
+            <label class="fld">组织编码<input v-model="of.code" placeholder="如 PAY-RISK（全局唯一）" /></label>
+            <label class="fld">组织名称<input v-model="of.name" placeholder="如 支付风险部" /></label>
+            <label class="fld">类型
+              <select v-model="of.orgType">
+                <option value="DEPT">部门 DEPT</option>
+                <option value="SUBSIDIARY">子公司 SUBSIDIARY</option>
+                <option value="GROUP">集团 GROUP</option>
+              </select>
+            </label>
+          </template>
+          <template v-else>
+            <label class="fld">组织名称<input v-model="of.name" /></label>
+          </template>
+          <p v-if="orgErr" class="cerr">{{ orgErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="orgModal = null">取消</button>
+            <button class="btn" :disabled="orgSaving || (orgModal === 'add' && (!of.code || !of.name)) || (orgModal === 'rename' && !of.name)" @click="submitOrg">
+              {{ orgSaving ? '提交中…' : '确认' }}
+            </button>
           </div>
         </div>
       </div>
@@ -227,22 +251,69 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 // ---- Tab 切换（顺序照搬原型 tabbar：组织架构 / 资产台账 / ROPA）----
 const tabs = ['org', 'asset', 'ropa']
 const activeTab = ref('org')
 
-// ---- Tab1：组织树节点（lv2/lv3 为原型缩进层级类）----
-const treeNodes = [
-  { label: 'orgasset.tree.hq', cnt: 'orgasset.tree.people128', lv: '' },
-  { label: 'orgasset.tree.payCo', cnt: 'orgasset.tree.people312', lv: 'lv2' },
-  { label: 'orgasset.tree.payDepts', cnt: '', lv: 'lv3' },
-  { label: 'orgasset.tree.merchantCo', cnt: 'orgasset.tree.people256', lv: 'lv2' },
-  { label: 'orgasset.tree.dataCo', cnt: 'orgasset.tree.people189', lv: 'lv2' },
-  { label: 'orgasset.tree.overseasCo', cnt: 'orgasset.tree.people98', lv: 'lv2' }
-]
+// ---- Tab1：组织树（手动配置，真实后端 /api/orgs/tree/1）----
+const orgs = ref([])
+const orgError = ref('')
+const orgMsg = ref('')
+async function loadTree() {
+  orgError.value = ''
+  try { orgs.value = await api.get('/orgs/tree/1') } catch (e) { orgError.value = e.message; orgs.value = [] }
+}
+// 层级深度：path '/1'→1，'/1/12'→2
+const depth = (n) => ((n.path || '').match(/\//g) || []).length
+const maxDepth = computed(() => orgs.value.reduce((m, n) => Math.max(m, depth(n)), 0))
+const ORG_TYPE = { GROUP: '集团', SUBSIDIARY: '子公司', DEPT: '部门' }
+const orgTypeLabel = (t) => ORG_TYPE[t] || t
+
+// 新增 / 重命名
+const orgModal = ref(null)   // 'add' | 'rename' | null
+const orgSaving = ref(false)
+const orgErr = ref('')
+const of = reactive({ id: null, parentId: 1, code: '', name: '', orgType: 'DEPT' })
+function openOrgAdd(parent) {
+  Object.assign(of, { id: null, parentId: parent ? parent.id : (orgs.value[0]?.id || 1), code: '', name: '', orgType: 'DEPT' })
+  orgErr.value = ''; orgModal.value = 'add'
+}
+function openRename(n) {
+  Object.assign(of, { id: n.id, parentId: n.parentId, code: n.code, name: n.name, orgType: n.orgType })
+  orgErr.value = ''; orgModal.value = 'rename'
+}
+async function submitOrg() {
+  orgSaving.value = true; orgErr.value = ''
+  try {
+    if (orgModal.value === 'add') {
+      await api.post('/orgs', { parentId: of.parentId, code: of.code, name: of.name, orgType: of.orgType })
+      orgMsg.value = '已新增子组织'
+    } else {
+      await api.put('/orgs/' + of.id, { name: of.name })
+      orgMsg.value = '已重命名'
+    }
+    orgModal.value = null
+    await loadTree()
+    setTimeout(() => (orgMsg.value = ''), 2500)
+  } catch (e) { orgErr.value = e.message } finally { orgSaving.value = false }
+}
+async function delOrg(n) {
+  if (!window.confirm(`确认删除组织「${n.name}」？（仅限无子组织的叶子节点）`)) return
+  orgMsg.value = ''; orgError.value = ''
+  try {
+    await api.del('/orgs/' + n.id)
+    orgMsg.value = '已删除'
+    await loadTree()
+    setTimeout(() => (orgMsg.value = ''), 2500)
+  } catch (e) { orgError.value = e.message }
+}
+
+onMounted(loadTree)
 
 // ---- Tab2：资产台账（含数据/合规属性，静态示例值取自原型）----
 // dataClass：敏感=tag.h / 内部=tag.m；crit：高=tag.h / 中=tag.m
@@ -658,4 +729,25 @@ tbody tr:hover {
 :global(body.t-gov .view-orgasset thead th) {
   background: var(--accent-tint);
 }
+
+/* ---- 组织树手动配置 ---- */
+.otree { display: flex; flex-direction: column; }
+.orow { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+.orow .onm { font-weight: 600; }
+.orow .ocode { font-family: var(--font-mono, monospace); font-size: 11px; color: var(--accent-strong); }
+.orow .opill { font-size: 10px; padding: 1px 7px; border-radius: 6px; background: var(--info-tint); color: var(--info); }
+.orow .ospc { flex: 1; }
+.orow .mini { width: 24px; height: 22px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; font-size: 12px; line-height: 1; }
+.orow .mini:hover { background: var(--accent-tint); }
+.orow .mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+.sidenote { font-size: 11.5px; color: var(--text-2); line-height: 1.6; margin: 0 0 10px; }
+.ok-msg { color: var(--success); font-weight: 600; font-size: 12px; margin-top: 10px; }
+.hint { color: var(--text-3); font-size: 12.5px; padding: 16px; text-align: center; }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.32); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-card { width: 420px; max-width: 92vw; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 22px 24px; }
+.modal-card h3 { margin: 0 0 16px; font-size: 16px; }
+.modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
+.modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
+.cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 </style>

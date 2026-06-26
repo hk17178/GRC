@@ -1,9 +1,12 @@
 package com.mandao.grc.modules.org;
 
+import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.modules.rbac.RequiresPermission;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -46,11 +49,36 @@ public class OrgController {
         return service.createSubOrg(req.parentId(), req.code(), req.name(), req.orgType(), actor(user));
     }
 
+    /** 重命名组织（手动配置组织树）。 */
+    @PutMapping("/{id}")
+    @RequiresPermission("org")
+    public OrgNode rename(@PathVariable Long id, @RequestBody RenameRequest req,
+                          @RequestHeader(value = "X-User", required = false) String user) {
+        return service.rename(id, req.name(), actor(user));
+    }
+
+    /** 删除组织（仅叶子）。 */
+    @DeleteMapping("/{id}")
+    @RequiresPermission("org")
+    public void delete(@PathVariable Long id,
+                       @RequestHeader(value = "X-User", required = false) String user) {
+        service.delete(id, actor(user));
+    }
+
+    /** actor：优先登录态，其次 X-User，再 anonymous。 */
     private String actor(String user) {
+        String u = CurrentUserContext.get();
+        if (u != null && !u.isBlank()) {
+            return u;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
     /** 新建子组织请求体。 */
     public record CreateOrgRequest(Long parentId, String code, String name, String orgType) {
+    }
+
+    /** 重命名请求体。 */
+    public record RenameRequest(String name) {
     }
 }

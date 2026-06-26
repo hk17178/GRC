@@ -124,6 +124,59 @@ public class OrgService {
         return new OrgNode(newId, parentId, orgType, code, name, path);
     }
 
+    /**
+     * 重命名组织（手动配置组织树）。
+     *
+     * @param id    组织 id
+     * @param name  新名称
+     * @param actor 操作人（留痕）
+     */
+    @Transactional
+    public OrgNode rename(Long id, String name, String actor) {
+        OrgNode n = get(id);
+        if (n == null) {
+            throw new IllegalArgumentException("组织不存在：id=" + id);
+        }
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("名称不能为空");
+        }
+        em.createNativeQuery("UPDATE org SET name = :name WHERE id = :id")
+                .setParameter("name", name).setParameter("id", id).executeUpdate();
+        // 留痕按【父 org】分链（父必在可见域内，满足 operation_log WITH CHECK；与 createSubOrg 一致）；根用自身
+        hashChainService.append(n.parentId() != null ? n.parentId() : id, "ORG_RENAME", actor, "ORG:" + id,
+                "组织重命名为 " + name);
+        return new OrgNode(id, n.parentId(), n.orgType(), n.code(), name, n.path());
+    }
+
+    /**
+     * 删除组织（仅限无子组织的叶子；不能删根）。
+     *
+     * 说明：org 为组织字典，删除不会级联清理引用该 org_id 的业务数据——请管理员确保该组织无在用数据。
+     *
+     * @param id    组织 id
+     * @param actor 操作人（留痕）
+     */
+    @Transactional
+    public void delete(Long id, String actor) {
+        em.createNativeQuery("SELECT pg_advisory_xact_lock(2000, 0)").getResultList();
+        OrgNode n = get(id);
+        if (n == null) {
+            throw new IllegalArgumentException("组织不存在：id=" + id);
+        }
+        if (n.parentId() == null) {
+            throw new IllegalStateException("不能删除根组织");
+        }
+        Number kids = (Number) em.createNativeQuery("SELECT count(*) FROM org WHERE parent_id = :id")
+                .setParameter("id", id).getSingleResult();
+        if (kids.longValue() > 0) {
+            throw new IllegalStateException("该组织下仍有子组织，请先删除或调整子组织");
+        }
+        // 先按父 org 留痕（父必在可见域内），再删除
+        hashChainService.append(n.parentId(), "ORG_DELETE", actor, "ORG:" + id,
+                "删除组织 code=" + n.code() + " name=" + n.name());
+        em.createNativeQuery("DELETE FROM org WHERE id = :id").setParameter("id", id).executeUpdate();
+    }
+
     // ---------- 内部辅助 ----------
 
     @SuppressWarnings("unchecked")

@@ -33,6 +33,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -125,6 +126,31 @@ class OrgAssetTest {
         // 复用同一 code → 唯一校验拒绝
         assertThrows(DuplicateOrgCodeException.class,
                 () -> runAsOrg(ORG_GROUP, () -> orgService.createSubOrg(ORG_PAY, "DUP", "部门B", "DEPT", "admin")));
+    }
+
+    @Test
+    void 手动配置_重命名与删除叶子() {
+        OrgNode dept = asOrg(ORG_GROUP, () ->
+                orgService.createSubOrg(ORG_PAY, "PAY-OPS", "运营部", "DEPT", "admin"));
+        // 重命名
+        OrgNode renamed = asOrg(ORG_GROUP, () -> orgService.rename(dept.id(), "运营管理部", "admin"));
+        assertEquals("运营管理部", renamed.name());
+        assertEquals("运营管理部", asOrg(ORG_GROUP, () -> orgService.get(dept.id())).name());
+        // 删除叶子
+        asOrg(ORG_GROUP, () -> { orgService.delete(dept.id(), "admin"); return null; });
+        assertNull(asOrg(ORG_GROUP, () -> orgService.get(dept.id())), "删除后应查不到");
+    }
+
+    @Test
+    void 删除门控_有子组织不可删_根不可删() {
+        // 给 org12 建一个子部门 → org12 此时有子组织
+        asOrg(ORG_GROUP, () -> orgService.createSubOrg(ORG_PAY, "PAY-MID", "中台", "DEPT", "admin"));
+        // 删 org12（有子组织）→ 门控拦截（在留痕前抛出）
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_GROUP, () -> { orgService.delete(ORG_PAY, "admin"); return null; }));
+        // 删根组织 → 门控拦截
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_GROUP, () -> { orgService.delete(ORG_GROUP, "admin"); return null; }));
     }
 
     // ---------- 资产台账 + 合规属性筛查 ----------
