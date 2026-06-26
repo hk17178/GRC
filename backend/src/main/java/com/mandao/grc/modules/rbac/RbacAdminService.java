@@ -41,6 +41,24 @@ public class RbacAdminService {
         return out;
     }
 
+    /** 用户列表（供"用户授权"界面选人）。 */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> listUsers() {
+        List<Object[]> rows = em.createNativeQuery(
+                "SELECT id, username, display_name, org_id FROM app_user ORDER BY id").getResultList();
+        List<Map<String, Object>> out = new ArrayList<>();
+        for (Object[] r : rows) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id", ((Number) r[0]).longValue());
+            m.put("username", r[1]);
+            m.put("displayName", r[2]);
+            m.put("orgId", r[3] == null ? null : ((Number) r[3]).longValue());
+            out.add(m);
+        }
+        return out;
+    }
+
     /** 某角色的权限矩阵 {resourceCode: level}（仅已授权项）。 */
     @Transactional(readOnly = true)
     @SuppressWarnings("unchecked")

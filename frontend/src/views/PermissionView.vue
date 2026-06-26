@@ -37,7 +37,7 @@
             <div class="bar">
               <label>{{ $t('perm.user') }}
                 <select v-model.number="selUserId" @change="onUserChange">
-                  <option v-for="u in USERS" :key="u.id" :value="u.id">{{ u.name }}（{{ orgName(u.orgId) }}）</option>
+                  <option v-for="u in userOptions" :key="u.id" :value="u.id">{{ u.displayName || u.username || u.name }}（{{ orgName(u.orgId) }}）</option>
                 </select>
               </label>
               <button class="btn ghost sm" @click="loadGrants">{{ $t('perm.query') }}</button>
@@ -58,7 +58,7 @@
 
             <div class="bar" style="margin-top: 10px">
               <label>{{ $t('perm.grantRole') }}
-                <select v-model.number="grantRoleId"><option v-for="r in ROLES" :key="r.id" :value="r.id">{{ r.name }}</option></select>
+                <select v-model.number="grantRoleId"><option v-for="r in roleOptions" :key="r.id" :value="r.id">{{ r.name }}</option></select>
               </label>
               <button class="btn sm" :disabled="busy" @click="grant">{{ $t('perm.op.grant') }}</button>
             </div>
@@ -169,7 +169,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
@@ -189,13 +189,28 @@ const SOD_RULES = [
   { id: 1, a: 1, b: 2, mode: 'BLOCK' },
   { id: 2, a: 3, b: 4, mode: 'DETECT' }
 ]
-const roleName = (id) => (ROLES.find((r) => r.id === id) || {}).name || ('#' + id)
-const userName = (id) => (USERS.find((u) => u.id === id) || {}).name || ('#' + id)
+// 全量角色/用户（从后端 /api/rbac 加载，使授权可选所有角色——含超管/风险专员/自定义；静态表为兜底）
+const allRoles = ref([])
+const allUsers = ref([])
+const roleName = (id) => (allRoles.value.find((r) => r.id === id) || ROLES.find((r) => r.id === id) || {}).name || ('#' + id)
+const userName = (id) => {
+  const u = allUsers.value.find((x) => x.id === id) || USERS.find((x) => x.id === id)
+  return u ? (u.displayName || u.username || u.name) : '#' + id
+}
 const orgName = (orgId) => ({ 1: '集团', 12: '支付科技', 13: '消费金融' }[orgId] || ('org' + orgId))
 const ruleLabel = (id) => { const r = SOD_RULES.find((x) => x.id === id); return r ? roleName(r.a) + '×' + roleName(r.b) : '#' + id }
 
 const selUserId = ref(2) // 默认 pay_user
-const selOrgId = () => (USERS.find((u) => u.id === selUserId.value) || {}).orgId
+// 下拉数据源：优先后端全量，兜底静态
+const userOptions = computed(() => (allUsers.value.length ? allUsers.value : USERS))
+const roleOptions = computed(() => (allRoles.value.length ? allRoles.value : ROLES))
+const selOrgId = () => (userOptions.value.find((u) => u.id === selUserId.value) || {}).orgId
+
+// 加载全量角色/用户（用户授权可选所有角色与用户）
+onMounted(async () => {
+  try { allRoles.value = await api.get('/rbac/roles') } catch (e) { /* 兜底静态 */ }
+  try { allUsers.value = await api.get('/rbac/users') } catch (e) { /* 兜底静态 */ }
+})
 const grants = ref([])
 const grantsLoaded = ref(false)
 const grantRoleId = ref(1)

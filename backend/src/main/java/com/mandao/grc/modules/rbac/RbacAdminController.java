@@ -34,6 +34,12 @@ public class RbacAdminController {
         return service.listRoles();
     }
 
+    /** 用户列表（供"用户授权"选人）。 */
+    @GetMapping("/users")
+    public List<Map<String, Object>> users() {
+        return service.listUsers();
+    }
+
     /** 资源目录（菜单+动作，矩阵的行）。 */
     @GetMapping("/resources")
     public List<Resource> resources() {
