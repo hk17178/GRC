@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.workbench;
 
+import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.common.isolation.IsolationContext;
 import com.mandao.grc.modules.audit.management.RemediationOrderRepository;
 import com.mandao.grc.modules.audit.management.RemediationStatus;
@@ -10,11 +11,17 @@ import com.mandao.grc.modules.regulatory.RegFilingStatus;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
+import org.flowable.engine.RuntimeService;
+import org.flowable.engine.TaskService;
+import org.flowable.engine.runtime.ProcessInstance;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 工作台服务（横切聚合·只读）：我的待办 + 通知中心。
@@ -39,13 +46,19 @@ public class WorkbenchService {
     private final RemediationOrderRepository remediationOrderRepository;
     private final CompliancePlanItemRepository compliancePlanItemRepository;
     private final RegFilingRepository regFilingRepository;
+    private final TaskService taskService;
+    private final RuntimeService runtimeService;
 
     public WorkbenchService(RemediationOrderRepository remediationOrderRepository,
                             CompliancePlanItemRepository compliancePlanItemRepository,
-                            RegFilingRepository regFilingRepository) {
+                            RegFilingRepository regFilingRepository,
+                            TaskService taskService,
+                            RuntimeService runtimeService) {
         this.remediationOrderRepository = remediationOrderRepository;
         this.compliancePlanItemRepository = compliancePlanItemRepository;
         this.regFilingRepository = regFilingRepository;
+        this.taskService = taskService;
+        this.runtimeService = runtimeService;
     }
 
     /** 我的待办：可见范围内待处理工作的统一聚合（RLS 自动按域裁剪）。 */
@@ -74,6 +87,58 @@ public class WorkbenchService {
                         f.getTitle(), f.getStatutoryDeadline(), f.getStatus().name())));
 
         return out;
+    }
+
+    /**
+     * 我的审批待办（按登录人过滤）：当前登录人持有的角色 = Flowable 候选组，
+     * 命中的待办审批任务即"分给我"。区别于 {@link #todos()} 的"按组织"，这是真正"按登录人"。
+     */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public List<MyApprovalItem> myApprovals() {
+        String username = CurrentUserContext.get();
+        if (username == null || username.isBlank()) {
+            return List.of();
+        }
+        // 当前登录人有效角色码（user_role_org 受 RLS，本人在其组织内的授权可见）
+        List<String> roleCodes = em.createNativeQuery(
+                        "SELECT DISTINCT r.code FROM app_user u "
+                                + "JOIN user_role_org uro ON uro.user_id = u.id AND uro.active = true "
+                                + "JOIN role r ON r.id = uro.role_id WHERE u.username = :n")
+                .setParameter("n", username).getResultList();
+
+        List<MyApprovalItem> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String code : roleCodes) {
+            for (Task t : taskService.createTaskQuery().taskCandidateGroup(code)
+                    .orderByTaskCreateTime().asc().list()) {
+                if (!seen.add(t.getId())) {
+                    continue; // 同一任务可能匹配多个角色，去重
+                }
+                String bizType = null;
+                Long bizId = null;
+                String bk = businessKeyOf(t.getProcessInstanceId());
+                if (bk != null && bk.contains(":")) {
+                    String[] p = bk.split(":", 2);
+                    bizType = p[0];
+                    try {
+                        bizId = Long.parseLong(p[1]);
+                    } catch (NumberFormatException ignore) {
+                        // 业务键非标准格式，bizId 保持 null
+                    }
+                }
+                long created = t.getCreateTime() != null ? t.getCreateTime().getTime() : 0L;
+                out.add(new MyApprovalItem(t.getId(), bizType, bizId, t.getName(), code, created));
+            }
+        }
+        return out;
+    }
+
+    /** 取流程实例的 businessKey（"bizType:bizId"）。 */
+    private String businessKeyOf(String processInstanceId) {
+        ProcessInstance pi = runtimeService.createProcessInstanceQuery()
+                .processInstanceId(processInstanceId).singleResult();
+        return pi == null ? null : pi.getBusinessKey();
     }
 
     /** 通知中心：可见组织范围内调度内核派发的提醒（新→旧）。 */

@@ -28,6 +28,12 @@ public class WorkbenchController {
         return service.todos();
     }
 
+    /** 我的审批待办（按登录人角色匹配的待处理审批任务）。 */
+    @GetMapping("/my-approvals")
+    public List<MyApprovalItem> myApprovals() {
+        return service.myApprovals();
+    }
+
     /** 通知中心（调度内核派发的提醒，新→旧）。 */
     @GetMapping("/notifications")
     public List<NotificationView> notifications(@RequestParam(required = false) Integer limit) {

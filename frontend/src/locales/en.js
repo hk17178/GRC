@@ -792,9 +792,12 @@ export default {
     tag: 'WORKBENCH · My Tasks',
     title: 'My Tasks',
     refresh: 'Refresh',
-    listTitle: 'Pending Work',
+    listTitle: 'Org-wide Pending',
     empty: 'No tasks',
+    myApprovals: 'My Approvals (by user)',
+    myEmpty: 'No approvals assigned to me',
     th: { type: 'Type', matter: 'Item', due: 'Due', status: 'Status' },
+    ath: { biz: 'Business', node: 'Node', role: 'Role Group', time: 'Arrived' },
     type: { REMEDIATION: 'Remediation', COMPLIANCE_ITEM: 'Compliance Item', REG_FILING: 'Reg Filing' }
   },
 

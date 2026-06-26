@@ -1,8 +1,7 @@
 <template>
   <!--
-    我的待办（MyTasksView）：跨模块归并的待处理工作。
-    功能真源 = 后端 /api/workbench/todos（未验证整改 / 未完成合规项 / 待报送，RLS 按域）；视觉遵 tokens.css。
-    注：当前为可见范围内待办；按登录人(角色/责任人)过滤的「我的」待鉴权接入后细化。
+    我的待办（MyTasksView）：① 我的审批（按登录人角色匹配的待办审批，真·按登录人）② 组织范围待办（跨模块归并）。
+    功能真源 = 后端 /api/workbench/my-approvals + /todos；视觉遵 tokens.css。
   -->
   <AppShell>
     <section class="view view-wb">
@@ -15,6 +14,31 @@
         <button class="btn ghost" @click="load">{{ $t('todo.refresh') }}</button>
       </div>
 
+      <!-- ① 我的审批（真·按登录人：登录人角色匹配候选组的待办审批） -->
+      <div class="card" style="margin-bottom: 14px">
+        <div class="ch"><h3>{{ $t('todo.myApprovals') }}</h3><span class="cnt mine">{{ myApprovals.length }}</span></div>
+        <div class="cb" style="overflow-x: auto; padding-top: 0">
+          <table style="min-width: 680px">
+            <thead><tr>
+              <th>{{ $t('todo.ath.biz') }}</th><th>{{ $t('todo.ath.node') }}</th>
+              <th>{{ $t('todo.ath.role') }}</th><th>{{ $t('todo.ath.time') }}</th>
+            </tr></thead>
+            <tbody>
+              <tr v-for="(a, i) in myApprovals" :key="i">
+                <td><span class="tpill APPROVAL">{{ a.bizType }}</span> <span class="code">#{{ a.bizId }}</span></td>
+                <td>{{ a.nodeName }}</td>
+                <td><span class="rolepill">{{ a.roleGroup }}</span></td>
+                <td class="num">{{ fmtTime(a.createdMs) }}</td>
+              </tr>
+              <tr v-if="!myApprovals.length">
+                <td colspan="4" class="emptyrow">{{ $t('todo.myEmpty') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ② 组织范围待办 -->
       <div class="card">
         <div class="ch"><h3>{{ $t('todo.listTitle') }}</h3><span class="cnt">{{ todos.length }}</span></div>
         <div class="cb" style="overflow-x: auto; padding-top: 0">
@@ -51,7 +75,14 @@ import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 
 const todos = ref([])
+const myApprovals = ref([])
 const loadError = ref('')
+function fmtTime(ms) {
+  if (!ms) return '—'
+  const d = new Date(ms)
+  const p = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
 async function load() {
   loadError.value = ''
   try {
@@ -59,6 +90,11 @@ async function load() {
   } catch (e) {
     loadError.value = e.message
     todos.value = []
+  }
+  try {
+    myApprovals.value = await api.get('/workbench/my-approvals')
+  } catch (e) {
+    myApprovals.value = []
   }
 }
 onMounted(load)
@@ -85,6 +121,9 @@ tbody td { padding: 10px 14px; border-top: 1px solid var(--border-subtle); font-
 .tpill.REMEDIATION { background: var(--danger-tint); color: var(--danger); }
 .tpill.COMPLIANCE_ITEM { background: var(--info-tint); color: var(--info); }
 .tpill.REG_FILING { background: var(--warning-tint); color: #a87d22; }
+.tpill.APPROVAL { background: var(--accent-weak); color: var(--accent-strong); }
+.cnt.mine { color: #fff; background: var(--accent); }
+.rolepill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 600; background: rgba(120,120,120,0.1); color: var(--text-2); font-family: var(--font-mono, monospace); }
 .st { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
 .st .d { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
 .emptyrow { text-align: center; color: var(--text-2); padding: 18px 0; }

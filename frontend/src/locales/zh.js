@@ -855,9 +855,12 @@ export default {
     tag: 'WORKBENCH · 我的待办',
     title: '我的待办',
     refresh: '刷新',
-    listTitle: '待处理工作',
+    listTitle: '组织范围待办',
     empty: '暂无待办',
+    myApprovals: '我的审批（按登录人）',
+    myEmpty: '暂无分给我的审批',
     th: { type: '类型', matter: '事项', due: '期限', status: '状态' },
+    ath: { biz: '业务', node: '审批节点', role: '角色组', time: '到达时间' },
     type: { REMEDIATION: '整改工单', COMPLIANCE_ITEM: '合规计划项', REG_FILING: '监管报送' }
   },
 
