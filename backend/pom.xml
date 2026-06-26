@@ -65,6 +65,13 @@
       <version>5.2.5</version>
     </dependency>
 
+    <!-- 法规跟踪爬虫：HTTP 源抓取 + HTML 选择器解析（jsoup） -->
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>1.17.2</version>
+    </dependency>
+
     <!-- 认证：BCrypt 口令哈希（仅 crypto 模块，不引全量 Spring Security） -->
     <dependency>
       <groupId>org.springframework.security</groupId>

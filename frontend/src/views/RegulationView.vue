@@ -14,6 +14,57 @@
         <button class="btn" :disabled="!canWrite('law')" :title="canWrite('law') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('reg.create.btn') }}</button>
       </div>
 
+      <!-- ===== 法规跟踪爬虫：追踪源采集 + 采集流（权威信息源采集，替代手动登记为主）===== -->
+      <div class="g g-1-1" style="margin-bottom: 14px">
+        <!-- 追踪源 -->
+        <div class="card">
+          <div class="ch">
+            <h3>追踪源采集</h3><span class="sub">权威信息源采集 · 检测频率 · 采集健康</span>
+            <button class="btn ghost sm" style="margin-left: auto" :disabled="!canWrite('law')" @click="openSource">＋ 新增追踪源</button>
+          </div>
+          <div class="cb" style="padding-top: 0">
+            <div v-for="s in sources" :key="s.id" class="srcrow">
+              <span class="st" :class="s.status === 'OK' ? 'ok' : 'over'"><span class="d"></span></span>
+              <div class="srcmeta">
+                <div class="snm">{{ s.name }} <span class="pill">{{ s.sourceType }}</span></div>
+                <div class="ssub">
+                  频率 {{ s.frequency }} · 累计命中 {{ s.lastHitCount }} ·
+                  {{ s.lastFetchedAt ? fmt(s.lastFetchedAt) : '未采集' }}
+                  <span v-if="s.lastError" style="color: var(--danger)"> · {{ s.lastError }}</span>
+                </div>
+              </div>
+              <button class="btn sm" :disabled="!canWrite('law') || crawling === s.id" @click="crawlNow(s)">
+                {{ crawling === s.id ? '采集中…' : '立即抓取' }}
+              </button>
+            </div>
+            <div v-if="!sources.length" class="hint">暂无追踪源。点「＋ 新增追踪源」——可选内置示例源(SAMPLE)不外联演示采集，或配 HTTP 源抓真实站点。</div>
+            <div v-if="crawlMsg" class="ok-msg">{{ crawlMsg }}</div>
+          </div>
+        </div>
+        <!-- 采集法规流 -->
+        <div class="card">
+          <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawled.length }}</span></div>
+          <div class="cb" style="overflow-x: auto; padding-top: 0">
+            <table style="min-width: 560px">
+              <thead><tr><th>标题</th><th>发布机关</th><th>文号</th><th>发布日期</th><th>分类</th></tr></thead>
+              <tbody>
+                <tr v-for="c in crawled" :key="c.id">
+                  <td>
+                    <a v-if="c.url" :href="c.url" target="_blank" rel="noopener">{{ c.title }}</a>
+                    <span v-else>{{ c.title }}</span>
+                  </td>
+                  <td>{{ c.issuer || '—' }}</td>
+                  <td class="code">{{ c.docNo || '—' }}</td>
+                  <td class="num">{{ c.publishDate || '—' }}</td>
+                  <td><span class="pill">{{ c.category || '—' }}</span></td>
+                </tr>
+                <tr v-if="!crawled.length"><td colspan="5" class="emptyrow">暂无采集法规，先新增源并「立即抓取」。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <div class="g">
         <!-- 法规库 -->
         <div class="card">
@@ -61,6 +112,34 @@
                 <tr v-if="!changes.length"><td colspan="5" class="emptyrow">{{ $t('reg.changeEmpty') }}</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增追踪源弹窗 -->
+      <div v-if="showSource" class="modal-mask" @click.self="showSource = false">
+        <div class="modal-card">
+          <h3>新增追踪源</h3>
+          <label class="fld">源名称<input v-model="sf.name" placeholder="如 全国法规库（示例）" /></label>
+          <label class="fld">类型
+            <select v-model="sf.sourceType">
+              <option value="SAMPLE">内置示例源（不外联，演示采集）</option>
+              <option value="HTTP">HTTP 抓取（配 URL + 选择器）</option>
+            </select>
+          </label>
+          <template v-if="sf.sourceType === 'HTTP'">
+            <label class="fld">列表页 URL<input v-model="sf.url" placeholder="https://…" /></label>
+            <label class="fld">选择器配置 (JSON)
+              <textarea v-model="sf.config" rows="3" placeholder='{"listSelector":".list li","titleSelector":"a","linkSelector":"a","issuer":"中国人民银行","category":"支付清算"}'></textarea>
+            </label>
+          </template>
+          <label class="fld">所属组织
+            <select v-model.number="sf.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select>
+          </label>
+          <p v-if="sourceErr" class="cerr">{{ sourceErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showSource = false">取消</button>
+            <button class="btn" :disabled="!sf.name || sourceSaving" @click="submitSource">{{ sourceSaving ? '提交中…' : '确认' }}</button>
           </div>
         </div>
       </div>
@@ -178,7 +257,43 @@ async function submitAssess() {
   } catch (e) { opError.value = e.message } finally { saving.value = false }
 }
 
-onMounted(loadRegs)
+// ===== 法规跟踪爬虫：追踪源 + 采集流 =====
+const sources = ref([])
+const crawled = ref([])
+const crawling = ref(null)
+const crawlMsg = ref('')
+async function loadSources() {
+  try { sources.value = await api.get('/regulation-sources') } catch (e) { sources.value = [] }
+}
+async function loadCrawled() {
+  try { crawled.value = await api.get('/crawled-regulations') } catch (e) { crawled.value = [] }
+}
+async function crawlNow(s) {
+  crawling.value = s.id; crawlMsg.value = ''
+  try {
+    const r = await api.post('/regulation-sources/' + s.id + '/crawl', {})
+    crawlMsg.value = `「${s.name}」命中 ${r.hit} 条，新增 ${r.added} 条` + (r.error ? ('（错误：' + r.error + '）') : '')
+    await loadSources(); await loadCrawled()
+  } catch (e) { crawlMsg.value = '采集失败：' + e.message } finally { crawling.value = null }
+}
+const showSource = ref(false)
+const sourceSaving = ref(false)
+const sourceErr = ref('')
+const sf = reactive({ name: '', sourceType: 'SAMPLE', url: '', config: '', orgId: 12 })
+function openSource() { Object.assign(sf, { name: '', sourceType: 'SAMPLE', url: '', config: '', orgId: 12 }); sourceErr.value = ''; showSource.value = true }
+async function submitSource() {
+  sourceSaving.value = true; sourceErr.value = ''
+  try {
+    await api.post('/regulation-sources', {
+      orgId: sf.orgId, name: sf.name, sourceType: sf.sourceType,
+      url: sf.url || null, config: sf.config || null, frequency: 'DAILY'
+    })
+    showSource.value = false; await loadSources()
+  } catch (e) { sourceErr.value = e.message } finally { sourceSaving.value = false }
+}
+function fmt(t) { try { return new Date(t).toLocaleString() } catch (e) { return t } }
+
+onMounted(() => { loadRegs(); loadSources(); loadCrawled() })
 </script>
 
 <style scoped>
@@ -221,4 +336,14 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.modal-card .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12.5px; font-family: inherit; outline: none; box-sizing: border-box; }
+.ch .sub { font-size: 11.5px; color: var(--text-3); }
+/* 追踪源行 */
+.g-1-1 { grid-template-columns: 1fr 1.2fr; }
+.srcrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border-subtle); }
+.srcrow:first-child { border-top: 0; }
+.srcrow .srcmeta { flex: 1; min-width: 0; }
+.srcrow .snm { font-size: 12.5px; font-weight: 600; }
+.srcrow .ssub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.ok-msg { color: var(--success); font-size: 12px; font-weight: 600; margin-top: 10px; }
 </style>
