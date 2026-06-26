@@ -255,7 +255,7 @@
 
 <script setup>
 // ——登录页逻辑：认证方式切换、密码显隐、验证码刷新、后台可配置文案/品牌——
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
@@ -300,48 +300,55 @@ function refreshCaptcha() {
   captcha.value = s
 }
 
-// ——可后台配置项：从 localStorage 读取覆盖默认——
-// 平台名称 / 副名（系统设置 → 平台标识）
+// ——可后台配置项：优先后端 /api/branding（系统设置→登录页与品牌，全局生效），
+//   其次 localStorage 覆盖项，最后 i18n 默认——
+const brand = ref({})
+onMounted(async () => {
+  try { brand.value = await api.get('/branding') || {} } catch (e) { brand.value = {} }
+})
+
+// 平台名称 / 副名
 const brandName = computed(
-  () => localStorage.getItem('grc-brand-name') || t('common.brandName')
+  () => brand.value.brandName || localStorage.getItem('grc-brand-name') || t('common.brandName')
 )
 const brandSub = computed(
-  () => localStorage.getItem('grc-brand-sub') || t('common.brandSub')
+  () => brand.value.brandSub || localStorage.getItem('grc-brand-sub') || t('common.brandSub')
 )
 
 // Logo：图片优先，其次字符，默认 'G'
-const logoImg = localStorage.getItem('grc-logo-img')
+const logoImg = computed(() => brand.value.logoImg || localStorage.getItem('grc-logo-img') || '')
 const logoText = computed(() =>
-  logoImg ? '' : localStorage.getItem('grc-logo-text') || 'G'
+  logoImg.value ? '' : (brand.value.logoText || localStorage.getItem('grc-logo-text') || 'G')
 )
 const logoStyle = computed(() =>
-  logoImg
+  logoImg.value
     ? {
-        backgroundImage: `url(${logoImg})`,
+        backgroundImage: `url(${logoImg.value})`,
         backgroundSize: 'cover',
         backgroundPosition: 'center'
       }
     : {}
 )
 
-// 标题 / 标语：localStorage 覆盖项优先（按语言取 zh/en），换行符转 <br>
+// 标题 / 标语：后端 → localStorage 覆盖项（按语言取 zh/en）→ i18n 默认，换行符转 <br>
 function nl2br(s) {
   return s.replace(/\n/g, '<br>')
 }
 const loginTitle = computed(() => {
-  const k = locale.value === 'en' ? 'grc-login-title-en' : 'grc-login-title-zh'
-  const v = localStorage.getItem(k)
+  const en = locale.value === 'en'
+  const back = en ? brand.value.loginTitleEn : brand.value.loginTitleZh
+  const v = back || localStorage.getItem(en ? 'grc-login-title-en' : 'grc-login-title-zh')
   return v ? nl2br(v) : t('login.title')
 })
 const loginSlogan = computed(() => {
-  const k =
-    locale.value === 'en' ? 'grc-login-slogan-en' : 'grc-login-slogan-zh'
-  const v = localStorage.getItem(k)
+  const en = locale.value === 'en'
+  const back = en ? brand.value.loginSloganEn : brand.value.loginSloganZh
+  const v = back || localStorage.getItem(en ? 'grc-login-slogan-en' : 'grc-login-slogan-zh')
   return v ? nl2br(v) : t('login.slogan')
 })
 
-// 忘记密码链接（系统设置 → 平台标识）
-const forgotUrl = computed(() => localStorage.getItem('grc-forgot-url') || '')
+// 忘记密码链接
+const forgotUrl = computed(() => brand.value.forgotUrl || localStorage.getItem('grc-forgot-url') || '')
 
 // 登录提交：调真实后端 /api/auth/login（增强③ R1）。
 // 成功→后端置 httpOnly Cookie，前端记录用户并进仪表盘；失败→提示。

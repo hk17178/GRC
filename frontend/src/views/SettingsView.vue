@@ -11,6 +11,30 @@
         <button class="btn" :disabled="!canWrite('settings')" :title="canWrite('settings') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('set.create.btn') }}</button>
       </div>
 
+      <!-- ⑥ 登录页与品牌（全局，登录前生效；补回 UAT 反馈缺失项）-->
+      <div class="card" style="margin-bottom: 14px">
+        <div class="ch"><h3>登录页与品牌</h3><span class="sub">全局生效 · 登录前可见</span></div>
+        <div class="cb">
+          <div class="bgrid">
+            <label class="fld">平台名称<input v-model="brand.brandName" placeholder="如 曼道集团 GRC" /></label>
+            <label class="fld">平台副名<input v-model="brand.brandSub" placeholder="治理·风险·合规" /></label>
+            <label class="fld">Logo 字符<input v-model="brand.logoText" maxlength="4" placeholder="如 曼 / G（无图时显示）" /></label>
+            <label class="fld">Logo 图片 URL<input v-model="brand.logoImg" placeholder="https://…/logo.png（优先于字符，可留空）" /></label>
+            <label class="fld">忘记密码链接<input v-model="brand.forgotUrl" placeholder="https://…（可留空）" /></label>
+            <label class="fld">登录主标题（中）<textarea v-model="brand.loginTitleZh" rows="2" placeholder="可用换行；留空用默认"></textarea></label>
+            <label class="fld">登录主标题（英）<textarea v-model="brand.loginTitleEn" rows="2"></textarea></label>
+            <label class="fld">登录标语（中）<input v-model="brand.loginSloganZh" placeholder="留空用默认" /></label>
+            <label class="fld">登录标语（英）<input v-model="brand.loginSloganEn" /></label>
+          </div>
+          <div class="bacts">
+            <button class="btn" :disabled="!canWrite('settings') || brandSaving" @click="saveBranding">{{ brandSaving ? '保存中…' : '保存品牌配置' }}</button>
+            <span v-if="brandMsg" class="ok-msg">{{ brandMsg }}</span>
+            <span v-if="brandErr" class="cerr">{{ brandErr }}</span>
+            <span class="muted" style="margin-left:auto">改后刷新登录页即生效</span>
+          </div>
+        </div>
+      </div>
+
       <div class="card">
         <div class="ch"><h3>{{ $t('set.list') }}</h3><span class="cnt">{{ settings.length }}</span></div>
         <div class="cb" style="overflow-x: auto; padding-top: 0">
@@ -96,6 +120,29 @@ async function load() {
   try { settings.value = await api.get('/settings') } catch (e) { loadError.value = e.message; settings.value = [] }
 }
 
+// ⑥ 登录页与品牌配置（/api/branding，全局）
+const brand = reactive({ brandName: '', brandSub: '', logoText: '', logoImg: '', loginTitleZh: '', loginTitleEn: '', loginSloganZh: '', loginSloganEn: '', forgotUrl: '' })
+const brandSaving = ref(false)
+const brandMsg = ref('')
+const brandErr = ref('')
+async function loadBranding() {
+  try {
+    const b = await api.get('/branding') || {}
+    for (const k of Object.keys(brand)) brand[k] = b[k] || ''
+  } catch (e) { /* 保持空 */ }
+}
+async function saveBranding() {
+  brandSaving.value = true; brandMsg.value = ''; brandErr.value = ''
+  try {
+    // 空串转 null（后端为空时前端回退 i18n 默认）
+    const payload = {}
+    for (const k of Object.keys(brand)) payload[k] = brand[k] ? brand[k] : null
+    await api.put('/branding', payload)
+    brandMsg.value = '已保存'
+    setTimeout(() => (brandMsg.value = ''), 2500)
+  } catch (e) { brandErr.value = e.message } finally { brandSaving.value = false }
+}
+
 // 定义
 const showCreate = ref(false)
 const cf = reactive({ key: '', value: '', valueType: 'STRING', category: '', editable: true, orgId: 12 })
@@ -121,7 +168,7 @@ async function submitEdit() {
   } catch (e) { opError.value = e.message } finally { saving.value = false }
 }
 
-onMounted(load)
+onMounted(() => { load(); loadBranding() })
 </script>
 
 <style scoped>
@@ -159,4 +206,12 @@ td.ops { display: flex; gap: 6px; align-items: center; }
 .modal-card .fld.chk { display: flex; align-items: center; gap: 8px; }
 .modal-card .fld input:not([type=checkbox]), .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* ⑥ 登录页与品牌 */
+.ch .sub { font-size: 11px; color: var(--text-3); margin-left: 4px; }
+.bgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 760px) { .bgrid { grid-template-columns: 1fr; } }
+.bgrid .fld { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-2); }
+.bgrid .fld input, .bgrid .fld textarea { padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box; }
+.bacts { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+.ok-msg { color: var(--success); font-weight: 600; font-size: 12px; }
 </style>
