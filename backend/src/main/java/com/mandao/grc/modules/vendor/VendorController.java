@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.vendor;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import com.mandao.grc.modules.assessment.RiskLevel;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,7 @@ public class VendorController {
     }
 
     @PostMapping
+    @RequiresPermission("vendor")
     public Vendor register(@RequestBody RegisterRequest req,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.register(req.orgId(), req.code(), req.name(), req.category(),
@@ -50,6 +52,7 @@ public class VendorController {
 
     /** 评估供应商（登记一次评估并回写风险等级）。 */
     @PostMapping("/{id}/assessments")
+    @RequiresPermission("vendor")
     public VendorAssessment assess(@PathVariable Long id,
                                    @RequestBody AssessRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
@@ -58,6 +61,7 @@ public class VendorController {
 
     /** 启用供应商（准入门控：须已评估）。 */
     @PostMapping("/{id}/activate")
+    @RequiresPermission("vendor")
     public Vendor activate(@PathVariable Long id,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.activate(id, actor(user));
@@ -65,6 +69,7 @@ public class VendorController {
 
     /** 暂停供应商。 */
     @PostMapping("/{id}/suspend")
+    @RequiresPermission("vendor")
     public Vendor suspend(@PathVariable Long id,
                           @RequestBody(required = false) ReasonRequest req,
                           @RequestHeader(value = "X-User", required = false) String user) {
@@ -73,6 +78,7 @@ public class VendorController {
 
     /** 恢复供应商。 */
     @PostMapping("/{id}/reactivate")
+    @RequiresPermission("vendor")
     public Vendor reactivate(@PathVariable Long id,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.reactivate(id, actor(user));
@@ -80,6 +86,7 @@ public class VendorController {
 
     /** 终止供应商。 */
     @PostMapping("/{id}/terminate")
+    @RequiresPermission("vendor")
     public Vendor terminate(@PathVariable Long id,
                             @RequestBody(required = false) ReasonRequest req,
                             @RequestHeader(value = "X-User", required = false) String user) {

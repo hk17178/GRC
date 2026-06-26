@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulation;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,7 @@ public class RegulationController {
     }
 
     @PostMapping
+    @RequiresPermission("law")
     public Regulation create(@RequestBody CreateRegulationRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.title(), req.issuer(), req.category(),
@@ -50,6 +52,7 @@ public class RegulationController {
 
     /** 更新法规状态（EFFECTIVE/SUPERSEDED/ABOLISHED）。 */
     @PostMapping("/{id}/status")
+    @RequiresPermission("law")
     public Regulation updateStatus(@PathVariable Long id,
                                    @RequestBody StatusRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
@@ -58,6 +61,7 @@ public class RegulationController {
 
     /** 登记法规变更动态。 */
     @PostMapping("/{id}/changes")
+    @RequiresPermission("law")
     public RegulationChange recordChange(@PathVariable Long id,
                                          @RequestBody ChangeRequest req,
                                          @RequestHeader(value = "X-User", required = false) String user) {
@@ -66,6 +70,7 @@ public class RegulationController {
 
     /** 完成法规变更的影响评估。 */
     @PostMapping("/changes/{changeId}/assess")
+    @RequiresPermission("law")
     public RegulationChange assessImpact(@PathVariable Long changeId,
                                          @RequestBody AssessRequest req,
                                          @RequestHeader(value = "X-User", required = false) String user) {

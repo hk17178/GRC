@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.assessment;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,6 +41,7 @@ public class AssessmentItemController {
 
     /** 评估单个评估项（回写符合性结论）。 */
     @PostMapping("/{id}/assess")
+    @RequiresPermission("risk")
     public AssessmentItem assess(@PathVariable Long id,
                                  @RequestBody AssessRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {

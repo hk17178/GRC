@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.audit.management;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +44,7 @@ public class AuditFindingController {
 
     /** 新建审计发现（OPEN 态）。 */
     @PostMapping
+    @RequiresPermission("extaudit")
     public AuditFinding create(@RequestBody CreateFindingRequest req,
                                @RequestHeader(value = "X-User", required = false) String user) {
         return service.createFinding(req.orgId(), req.auditPlanId(), req.title(), req.severity(), actor(user));
@@ -50,6 +52,7 @@ public class AuditFindingController {
 
     /** 调整严重度。 */
     @PostMapping("/{id}/severity")
+    @RequiresPermission("extaudit")
     public AuditFinding setSeverity(@PathVariable Long id,
                                     @RequestBody SeverityRequest req,
                                     @RequestHeader(value = "X-User", required = false) String user) {
@@ -60,6 +63,7 @@ public class AuditFindingController {
 
     /** 开始分析：OPEN → ANALYZING。 */
     @PostMapping("/{id}/analyze")
+    @RequiresPermission("extaudit")
     public AuditFinding analyze(@PathVariable Long id,
                                 @RequestHeader(value = "X-User", required = false) String user) {
         return service.analyze(id, actor(user));
@@ -67,6 +71,7 @@ public class AuditFindingController {
 
     /** 完成整改：ANALYZING → REMEDIATED。 */
     @PostMapping("/{id}/remediate")
+    @RequiresPermission("extaudit")
     public AuditFinding remediate(@PathVariable Long id,
                                   @RequestHeader(value = "X-User", required = false) String user) {
         return service.remediate(id, actor(user));
@@ -74,6 +79,7 @@ public class AuditFindingController {
 
     /** 关闭发现：REMEDIATED → CLOSED（内部处置终态）。 */
     @PostMapping("/{id}/close")
+    @RequiresPermission("extaudit")
     public AuditFinding closeFinding(@PathVariable Long id,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.closeFinding(id, actor(user));
@@ -83,6 +89,7 @@ public class AuditFindingController {
 
     /** 漏斗第一段：提交外部机构（→ SUBMITTED）。仅外审。 */
     @PostMapping("/{id}/external-response/submit")
+    @RequiresPermission("extaudit")
     public AuditFinding submitResponse(@PathVariable Long id,
                                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.submitResponse(id, actor(user));
@@ -90,6 +97,7 @@ public class AuditFindingController {
 
     /** 漏斗第二段：外方受理（→ ACCEPTED）。仅外审。 */
     @PostMapping("/{id}/external-response/accept")
+    @RequiresPermission("extaudit")
     public AuditFinding acceptResponse(@PathVariable Long id,
                                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.acceptResponse(id, actor(user));
@@ -97,6 +105,7 @@ public class AuditFindingController {
 
     /** 漏斗第三段（闭环）：外方确认关闭（→ CONFIRMED_CLOSED）。仅外审。 */
     @PostMapping("/{id}/external-response/confirm-close")
+    @RequiresPermission("extaudit")
     public AuditFinding confirmClose(@PathVariable Long id,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.confirmClose(id, actor(user));

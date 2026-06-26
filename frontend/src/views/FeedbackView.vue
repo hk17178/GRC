@@ -8,7 +8,7 @@
       <div class="phead">
         <div><div class="kqt">{{ $t('fb.tag') }}</div><h1>{{ $t('fb.title') }}</h1></div>
         <div class="sp"></div>
-        <button class="btn" @click="openCreate">{{ $t('fb.create.btn') }}</button>
+        <button class="btn" :disabled="!canWrite('feedback')" :title="canWrite('feedback') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('fb.create.btn') }}</button>
       </div>
 
       <div class="card">
@@ -83,6 +83,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 const items = ref([])
 const loadError = ref('')

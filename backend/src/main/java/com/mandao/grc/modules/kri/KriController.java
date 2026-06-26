@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.kri;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -47,6 +48,7 @@ public class KriController {
 
     /** 定义一个 KRI。 */
     @PostMapping
+    @RequiresPermission("risk")
     public Kri create(@RequestBody CreateKriRequest req,
                       @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.name(), req.unit(), req.direction(),
@@ -55,6 +57,7 @@ public class KriController {
 
     /** 记录一次测量（按阈值评定状态并回写最近态）。 */
     @PostMapping("/{id}/measurements")
+    @RequiresPermission("risk")
     public KriMeasurement record(@PathVariable Long id,
                                  @RequestBody RecordRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {

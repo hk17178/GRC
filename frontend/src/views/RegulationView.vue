@@ -11,7 +11,7 @@
           <h1>{{ $t('reg.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <button class="btn" @click="openCreate">{{ $t('reg.create.btn') }}</button>
+        <button class="btn" :disabled="!canWrite('law')" :title="canWrite('law') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('reg.create.btn') }}</button>
       </div>
 
       <div class="g">
@@ -122,6 +122,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 const regulations = ref([])
 const loadError = ref('')

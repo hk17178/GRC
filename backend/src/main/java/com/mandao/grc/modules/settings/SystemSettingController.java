@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.settings;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,7 @@ public class SystemSettingController {
 
     /** 定义配置项。 */
     @PostMapping
+    @RequiresPermission("settings")
     public SystemSetting define(@RequestBody DefineRequest req,
                                 @RequestHeader(value = "X-User", required = false) String user) {
         return service.define(req.orgId(), req.key(), req.value(), req.valueType(),
@@ -47,6 +49,7 @@ public class SystemSettingController {
 
     /** 更新配置取值（系统锁定项不可改）。 */
     @PostMapping("/{id}/value")
+    @RequiresPermission("settings")
     public SystemSetting update(@PathVariable Long id,
                                 @RequestBody UpdateRequest req,
                                 @RequestHeader(value = "X-User", required = false) String user) {

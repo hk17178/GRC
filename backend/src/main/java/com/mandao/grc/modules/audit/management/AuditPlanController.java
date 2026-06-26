@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.audit.management;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -43,6 +44,7 @@ public class AuditPlanController {
 
     /** 新建审计计划（PLANNED 态）。 */
     @PostMapping
+    @RequiresPermission("extaudit")
     public AuditPlan create(@RequestBody CreatePlanRequest req,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.title(), req.auditType(), req.planStartDate(), actor(user));
@@ -50,6 +52,7 @@ public class AuditPlanController {
 
     /** 开始审计：PLANNED → IN_PROGRESS。 */
     @PostMapping("/{id}/start")
+    @RequiresPermission("extaudit")
     public AuditPlan start(@PathVariable Long id,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.start(id, actor(user));
@@ -57,6 +60,7 @@ public class AuditPlanController {
 
     /** 出具报告：IN_PROGRESS → REPORTING。 */
     @PostMapping("/{id}/report")
+    @RequiresPermission("extaudit")
     public AuditPlan report(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.report(id, actor(user));
@@ -64,6 +68,7 @@ public class AuditPlanController {
 
     /** 关闭审计：REPORTING → CLOSED。 */
     @PostMapping("/{id}/close")
+    @RequiresPermission("extaudit")
     public AuditPlan close(@PathVariable Long id,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));
@@ -71,6 +76,7 @@ public class AuditPlanController {
 
     /** 取消审计：PLANNED / IN_PROGRESS → CANCELLED。 */
     @PostMapping("/{id}/cancel")
+    @RequiresPermission("extaudit")
     public AuditPlan cancel(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.cancel(id, actor(user));

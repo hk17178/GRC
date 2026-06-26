@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.obligation;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class ObligationController {
     }
 
     @PostMapping
+    @RequiresPermission("obligation")
     public Obligation create(@RequestBody CreateObligationRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.title(), req.sourceRef(), req.category(),
@@ -45,6 +47,7 @@ public class ObligationController {
 
     /** 开始落实。 */
     @PostMapping("/{id}/start")
+    @RequiresPermission("obligation")
     public Obligation start(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.start(id, actor(user));
@@ -52,6 +55,7 @@ public class ObligationController {
 
     /** 标记已落实（须留证据）。 */
     @PostMapping("/{id}/fulfill")
+    @RequiresPermission("obligation")
     public Obligation fulfill(@PathVariable Long id,
                               @RequestBody FulfillRequest req,
                               @RequestHeader(value = "X-User", required = false) String user) {
@@ -60,6 +64,7 @@ public class ObligationController {
 
     /** 标记不合规。 */
     @PostMapping("/{id}/non-compliant")
+    @RequiresPermission("obligation")
     public Obligation markNonCompliant(@PathVariable Long id,
                                        @RequestBody(required = false) ReasonRequest req,
                                        @RequestHeader(value = "X-User", required = false) String user) {

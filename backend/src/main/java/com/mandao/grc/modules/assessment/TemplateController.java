@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.assessment;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import com.mandao.grc.modules.control.ControlFramework;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,6 +48,7 @@ public class TemplateController {
 
     /** 定义模板。 */
     @PostMapping
+    @RequiresPermission("risk")
     public AssessmentTemplate create(@RequestBody CreateTemplateRequest req,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.name(), req.framework(),
@@ -55,6 +57,7 @@ public class TemplateController {
 
     /** 追加模板检查项。 */
     @PostMapping("/{id}/items")
+    @RequiresPermission("risk")
     public AssessmentTemplateItem addItem(@PathVariable Long id,
                                           @RequestBody AddItemRequest req,
                                           @RequestHeader(value = "X-User", required = false) String user) {
@@ -63,6 +66,7 @@ public class TemplateController {
 
     /** 发布模板（DRAFT → PUBLISHED）。 */
     @PostMapping("/{id}/publish")
+    @RequiresPermission("risk")
     public AssessmentTemplate publish(@PathVariable Long id,
                                       @RequestHeader(value = "X-User", required = false) String user) {
         return service.publish(id, actor(user));
@@ -70,6 +74,7 @@ public class TemplateController {
 
     /** 停用模板。 */
     @PostMapping("/{id}/retire")
+    @RequiresPermission("risk")
     public AssessmentTemplate retire(@PathVariable Long id,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.retire(id, actor(user));
@@ -77,6 +82,7 @@ public class TemplateController {
 
     /** 实例化为一次评估（返回新建的评估）。 */
     @PostMapping("/{id}/instantiate")
+    @RequiresPermission("risk")
     public Assessment instantiate(@PathVariable Long id,
                                   @RequestBody InstantiateRequest req,
                                   @RequestHeader(value = "X-User", required = false) String user) {

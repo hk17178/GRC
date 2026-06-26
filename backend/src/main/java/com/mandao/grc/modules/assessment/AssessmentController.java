@@ -49,6 +49,7 @@ public class AssessmentController {
 
     /** 开始评估：DRAFT → IN_PROGRESS。 */
     @PostMapping("/{id}/start")
+    @RequiresPermission("risk")
     public Assessment start(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.start(id, actor(user));
@@ -56,6 +57,7 @@ public class AssessmentController {
 
     /** 提交复核：IN_PROGRESS → PENDING_REVIEW。 */
     @PostMapping("/{id}/submit")
+    @RequiresPermission("risk")
     public Assessment submit(@PathVariable Long id,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.submitForReview(id, actor(user));
@@ -63,6 +65,7 @@ public class AssessmentController {
 
     /** 复核驳回：PENDING_REVIEW → IN_PROGRESS。 */
     @PostMapping("/{id}/reject")
+    @RequiresPermission("risk")
     public Assessment reject(@PathVariable Long id,
                             @RequestBody(required = false) RejectRequest req,
                             @RequestHeader(value = "X-User", required = false) String user) {
@@ -71,6 +74,7 @@ public class AssessmentController {
 
     /** 完成评估：PENDING_REVIEW → COMPLETED。 */
     @PostMapping("/{id}/complete")
+    @RequiresPermission("risk")
     public Assessment complete(@PathVariable Long id,
                                @RequestHeader(value = "X-User", required = false) String user) {
         return service.complete(id, actor(user));

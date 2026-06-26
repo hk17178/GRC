@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.asset;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,6 +58,7 @@ public class AssetController {
     }
 
     @PostMapping
+    @RequiresPermission("org")
     public Asset register(@RequestBody AssetRequest req,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.register(req.orgId(), req.name(), req.assetType(), req.owner(),
@@ -65,6 +67,7 @@ public class AssetController {
     }
 
     @PutMapping("/{id}")
+    @RequiresPermission("org")
     public Asset update(@PathVariable Long id, @RequestBody AssetRequest req,
                         @RequestHeader(value = "X-User", required = false) String user) {
         return service.update(id, req.name(), req.assetType(), req.owner(),
@@ -73,6 +76,7 @@ public class AssetController {
     }
 
     @PostMapping("/{id}/retire")
+    @RequiresPermission("org")
     public Asset retire(@PathVariable Long id,
                         @RequestHeader(value = "X-User", required = false) String user) {
         return service.retire(id, actor(user));

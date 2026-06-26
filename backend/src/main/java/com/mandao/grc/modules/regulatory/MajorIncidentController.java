@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulatory;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,18 +39,21 @@ public class MajorIncidentController {
     }
 
     @PostMapping
+    @RequiresPermission("regaffairs")
     public MajorIncidentReport create(@RequestBody CreateIncidentRequest req,
                                       @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.title(), req.severity(), req.occurredAt(), actor(user));
     }
 
     @PostMapping("/{id}/report")
+    @RequiresPermission("regaffairs")
     public MajorIncidentReport report(@PathVariable Long id,
                                       @RequestHeader(value = "X-User", required = false) String user) {
         return service.report(id, actor(user));
     }
 
     @PostMapping("/{id}/close")
+    @RequiresPermission("regaffairs")
     public MajorIncidentReport close(@PathVariable Long id,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));

@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.org;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,6 +40,7 @@ public class OrgController {
     }
 
     @PostMapping
+    @RequiresPermission("org")
     public OrgNode createSubOrg(@RequestBody CreateOrgRequest req,
                                @RequestHeader(value = "X-User", required = false) String user) {
         return service.createSubOrg(req.parentId(), req.code(), req.name(), req.orgType(), actor(user));

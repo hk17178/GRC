@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.permission;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import com.mandao.grc.modules.workflow.ApprovalDecision;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -38,6 +39,7 @@ public class PermissionController {
 
     /** 授予角色（SoD 互斥且无豁免则抛 SodViolationException）。 */
     @PostMapping("/grant")
+    @RequiresPermission("perm")
     public UserRoleOrg grant(@RequestBody GrantRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.grantRole(req.orgId(), req.userId(), req.roleId(), actor(user));
@@ -45,6 +47,7 @@ public class PermissionController {
 
     /** 回收角色（置 active=false）。 */
     @PostMapping("/revoke")
+    @RequiresPermission("perm")
     public UserRoleOrg revoke(@RequestBody GrantRequest req,
                               @RequestHeader(value = "X-User", required = false) String user) {
         return service.revokeRole(req.orgId(), req.userId(), req.roleId(), actor(user));
@@ -52,6 +55,7 @@ public class PermissionController {
 
     /** 申请 SoD 豁免（A4 审批化）：登记 PENDING 并启动审批，暂不放行（PENDING 不生效）。申请人取 X-User。 */
     @PostMapping("/sod-exceptions")
+    @RequiresPermission("perm")
     public SodException requestSodException(@RequestBody SodExceptionRequest req,
                                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.requestSodException(req.orgId(), req.userId(), req.sodRuleId(), actor(user), req.reason(), actor(user));
@@ -59,6 +63,7 @@ public class PermissionController {
 
     /** 审批通过 SoD 豁免：自此放行该规则互斥授权。审批人取 X-User。 */
     @PostMapping("/sod-exceptions/{id}/approve")
+    @RequiresPermission("perm")
     public SodException approveSodException(@PathVariable Long id,
                                             @RequestBody(required = false) DecideRequest req,
                                             @RequestHeader(value = "X-User", required = false) String user) {
@@ -67,6 +72,7 @@ public class PermissionController {
 
     /** 审批驳回 SoD 豁免：不放行。审批人取 X-User。 */
     @PostMapping("/sod-exceptions/{id}/reject")
+    @RequiresPermission("perm")
     public SodException rejectSodException(@PathVariable Long id,
                                            @RequestBody(required = false) DecideRequest req,
                                            @RequestHeader(value = "X-User", required = false) String user) {

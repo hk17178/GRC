@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.feedback;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class FeedbackController {
 
     /** 提交反馈（提交人取 X-User）。 */
     @PostMapping
+    @RequiresPermission("feedback")
     public Feedback submit(@RequestBody SubmitRequest req,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.submit(req.orgId(), req.type(), req.title(), req.content(), actor(user), actor(user));
@@ -44,6 +46,7 @@ public class FeedbackController {
 
     /** 受理并分派。 */
     @PostMapping("/{id}/triage")
+    @RequiresPermission("feedback")
     public Feedback triage(@PathVariable Long id,
                            @RequestBody TriageRequest req,
                            @RequestHeader(value = "X-User", required = false) String user) {
@@ -52,6 +55,7 @@ public class FeedbackController {
 
     /** 办结（须填处置结果）。 */
     @PostMapping("/{id}/resolve")
+    @RequiresPermission("feedback")
     public Feedback resolve(@PathVariable Long id,
                             @RequestBody ResolveRequest req,
                             @RequestHeader(value = "X-User", required = false) String user) {
@@ -60,6 +64,7 @@ public class FeedbackController {
 
     /** 关闭。 */
     @PostMapping("/{id}/close")
+    @RequiresPermission("feedback")
     public Feedback close(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));
@@ -67,6 +72,7 @@ public class FeedbackController {
 
     /** 驳回。 */
     @PostMapping("/{id}/reject")
+    @RequiresPermission("feedback")
     public Feedback reject(@PathVariable Long id,
                            @RequestBody(required = false) ReasonRequest req,
                            @RequestHeader(value = "X-User", required = false) String user) {

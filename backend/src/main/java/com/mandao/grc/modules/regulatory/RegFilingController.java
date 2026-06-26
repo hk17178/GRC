@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulatory;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import com.mandao.grc.modules.workflow.ApprovalDecision;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -39,12 +40,14 @@ public class RegFilingController {
     }
 
     @PostMapping
+    @RequiresPermission("regaffairs")
     public RegFiling create(@RequestBody CreateFilingRequest req,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.title(), req.regulator(), req.statutoryDeadline(), actor(user));
     }
 
     @PostMapping("/{id}/prepare")
+    @RequiresPermission("regaffairs")
     public RegFiling prepare(@PathVariable Long id,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.prepare(id, actor(user));
@@ -52,6 +55,7 @@ public class RegFilingController {
 
     /** 提交内部复核（DRAFTING → PENDING_REVIEW，启动审批）。 */
     @PostMapping("/{id}/submit-for-review")
+    @RequiresPermission("regaffairs")
     public RegFiling submitForReview(@PathVariable Long id,
                                      @RequestHeader(value = "X-User", required = false) String user) {
         return service.submitForReview(id, actor(user));
@@ -59,6 +63,7 @@ public class RegFilingController {
 
     /** 复核通过 → 正式报送（PENDING_REVIEW → SUBMITTED）。 */
     @PostMapping("/{id}/approve-submit")
+    @RequiresPermission("regaffairs")
     public RegFiling approveSubmit(@PathVariable Long id,
                                    @RequestBody(required = false) DecideRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
@@ -67,6 +72,7 @@ public class RegFilingController {
 
     /** 复核驳回 → 退回起草（PENDING_REVIEW → DRAFTING）。 */
     @PostMapping("/{id}/reject-submit")
+    @RequiresPermission("regaffairs")
     public RegFiling rejectSubmit(@PathVariable Long id,
                                   @RequestBody(required = false) DecideRequest req,
                                   @RequestHeader(value = "X-User", required = false) String user) {
@@ -74,6 +80,7 @@ public class RegFilingController {
     }
 
     @PostMapping("/{id}/close")
+    @RequiresPermission("regaffairs")
     public RegFiling close(@PathVariable Long id,
                            @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));

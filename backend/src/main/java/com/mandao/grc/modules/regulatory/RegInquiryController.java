@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulatory;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,6 +39,7 @@ public class RegInquiryController {
     }
 
     @PostMapping
+    @RequiresPermission("regaffairs")
     public RegInquiry create(@RequestBody CreateInquiryRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.title(), req.regulator(),
@@ -45,18 +47,21 @@ public class RegInquiryController {
     }
 
     @PostMapping("/{id}/reply")
+    @RequiresPermission("regaffairs")
     public RegInquiry reply(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.reply(id, actor(user));
     }
 
     @PostMapping("/{id}/await-feedback")
+    @RequiresPermission("regaffairs")
     public RegInquiry awaitFeedback(@PathVariable Long id,
                                     @RequestHeader(value = "X-User", required = false) String user) {
         return service.awaitFeedback(id, actor(user));
     }
 
     @PostMapping("/{id}/close")
+    @RequiresPermission("regaffairs")
     public RegInquiry close(@PathVariable Long id,
                             @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));

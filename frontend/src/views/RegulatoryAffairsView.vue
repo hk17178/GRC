@@ -42,7 +42,7 @@
             {{ $t('regaffairs.seg.' + s) }}
           </button>
         </div>
-        <button class="btn" @click="openCreate">{{ $t('regaffairs.register') }}</button>
+        <button class="btn" :disabled="!canWrite('regaffairs')" :title="canWrite('regaffairs') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('regaffairs.register') }}</button>
       </div>
 
       <!-- 登记弹窗：登记监管报送 → POST /api/reg-filings → 刷新报送日历（端到端写）。
@@ -204,7 +204,7 @@
           <div class="card">
             <div class="ch">
               <h3>{{ $t('regaffairs.plan.list') }}</h3>
-              <button class="btn ghost sm" style="margin-left: auto" @click="openPlanCreate">{{ $t('regaffairs.plan.create.btn') }}</button>
+              <button class="btn ghost sm" style="margin-left: auto" :disabled="!canWrite('regaffairs')" @click="openPlanCreate">{{ $t('regaffairs.plan.create.btn') }}</button>
             </div>
             <table>
               <thead><tr>
@@ -427,6 +427,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 const { t } = useI18n()
 

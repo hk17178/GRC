@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.audit.management;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -41,6 +42,7 @@ public class RemediationController {
 
     /** 派单。 */
     @PostMapping
+    @RequiresPermission("extaudit")
     public RemediationOrder create(@RequestBody CreateRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.findingId(), req.assignee(), req.dueDate(), req.measure(), actor(user));
@@ -48,6 +50,7 @@ public class RemediationController {
 
     /** 开始整改：PENDING → IN_PROGRESS。 */
     @PostMapping("/{id}/start")
+    @RequiresPermission("extaudit")
     public RemediationOrder start(@PathVariable Long id,
                                   @RequestHeader(value = "X-User", required = false) String user) {
         return service.start(id, actor(user));
@@ -55,6 +58,7 @@ public class RemediationController {
 
     /** 提交整改：IN_PROGRESS → SUBMITTED。 */
     @PostMapping("/{id}/submit")
+    @RequiresPermission("extaudit")
     public RemediationOrder submit(@PathVariable Long id,
                                    @RequestBody(required = false) SubmitRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
@@ -63,6 +67,7 @@ public class RemediationController {
 
     /** 验证通过：SUBMITTED → VERIFIED。 */
     @PostMapping("/{id}/verify")
+    @RequiresPermission("extaudit")
     public RemediationOrder verify(@PathVariable Long id,
                                    @RequestHeader(value = "X-User", required = false) String user) {
         return service.verify(id, actor(user));
@@ -70,6 +75,7 @@ public class RemediationController {
 
     /** 验证不通过：SUBMITTED → IN_PROGRESS（退回）。 */
     @PostMapping("/{id}/reject")
+    @RequiresPermission("extaudit")
     public RemediationOrder reject(@PathVariable Long id,
                                    @RequestBody(required = false) RejectRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {

@@ -45,6 +45,7 @@ public class RiskFindingController {
 
     /** 新建风险发现（OPEN 态）。 */
     @PostMapping
+    @RequiresPermission("risk")
     public RiskFinding create(@RequestBody CreateFindingRequest req,
                               @RequestHeader(value = "X-User", required = false) String user) {
         return service.createFinding(req.orgId(), req.assessmentId(), req.title(),
@@ -53,6 +54,7 @@ public class RiskFindingController {
 
     /** 录入处置方案：OPEN → IN_TREATMENT。 */
     @PostMapping("/{id}/treatment")
+    @RequiresPermission("risk")
     public RiskFinding setTreatment(@PathVariable Long id,
                                     @RequestBody TreatmentRequest req,
                                     @RequestHeader(value = "X-User", required = false) String user) {
@@ -61,6 +63,7 @@ public class RiskFindingController {
 
     /** 评估残余风险等级（不改变状态）。 */
     @PostMapping("/{id}/residual")
+    @RequiresPermission("risk")
     public RiskFinding setResidual(@PathVariable Long id,
                                    @RequestBody ResidualRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {

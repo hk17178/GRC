@@ -8,7 +8,7 @@
       <div class="phead">
         <div><div class="kqt">{{ $t('set.tag') }}</div><h1>{{ $t('set.title') }}</h1></div>
         <div class="sp"></div>
-        <button class="btn" @click="openCreate">{{ $t('set.create.btn') }}</button>
+        <button class="btn" :disabled="!canWrite('settings')" :title="canWrite('settings') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('set.create.btn') }}</button>
       </div>
 
       <div class="card">
@@ -84,6 +84,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 const settings = ref([])
 const loadError = ref('')

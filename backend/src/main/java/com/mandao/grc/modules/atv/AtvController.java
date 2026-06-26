@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.atv;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -34,6 +35,7 @@ public class AtvController {
     }
 
     @PostMapping("/threats")
+    @RequiresPermission("risk")
     public Threat createThreat(@RequestBody ThreatRequest req,
                                @RequestHeader(value = "X-User", required = false) String user) {
         return service.createThreat(req.orgId(), req.code(), req.name(), req.category(), req.description(), actor(user));
@@ -47,6 +49,7 @@ public class AtvController {
     }
 
     @PostMapping("/vulnerabilities")
+    @RequiresPermission("risk")
     public Vulnerability createVulnerability(@RequestBody VulnerabilityRequest req,
                                              @RequestHeader(value = "X-User", required = false) String user) {
         return service.createVulnerability(req.orgId(), req.code(), req.name(), req.category(), req.description(), actor(user));
@@ -66,6 +69,7 @@ public class AtvController {
     }
 
     @PostMapping("/risk-scenarios")
+    @RequiresPermission("risk")
     public RiskScenario createScenario(@RequestBody ScenarioRequest req,
                                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.createScenario(req.assetId(), req.threatId(), req.vulnerabilityId(),
@@ -74,6 +78,7 @@ public class AtvController {
 
     /** 重评风险场景（更新可能性/影响并重算固有等级）。 */
     @PostMapping("/risk-scenarios/{id}/reassess")
+    @RequiresPermission("risk")
     public RiskScenario reassess(@PathVariable Long id,
                                  @RequestBody ReassessRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {

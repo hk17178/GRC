@@ -60,6 +60,7 @@ public class ApprovalFlowController {
 
     /** 校验画布结构（不发布）。 */
     @PostMapping("/{id}/validate")
+    @RequiresPermission("approvalflow")
     public Map<String, Object> validate(@PathVariable Long id) {
         service.validate(id);
         return Map.of("valid", true);
@@ -74,12 +75,14 @@ public class ApprovalFlowController {
 
     /** 停用。 */
     @PostMapping("/{id}/retire")
+    @RequiresPermission("approvalflow")
     public ApprovalFlow retire(@PathVariable Long id) {
         return service.retire(id);
     }
 
     /** 灌默认单节点流并发布（初始迁移用）。 */
     @PostMapping("/seed-default")
+    @RequiresPermission("approvalflow")
     public ApprovalFlow seedDefault(@RequestBody SeedRequest req) {
         return service.seedDefault(req.orgId(), req.bizType(), req.approverRole() == null ? "CHECKER" : req.approverRole());
     }

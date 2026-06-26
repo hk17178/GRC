@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.ai;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class AiController {
 
     /** 摄入一篇知识源文档（登记 → 切块 → 嵌入 → 置 INDEXED）。 */
     @PostMapping("/documents")
+    @RequiresPermission("ai")
     public KbDocument ingest(@RequestBody IngestRequest req) {
         return kb.ingest(req.orgId(), req.title(), req.sourceType(), req.sourceRef(), req.content());
     }
@@ -49,6 +51,7 @@ public class AiController {
 
     /** 检索增强问答。 */
     @PostMapping("/ask")
+    @RequiresPermission("ai")
     public AiQaService.AiAnswer ask(@RequestBody AskRequest req) {
         return qa.ask(req.question(), req.topK());
     }

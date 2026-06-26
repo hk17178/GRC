@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.regulatory;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,12 +43,14 @@ public class CompliancePlanController {
     }
 
     @PostMapping
+    @RequiresPermission("regaffairs")
     public CompliancePlan create(@RequestBody CreatePlanRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.year(), req.title(), req.owner(), actor(user));
     }
 
     @PostMapping("/{id}/items")
+    @RequiresPermission("regaffairs")
     public CompliancePlanItem addItem(@PathVariable Long id,
                                       @RequestBody AddItemRequest req,
                                       @RequestHeader(value = "X-User", required = false) String user) {
@@ -55,18 +58,21 @@ public class CompliancePlanController {
     }
 
     @PostMapping("/{id}/activate")
+    @RequiresPermission("regaffairs")
     public CompliancePlan activate(@PathVariable Long id,
                                    @RequestHeader(value = "X-User", required = false) String user) {
         return service.activate(id, actor(user));
     }
 
     @PostMapping("/{id}/close")
+    @RequiresPermission("regaffairs")
     public CompliancePlan close(@PathVariable Long id,
                                 @RequestHeader(value = "X-User", required = false) String user) {
         return service.close(id, actor(user));
     }
 
     @PostMapping("/items/{itemId}/status")
+    @RequiresPermission("regaffairs")
     public CompliancePlanItem updateItemStatus(@PathVariable Long itemId,
                                                @RequestBody ItemStatusRequest req,
                                                @RequestHeader(value = "X-User", required = false) String user) {

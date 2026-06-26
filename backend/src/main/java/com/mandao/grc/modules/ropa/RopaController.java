@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.ropa;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,6 +38,7 @@ public class RopaController {
     }
 
     @PostMapping
+    @RequiresPermission("org")
     public Ropa create(@RequestBody CreateRopaRequest req,
                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.activityName(), req.purpose(), req.dataCategories(),
@@ -44,12 +46,14 @@ public class RopaController {
     }
 
     @PostMapping("/{id}/activate")
+    @RequiresPermission("org")
     public Ropa activate(@PathVariable Long id,
                          @RequestHeader(value = "X-User", required = false) String user) {
         return service.activate(id, actor(user));
     }
 
     @PostMapping("/{id}/retire")
+    @RequiresPermission("org")
     public Ropa retire(@PathVariable Long id,
                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.retire(id, actor(user));

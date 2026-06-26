@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.control;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -46,6 +47,7 @@ public class ControlController {
 
     /** 定义一个控制项。 */
     @PostMapping
+    @RequiresPermission("risk")
     public Control create(@RequestBody CreateControlRequest req,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.code(), req.name(), req.description(),
@@ -54,6 +56,7 @@ public class ControlController {
 
     /** 为控制项新增一条框架映射。 */
     @PostMapping("/{id}/mappings")
+    @RequiresPermission("risk")
     public ControlFrameworkRef addMapping(@PathVariable Long id,
                                           @RequestBody AddMappingRequest req,
                                           @RequestHeader(value = "X-User", required = false) String user) {
@@ -62,6 +65,7 @@ public class ControlController {
 
     /** 停用控制项。 */
     @PostMapping("/{id}/retire")
+    @RequiresPermission("risk")
     public Control retire(@PathVariable Long id,
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.retire(id, actor(user));

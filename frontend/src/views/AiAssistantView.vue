@@ -48,7 +48,7 @@
           <div class="ch">
             <h3>{{ $t('ai.kb') }}</h3>
             <span class="cnt">{{ docs.length }}</span>
-            <button class="btn ghost sm" style="margin-left: auto" @click="openIngest">{{ $t('ai.ingest.btn') }}</button>
+            <button class="btn ghost sm" style="margin-left: auto" :disabled="!canWrite('ai')" :title="canWrite('ai') ? '' : $t('common.noPerm')" @click="openIngest">{{ $t('ai.ingest.btn') }}</button>
           </div>
           <div class="cb" style="padding-top: 0; overflow-x: auto">
             <table>
@@ -93,6 +93,7 @@
 import { ref, reactive, nextTick, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })
 const docs = ref([])

@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.permission;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -42,6 +43,7 @@ public class AccessReviewController {
 
     /** 新建权限审阅（OPEN 态）。 */
     @PostMapping
+    @RequiresPermission("perm")
     public AccessReview create(@RequestBody CreateReviewRequest req,
                                @RequestHeader(value = "X-User", required = false) String user) {
         return service.createReview(req.orgId(), req.period(), req.reviewer(), actor(user));
@@ -49,6 +51,7 @@ public class AccessReviewController {
 
     /** 开始审阅：OPEN → IN_REVIEW（快照有效授权为审阅项）。 */
     @PostMapping("/{id}/start")
+    @RequiresPermission("perm")
     public AccessReview start(@PathVariable Long id,
                               @RequestHeader(value = "X-User", required = false) String user) {
         return service.startReview(id, actor(user));
@@ -56,6 +59,7 @@ public class AccessReviewController {
 
     /** 对审阅项做决定（KEEP/REVOKE）。 */
     @PostMapping("/items/{itemId}/decide")
+    @RequiresPermission("perm")
     public AccessReviewItem decide(@PathVariable Long itemId,
                                    @RequestBody DecideRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
@@ -64,6 +68,7 @@ public class AccessReviewController {
 
     /** 完成审阅：IN_REVIEW → COMPLETED。 */
     @PostMapping("/{id}/complete")
+    @RequiresPermission("perm")
     public AccessReview complete(@PathVariable Long id,
                                  @RequestHeader(value = "X-User", required = false) String user) {
         return service.completeReview(id, actor(user));
