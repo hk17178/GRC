@@ -1,10 +1,13 @@
 package com.mandao.grc.modules.ai;
 
+import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,11 +26,14 @@ public class AiController {
     private final KnowledgeBaseService kb;
     private final AiQaService qa;
     private final EmbeddingProvider embedding;
+    private final AiConfigService configService;
 
-    public AiController(KnowledgeBaseService kb, AiQaService qa, EmbeddingProvider embedding) {
+    public AiController(KnowledgeBaseService kb, AiQaService qa, EmbeddingProvider embedding,
+                        AiConfigService configService) {
         this.kb = kb;
         this.qa = qa;
         this.embedding = embedding;
+        this.configService = configService;
     }
 
     /** 列出可见知识源文档。 */
@@ -60,6 +66,29 @@ public class AiController {
     @GetMapping("/status")
     public AiStatus status() {
         return new AiStatus(qa.provider(), qa.model(), embedding.dim(), "local".equals(qa.provider()));
+    }
+
+    /** 取大模型接入配置（掩码，不回显密钥），供「模型接入」页编辑。 */
+    @GetMapping("/config")
+    public AiConfigService.ConfigView getConfig() {
+        return configService.view();
+    }
+
+    /** 保存大模型接入配置（密钥加密落库；apiKey 留空表示不改）。写门控 "ai"。 */
+    @PutMapping("/config")
+    @RequiresPermission("ai")
+    public AiConfigService.ConfigView updateConfig(@RequestBody ConfigRequest req,
+                                                   @RequestHeader(value = "X-User", required = false) String user) {
+        String actor = CurrentUserContext.get() != null ? CurrentUserContext.get()
+                : (user == null || user.isBlank() ? "anonymous" : user);
+        return configService.update(req.provider(), req.baseUrl(), req.model(),
+                req.maxTokens() == null ? 1024 : req.maxTokens(),
+                req.enabled() == null || req.enabled(), req.apiKey(), actor);
+    }
+
+    /** 大模型接入配置请求体（apiKey 为空=保持原密钥不变）。 */
+    public record ConfigRequest(String provider, String baseUrl, String model, Integer maxTokens,
+                                Boolean enabled, String apiKey) {
     }
 
     /** 摄入请求体。 */
