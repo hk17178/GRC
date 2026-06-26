@@ -64,5 +64,6 @@
 - [ ] 如启用云大模型：`GRC_AI_PROVIDER` + `ANTHROPIC_API_KEY`/`GRC_AI_OPENAI_*`（评估数据出境合规）
 - [ ] Cookie Secure 标志（HTTPS 下）、生产关闭 X-User 回退
 - [ ] 数据库 grc_app 最小权限复核；备份/迁移以 owner 执行
+- [ ] **风险评估报告 PDF 导出依赖 LibreOffice**：运行环境装 `libreoffice-writer` + 中文字体（Rocky9.4：`dnf install libreoffice-writer google-noto-sans-cjk-fonts`）；soffice 非默认路径时配 `grc.report.soffice`
 
 > 发现问题：记录"账号 + 页面 + 操作 + 现象 + 期望"，反馈我定位修复。

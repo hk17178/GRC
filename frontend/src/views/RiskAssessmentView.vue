@@ -433,9 +433,14 @@
           <h1>{{ drillTitle || $t('risk.report.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <span class="st wait" style="margin-right: 8px"><span class="d"></span>{{ $t('risk.report.pending') }}</span>
-        <button class="btn ghost">{{ $t('risk.report.exportPdf') }}</button>
-        <button class="btn">{{ $t('risk.report.sign') }}</button>
+        <span v-if="exportError" class="cerr" style="margin-right: 10px">{{ exportError }}</span>
+        <!-- 表单引擎 P3：回填上传模板 → 导出 Word/PDF（格式同官方模板，可交审计） -->
+        <button class="btn ghost" :disabled="!!exporting" @click="exportReport('docx')">
+          {{ exporting === 'docx' ? '导出中…' : '导出 Word' }}
+        </button>
+        <button class="btn" :disabled="!!exporting" @click="exportReport('pdf')">
+          {{ exporting === 'pdf' ? '导出中…' : '导出 PDF' }}
+        </button>
       </div>
 
       <!-- 表单引擎 P1：按模板 .docx 解析出的规范评估表单（真实后端，可填写保存） -->
@@ -636,6 +641,35 @@ const signoffRef = ref(null)
 async function onFormSaved() {
   if (signoffRef.value) signoffRef.value.reload()
   try { liveTasks.value = await api.get('/assessments') } catch (e) { /* 忽略 */ }
+}
+
+// 表单引擎 P3：导出回填后的报告（docx/pdf），按附件下载
+const exporting = ref('')
+const exportError = ref('')
+async function exportReport(fmt) {
+  exporting.value = fmt
+  exportError.value = ''
+  try {
+    const resp = await fetch('/api/assessments/' + drillId.value + '/report.' + fmt, { credentials: 'include' })
+    if (!resp.ok) {
+      let msg = 'HTTP ' + resp.status
+      try { const j = await resp.json(); msg = j.message || msg } catch (e) { /* 非 JSON */ }
+      throw new Error(msg)
+    }
+    const blob = await resp.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'risk-assessment-' + drillId.value + '.' + fmt
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    URL.revokeObjectURL(url)
+  } catch (e) {
+    exportError.value = '导出失败：' + e.message
+  } finally {
+    exporting.value = ''
+  }
 }
 
 // ---- 下钻：进入某评估 → 拉取其风险发现（真实后端）+ CR-002 关闭门控 ----

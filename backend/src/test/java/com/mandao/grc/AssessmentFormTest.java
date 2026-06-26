@@ -190,6 +190,38 @@ class AssessmentFormTest {
     }
 
     @Test
+    void 回填报告docx_标量与明细表多行() throws Exception {
+        Long tplId = asOrg(ORG_PAY, () -> templateService.create(ORG_PAY, "TPL-RPT", "风评报告",
+                ControlFramework.ISO27001, null, null, "c").getId());
+        TemplateForm form = asOrg(ORG_PAY, () -> formService.uploadForm(tplId, null, sampleDocx()));
+        asOrg(ORG_PAY, () -> formService.activate(form.getId()));
+        Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "导出评估", "张三", "2026Q2", tplId, "c"));
+        asOrg(ORG_PAY, () -> formService.getAssessmentForm(a.getId()));
+
+        Map<String, Object> answers = Map.of(
+                "评估对象", "核心支付清算系统",
+                "整体风险等级", "HIGH",
+                "风险点清单", List.of(
+                        Map.of("控制点", "ACL-01", "结论", "访问控制不足", "残余风险", "HIGH"),
+                        Map.of("控制点", "ACL-02", "结论", "日志留存不足", "残余风险", "MID")));
+        asOrg(ORG_PAY, () -> { formService.saveAnswers(a.getId(), answers); return null; });
+
+        byte[] docx = asOrg(ORG_PAY, () -> formService.buildReportDocx(a.getId()));
+        String txt;
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument d =
+                     new org.apache.poi.xwpf.usermodel.XWPFDocument(new java.io.ByteArrayInputStream(docx));
+             org.apache.poi.xwpf.extractor.XWPFWordExtractor ex =
+                     new org.apache.poi.xwpf.extractor.XWPFWordExtractor(d)) {
+            txt = ex.getText();
+        }
+        assertTrue(txt.contains("核心支付清算系统"), "标量字段应回填");
+        assertTrue(txt.contains("ACL-01") && txt.contains("ACL-02"), "明细表两行均应回填");
+        assertTrue(txt.contains("访问控制不足"), "明细表文本列应回填");
+        assertTrue(txt.contains("高") && txt.contains("中"), "level 应转中文档位（HIGH→高 / MID→中）");
+        assertFalse(txt.contains("${"), "不应残留占位符");
+    }
+
+    @Test
     void 残余聚合_完成门控_管理层签批放行() {
         Long tplId = asOrg(ORG_PAY, () -> templateService.create(ORG_PAY, "TPL-GATE", "风评门控",
                 ControlFramework.ISO27001, null, null, "c").getId());

@@ -35,19 +35,24 @@ public class AssessmentFormService {
     private final AssessmentTemplateRepository templateRepo;
     private final AssessmentRepository assessmentRepo;
     private final ScoringService scoringService;
+    private final DocxReportFiller reportFiller;
+    private final ReportPdfService pdfService;
     private final ObjectMapper objectMapper;
 
     public AssessmentFormService(DocxFormParser parser, TemplateFormRepository formRepo,
                                  AssessmentAnswerRepository answerRepo,
                                  AssessmentTemplateRepository templateRepo,
                                  AssessmentRepository assessmentRepo,
-                                 ScoringService scoringService, ObjectMapper objectMapper) {
+                                 ScoringService scoringService, DocxReportFiller reportFiller,
+                                 ReportPdfService pdfService, ObjectMapper objectMapper) {
         this.parser = parser;
         this.formRepo = formRepo;
         this.answerRepo = answerRepo;
         this.templateRepo = templateRepo;
         this.assessmentRepo = assessmentRepo;
         this.scoringService = scoringService;
+        this.reportFiller = reportFiller;
+        this.pdfService = pdfService;
         this.objectMapper = objectMapper;
     }
 
@@ -172,6 +177,43 @@ public class AssessmentFormService {
     private Map<String, Object> asMap(Object answers) {
         try {
             return objectMapper.convertValue(answers, new TypeReference<Map<String, Object>>() { });
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    // ---------- 报告导出（P3）----------
+
+    /**
+     * 生成回填后的报告 docx：取评估绑定表单的 .docx 原件 + schema + 填写值 → 回填。
+     *
+     * @return 报告 docx 字节
+     */
+    @Transactional(readOnly = true)
+    public byte[] buildReportDocx(Long assessmentId) {
+        AssessmentAnswer ans = answerRepo.findByAssessmentId(assessmentId)
+                .orElseThrow(() -> new IllegalStateException("该评估尚无填写或未绑定表单，无法导出报告"));
+        TemplateForm form = formRepo.findById(ans.getFormVersionId())
+                .orElseThrow(() -> new IllegalStateException("绑定的表单版本不可用"));
+        if (form.getDocx() == null) {
+            throw new IllegalStateException("该表单无 .docx 原件，无法回填导出");
+        }
+        FormSchema schema = readJson(form.getSchemaJson());
+        Map<String, Object> answers = readAnswerMap(ans.getAnswersJson());
+        return reportFiller.fill(form.getDocx(), schema, answers);
+    }
+
+    /** 生成回填后的报告 PDF（docx → LibreOffice 转 PDF）。 */
+    @Transactional(readOnly = true)
+    public byte[] buildReportPdf(Long assessmentId) {
+        return pdfService.toPdf(buildReportDocx(assessmentId));
+    }
+
+    /** 解析填写 JSON 为 Map。 */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readAnswerMap(String json) {
+        try {
+            return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() { });
         } catch (Exception e) {
             return Map.of();
         }

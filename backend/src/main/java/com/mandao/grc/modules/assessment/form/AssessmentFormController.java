@@ -1,6 +1,7 @@
 package com.mandao.grc.modules.assessment.form;
 
 import com.mandao.grc.modules.rbac.RequiresPermission;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -76,6 +77,29 @@ public class AssessmentFormController {
     public Map<String, Object> saveAnswers(@PathVariable Long id, @RequestBody Object answers) {
         var level = service.saveAnswers(id, answers);
         return java.util.Collections.singletonMap("riskLevel", level == null ? null : level.name());
+    }
+
+    /** 导出回填后的报告 Word（.docx，格式同上传的官方模板）。 */
+    @GetMapping("/assessments/{id}/report.docx")
+    public ResponseEntity<byte[]> reportDocx(@PathVariable Long id) {
+        byte[] body = service.buildReportDocx(id);
+        return download(body, "risk-assessment-" + id + ".docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    }
+
+    /** 导出回填后的报告 PDF（LibreOffice 转，可直接交审计）。 */
+    @GetMapping("/assessments/{id}/report.pdf")
+    public ResponseEntity<byte[]> reportPdf(@PathVariable Long id) {
+        byte[] body = service.buildReportPdf(id);
+        return download(body, "risk-assessment-" + id + ".pdf", "application/pdf");
+    }
+
+    /** 组装下载响应（附件 + 内容类型）。 */
+    private ResponseEntity<byte[]> download(byte[] body, String filename, String contentType) {
+        return ResponseEntity.ok()
+                .header("Content-Type", contentType)
+                .header("Content-Disposition", "attachment; filename=\"" + filename + "\"")
+                .body(body);
     }
 
     /**
