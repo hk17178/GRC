@@ -304,6 +304,7 @@ function refreshCaptcha() {
 //   其次 localStorage 覆盖项，最后 i18n 默认——
 const brand = ref({})
 onMounted(async () => {
+  refreshCaptcha()   // 进入登录页即随机一组验证码（原先固定 7K9Q）
   try { brand.value = await api.get('/branding') || {} } catch (e) { brand.value = {} }
 })
 

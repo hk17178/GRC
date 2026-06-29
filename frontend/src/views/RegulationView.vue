@@ -48,11 +48,8 @@
             <table style="min-width: 560px">
               <thead><tr><th>标题</th><th>发布机关</th><th>文号</th><th>发布日期</th><th>分类</th></tr></thead>
               <tbody>
-                <tr v-for="c in crawled" :key="c.id">
-                  <td>
-                    <a v-if="c.url" :href="c.url" target="_blank" rel="noopener">{{ c.title }}</a>
-                    <span v-else>{{ c.title }}</span>
-                  </td>
+                <tr v-for="c in crawled" :key="c.id" class="clk" @click="openLaw(c)">
+                  <td><a class="lawlink">{{ c.title }}</a></td>
                   <td>{{ c.issuer || '—' }}</td>
                   <td class="code">{{ c.docNo || '—' }}</td>
                   <td class="num">{{ c.publishDate || '—' }}</td>
@@ -112,6 +109,25 @@
                 <tr v-if="!changes.length"><td colspan="5" class="emptyrow">{{ $t('reg.changeEmpty') }}</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- 采集法规详情弹窗（点采集流任一条目）-->
+      <div v-if="lawDetail" class="modal-mask" @click.self="lawDetail = null">
+        <div class="modal-card" style="width: 560px">
+          <h3 style="line-height:1.4">{{ lawDetail.title }}</h3>
+          <div class="lawmeta">
+            <div><span class="lk">发布机关</span>{{ lawDetail.issuer || '—' }}</div>
+            <div><span class="lk">发文字号</span>{{ lawDetail.docNo || '—' }}</div>
+            <div><span class="lk">发布日期</span>{{ lawDetail.publishDate || '—' }}</div>
+            <div><span class="lk">分类</span><span class="pill">{{ lawDetail.category || '—' }}</span></div>
+          </div>
+          <p class="lawsum">{{ lawDetail.summary || '（无摘要）' }}</p>
+          <div class="modal-actions">
+            <a v-if="isHttp(lawDetail.url)" class="btn ghost" :href="lawDetail.url" target="_blank" rel="noopener">查看原文 ↗</a>
+            <span v-else-if="lawDetail.url" class="muted" style="margin-right:auto">原文链接：{{ lawDetail.url }}（示例源为占位链接）</span>
+            <button class="btn" @click="lawDetail = null">关闭</button>
           </div>
         </div>
       </div>
@@ -260,6 +276,10 @@ async function submitAssess() {
 // ===== 法规跟踪爬虫：追踪源 + 采集流 =====
 const sources = ref([])
 const crawled = ref([])
+// 采集法规详情（点条目打开；示例源 url 为占位，真实 HTTP 源 url 可"查看原文"）
+const lawDetail = ref(null)
+function openLaw(c) { lawDetail.value = c }
+function isHttp(u) { return typeof u === 'string' && /^https?:\/\//.test(u) && !/\/sample\//.test(u) }
 const crawling = ref(null)
 const crawlMsg = ref('')
 async function loadSources() {
@@ -346,4 +366,11 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .srcrow .snm { font-size: 12.5px; font-weight: 600; }
 .srcrow .ssub { font-size: 11px; color: var(--text-3); margin-top: 2px; }
 .ok-msg { color: var(--success); font-size: 12px; font-weight: 600; margin-top: 10px; }
+/* 采集法规详情 */
+.lawlink { color: var(--accent-strong); cursor: pointer; }
+tbody tr.clk:hover .lawlink { text-decoration: underline; }
+.lawmeta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 4px 0 12px; font-size: 12.5px; }
+.lawmeta .lk { color: var(--text-3); display: inline-block; min-width: 64px; }
+.lawsum { font-size: 13px; color: var(--text-2); line-height: 1.7; background: var(--bg); border-radius: 8px; padding: 12px; margin: 0; }
+.muted { color: var(--text-3); font-size: 11.5px; }
 </style>

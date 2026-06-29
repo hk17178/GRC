@@ -34,18 +34,25 @@
             <label class="fld">提供方
               <select v-model="cfg.provider" :disabled="!writable">
                 <option value="LOCAL">本地离线（不接外部大模型）</option>
-                <option value="OPENAI">OpenAI 兼容（通用：qwen/deepseek/moonshot/Ollama…）</option>
-                <option value="CLAUDE">Claude（Anthropic）</option>
+                <option value="OPENAI">通用大模型（OpenAI 兼容 · 接 qwen/deepseek/moonshot/GLM/Ollama 等）</option>
               </select>
             </label>
             <template v-if="cfg.provider !== 'LOCAL'">
-              <label class="fld">Base URL
-                <input v-model="cfg.baseUrl" :disabled="!writable"
-                       :placeholder="cfg.provider === 'CLAUDE' ? 'https://api.anthropic.com' : 'https://…/v1'" />
+              <label class="fld">服务商接口地址 Base URL
+                <input v-model="cfg.baseUrl" :disabled="!writable" placeholder="如 https://dashscope.aliyuncs.com/compatible-mode/v1" />
               </label>
-              <label class="fld">模型
-                <input v-model="cfg.model" :disabled="!writable"
-                       :placeholder="cfg.provider === 'CLAUDE' ? 'claude-opus-4-8' : 'qwen-plus / deepseek-chat'" />
+              <!-- 模型版本：同一服务商常有多个模型版本；选预设或自填该服务商的具体模型 id -->
+              <label class="fld">模型版本
+                <input v-model="cfg.model" :disabled="!writable" list="model-presets" placeholder="选预设或填具体模型 id，如 qwen-plus" />
+                <datalist id="model-presets">
+                  <option value="qwen-plus">通义千问 · qwen-plus</option>
+                  <option value="qwen-max">通义千问 · qwen-max</option>
+                  <option value="deepseek-chat">DeepSeek · deepseek-chat</option>
+                  <option value="deepseek-reasoner">DeepSeek · deepseek-reasoner</option>
+                  <option value="moonshot-v1-8k">Kimi · moonshot-v1-8k</option>
+                  <option value="glm-4-plus">智谱 · glm-4-plus</option>
+                  <option value="gpt-4o-mini">OpenAI · gpt-4o-mini</option>
+                </datalist>
               </label>
               <label class="fld">API Key
                 <input v-model="cfg.apiKey" type="password" :disabled="!writable"

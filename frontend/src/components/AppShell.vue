@@ -11,10 +11,10 @@
     <!-- ===== 左侧导航 ===== -->
     <aside class="side">
       <div class="brand">
-        <div class="logo">G</div>
+        <div class="logo" :style="logoStyle">{{ logoText }}</div>
         <div>
-          <b>{{ $t('common.brandName') }}</b>
-          <span>{{ $t('common.brandSub') }}</span>
+          <b>{{ brandName }}</b>
+          <span>{{ brandSub }}</span>
         </div>
       </div>
       <nav class="nav">
@@ -91,7 +91,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
@@ -100,6 +101,17 @@ import { authState, canSee, clearUser } from '@/auth.js'
 
 const route = useRoute()
 const router = useRouter()
+const { t, locale } = useI18n()
+
+// 品牌：读系统设置→登录页与品牌(/api/branding)，全局生效（含侧栏品牌区）；空字段回退 i18n 默认。
+const brand = ref({})
+onMounted(async () => { try { brand.value = await api.get('/branding') || {} } catch (e) { brand.value = {} } })
+const brandName = computed(() => brand.value.brandName || t('common.brandName'))
+const brandSub = computed(() => brand.value.brandSub || t('common.brandSub'))
+const logoText = computed(() => (brand.value.logoImg ? '' : (brand.value.logoText || 'G')))
+const logoStyle = computed(() => brand.value.logoImg
+  ? { backgroundImage: `url(${brand.value.logoImg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+  : {})
 
 // 当前登录人显示名 + 头像首字（增强③ R4）
 const displayName = computed(() => authState.user?.displayName || authState.user?.username || '')
