@@ -37,7 +37,22 @@
             {{ $t('extaudit.seg.' + s) }}
           </button>
         </div>
-        <button class="btn">{{ $t('extaudit.register') }}</button>
+        <button class="btn" :disabled="!canWrite('extaudit')" :title="canWrite('extaudit') ? '' : $t('common.noPerm')" @click="openReg">{{ $t('extaudit.register') }}</button>
+      </div>
+
+      <!-- 登记外审任务弹窗（创建 EXTERNAL 审计计划）-->
+      <div v-if="showReg" class="modal-mask" @click.self="showReg = false">
+        <div class="modal-card">
+          <h3>{{ $t('extaudit.register') }}</h3>
+          <label class="fld">审计主题 / 认证体系<input v-model="rf.title" placeholder="如 ISO 27001 年度监督审核" /></label>
+          <label class="fld">计划开始日<input type="date" v-model="rf.planStartDate" /></label>
+          <label class="fld">所属组织<select v-model.number="rf.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select></label>
+          <p v-if="regErr" class="cerr">{{ regErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showReg = false">取消</button>
+            <button class="btn" :disabled="!rf.title || regSaving" @click="submitReg">{{ regSaving ? '提交中…' : '确认登记' }}</button>
+          </div>
+        </div>
       </div>
 
       <!-- ===== Tab 切换 ===== -->
@@ -106,9 +121,10 @@
                   <td>{{ r.cycle }}</td>
                   <td class="num">{{ r.planStart }}</td>
                   <td>
-                    <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                    <span class="st" :class="r.stClass"><span class="d"></span>{{ r.stText }}</span>
                   </td>
                 </tr>
+                <tr v-if="!taskRows.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">暂无外审任务，点「登记外审任务」。</td></tr>
               </tbody>
             </table>
           </div>
@@ -319,8 +335,10 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import { api } from '@/api/client.js'
+import { canWrite } from '@/auth.js'
 
 // ---- 顶部子公司分段（默认「集团」高亮，纯展示）----
 const segs = ['all', 'pay', 'consumer', 'tech']
@@ -330,14 +348,38 @@ const activeSeg = ref(0)
 const tabs = ['tasks', 'findings', 'remed']
 const activeTab = ref('tasks')
 
-// ---- Tab1：外部审计任务表（静态示例值取自原型）----
-const taskRows = [
-  { id: 'EA-2026-07', pill: 'blue', cert: '等保三级测评', body: '某等保测评机构', owner: '支付科技', cycle: '2026 年度', planStart: '2026-07-10', stClass: 'doing', stLabel: 'extaudit.tasks.status.onsite' },
-  { id: 'EA-2026-05', pill: 'teal', cert: 'ISO 27001', body: 'BSI', owner: '集团', cycle: '年度监督审核', planStart: '2026-08-05', stClass: 'wait', stLabel: 'extaudit.tasks.status.pendingReply' },
-  { id: 'EA-2026-04', pill: 'violet', cert: 'PCI DSS', body: 'QSA 机构', owner: '支付科技', cycle: '年度复审', planStart: '2026-06-20', stClass: 'doing', stLabel: 'extaudit.tasks.status.remediating' },
-  { id: 'EA-2026-02', pill: '', cert: 'PBOC 监管检查', body: '属地央行分支', owner: '消费金融', cycle: '专项检查', planStart: '2026-06-12', stClass: 'over', stLabel: 'extaudit.tasks.status.awaitReg' },
-  { id: 'EA-2026-01', pill: 'teal', cert: 'ISO 27701', body: 'DNV', owner: '数据科技', cycle: '认证审核', planStart: '2026-05-15', stClass: 'ok', stLabel: 'extaudit.tasks.status.passed' }
-]
+// ---- Tab1：外部审计任务表（真实后端 /api/audit-plans?type=EXTERNAL）----
+// 后端审计计划仅含 主题/类型/开始日/状态；认证体系/机构/责任单位/周期 后端未建模，显示 —。
+const STATUS = {
+  PLANNED: { t: '已计划', c: 'wait' }, IN_PROGRESS: { t: '实施中', c: 'doing' },
+  REPORTING: { t: '待签批', c: 'wait' }, CLOSED: { t: '已关闭', c: 'ok' }, CANCELLED: { t: '已取消', c: 'over' }
+}
+const taskRows = ref([])
+async function loadTasks() {
+  try {
+    const plans = await api.get('/audit-plans?type=EXTERNAL')
+    taskRows.value = plans.map((p) => ({
+      id: 'EA-' + p.id, pill: '', cert: p.title, body: '—', owner: '—', cycle: '—',
+      planStart: p.planStartDate || '—', stClass: (STATUS[p.status] || {}).c || 'wait', stText: (STATUS[p.status] || {}).t || p.status
+    }))
+  } catch (e) { taskRows.value = [] }
+}
+
+// ---- 登记外审任务（真实创建 EXTERNAL 审计计划）----
+const showReg = ref(false)
+const regSaving = ref(false)
+const regErr = ref('')
+const rf = reactive({ title: '', planStartDate: '', orgId: 12 })
+function openReg() { Object.assign(rf, { title: '', planStartDate: '', orgId: 12 }); regErr.value = ''; showReg.value = true }
+async function submitReg() {
+  regSaving.value = true; regErr.value = ''
+  try {
+    await api.post('/audit-plans', { orgId: rf.orgId, title: rf.title, auditType: 'EXTERNAL', planStartDate: rf.planStartDate || null })
+    showReg.value = false; await loadTasks()
+  } catch (e) { regErr.value = e.message } finally { regSaving.value = false }
+}
+
+onMounted(loadTasks)
 
 // ---- 按认证体系分布（bars）----
 const distBars = [
@@ -803,4 +845,12 @@ tbody tr:hover {
 :global(body.t-gov .view thead th) {
   background: var(--accent-tint);
 }
+/* 登记外审任务弹窗 */
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.32); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-card { width: 420px; max-width: 92vw; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 22px 24px; }
+.modal-card h3 { margin: 0 0 16px; font-size: 16px; }
+.modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
+.modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
+.cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 </style>

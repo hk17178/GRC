@@ -39,21 +39,30 @@
             {{ $t('dash.seg.' + s) }}
           </button>
         </div>
-        <button class="btn ghost">
+        <button class="btn ghost" :class="{ on: editMode }" @click="editMode = !editMode">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="3" width="7" height="7" rx="1" />
             <rect x="14" y="14" width="7" height="7" rx="1" />
             <rect x="3" y="14" width="7" height="7" rx="1" />
           </svg>
-          <span class="lbl">{{ $t('dash.editLayout') }}</span>
+          <span class="lbl">{{ editMode ? '完成' : $t('dash.editLayout') }}</span>
         </button>
-        <button class="btn ghost">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M12 5v14M5 12h14" />
-          </svg>
-          {{ $t('dash.addWidget') }}
-        </button>
+        <div class="addwrap">
+          <button class="btn ghost" @click="showAdd = !showAdd">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            {{ $t('dash.addWidget') }}<span v-if="hiddenList.length" class="abadge">{{ hiddenList.length }}</span>
+          </button>
+          <div v-if="showAdd" class="addmenu" @click.self="showAdd = false">
+            <div class="addmenu-pop">
+              <div class="amh">添加已隐藏组件</div>
+              <button v-for="w in hiddenList" :key="w.id" class="ami" @click="showW(w.id); showAdd = false">＋ {{ $t(w.k) }}</button>
+              <div v-if="!hiddenList.length" class="amempty">（无已隐藏组件）<br />在「编辑布局」模式下点组件右上角「隐藏」</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- ===== KPI 指标卡组（8 张） ===== -->
@@ -78,7 +87,8 @@
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
       <div class="dgrid">
         <!-- 子公司 × 风险域 · 热力矩阵（span 6 · 等宽列） -->
-        <div class="card gi" style="--w: 6">
+        <div v-show="vis('heat')" class="card gi" style="--w: 6">
+          <button v-if="editMode" class="whide" @click="hideW('heat')">隐藏</button>
           <div class="ch">
             <h3>{{ $t('dash.heat.title') }}</h3>
             <span class="sub">{{ $t('dash.heat.sub') }}</span>
@@ -109,7 +119,8 @@
         </div>
 
         <!-- 整改完成率 · 分子公司（span 3） -->
-        <div class="card gi" style="--w: 3">
+        <div v-show="vis('remed')" class="card gi" style="--w: 3">
+          <button v-if="editMode" class="whide" @click="hideW('remed')">隐藏</button>
           <div class="ch">
             <h3>{{ $t('dash.remed.title') }}</h3>
           </div>
@@ -132,7 +143,8 @@
         </div>
 
         <!-- KRI 持续监控（span 3 · 含迷你折线） -->
-        <div class="card gi" style="--w: 3">
+        <div v-show="vis('kri')" class="card gi" style="--w: 3">
+          <button v-if="editMode" class="whide" @click="hideW('kri')">隐藏</button>
           <div class="ch">
             <h3>{{ $t('dash.kri.title') }}</h3>
             <span class="sub">{{ $t('dash.kri.sub') }}</span>
@@ -158,7 +170,8 @@
         </div>
 
         <!-- 体系合规达成度（span 4） -->
-        <div class="card gi" style="--w: 4">
+        <div v-show="vis('frame')" class="card gi" style="--w: 4">
+          <button v-if="editMode" class="whide" @click="hideW('frame')">隐藏</button>
           <div class="ch">
             <h3>{{ $t('dash.frame.title') }}</h3>
             <span class="sub">{{ $t('dash.frame.sub') }}</span>
@@ -179,7 +192,8 @@
         </div>
 
         <!-- 待我审批（span 4） -->
-        <div class="card gi" style="--w: 4">
+        <div v-show="vis('approve')" class="card gi" style="--w: 4">
+          <button v-if="editMode" class="whide" @click="hideW('approve')">隐藏</button>
           <div class="ch">
             <h3>{{ $t('dash.approve.title') }}</h3>
             <span class="more">{{ $t('dash.approve.all', { n: approvals.length }) }}</span>
@@ -201,7 +215,8 @@
         </div>
 
         <!-- 重点关注 · 实时事件流（span 4） -->
-        <div class="card gi" style="--w: 4; padding: 0">
+        <div v-show="vis('feed')" class="card gi" style="--w: 4; padding: 0">
+          <button v-if="editMode" class="whide" style="top: 8px; right: 10px" @click="hideW('feed')">隐藏</button>
           <div class="ch" style="padding: 14px 18px 8px">
             <h3>{{ $t('dash.feed.title') }}</h3>
           </div>
@@ -228,6 +243,22 @@ import { api } from '@/api/client.js'
 // ---- 子公司分段切换（页头右侧 seg）----
 const segs = ['all', 'pay', 'consumer', 'tech']
 const activeSeg = ref(0)
+
+// ===== 大屏布局编辑：隐藏/恢复组件（localStorage 持久化）=====
+const WIDGETS = [
+  { id: 'heat', k: 'dash.heat.title' }, { id: 'remed', k: 'dash.remed.title' },
+  { id: 'kri', k: 'dash.kri.title' }, { id: 'frame', k: 'dash.frame.title' },
+  { id: 'approve', k: 'dash.approve.title' }, { id: 'feed', k: 'dash.feed.title' }
+]
+const HIDE_KEY = 'grc-dash-hidden'
+const editMode = ref(false)
+const showAdd = ref(false)
+const hidden = ref(new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || '[]')))
+function persist() { localStorage.setItem(HIDE_KEY, JSON.stringify([...hidden.value])) }
+function vis(id) { return !hidden.value.has(id) }
+function hideW(id) { const s = new Set(hidden.value); s.add(id); hidden.value = s; persist() }
+function showW(id) { const s = new Set(hidden.value); s.delete(id); hidden.value = s; persist() }
+const hiddenList = computed(() => WIDGETS.filter((w) => hidden.value.has(w.id)))
 
 // ---- 合规态势汇总（真实后端：跨模块按可见组织计数）----
 const summary = ref(null)
@@ -767,4 +798,16 @@ const feed = [
   border-left: 3px solid var(--info, #3a6ea5);
   border-radius: var(--radius-md);
 }
+/* ===== 大屏布局编辑 ===== */
+.btn.ghost.on { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-tint); }
+.whide { position: absolute; top: 10px; right: 12px; z-index: 6; font-size: 11px; font-weight: 600; padding: 3px 9px; border: 1px solid var(--danger); color: var(--danger); background: var(--surface); border-radius: 6px; cursor: pointer; }
+.whide:hover { background: var(--danger); color: #fff; }
+.addwrap { position: relative; }
+.abadge { margin-left: 6px; font-size: 10px; font-weight: 700; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; }
+.addmenu { position: absolute; inset: 0 0 auto auto; z-index: 60; }
+.addmenu-pop { position: absolute; top: 8px; right: 0; min-width: 240px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 8px; }
+.amh { font-size: 11px; color: var(--text-3); padding: 4px 8px 8px; font-weight: 700; }
+.ami { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text-1); font-size: 12.5px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.ami:hover { background: var(--accent-tint); color: var(--accent-strong); }
+.amempty { font-size: 11.5px; color: var(--text-3); padding: 8px; line-height: 1.6; }
 </style>
