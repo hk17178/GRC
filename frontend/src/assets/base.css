@@ -103,3 +103,8 @@ body.t-glass .nav a .cnt, body.t-emerald .nav a .cnt { background: rgba(255,255,
 
 /* t-gov 顶栏：底部红色描边（原 :global 后代写法失效，移至此处）*/
 body.t-gov .top { border-bottom: 2px solid var(--accent); }
+
+/* 晴空/苍翠：品牌副标题(标题下方小字)与 Logo 在青/深侧栏上的可读性
+   （原型未覆盖，副标题走灰 --text-3、青 Logo 融背景；按主题补浅色/提对比）*/
+body.t-glass .brand span, body.t-emerald .brand span { color: rgba(255,255,255,.66); }
+body.t-glass .brand .logo { background: linear-gradient(145deg, #f3fdfe, #bfe6ea); color: var(--accent-strong); }
