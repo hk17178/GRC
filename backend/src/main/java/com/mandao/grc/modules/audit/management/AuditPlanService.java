@@ -40,6 +40,12 @@ public class AuditPlanService {
         return repository.findAll();
     }
 
+    /** 按审计类型列出（内部/外部/监管分视图）；type 为 null 返回全部。 */
+    @Transactional(readOnly = true)
+    public List<AuditPlan> listByType(AuditType type) {
+        return type == null ? repository.findAll() : repository.findByAuditTypeOrderByIdDesc(type);
+    }
+
     /** 按 id 取审计计划（仅能取到可见组织内的；不可见则视为不存在）。 */
     @Transactional(readOnly = true)
     public AuditPlan get(Long id) {

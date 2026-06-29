@@ -123,6 +123,18 @@ class AuditManagementTest {
     }
 
     @Test
+    void 按类型过滤_内审外审分视图() {
+        asOrg(ORG_PAY, () -> planService.create(ORG_PAY, "内审-支付系统", AuditType.INTERNAL, TODAY.plusDays(10), "c"));
+        asOrg(ORG_PAY, () -> planService.create(ORG_PAY, "外审-年度", AuditType.EXTERNAL, TODAY.plusDays(20), "c"));
+
+        var internal = asOrg(ORG_PAY, () -> planService.listByType(AuditType.INTERNAL));
+        assertEquals(1, internal.size(), "INTERNAL 过滤应只返回内审");
+        assertEquals(AuditType.INTERNAL, internal.get(0).getAuditType());
+        assertEquals(1, asOrg(ORG_PAY, () -> planService.listByType(AuditType.EXTERNAL)).size(), "EXTERNAL 过滤应只返回外审");
+        assertEquals(2, asOrg(ORG_PAY, () -> planService.listByType(null)).size(), "null 返回全部");
+    }
+
+    @Test
     void 计划非法流转_计划态直接关闭被拒() {
         Long id = asOrg(ORG_PAY, () ->
                 planService.create(ORG_PAY, "X", AuditType.INTERNAL, TODAY.plusDays(30), "creator").getId());

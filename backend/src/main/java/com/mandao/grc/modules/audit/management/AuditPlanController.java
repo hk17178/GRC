@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.LocalDate;
@@ -30,10 +31,10 @@ public class AuditPlanController {
         this.service = service;
     }
 
-    /** 列出可见范围内的审计计划。 */
+    /** 列出可见范围内的审计计划；可按 type 过滤（INTERNAL/EXTERNAL/REGULATORY）分内外审视图。 */
     @GetMapping
-    public List<AuditPlan> list() {
-        return service.list();
+    public List<AuditPlan> list(@RequestParam(required = false) AuditType type) {
+        return service.listByType(type);
     }
 
     /** 取单个审计计划。 */

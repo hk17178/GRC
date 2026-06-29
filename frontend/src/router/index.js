@@ -28,11 +28,11 @@ import AiAssistantView from '@/views/AiAssistantView.vue'
 import ModelAccessView from '@/views/ModelAccessView.vue'
 import ApprovalFlowDesignerView from '@/views/ApprovalFlowDesignerView.vue'
 import PlaceholderView from '@/views/PlaceholderView.vue'
+import InternalAuditView from '@/views/InternalAuditView.vue'
 
 // 占位菜单项：path → navKey（navKey 既用于菜单高亮，也用于占位页标题与面包屑）
-const PLACEHOLDER_PAGES = [
-  { path: '/internal-audit', navKey: 'audit' }
-]
+// ⑦ 内部审计已实建（见下方路由），不再占位。
+const PLACEHOLDER_PAGES = []
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -53,6 +53,13 @@ const routes = [
     name: 'external-audit',
     component: ExternalAuditView,
     meta: { title: '外部审计', navKey: 'extaudit' }
+  },
+  {
+    // ⑦ 内部审计（M3）：审计计划/发现/整改，复用审计管理后端按 type=INTERNAL
+    path: '/internal-audit',
+    name: 'audit',
+    component: InternalAuditView,
+    meta: { title: '内部审计', navKey: 'audit' }
   },
   {
     path: '/risk',
