@@ -100,3 +100,6 @@ body.t-glass .nav a:hover svg, body.t-emerald .nav a:hover svg { color: #fff; }
 body.t-glass .nav a.on, body.t-emerald .nav a.on { background: rgba(255,255,255,.16); color: #fff; }
 body.t-glass .nav a.on svg, body.t-emerald .nav a.on svg { color: #fff; }
 body.t-glass .nav a .cnt, body.t-emerald .nav a .cnt { background: rgba(255,255,255,.16); color: var(--side-fg); }
+
+/* t-gov 顶栏：底部红色描边（原 :global 后代写法失效，移至此处）*/
+body.t-gov .top { border-bottom: 2px solid var(--accent); }

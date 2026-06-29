@@ -339,9 +339,7 @@ function onAiFab() {
   background: var(--topbar-bg);
   border-bottom: 1px solid var(--border);
 }
-:global(body.t-gov) .top {
-  border-bottom: 2px solid var(--accent);
-}
+/* t-gov 顶栏红色描边见全局 base.css（同 :global 后代失效问题） */
 .crumb {
   font-size: 12.5px;
   color: var(--text-3);
