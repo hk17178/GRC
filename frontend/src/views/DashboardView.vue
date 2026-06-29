@@ -53,13 +53,17 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14M5 12h14" />
             </svg>
-            {{ $t('dash.addWidget') }}<span v-if="hiddenList.length" class="abadge">{{ hiddenList.length }}</span>
+            {{ $t('dash.addWidget') }}<span v-if="available.length" class="abadge">{{ available.length }}</span>
           </button>
           <div v-if="showAdd" class="addmenu" @click.self="showAdd = false">
             <div class="addmenu-pop">
-              <div class="amh">添加已隐藏组件</div>
-              <button v-for="w in hiddenList" :key="w.id" class="ami" @click="showW(w.id); showAdd = false">＋ {{ $t(w.k) }}</button>
-              <div v-if="!hiddenList.length" class="amempty">（无已隐藏组件）<br />在「编辑布局」模式下点组件右上角「隐藏」</div>
+              <div class="amh">添加可视化组件</div>
+              <button v-for="c in available" :key="c.id" class="ami" @click="addW(c.id)">
+                ＋ {{ catName(c) }}<span v-if="!c.builtin" class="extag">新</span>
+              </button>
+              <div v-if="!available.length" class="amempty">所有组件已在面板中。</div>
+              <div class="amsep"></div>
+              <button class="ami rst" @click="resetLayout(); showAdd = false">↺ 重置为默认布局</button>
             </div>
           </div>
         </div>
@@ -87,8 +91,11 @@
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
       <div class="dgrid">
         <!-- 子公司 × 风险域 · 热力矩阵（span 6 · 等宽列） -->
-        <div v-show="vis('heat')" class="card gi" style="--w: 6">
-          <button v-if="editMode" class="whide" @click="hideW('heat')">隐藏</button>
+        <div v-if="inLayout('heat')" class="card gi" :style="{ '--w': widthOf('heat') }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('heat') === w }" @click="setWidth('heat', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('heat')">移除</button>
+          </div>
           <div class="ch">
             <h3>{{ $t('dash.heat.title') }}</h3>
             <span class="sub">{{ $t('dash.heat.sub') }}</span>
@@ -119,8 +126,11 @@
         </div>
 
         <!-- 整改完成率 · 分子公司（span 3） -->
-        <div v-show="vis('remed')" class="card gi" style="--w: 3">
-          <button v-if="editMode" class="whide" @click="hideW('remed')">隐藏</button>
+        <div v-if="inLayout('remed')" class="card gi" :style="{ '--w': widthOf('remed') }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('remed') === w }" @click="setWidth('remed', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('remed')">移除</button>
+          </div>
           <div class="ch">
             <h3>{{ $t('dash.remed.title') }}</h3>
           </div>
@@ -143,8 +153,11 @@
         </div>
 
         <!-- KRI 持续监控（span 3 · 含迷你折线） -->
-        <div v-show="vis('kri')" class="card gi" style="--w: 3">
-          <button v-if="editMode" class="whide" @click="hideW('kri')">隐藏</button>
+        <div v-if="inLayout('kri')" class="card gi" :style="{ '--w': widthOf('kri') }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('kri') === w }" @click="setWidth('kri', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('kri')">移除</button>
+          </div>
           <div class="ch">
             <h3>{{ $t('dash.kri.title') }}</h3>
             <span class="sub">{{ $t('dash.kri.sub') }}</span>
@@ -170,8 +183,11 @@
         </div>
 
         <!-- 体系合规达成度（span 4） -->
-        <div v-show="vis('frame')" class="card gi" style="--w: 4">
-          <button v-if="editMode" class="whide" @click="hideW('frame')">隐藏</button>
+        <div v-if="inLayout('frame')" class="card gi" :style="{ '--w': widthOf('frame') }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('frame') === w }" @click="setWidth('frame', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('frame')">移除</button>
+          </div>
           <div class="ch">
             <h3>{{ $t('dash.frame.title') }}</h3>
             <span class="sub">{{ $t('dash.frame.sub') }}</span>
@@ -192,8 +208,11 @@
         </div>
 
         <!-- 待我审批（span 4） -->
-        <div v-show="vis('approve')" class="card gi" style="--w: 4">
-          <button v-if="editMode" class="whide" @click="hideW('approve')">隐藏</button>
+        <div v-if="inLayout('approve')" class="card gi" :style="{ '--w': widthOf('approve') }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('approve') === w }" @click="setWidth('approve', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('approve')">移除</button>
+          </div>
           <div class="ch">
             <h3>{{ $t('dash.approve.title') }}</h3>
             <span class="more">{{ $t('dash.approve.all', { n: approvals.length }) }}</span>
@@ -215,8 +234,11 @@
         </div>
 
         <!-- 重点关注 · 实时事件流（span 4） -->
-        <div v-show="vis('feed')" class="card gi" style="--w: 4; padding: 0">
-          <button v-if="editMode" class="whide" style="top: 8px; right: 10px" @click="hideW('feed')">隐藏</button>
+        <div v-if="inLayout('feed')" class="card gi" :style="{ '--w': widthOf('feed'), padding: 0 }">
+          <div v-if="editMode" class="wedit" style="top: 8px; right: 10px">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('feed') === w }" @click="setWidth('feed', w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW('feed')">移除</button>
+          </div>
           <div class="ch" style="padding: 14px 18px 8px">
             <h3>{{ $t('dash.feed.title') }}</h3>
           </div>
@@ -225,6 +247,30 @@
               <span class="tm">{{ f.tmIsTime ? f.tm : $t('dash.feed.' + f.tm) }}</span>
               <span class="bd" :class="f.badge">{{ $t('dash.feed.badge.' + f.badge) }}</span>
               <span class="tx">{{ $t('dash.feed.item.' + f.key) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 添加的额外可视化组件（大小可调 / 可移除）===== -->
+        <div v-for="e in placedExtras" :key="e.id" class="card gi" :style="{ '--w': e.w }">
+          <div v-if="editMode" class="wedit">
+            <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: e.w === w }" @click="setWidth(e.id, w)">{{ WLABEL[w] }}</button>
+            <button class="wsz rm" @click="removeW(e.id)">移除</button>
+          </div>
+          <div class="ch"><h3>{{ extraName(e.id) }}</h3><span class="sub">可视化组件</span></div>
+          <div class="cb">
+            <div v-if="e.id === 'ex-compliance'" class="exdonut">
+              <svg width="96" height="96" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)">
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.14)" stroke-width="5" />
+                <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="87 13" stroke-linecap="round" />
+              </g></svg>
+              <div class="exd-c"><b>87%</b><span>合规达标率</span></div>
+            </div>
+            <div v-else-if="e.id === 'ex-risk'" class="exbars">
+              <div v-for="b in exRisk" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+            </div>
+            <div v-else-if="e.id === 'ex-trend'" class="extrend">
+              <div v-for="(v, i) in exTrend" :key="i" class="extcol"><i :style="{ height: (v * 3 + 8) + 'px' }"></i><span>{{ exWeek[i] }}</span></div>
             </div>
           </div>
         </div>
@@ -237,28 +283,60 @@
 // 驾驶舱主页：视觉/样式 1:1 取自原型；KPI 指标卡接真实后端 /api/dashboard/summary（按域汇总）。
 // 热力矩阵 / 体系达成度等分析图为原型视觉示意（后端暂无该聚合，标注示意，不臆造）。
 import { ref, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+
+const { t } = useI18n()
 
 // ---- 子公司分段切换（页头右侧 seg）----
 const segs = ['all', 'pay', 'consumer', 'tech']
 const activeSeg = ref(0)
 
-// ===== 大屏布局编辑：隐藏/恢复组件（localStorage 持久化）=====
-const WIDGETS = [
-  { id: 'heat', k: 'dash.heat.title' }, { id: 'remed', k: 'dash.remed.title' },
-  { id: 'kri', k: 'dash.kri.title' }, { id: 'frame', k: 'dash.frame.title' },
-  { id: 'approve', k: 'dash.approve.title' }, { id: 'feed', k: 'dash.feed.title' }
+// ===== 大屏布局编辑：组件目录 + 布局（大小可调、可增删，localStorage 持久化）=====
+// builtin=true 的是页面已有 6 个组件；false 的是「添加组件」可加入的额外可视化。
+const CATALOG = [
+  { id: 'heat', k: 'dash.heat.title', w: 6, builtin: true },
+  { id: 'remed', k: 'dash.remed.title', w: 3, builtin: true },
+  { id: 'kri', k: 'dash.kri.title', w: 3, builtin: true },
+  { id: 'frame', k: 'dash.frame.title', w: 4, builtin: true },
+  { id: 'approve', k: 'dash.approve.title', w: 4, builtin: true },
+  { id: 'feed', k: 'dash.feed.title', w: 4, builtin: true },
+  { id: 'ex-compliance', label: '合规达标率（环形）', w: 3, builtin: false },
+  { id: 'ex-risk', label: '风险等级分布（柱）', w: 3, builtin: false },
+  { id: 'ex-trend', label: '近 7 日审批趋势（柱）', w: 6, builtin: false }
 ]
-const HIDE_KEY = 'grc-dash-hidden'
+const DEFAULT_LAYOUT = CATALOG.filter((c) => c.builtin).map((c) => ({ id: c.id, w: c.w }))
+const LKEY = 'grc-dash-layout'
+function loadLayout() {
+  try { const s = JSON.parse(localStorage.getItem(LKEY)); return Array.isArray(s) && s.length ? s : DEFAULT_LAYOUT.slice() }
+  catch (e) { return DEFAULT_LAYOUT.slice() }
+}
 const editMode = ref(false)
 const showAdd = ref(false)
-const hidden = ref(new Set(JSON.parse(localStorage.getItem(HIDE_KEY) || '[]')))
-function persist() { localStorage.setItem(HIDE_KEY, JSON.stringify([...hidden.value])) }
-function vis(id) { return !hidden.value.has(id) }
-function hideW(id) { const s = new Set(hidden.value); s.add(id); hidden.value = s; persist() }
-function showW(id) { const s = new Set(hidden.value); s.delete(id); hidden.value = s; persist() }
-const hiddenList = computed(() => WIDGETS.filter((w) => hidden.value.has(w.id)))
+const layout = ref(loadLayout())
+function persist() { localStorage.setItem(LKEY, JSON.stringify(layout.value)) }
+function entry(id) { return layout.value.find((e) => e.id === id) }
+function inLayout(id) { return !!entry(id) }
+function widthOf(id) { return (entry(id) || {}).w || 4 }
+const WIDTHS = [3, 4, 6, 12]
+const WLABEL = { 3: '窄', 4: '中', 6: '宽', 12: '整行' }
+function setWidth(id, w) { const e = entry(id); if (e) { e.w = w; layout.value = [...layout.value]; persist() } }
+function removeW(id) { layout.value = layout.value.filter((e) => e.id !== id); persist() }
+function addW(id) { const c = CATALOG.find((x) => x.id === id); if (c && !inLayout(id)) { layout.value = [...layout.value, { id, w: c.w }]; persist(); showAdd.value = false } }
+const catName = (c) => (c.builtin ? t(c.k) : c.label)
+const available = computed(() => CATALOG.filter((c) => !inLayout(c.id)))            // 可添加（含被移除的内置 + 未放置的额外）
+const placedExtras = computed(() => layout.value.filter((e) => { const c = CATALOG.find((x) => x.id === e.id); return c && !c.builtin }))
+function extraName(id) { const c = CATALOG.find((x) => x.id === id); return c ? c.label : id }
+function resetLayout() { layout.value = DEFAULT_LAYOUT.slice(); persist() }
+// 额外可视化组件的示意数据
+const exRisk = [
+  { l: '极高', v: 2, w: '12%', c: '#7a1620' }, { l: '高', v: 6, w: '34%', c: 'var(--danger)' },
+  { l: '中', v: 11, w: '62%', c: '#a87d22' }, { l: '低', v: 18, w: '100%', c: 'var(--safe)' },
+  { l: '极低', v: 9, w: '52%', c: 'var(--accent-bright)' }
+]
+const exTrend = [12, 18, 9, 22, 16, 7, 14]
+const exWeek = ['一', '二', '三', '四', '五', '六', '日']
 
 // ---- 合规态势汇总（真实后端：跨模块按可见组织计数）----
 const summary = ref(null)
@@ -798,16 +876,38 @@ const feed = [
   border-left: 3px solid var(--info, #3a6ea5);
   border-radius: var(--radius-md);
 }
-/* ===== 大屏布局编辑 ===== */
+/* ===== 大屏布局编辑：调整大小 / 增删组件 ===== */
 .btn.ghost.on { border-color: var(--accent); color: var(--accent-strong); background: var(--accent-tint); }
-.whide { position: absolute; top: 10px; right: 12px; z-index: 6; font-size: 11px; font-weight: 600; padding: 3px 9px; border: 1px solid var(--danger); color: var(--danger); background: var(--surface); border-radius: 6px; cursor: pointer; }
-.whide:hover { background: var(--danger); color: #fff; }
+/* 每组件右上角的「大小段控 + 移除」编辑条 */
+.wedit { position: absolute; top: 8px; right: 10px; z-index: 6; display: inline-flex; gap: 2px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 8px; padding: 2px; box-shadow: var(--shadow-1); }
+.wsz { font-size: 10.5px; font-weight: 600; padding: 3px 7px; border: 0; background: none; color: var(--text-2); border-radius: 6px; cursor: pointer; font-family: inherit; }
+.wsz:hover { background: var(--accent-tint); color: var(--accent-strong); }
+.wsz.on { background: var(--accent); color: #fff; }
+.wsz.rm { color: var(--danger); }
+.wsz.rm:hover { background: var(--danger); color: #fff; }
 .addwrap { position: relative; }
 .abadge { margin-left: 6px; font-size: 10px; font-weight: 700; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; }
 .addmenu { position: absolute; inset: 0 0 auto auto; z-index: 60; }
-.addmenu-pop { position: absolute; top: 8px; right: 0; min-width: 240px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 8px; }
+.addmenu-pop { position: absolute; top: 8px; right: 0; min-width: 248px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-2); padding: 8px; }
 .amh { font-size: 11px; color: var(--text-3); padding: 4px 8px 8px; font-weight: 700; }
-.ami { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text-1); font-size: 12.5px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-family: inherit; }
+.ami { display: flex; align-items: center; width: 100%; text-align: left; border: 0; background: none; color: var(--text-1); font-size: 12.5px; padding: 7px 8px; border-radius: 6px; cursor: pointer; font-family: inherit; }
 .ami:hover { background: var(--accent-tint); color: var(--accent-strong); }
+.ami .extag { margin-left: auto; font-size: 9.5px; font-weight: 700; background: var(--accent-weak); color: var(--accent-strong); border-radius: 4px; padding: 0 5px; }
+.ami.rst { color: var(--text-2); }
+.amsep { height: 1px; background: var(--border-subtle); margin: 6px 4px; }
 .amempty { font-size: 11.5px; color: var(--text-3); padding: 8px; line-height: 1.6; }
+/* 额外可视化组件 */
+.exdonut { display: flex; align-items: center; gap: 16px; padding: 8px 4px; }
+.exd-c b { font-size: 22px; font-weight: 760; font-family: var(--font-display); display: block; }
+.exd-c span { font-size: 11.5px; color: var(--text-3); }
+.exbars { display: flex; flex-direction: column; gap: 9px; padding: 4px 2px; }
+.exbar-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.exbar-row .exl { width: 28px; color: var(--text-2); }
+.exbar-row .extrack { flex: 1; height: 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.exbar-row .extrack i { display: block; height: 100%; border-radius: 5px; }
+.exbar-row b { width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
+.extrend { display: flex; align-items: flex-end; gap: 10px; height: 110px; padding: 6px 4px 0; }
+.extrend .extcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; }
+.extrend .extcol i { width: 60%; max-width: 22px; background: linear-gradient(180deg, var(--accent-bright), var(--accent)); border-radius: 4px 4px 0 0; }
+.extrend .extcol span { font-size: 10.5px; color: var(--text-3); }
 </style>
