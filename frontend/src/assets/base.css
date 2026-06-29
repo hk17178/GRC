@@ -65,3 +65,38 @@ a {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* =============================================================
+   侧栏主题配色覆盖（全局）
+   说明：彩色/深色侧栏主题下，菜单的图标/分组标签默认走 --text-3/--text-4（灰），
+        在朱砂(红)、晴空(青)、苍翠(深)侧栏上会发灰、对比不足。原型本有这组覆盖，
+        但放在 AppShell 的 <style scoped> 里时被 Vue 的 :global() 编译丢了后代选择器，
+        从未生效。改为全局规则在此统一声明（严格对照原型 设计规范/驾驶舱版），
+        全局选择器特异性高于 scoped 基础规则，稳定生效。
+   ============================================================= */
+
+/* —— 朱砂 t-gov：白红渐变侧栏（金色选中条）—— */
+body.t-gov .side::after { content: ""; position: absolute; top: 0; right: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, var(--accent-gold), transparent 55%); }
+body.t-gov .brand .logo { background: linear-gradient(145deg, #f0d690, var(--accent-gold)); color: var(--accent-strong); }
+body.t-gov .brand b { color: #fff; }
+body.t-gov .brand span { color: #e7b9bb; }
+body.t-gov .nav .grp { color: #e09fa1; }
+body.t-gov .nav a { color: #f0cdce; }
+body.t-gov .nav a svg { color: #f0cdce; }
+body.t-gov .nav a:hover { background: rgba(255,255,255,.1); color: #fff; }
+body.t-gov .nav a:hover svg { color: #fff; }
+body.t-gov .nav a.on { background: rgba(255,255,255,.14); color: #fff; }
+body.t-gov .nav a.on svg { color: #fff; }
+body.t-gov .nav a.on::before { content: ""; position: absolute; left: -12px; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent-gold); }
+body.t-gov .nav a .cnt { background: rgba(0,0,0,.16); color: #f0cdce; }
+
+/* —— 晴空 t-glass / 苍翠 t-emerald：青/深渐变侧栏，白字 —— */
+body.t-glass .nav a, body.t-emerald .nav a { color: var(--side-fg); }
+body.t-glass .brand b, body.t-emerald .brand b { color: #fff; }
+body.t-glass .nav .grp, body.t-emerald .nav .grp { color: rgba(255,255,255,.5); }
+body.t-glass .nav a svg, body.t-emerald .nav a svg { color: var(--side-fg); }
+body.t-glass .nav a:hover, body.t-emerald .nav a:hover { background: rgba(255,255,255,.12); color: #fff; }
+body.t-glass .nav a:hover svg, body.t-emerald .nav a:hover svg { color: #fff; }
+body.t-glass .nav a.on, body.t-emerald .nav a.on { background: rgba(255,255,255,.16); color: #fff; }
+body.t-glass .nav a.on svg, body.t-emerald .nav a.on svg { color: #fff; }
+body.t-glass .nav a .cnt, body.t-emerald .nav a .cnt { background: rgba(255,255,255,.16); color: var(--side-fg); }
