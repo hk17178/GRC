@@ -97,10 +97,11 @@
 body.t-sand{
   --bg:#f3efe7;
   --surface:#fcfaf5; --surface-border:#e7e1d6; --blur:none; --gloss:0;
-  --side-bg:#f7f4ed; --side-fg:#6b6358; --topbar-bg:#f7f4ed; --topbar-accent:#1f6b54; --accent-gold:#b5623f;
+  --side-bg:#f7f4ed; --side-fg:#6b6358; --topbar-bg:#f7f4ed; --topbar-accent:#b05a33; --accent-gold:#c2913f;
   --text-1:#26221c; --text-2:#6b6358; --text-3:#9a9286; --text-4:#bcb4a8;
   --border:#e7e1d6; --border-subtle:#efe9de;
-  --accent:#1f6b54; --accent-strong:#16513f; --accent-weak:#e4efe9; --accent-tint:rgba(31,107,84,.08); --accent-bright:#4f9173;
+  /* 砂岩=赭石/土黄主色（与绿色系主题区分；success 仍用绿表达"安全/达标"语义）*/
+  --accent:#b05a33; --accent-strong:#8a4527; --accent-weak:#f2e4d9; --accent-tint:rgba(176,90,51,.09); --accent-bright:#cb7a4e;
   --safe:#4f9173; --safe-weak:#e4efe9;
   --radius-sm:8px; --radius-md:10px; --radius-lg:14px;
   --shadow-1:0 1px 2px rgba(60,48,30,.05);
@@ -144,11 +145,12 @@ body.t-emerald{
 body.t-editorial{
   --bg:#f7f4ec;
   --surface:#fffdf7; --surface-border:#e4e2d6; --blur:none; --gloss:0;
-  --side-bg:#faf8f1; --side-fg:#5c5f55; --topbar-bg:#faf8f1; --topbar-accent:#285c3f; --accent-gold:#9a7b32;
+  --side-bg:#faf8f1; --side-fg:#5c5f55; --topbar-bg:#faf8f1; --topbar-accent:#21555c; --accent-gold:#9a7b32;
   --text-1:#22251f; --text-2:#5c5f55; --text-3:#8c8f83; --text-4:#b3b6aa;
   --border:#e4e2d6; --border-subtle:#edebe0;
-  --accent:#285c3f; --accent-strong:#1d4730; --accent-weak:#e5ede7; --accent-tint:rgba(40,92,63,.06); --accent-bright:#5a8a6b;
-  --safe:#285c3f; --safe-weak:#e5ede7;
+  /* 宣纸=黛青/墨青主色（冷调，与砂岩赭石、苍翠翠绿区分；书卷气靠衬线+方角）*/
+  --accent:#21555c; --accent-strong:#163c41; --accent-weak:#e2eced; --accent-tint:rgba(33,85,92,.06); --accent-bright:#46808a;
+  --safe:#2f6f63; --safe-weak:#e3efec;
   --radius-sm:4px; --radius-md:5px; --radius-lg:7px;
   --shadow-1:0 1px 2px rgba(50,45,25,.05);
   --shadow-2:0 2px 4px rgba(50,45,25,.05),0 10px 22px rgba(50,45,25,.08);

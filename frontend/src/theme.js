@@ -9,11 +9,11 @@ import { ref } from 'vue'
 const THEME_KEY = 'grc-theme'
 // 主题选择器配置：键名、令牌色点（与原型 style="--c:..." 一致）
 export const THEME_LIST = [
-  { key: 't-gov', color: '#b21d22' },
-  { key: 't-sand', color: '#1f6b54' },
-  { key: 't-glass', color: '#1f9aa6' },
-  { key: 't-emerald', color: '#0c9d6e' },
-  { key: 't-editorial', color: '#285c3f' }
+  { key: 't-gov', color: '#b21d22' },       // 朱砂·红
+  { key: 't-sand', color: '#b05a33' },      // 砂岩·赭石（原绿 #1f6b54，改与绿色系区分）
+  { key: 't-glass', color: '#1f9aa6' },     // 晴空·青
+  { key: 't-emerald', color: '#0c9d6e' },   // 苍翠·翠绿
+  { key: 't-editorial', color: '#21555c' }  // 宣纸·黛青（原墨绿 #285c3f，改更冷）
 ]
 
 const THEME_RE = /^t-(gov|sand|glass|emerald|editorial)$/
