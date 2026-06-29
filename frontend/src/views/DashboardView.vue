@@ -89,13 +89,14 @@
       <div class="dash-note">{{ $t('dash.scaffoldNote') }}</div>
 
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
-      <div class="dgrid">
+      <div class="dgrid" :class="{ editing: editMode }">
         <!-- 子公司 × 风险域 · 热力矩阵（span 6 · 等宽列） -->
         <div v-if="inLayout('heat')" class="card gi" :style="{ '--w': widthOf('heat') }">
           <div v-if="editMode" class="wedit">
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('heat') === w }" @click="setWidth('heat', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('heat')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('heat', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch">
             <h3>{{ $t('dash.heat.title') }}</h3>
             <span class="sub">{{ $t('dash.heat.sub') }}</span>
@@ -131,6 +132,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('remed') === w }" @click="setWidth('remed', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('remed')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('remed', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch">
             <h3>{{ $t('dash.remed.title') }}</h3>
           </div>
@@ -158,6 +160,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('kri') === w }" @click="setWidth('kri', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('kri')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('kri', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch">
             <h3>{{ $t('dash.kri.title') }}</h3>
             <span class="sub">{{ $t('dash.kri.sub') }}</span>
@@ -188,6 +191,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('frame') === w }" @click="setWidth('frame', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('frame')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('frame', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch">
             <h3>{{ $t('dash.frame.title') }}</h3>
             <span class="sub">{{ $t('dash.frame.sub') }}</span>
@@ -213,6 +217,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('approve') === w }" @click="setWidth('approve', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('approve')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('approve', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch">
             <h3>{{ $t('dash.approve.title') }}</h3>
             <span class="more">{{ $t('dash.approve.all', { n: approvals.length }) }}</span>
@@ -239,6 +244,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: widthOf('feed') === w }" @click="setWidth('feed', w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW('feed')">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize('feed', $event)" title="拖拽自由调整宽度"></div>
           <div class="ch" style="padding: 14px 18px 8px">
             <h3>{{ $t('dash.feed.title') }}</h3>
           </div>
@@ -257,6 +263,7 @@
             <button v-for="w in WIDTHS" :key="w" class="wsz" :class="{ on: e.w === w }" @click="setWidth(e.id, w)">{{ WLABEL[w] }}</button>
             <button class="wsz rm" @click="removeW(e.id)">移除</button>
           </div>
+          <div v-if="editMode" class="wgrip" @mousedown="startResize(e.id, $event)" title="拖拽自由调整宽度"></div>
           <div class="ch"><h3>{{ extraName(e.id) }}</h3><span class="sub">可视化组件</span></div>
           <div class="cb">
             <div v-if="e.id === 'ex-compliance'" class="exdonut">
@@ -327,8 +334,38 @@ function inLayout(id) { return !!entry(id) }
 function widthOf(id) { return (entry(id) || {}).w || 4 }
 const WIDTHS = [3, 4, 6, 12]
 const WLABEL = { 3: '窄', 4: '中', 6: '宽', 12: '整行' }
-function setWidth(id, w) { const e = entry(id); if (e) { e.w = w; layout.value = [...layout.value]; persist() } }
+function setWidth(id, w) { const e = entry(id); if (e) { e.w = Math.min(12, Math.max(2, w)); layout.value = [...layout.value]; persist() } }
 function removeW(id) { layout.value = layout.value.filter((e) => e.id !== id); persist() }
+
+// ===== 自由缩放：拖拽组件右/下边手柄连续改变 列宽(2~12) =====
+// 12 列响应式栅格，列宽随分辨率自适应；拖拽按"当前栅格列宽"换算成跨列数并即时套用。
+let resizing = null
+function startResize(id, e) {
+  e.preventDefault(); e.stopPropagation()
+  const grid = e.target.closest('.dgrid')
+  if (!grid) return
+  const gap = 14
+  const gridW = grid.getBoundingClientRect().width
+  const colW = (gridW - gap * 11) / 12 + gap   // 每列有效宽（含一个间隙）
+  resizing = { id, startX: e.clientX, startW: widthOf(id), colW }
+  document.body.style.cursor = 'col-resize'
+  document.body.style.userSelect = 'none'
+  window.addEventListener('mousemove', onResize)
+  window.addEventListener('mouseup', endResize)
+}
+function onResize(e) {
+  if (!resizing) return
+  const deltaCols = Math.round((e.clientX - resizing.startX) / resizing.colW)
+  setWidth(resizing.id, resizing.startW + deltaCols)
+}
+function endResize() {
+  resizing = null
+  document.body.style.cursor = ''
+  document.body.style.userSelect = ''
+  window.removeEventListener('mousemove', onResize)
+  window.removeEventListener('mouseup', endResize)
+  persist()
+}
 function addW(id) { const c = CATALOG.find((x) => x.id === id); if (c && !inLayout(id)) { layout.value = [...layout.value, { id, w: c.w }]; persist(); showAdd.value = false } }
 const catName = (c) => (c.builtin ? t(c.k) : c.label)
 const available = computed(() => CATALOG.filter((c) => !inLayout(c.id)))            // 可添加（含被移除的内置 + 未放置的额外）
@@ -876,6 +913,11 @@ const feed = [
 .wsz.on { background: var(--accent); color: #fff; }
 .wsz.rm { color: var(--danger); }
 .wsz.rm:hover { background: var(--danger); color: #fff; }
+/* 自由缩放：右边缘拖拽手柄 */
+.dgrid.editing .gi { outline: 1px dashed color-mix(in srgb, var(--accent) 55%, transparent); outline-offset: -1px; }
+.wgrip { position: absolute; top: 0; right: 0; width: 12px; height: 100%; cursor: col-resize; z-index: 5; display: flex; align-items: center; justify-content: center; }
+.wgrip::after { content: ''; width: 4px; height: 40px; border-radius: 3px; background: var(--accent); opacity: 0.4; transition: opacity 0.15s; }
+.wgrip:hover::after { opacity: 0.9; height: 56px; }
 .addwrap { position: relative; }
 .abadge { margin-left: 6px; font-size: 10px; font-weight: 700; background: var(--accent); color: #fff; border-radius: 999px; padding: 0 6px; }
 .addmenu { position: absolute; inset: 0 0 auto auto; z-index: 60; }
