@@ -54,7 +54,7 @@
           <label class="fld">{{ $t('policy.th.title') }}<input v-model="cf.title" /></label>
           <label class="fld">{{ $t('policy.create.content') }}<input v-model="cf.content" /></label>
           <label class="fld">{{ $t('policy.create.org') }}
-            <select v-model.number="cf.orgId"><option :value="12">{{ $t('policy.org.pay') }}</option><option :value="13">{{ $t('policy.org.consumer') }}</option></select>
+            <select v-model.number="cf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
@@ -85,6 +85,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const policies = ref([])

@@ -48,8 +48,7 @@
           </label>
           <label class="fld">{{ $t('risk.create.org') }}
             <select v-model="form.orgId">
-              <option :value="12">{{ $t('risk.create.orgPay') }}</option>
-              <option :value="13">{{ $t('risk.create.orgConsumer') }}</option>
+              <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
             </select>
           </label>
           <!-- 表单引擎 P1：选模板则评估按该模板的 .docx 表单填写规范报告（可不选）-->
@@ -383,7 +382,7 @@
           <label class="fld">{{ $t('risk.kri.f.warn') }}<input v-model.number="kriForm.thresholdWarning" type="number" /></label>
           <label class="fld">{{ $t('risk.kri.f.crit') }}<input v-model.number="kriForm.thresholdCritical" type="number" /></label>
           <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="kriForm.owner" /></label>
-          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="kriForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="kriForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="refError" class="cerr">{{ refError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
@@ -397,7 +396,7 @@
           <label class="fld">{{ $t('risk.ref.name') }}<input v-model="ctrlForm.name" /></label>
           <label class="fld">{{ $t('risk.controls.f.domain') }}<input v-model="ctrlForm.domain" :placeholder="$t('risk.controls.f.domainPh')" /></label>
           <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="ctrlForm.owner" /></label>
-          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="ctrlForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="ctrlForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="refError" class="cerr">{{ refError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
@@ -414,7 +413,7 @@
           </label>
           <label class="fld">{{ $t('risk.templates.f.desc') }}<input v-model="tplForm.description" /></label>
           <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="tplForm.owner" /></label>
-          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="tplForm.orgId"><option :value="12">{{ $t('risk.create.orgPay') }}</option><option :value="13">{{ $t('risk.create.orgConsumer') }}</option></select></label>
+          <label class="fld">{{ $t('risk.ref.org') }}<select v-model.number="tplForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="refError" class="cerr">{{ refError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="refModal = null">{{ $t('common.cancel') }}</button>
@@ -627,6 +626,8 @@ import AppShell from '@/components/AppShell.vue'
 import AssessmentFormFill from '@/components/AssessmentFormFill.vue'
 import AssessmentSignoff from '@/components/AssessmentSignoff.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 // ---- Tab 切换 ----

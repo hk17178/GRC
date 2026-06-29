@@ -62,8 +62,7 @@
           </label>
           <label class="fld">{{ $t('regaffairs.create.org') }}
             <select v-model="form.orgId">
-              <option :value="12">{{ $t('regaffairs.create.orgPay') }}</option>
-              <option :value="13">{{ $t('regaffairs.create.orgConsumer') }}</option>
+              <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
             </select>
           </label>
           <p v-if="createError" class="cerr">{{ createError }}</p>
@@ -269,7 +268,7 @@
           <label class="fld">{{ $t('regaffairs.plan.th.title') }}<input v-model="planForm.title" /></label>
           <label class="fld">{{ $t('regaffairs.plan.th.owner') }}<input v-model="planForm.owner" /></label>
           <label class="fld">{{ $t('regaffairs.create.org') }}
-            <select v-model.number="planForm.orgId"><option :value="12">{{ $t('regaffairs.create.orgPay') }}</option><option :value="13">{{ $t('regaffairs.create.orgConsumer') }}</option></select>
+            <select v-model.number="planForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
           <p v-if="planOpError" class="cerr">{{ planOpError }}</p>
           <div class="modal-actions">
@@ -427,6 +426,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const { t } = useI18n()

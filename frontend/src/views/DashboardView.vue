@@ -36,7 +36,7 @@
             :class="{ on: i === activeSeg }"
             @click="activeSeg = i"
           >
-            {{ $t('dash.seg.' + s) }}
+            {{ s }}
           </button>
         </div>
         <button class="btn ghost" :class="{ on: editMode }" @click="editMode = !editMode">
@@ -109,8 +109,8 @@
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="row in heatRows" :key="row.sub">
-                  <td class="lbl">{{ $t('dash.sub.' + row.sub) }}</td>
+                <tr v-for="row in heatRows" :key="row.name">
+                  <td class="lbl">{{ row.name }}</td>
                   <td
                     v-for="(cell, ci) in row.cells"
                     :key="ci"
@@ -136,9 +136,9 @@
           </div>
           <div class="cb">
             <div class="bars">
-              <div class="bar-row" v-for="r in remediation" :key="r.sub">
+              <div class="bar-row" v-for="r in remediation" :key="r.name">
                 <div class="hd">
-                  <span class="nm">{{ $t('dash.sub.' + r.sub) }}</span>
+                  <span class="nm">{{ r.name }}</span>
                   <span>
                     <b>{{ r.pct }}%</b>
                     <span v-if="r.overdue" class="ov">{{ $t('dash.overdue', { n: r.overdue }) }}</span>
@@ -286,11 +286,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs } from '@/orgs.js'
 
 const { t } = useI18n()
+// 真实组织（消灭原型假子公司 数科/保理）：分段与"分子公司"维度由真实组织树驱动；
+// 因后端暂无"按组织聚合"接口，热力/整改的数值仍为示意，但组织名一律取真实树。
+const orgList = useOrgs()
+const orgRows = computed(() => orgList.value)                                  // 全部组织（集团 + 子公司/部门）
+const subsidiaries = computed(() => orgList.value.filter((o) => o.parentId === 1)) // 集团直属子公司
 
 // ---- 子公司分段切换（页头右侧 seg）----
-const segs = ['all', 'pay', 'consumer', 'tech']
+const segs = computed(() => ['全集团', ...subsidiaries.value.map((o) => o.name)])
 const activeSeg = ref(0)
 
 // ===== 大屏布局编辑：组件目录 + 布局（大小可调、可增删，localStorage 持久化）=====
@@ -372,37 +378,22 @@ const kpis = computed(() => {
 
 // ---- 热力矩阵：风险域列（等宽）与子公司行 ----
 const heatDomains = ['infosec', 'data', 'continuity', 'thirdparty', 'reg', 'control']
-// cells 的底色保留原型内联十六进制（红→绿综合风险值示例，0–100）
-const heatRows = [
-  { sub: 'hq', cells: [
-    { v: 41, c: '#dfb84d' }, { v: 33, c: '#9cbf6e' }, { v: 28, c: '#7fa76a' },
-    { v: 52, c: '#e0a93f' }, { v: 38, c: '#cdbf57' }, { v: 30, c: '#86ab69' } ] },
-  { sub: 'pay', cells: [
-    { v: 78, c: '#c0392b' }, { v: 71, c: '#cf6233' }, { v: 55, c: '#e0a93f' },
-    { v: 68, c: '#d4853a' }, { v: 82, c: '#c0392b' }, { v: 49, c: '#dba148' } ] },
-  { sub: 'consumer', cells: [
-    { v: 64, c: '#d99845' }, { v: 58, c: '#e0a93f' }, { v: 47, c: '#dba148' },
-    { v: 73, c: '#cf6233' }, { v: 66, c: '#d68a3c' }, { v: 44, c: '#d6aa49' } ] },
-  { sub: 'wealth', cells: [
-    { v: 52, c: '#e0a93f' }, { v: 61, c: '#d99845' }, { v: 39, c: '#bcbf5c' },
-    { v: 57, c: '#e0a93f' }, { v: 54, c: '#dd9a44' }, { v: 36, c: '#a8b566' } ] },
-  { sub: 'tech', cells: [
-    { v: 69, c: '#d68a3c' }, { v: 47, c: '#dba148' }, { v: 51, c: '#dba148' },
-    { v: 60, c: '#d99845' }, { v: 43, c: '#cdbf57' }, { v: 55, c: '#e0a93f' } ] },
-  { sub: 'factoring', cells: [
-    { v: 48, c: '#dba148' }, { v: 44, c: '#d6aa49' }, { v: 62, c: '#d99845' },
-    { v: 51, c: '#e0a93f' }, { v: 49, c: '#dba148' }, { v: 41, c: '#cdbf57' } ] }
+// cells 的底色保留原型内联十六进制（红→绿综合风险值示例，0–100）。
+// 示意值池——按真实组织行序号取，保证稳定；组织名取真实树（非原型假名）。
+const HEAT_POOL = [
+  [{ v: 41, c: '#dfb84d' }, { v: 33, c: '#9cbf6e' }, { v: 28, c: '#7fa76a' }, { v: 52, c: '#e0a93f' }, { v: 38, c: '#cdbf57' }, { v: 30, c: '#86ab69' }],
+  [{ v: 78, c: '#c0392b' }, { v: 71, c: '#cf6233' }, { v: 55, c: '#e0a93f' }, { v: 68, c: '#d4853a' }, { v: 82, c: '#c0392b' }, { v: 49, c: '#dba148' }],
+  [{ v: 64, c: '#d99845' }, { v: 58, c: '#e0a93f' }, { v: 47, c: '#dba148' }, { v: 73, c: '#cf6233' }, { v: 66, c: '#d68a3c' }, { v: 44, c: '#d6aa49' }],
+  [{ v: 52, c: '#e0a93f' }, { v: 61, c: '#d99845' }, { v: 39, c: '#bcbf5c' }, { v: 57, c: '#e0a93f' }, { v: 54, c: '#dd9a44' }, { v: 36, c: '#a8b566' }]
 ]
+const heatRows = computed(() => orgRows.value.map((o, i) => ({ name: o.name, cells: HEAT_POOL[i % HEAT_POOL.length] })))
 
-// ---- 整改完成率 · 分子公司 ----
-const remediation = [
-  { sub: 'hq', pct: 88, overdue: 1, tone: 'g' },
-  { sub: 'pay', pct: 64, overdue: 7, tone: 'h' },
-  { sub: 'consumer', pct: 73, overdue: 3, tone: 'm' },
-  { sub: 'wealth', pct: 85, overdue: 1, tone: 'g' },
-  { sub: 'tech', pct: 91, overdue: 0, tone: 'g' },
-  { sub: 'factoring', pct: 82, overdue: 0, tone: 'm' }
+// ---- 整改完成率 · 分组织（示意值池 + 真实组织名）----
+const REMED_POOL = [
+  { pct: 88, overdue: 1, tone: 'g' }, { pct: 64, overdue: 7, tone: 'h' },
+  { pct: 73, overdue: 3, tone: 'm' }, { pct: 85, overdue: 1, tone: 'g' }
 ]
+const remediation = computed(() => orgRows.value.map((o, i) => ({ name: o.name, ...REMED_POOL[i % REMED_POOL.length] })))
 
 // ---- KRI 持续监控（含迷你折线 points 与状态色）----
 const kris = [

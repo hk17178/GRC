@@ -23,8 +23,7 @@
           <label class="inline">{{ $t('board.verify.org') }}
             <select v-model.number="verifyOrg">
               <option :value="1">{{ $t('board.org.group') }}</option>
-              <option :value="12">{{ $t('board.org.pay') }}</option>
-              <option :value="13">{{ $t('board.org.consumer') }}</option>
+              <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
             </select>
           </label>
           <button class="btn" @click="doVerify">{{ $t('board.verify.run') }}</button>
@@ -83,6 +82,8 @@
 import { ref, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 
 const trail = ref([])
 const trailError = ref('')

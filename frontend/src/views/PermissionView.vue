@@ -127,7 +127,7 @@
             <label>{{ $t('perm.uar.period') }}<input v-model="uarForm.period" placeholder="2026H1" /></label>
             <label>{{ $t('perm.uar.reviewer') }}<input v-model="uarForm.reviewer" :placeholder="$t('perm.uar.reviewerPh')" /></label>
             <label>{{ $t('perm.uar.org') }}
-              <select v-model.number="uarForm.orgId"><option :value="12">{{ orgName(12) }}</option><option :value="13">{{ orgName(13) }}</option></select>
+              <select v-model.number="uarForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
             </label>
             <button class="btn sm" :disabled="!uarForm.period || busy" @click="createReview">{{ $t('perm.uar.create') }}</button>
           </div>
@@ -187,6 +187,8 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import RbacMatrix from '@/components/RbacMatrix.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 
 // ⑧ 合并：本页两 Tab（access=用户授权/SoD/UAR；matrix=角色权限矩阵）
 const tab = ref('access')

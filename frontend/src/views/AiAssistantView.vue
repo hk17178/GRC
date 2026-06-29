@@ -77,7 +77,7 @@
           </label>
           <label class="fld">{{ $t('ai.ingest.ref') }}<input v-model="inf.sourceRef" /></label>
           <label class="fld">{{ $t('ai.ingest.content') }}<textarea v-model="inf.content" rows="5" :placeholder="$t('ai.ingest.contentPh')"></textarea></label>
-          <label class="fld">{{ $t('ai.ingest.org') }}<select v-model.number="inf.orgId"><option :value="12">{{ $t('ai.org.pay') }}</option><option :value="13">{{ $t('ai.org.consumer') }}</option></select></label>
+          <label class="fld">{{ $t('ai.ingest.org') }}<select v-model.number="inf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showIngest = false">{{ $t('common.cancel') }}</button>
@@ -93,6 +93,8 @@
 import { ref, reactive, nextTick, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })

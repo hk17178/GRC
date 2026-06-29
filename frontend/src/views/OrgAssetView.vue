@@ -255,6 +255,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { canWrite } from '@/auth.js'
+import { reloadOrgs } from '@/orgs.js'   // 组织增删改后刷新各表单"所属组织"下拉的共享缓存
 
 // ---- Tab 切换（顺序照搬原型 tabbar：组织架构 / 资产台账 / ROPA）----
 const tabs = ['org', 'asset', 'ropa']
@@ -298,7 +299,7 @@ async function submitOrg() {
       orgMsg.value = '已重命名'
     }
     orgModal.value = null
-    await loadTree()
+    await loadTree(); reloadOrgs()
     setTimeout(() => (orgMsg.value = ''), 2500)
   } catch (e) { orgErr.value = e.message } finally { orgSaving.value = false }
 }
@@ -308,7 +309,7 @@ async function delOrg(n) {
   try {
     await api.del('/orgs/' + n.id)
     orgMsg.value = '已删除'
-    await loadTree()
+    await loadTree(); reloadOrgs()
     setTimeout(() => (orgMsg.value = ''), 2500)
   } catch (e) { orgError.value = e.message }
 }

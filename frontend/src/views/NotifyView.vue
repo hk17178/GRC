@@ -136,7 +136,7 @@
             <label class="fld">目标/机器人<input v-model="f.target" placeholder="邮箱 / 短信网关 / 企微机器人 webhook" /></label>
           </template>
 
-          <label class="fld">所属组织<select v-model.number="f.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select></label>
+          <label class="fld">所属组织<select v-model.number="f.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="addErr" class="cerr">{{ addErr }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showAdd = false">取消</button>
@@ -152,6 +152,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const KIND_LABEL = { scenario: '通知场景', rule: '通知规则', channel: '通道' }

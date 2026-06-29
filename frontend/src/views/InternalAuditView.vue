@@ -130,7 +130,7 @@
           <h3>新建审计计划</h3>
           <label class="fld">审计主题<input v-model="pf.title" placeholder="如 支付系统安全审计" /></label>
           <label class="fld">计划开始日<input type="date" v-model="pf.planStartDate" /></label>
-          <label class="fld">所属组织<select v-model.number="pf.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select></label>
+          <label class="fld">所属组织<select v-model.number="pf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showPlan = false">取消</button>
@@ -178,6 +178,8 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const PLAN_LABEL = { PLANNED: '已计划', IN_PROGRESS: '实施中', REPORTING: '待签批', CLOSED: '已关闭', CANCELLED: '已取消' }

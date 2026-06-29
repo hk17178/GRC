@@ -46,7 +46,7 @@
           <h3>{{ $t('extaudit.register') }}</h3>
           <label class="fld">审计主题 / 认证体系<input v-model="rf.title" placeholder="如 ISO 27001 年度监督审核" /></label>
           <label class="fld">计划开始日<input type="date" v-model="rf.planStartDate" /></label>
-          <label class="fld">所属组织<select v-model.number="rf.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select></label>
+          <label class="fld">所属组织<select v-model.number="rf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="regErr" class="cerr">{{ regErr }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showReg = false">取消</button>
@@ -338,6 +338,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 // ---- 顶部子公司分段（默认「集团」高亮，纯展示）----

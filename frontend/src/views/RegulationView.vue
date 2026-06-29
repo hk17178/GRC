@@ -150,7 +150,7 @@
             </label>
           </template>
           <label class="fld">所属组织
-            <select v-model.number="sf.orgId"><option :value="12">支付科技</option><option :value="13">消费金融</option></select>
+            <select v-model.number="sf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
           <p v-if="sourceErr" class="cerr">{{ sourceErr }}</p>
           <div class="modal-actions">
@@ -169,7 +169,7 @@
           <label class="fld">{{ $t('reg.th.issuer') }}<input v-model="cf.issuer" /></label>
           <label class="fld">{{ $t('reg.create.category') }}<input v-model="cf.category" /></label>
           <label class="fld">{{ $t('reg.create.org') }}
-            <select v-model.number="cf.orgId"><option :value="12">{{ $t('reg.org.pay') }}</option><option :value="13">{{ $t('reg.org.consumer') }}</option></select>
+            <select v-model.number="cf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
@@ -217,6 +217,8 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { useOrgs, orgLabel } from '@/orgs.js'
+const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const regulations = ref([])
