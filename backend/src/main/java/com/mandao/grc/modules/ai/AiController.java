@@ -27,13 +27,15 @@ public class AiController {
     private final AiQaService qa;
     private final EmbeddingProvider embedding;
     private final AiConfigService configService;
+    private final AiMaterialService materialService;
 
     public AiController(KnowledgeBaseService kb, AiQaService qa, EmbeddingProvider embedding,
-                        AiConfigService configService) {
+                        AiConfigService configService, AiMaterialService materialService) {
         this.kb = kb;
         this.qa = qa;
         this.embedding = embedding;
         this.configService = configService;
+        this.materialService = materialService;
     }
 
     /** 列出可见知识源文档。 */
@@ -89,6 +91,17 @@ public class AiController {
     /** 大模型接入配置请求体（apiKey 为空=保持原密钥不变）。 */
     public record ConfigRequest(String provider, String baseUrl, String model, Integer maxTokens,
                                 Boolean enabled, String apiKey) {
+    }
+
+    /** 生成报送/汇报材料初稿（需求 7.5.1；产出须人工复核）。 */
+    @PostMapping("/generate")
+    @RequiresPermission("ai")
+    public AiMaterialService.Material generate(@RequestBody GenerateRequest req) {
+        return materialService.generate(req.type());
+    }
+
+    /** 材料生成请求体（FILING_DRAFT 报送稿 / MGMT_BRIEF 管理层简报）。 */
+    public record GenerateRequest(String type) {
     }
 
     /** 摄入请求体。 */

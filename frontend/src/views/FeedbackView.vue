@@ -8,10 +8,32 @@
       <div class="phead">
         <div><div class="kqt">{{ $t('fb.tag') }}</div><h1>{{ $t('fb.title') }}</h1></div>
         <div class="sp"></div>
+        <div class="seg">
+          <button :class="{ on: viewMode === 'list' }" @click="viewMode = 'list'">列表</button>
+          <button :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
+        </div>
         <button class="btn" :disabled="!canWrite('feedback')" :title="canWrite('feedback') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('fb.create.btn') }}</button>
       </div>
 
-      <div class="card">
+      <!-- 看板视图：按状态五列，卡片即反馈 -->
+      <div v-if="viewMode === 'board'" class="board">
+        <div v-for="col in BOARD_COLS" :key="col.key" class="bcol">
+          <div class="bhead" :class="col.cls">{{ $t('fb.status.' + col.key) }}<span class="bcnt">{{ byStatus(col.key).length }}</span></div>
+          <div v-for="f in byStatus(col.key)" :key="f.id" class="bcard">
+            <div class="bt"><span class="pill">{{ $t('fb.type.' + f.type) }}</span><span class="code">#{{ f.id }}</span></div>
+            <div class="btitle">{{ f.title }}</div>
+            <div class="bmeta">{{ f.submitter || '—' }}<template v-if="f.handler"> → {{ f.handler }}</template></div>
+            <div class="bops">
+              <button v-if="f.status === 'SUBMITTED'" class="btn ghost sm" @click="openTriage(f)">{{ $t('fb.op.triage') }}</button>
+              <button v-if="f.status === 'IN_PROGRESS'" class="btn sm" @click="openResolve(f)">{{ $t('fb.op.resolve') }}</button>
+              <button v-if="f.status === 'RESOLVED'" class="btn ghost sm" @click="act(f, 'close')">{{ $t('fb.op.close') }}</button>
+            </div>
+          </div>
+          <div v-if="!byStatus(col.key).length" class="bempty">—</div>
+        </div>
+      </div>
+
+      <div v-else class="card">
         <div class="ch"><h3>{{ $t('fb.list') }}</h3><span class="cnt">{{ items.length }}</span></div>
         <div class="cb" style="overflow-x: auto; padding-top: 0">
           <table style="min-width: 800px">
@@ -99,6 +121,14 @@ async function load() {
 }
 const stCls = (s) => ({ SUBMITTED: 'wait', IN_PROGRESS: 'doing', RESOLVED: 'ok', CLOSED: 'ok', REJECTED: 'over' }[s] || 'wait')
 
+// ===== 看板视图（按状态分列）=====
+const viewMode = ref('list')
+const BOARD_COLS = [
+  { key: 'SUBMITTED', cls: 'wait' }, { key: 'IN_PROGRESS', cls: 'doing' },
+  { key: 'RESOLVED', cls: 'ok' }, { key: 'CLOSED', cls: 'ok' }, { key: 'REJECTED', cls: 'over' }
+]
+const byStatus = (s) => items.value.filter((f) => f.status === s)
+
 async function act(f, op) {
   busyId.value = f.id; opError.value = ''
   try { await api.post('/feedback/' + f.id + '/' + op, {}); await load() }
@@ -169,4 +199,22 @@ td.ops { display: flex; gap: 6px; }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* ===== 列表/看板 切换与看板 ===== */
+.seg { display: inline-flex; border: 1px solid var(--surface-border); border-radius: var(--radius-md); overflow: hidden; }
+.seg button { border: 0; background: var(--bg); color: var(--text-2); font-size: 12px; font-weight: 600; padding: 6px 14px; cursor: pointer; font-family: inherit; }
+.seg button.on { background: var(--accent); color: #fff; }
+.board { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; align-items: start; }
+@media (max-width: 1100px) { .board { grid-template-columns: repeat(2, 1fr); } }
+.bcol { background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 10px; min-height: 120px; }
+.bhead { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: var(--text-2); padding: 2px 4px 10px; }
+.bhead.doing { color: var(--accent-strong); } .bhead.ok { color: var(--success); } .bhead.over { color: var(--danger); }
+.bcnt { font-size: 11px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 999px; padding: 0 7px; }
+.bcard { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md); box-shadow: var(--shadow-1); padding: 10px 11px; margin-bottom: 9px; }
+.bcard .bt { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.bcard .code { font-size: 10.5px; font-weight: 700; color: var(--accent-strong); }
+.bcard .btitle { font-size: 12.5px; font-weight: 600; color: var(--text-1); margin-bottom: 5px; }
+.bcard .bmeta { font-size: 11px; color: var(--text-3); margin-bottom: 7px; }
+.bcard .bops { display: flex; gap: 6px; }
+.bempty { text-align: center; color: var(--text-3); font-size: 12px; padding: 12px 0; }
 </style>

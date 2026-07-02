@@ -54,7 +54,7 @@
             <table>
               <thead><tr><th>{{ $t('ai.dth.title') }}</th><th>{{ $t('ai.dth.type') }}</th><th>{{ $t('ai.dth.chunks') }}</th><th>{{ $t('ai.dth.status') }}</th></tr></thead>
               <tbody>
-                <tr v-for="d in docs" :key="d.id">
+                <tr v-for="d in docs" :key="d.id" class="doc-row" title="点击查看切块" @click="openChunks(d)">
                   <td>{{ d.title }}</td>
                   <td><span class="pill">{{ $t('ai.stype.' + d.sourceType) }}</span></td>
                   <td class="num">{{ d.chunkCount }}</td>
@@ -64,6 +64,49 @@
               </tbody>
             </table>
           </div>
+
+          <!-- 数据源覆盖标注（需求 7.2：问答/生成的数据源透明）-->
+          <div class="ch" style="border-top:1px solid var(--border-subtle)"><h3>数据源覆盖</h3></div>
+          <div class="cb" style="padding-top:0">
+            <div class="ds-row"><span class="ds-ok">✓</span>M1 制度 / M4 法规（知识库 {{ docs.length }} 篇，语义检索）</div>
+            <div class="ds-row"><span class="ds-ok">✓</span>M2 风险 / M3 审计 / M11 监管（实时统计，材料生成用）</div>
+            <div class="ds-row"><span class="ds-mut">·</span>权限范围：仅你可见组织的数据（RLS 裁剪）</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 生成报送/汇报材料（需求 7.5.1：初稿须人工复核）-->
+      <div class="card" style="margin-top:14px">
+        <div class="ch"><h3>生成报送 / 汇报材料</h3><span class="sub">基于当前真实合规统计 · AI 初稿须人工复核后使用</span>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <button class="btn ghost sm" :disabled="!canWrite('ai') || genBusy" @click="generate('FILING_DRAFT')">{{ genBusy === 'FILING_DRAFT' ? '生成中…' : '生成监管报送稿' }}</button>
+            <button class="btn sm" :disabled="!canWrite('ai') || genBusy" @click="generate('MGMT_BRIEF')">{{ genBusy === 'MGMT_BRIEF' ? '生成中…' : '生成管理层简报' }}</button>
+          </div>
+        </div>
+        <div class="cb" v-if="material">
+          <div class="mat-meta">
+            <span class="pill">{{ material.type === 'MGMT_BRIEF' ? '管理层简报' : '监管报送稿' }}</span>
+            <span class="muted">数据截至 {{ fmtTime(material.dataAsOf) }} · 提供方 {{ material.provider }}</span>
+          </div>
+          <pre class="mat-draft">{{ material.draft }}</pre>
+          <div class="mat-warn">⚠ AI 生成初稿，须经人工复核、补充与签批后方可使用；数据以生成时点为准。</div>
+        </div>
+        <div class="cb" v-else><div class="hint">点右上按钮，基于当前可见组织的真实统计生成材料初稿。</div></div>
+      </div>
+
+      <!-- 切块管理弹窗（M1 遗留：知识库切片管理）-->
+      <div v-if="chunkDoc" class="modal-mask" @click.self="chunkDoc = null">
+        <div class="modal-card wide">
+          <h3>切块明细 · {{ chunkDoc.title }}<span class="cnt" style="margin-left:8px">{{ chunks.length }}</span></h3>
+          <div class="chunk-list">
+            <div v-if="chunkBusy" class="hint">加载中…</div>
+            <div v-for="c in chunks" :key="c.id" class="chunk-item">
+              <div class="chunk-head"><span class="cref">#{{ chunkDoc.id }}·{{ c.seq }}</span><span class="muted">{{ (c.content || '').length }} 字</span></div>
+              <div class="chunk-body">{{ c.content }}</div>
+            </div>
+            <div v-if="!chunkBusy && !chunks.length" class="hint">该文档暂无切块（可能尚未索引完成）。</div>
+          </div>
+          <div class="modal-actions"><button class="btn ghost" @click="chunkDoc = null">{{ $t('common.cancel') }}</button></div>
         </div>
       </div>
 
@@ -142,6 +185,30 @@ async function submitIngest() {
   } catch (e) { opError.value = e.message } finally { saving.value = false }
 }
 
+// ===== 知识库切块管理（M1 遗留）=====
+const chunkDoc = ref(null)
+const chunks = ref([])
+const chunkBusy = ref(false)
+async function openChunks(d) {
+  chunkDoc.value = d
+  chunks.value = []
+  chunkBusy.value = true
+  try { chunks.value = await api.get('/ai/documents/' + d.id + '/chunks') }
+  catch (e) { chunks.value = [] }
+  finally { chunkBusy.value = false }
+}
+
+// ===== M5：生成报送/汇报材料（需求 7.5.1）=====
+const material = ref(null)
+const genBusy = ref(null)
+async function generate(type) {
+  genBusy.value = type
+  try { material.value = await api.post('/ai/generate', { type }) }
+  catch (e) { material.value = { type, draft: '生成失败：' + e.message, dataAsOf: new Date().toISOString(), provider: '-' } }
+  finally { genBusy.value = null }
+}
+function fmtTime(t) { try { return new Date(t).toLocaleString() } catch (e) { return t } }
+
 onMounted(() => { loadStatus(); loadDocs() })
 </script>
 
@@ -201,4 +268,22 @@ tbody td { padding: 8px 12px; border-top: 1px solid var(--border-subtle); font-s
 .modal-card .fld input, .modal-card .fld select { height: 38px; padding: 0 11px; }
 .modal-card .fld textarea { resize: vertical; line-height: 1.5; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* M5：材料生成 + 数据源覆盖 */
+.ch .sub { font-size: 11px; color: var(--text-3); }
+.ds-row { display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--text-2); padding: 5px 0; }
+.ds-ok { color: var(--success); font-weight: 700; }
+.ds-mut { color: var(--text-3); }
+.mat-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.mat-draft { white-space: pre-wrap; font-family: inherit; font-size: 13px; line-height: 1.8; background: var(--bg); border-radius: 10px; padding: 14px 16px; margin: 0; color: var(--text-1); }
+.mat-warn { margin-top: 10px; padding: 9px 12px; font-size: 12px; color: var(--text-2); background: var(--warning-tint); border-left: 3px solid #a87d22; border-radius: var(--radius-md); }
+.hint { color: var(--text-3); font-size: 12.5px; padding: 14px; text-align: center; }
+/* 知识库切块管理 */
+.doc-row { cursor: pointer; }
+.doc-row:hover td { background: var(--accent-weak); }
+.modal-card.wide { width: 640px; }
+.chunk-list { max-height: 55vh; overflow-y: auto; }
+.chunk-item { border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 10px 12px; margin-bottom: 10px; background: var(--bg); }
+.chunk-head { display: flex; justify-content: space-between; margin-bottom: 6px; }
+.chunk-head .cref { color: var(--accent-strong); font-weight: 700; font-size: 11px; font-variant-numeric: tabular-nums; }
+.chunk-body { font-size: 12.5px; color: var(--text-2); white-space: pre-wrap; line-height: 1.7; }
 </style>

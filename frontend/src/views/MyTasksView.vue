@@ -38,7 +38,44 @@
         </div>
       </div>
 
-      <!-- ② 组织范围待办 -->
+      <!-- ②③④ 四类分组：待填写 / 待签署 / 待整改（需求 D1-7§5.11 分组聚合 + 时限预警）-->
+      <div class="g3">
+        <!-- 待填写：进行中的评估 -->
+        <div class="card">
+          <div class="ch"><h3>待填写</h3><span class="cnt">{{ toFill.length }}</span><span class="sub">进行中评估</span></div>
+          <div class="cb" style="padding-top:0">
+            <div v-for="a in toFill" :key="a.id" class="td-row clk" @click="go('/risk')">
+              <span class="code">#{{ a.id }}</span><span class="td-t">{{ a.title }}</span>
+              <span class="st doing" style="margin-left:auto"><span class="d"></span>{{ a.status === 'DRAFT' ? '草稿' : '填写中' }}</span>
+            </div>
+            <div v-if="!toFill.length" class="emptyrow">无待填写评估</div>
+          </div>
+        </div>
+        <!-- 待签署：已生效制度 -->
+        <div class="card">
+          <div class="ch"><h3>待签署</h3><span class="cnt">{{ toSign.length }}</span><span class="sub">生效制度签署确认</span></div>
+          <div class="cb" style="padding-top:0">
+            <div v-for="p in toSign" :key="p.id" class="td-row clk" @click="go('/policy')">
+              <span class="code">{{ p.code }}</span><span class="td-t">{{ p.title }}</span>
+              <span class="pill" style="margin-left:auto">v{{ p.version }}</span>
+            </div>
+            <div v-if="!toSign.length" class="emptyrow">无待签署制度</div>
+          </div>
+        </div>
+        <!-- 待整改：未闭环整改单 + 时限预警 -->
+        <div class="card">
+          <div class="ch"><h3>待整改</h3><span class="cnt">{{ toRemed.length }}</span><span class="sub">逾期红 · 7日内琥珀</span></div>
+          <div class="cb" style="padding-top:0">
+            <div v-for="r in toRemed" :key="r.id" class="td-row clk" @click="go('/internal-audit')">
+              <span class="code">RO-{{ r.id }}</span><span class="td-t">{{ r.measure || r.assignee || '整改单' }}</span>
+              <span class="duetag" :class="dueCls(r.dueDate)" style="margin-left:auto">{{ dueText(r.dueDate) }}</span>
+            </div>
+            <div v-if="!toRemed.length" class="emptyrow">无待整改任务</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ⑤ 组织范围待办 -->
       <div class="card">
         <div class="ch"><h3>{{ $t('todo.listTitle') }}</h3><span class="cnt">{{ todos.length }}</span></div>
         <div class="cb" style="overflow-x: auto; padding-top: 0">
@@ -83,6 +120,36 @@ function fmtTime(ms) {
   const p = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
 }
+// ===== 四类分组：待填写 / 待签署 / 待整改（+ 已有的待审批）=====
+const toFill = ref([])
+const toSign = ref([])
+const toRemed = ref([])
+function go(path) { window.location.hash = '#' + path }
+// 时限预警：逾期红 / 7 日内琥珀 / 其余灰
+function dueCls(d) {
+  if (!d) return ''
+  const days = Math.ceil((new Date(d) - new Date()) / 86400000)
+  return days < 0 ? 'over' : (days <= 7 ? 'warn' : '')
+}
+function dueText(d) {
+  if (!d) return '无期限'
+  const days = Math.ceil((new Date(d) - new Date()) / 86400000)
+  return days < 0 ? ('逾期 ' + (-days) + ' 天') : (days === 0 ? '今日到期' : ('剩 ' + days + ' 天'))
+}
+async function loadGroups() {
+  try {
+    const [assessments, policies, remIn, remEx] = await Promise.all([
+      api.get('/assessments'), api.get('/policies'),
+      api.get('/remediation-orders?type=INTERNAL').catch(() => []),
+      api.get('/remediation-orders?type=EXTERNAL').catch(() => [])
+    ])
+    toFill.value = assessments.filter((a) => a.status === 'DRAFT' || a.status === 'IN_PROGRESS')
+    toSign.value = policies.filter((p) => p.status === 'EFFECTIVE')
+    toRemed.value = [...remIn, ...remEx].filter((r) => r.status === 'PENDING' || r.status === 'IN_PROGRESS')
+      .sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1)
+  } catch (e) { /* 各组独立容错 */ }
+}
+
 async function load() {
   loadError.value = ''
   try {
@@ -96,6 +163,7 @@ async function load() {
   } catch (e) {
     myApprovals.value = []
   }
+  loadGroups()
 }
 onMounted(load)
 </script>
@@ -127,4 +195,20 @@ tbody td { padding: 10px 14px; border-top: 1px solid var(--border-subtle); font-
 .st { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; color: var(--text-2); }
 .st .d { width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); }
 .emptyrow { text-align: center; color: var(--text-2); padding: 18px 0; }
+
+/* ===== 四类分组卡片（待填写/待签署/待整改） ===== */
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 14px; }
+@media (max-width: 1100px) { .g3 { grid-template-columns: 1fr; } }
+.ch .sub { font-size: 10.5px; color: var(--text-3); margin-left: auto; }
+.td-row { display: flex; align-items: center; gap: 8px; padding: 9px 2px; border-top: 1px solid var(--border-subtle); font-size: 12px; }
+.td-row:first-child { border-top: none; }
+.td-row.clk { cursor: pointer; }
+.td-row.clk:hover { background: var(--accent-weak); }
+.td-t { color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
+.st.doing .d { background: var(--info); }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; background: rgba(120,120,120,0.1); color: var(--text-2); }
+/* 时限预警：逾期红 / 7 日内琥珀 / 其余灰 */
+.duetag { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 10.5px; font-weight: 700; background: rgba(120,120,120,0.1); color: var(--text-2); white-space: nowrap; }
+.duetag.warn { background: var(--warning-tint); color: #a87d22; }
+.duetag.over { background: var(--danger-tint); color: var(--danger); }
 </style>
