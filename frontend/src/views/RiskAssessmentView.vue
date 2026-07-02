@@ -109,6 +109,31 @@
         <div class="g g-16-1">
           <!-- 左：评估任务表（行可点击 → 下钻报告） -->
           <div class="card">
+            <!-- 评估计划管理（需求 4.2.1：年度/季度/临时专项，排期→启动生成评估→完成）-->
+            <div class="ch"><h3>评估计划</h3><span class="cnt">{{ plans.length }}</span>
+              <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openPlan">＋ 排期计划</button>
+            </div>
+            <div class="cb" style="padding-top:0;padding-bottom:6px">
+              <table>
+                <thead><tr><th>计划</th><th>周期</th><th>计划日期</th><th>状态</th><th>操作</th></tr></thead>
+                <tbody>
+                  <tr v-for="pl in plans" :key="pl.id">
+                    <td><b>{{ pl.title }}</b></td>
+                    <td><span class="pill">{{ PT_LABEL[pl.periodType] || pl.periodType }}</span></td>
+                    <td class="num">{{ pl.plannedDate || '—' }}</td>
+                    <td><span class="st" :class="PLST_CLS[pl.status]"><span class="d"></span>{{ PLST_LABEL[pl.status] }}</span></td>
+                    <td class="ops">
+                      <template v-if="canWrite('risk')">
+                        <button v-if="pl.status === 'PLANNED'" class="btn sm" @click="startPlan(pl)">启动</button>
+                        <button v-if="pl.status === 'STARTED'" class="btn ghost sm" @click="donePlan(pl)">完成</button>
+                      </template>
+                      <span v-if="pl.assessmentId" class="muted">→ 评估 {{ pl.assessmentId }}</span>
+                    </td>
+                  </tr>
+                  <tr v-if="!plans.length"><td colspan="5" class="emptyrow">暂无评估计划，点「＋ 排期计划」。</td></tr>
+                </tbody>
+              </table>
+            </div>
             <div class="ch"><h3>{{ $t('risk.tasks.title') }}</h3></div>
             <table>
               <thead>
@@ -368,6 +393,140 @@
           </table>
         </div>
       </div>
+
+      <!-- ========== Tab5 · A-T-V 建模（资产-威胁-脆弱性 → 风险场景，需求 4.5.2）========== -->
+      <div v-show="activeTab === 'atv'" class="tabpane">
+        <div class="g g-16-1">
+          <!-- 左：风险场景表 -->
+          <div class="card">
+            <div class="ch"><h3>风险场景（资产 × 威胁 × 脆弱性）</h3><span class="cnt">{{ scenarios.length }}</span>
+              <button class="btn sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openScenario">＋ 建模场景</button>
+            </div>
+            <div class="cb" style="overflow-x:auto;padding-top:0">
+              <table style="min-width:720px">
+                <thead><tr><th>资产</th><th>威胁</th><th>脆弱性</th><th>可能性×影响</th><th>固有等级</th><th>说明</th></tr></thead>
+                <tbody>
+                  <tr v-for="s in scenarios" :key="s.id">
+                    <td>{{ assetNameOf(s.assetId) }}</td>
+                    <td>{{ threatNameOf(s.threatId) }}</td>
+                    <td>{{ vulnNameOf(s.vulnerabilityId) }}</td>
+                    <td class="num">{{ s.likelihood }} × {{ s.impact }} = {{ s.likelihood * s.impact }}</td>
+                    <td><span class="tag" :class="riskCls(s.inherentLevel)">{{ $t(riskLabel(s.inherentLevel)) }}</span></td>
+                    <td class="muted">{{ s.description || '—' }}</td>
+                  </tr>
+                  <tr v-if="!scenarios.length"><td colspan="6" class="emptyrow">暂无风险场景，点「＋ 建模场景」。</td></tr>
+                </tbody>
+              </table>
+              <p v-if="atvErr" class="cerr">{{ atvErr }}</p>
+            </div>
+          </div>
+          <!-- 右：威胁库 / 脆弱性库 -->
+          <div>
+            <div class="card">
+              <div class="ch"><h3>威胁库</h3><span class="cnt">{{ threats.length }}</span>
+                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openAtvRef('threat')">＋</button>
+              </div>
+              <div class="cb" style="padding-top:0">
+                <div v-for="t2 in threats" :key="t2.id" class="atv-row"><span class="code">{{ t2.code }}</span>{{ t2.name }}<span class="pill" style="margin-left:auto">{{ t2.category || '—' }}</span></div>
+                <div v-if="!threats.length" class="hint">暂无威胁条目</div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:14px">
+              <div class="ch"><h3>脆弱性库</h3><span class="cnt">{{ vulns.length }}</span>
+                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openAtvRef('vuln')">＋</button>
+              </div>
+              <div class="cb" style="padding-top:0">
+                <div v-for="v2 in vulns" :key="v2.id" class="atv-row"><span class="code">{{ v2.code }}</span>{{ v2.name }}<span class="pill" style="margin-left:auto">{{ v2.category || '—' }}</span></div>
+                <div v-if="!vulns.length" class="hint">暂无脆弱性条目</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 排期评估计划弹窗 -->
+      <div v-if="showPlan" class="modal-mask" @click.self="showPlan = false">
+        <div class="modal-card">
+          <h3>排期评估计划</h3>
+          <label class="fld">计划主题<input v-model="plf.title" placeholder="如 2026 年度等保自评" /></label>
+          <label class="fld">周期类型
+            <select v-model="plf.periodType"><option value="ANNUAL">年度</option><option value="QUARTERLY">季度</option><option value="ADHOC">临时专项</option></select>
+          </label>
+          <label class="fld">计划开始日期<input type="date" v-model="plf.plannedDate" /></label>
+          <label class="fld">评估模板（可空；带模板启动即进表单引擎）
+            <select v-model.number="plf.templateId"><option :value="null">— 不使用模板 —</option><option v-for="t2 in templates" :key="t2.id" :value="t2.id">{{ t2.name }}</option></select>
+          </label>
+          <label class="fld">所属组织<select v-model.number="plf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="opError" class="cerr">{{ opError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showPlan = false">取消</button>
+            <button class="btn" :disabled="!plf.title || refSaving" @click="submitPlan">确认排期</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 建模风险场景弹窗（A-T-V）-->
+      <div v-if="showScenario" class="modal-mask" @click.self="showScenario = false">
+        <div class="modal-card">
+          <h3>建模风险场景</h3>
+          <label class="fld">资产
+            <select v-model.number="scf.assetId"><option :value="0" disabled>— 选择资产 —</option><option v-for="a in atvAssets" :key="a.id" :value="a.id">{{ a.name }}</option></select>
+          </label>
+          <label class="fld">威胁
+            <select v-model.number="scf.threatId"><option :value="0" disabled>— 选择威胁 —</option><option v-for="t2 in threats" :key="t2.id" :value="t2.id">{{ t2.code }} · {{ t2.name }}</option></select>
+          </label>
+          <label class="fld">脆弱性
+            <select v-model.number="scf.vulnerabilityId"><option :value="0" disabled>— 选择脆弱性 —</option><option v-for="v2 in vulns" :key="v2.id" :value="v2.id">{{ v2.code }} · {{ v2.name }}</option></select>
+          </label>
+          <label class="fld">可能性（1~5）<input v-model.number="scf.likelihood" type="number" min="1" max="5" /></label>
+          <label class="fld">影响（1~5）<input v-model.number="scf.impact" type="number" min="1" max="5" /></label>
+          <label class="fld">说明<input v-model="scf.description" placeholder="可空" /></label>
+          <p v-if="atvErr" class="cerr">{{ atvErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showScenario = false">取消</button>
+            <button class="btn" :disabled="!scf.assetId || !scf.threatId || !scf.vulnerabilityId || refSaving" @click="submitScenario">确认建模</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新建威胁/脆弱性弹窗 -->
+      <div v-if="atvRefKind" class="modal-mask" @click.self="atvRefKind = null">
+        <div class="modal-card">
+          <h3>{{ atvRefKind === 'threat' ? '新建威胁' : '新建脆弱性' }}</h3>
+          <label class="fld">编码<input v-model="arf.code" :placeholder="atvRefKind === 'threat' ? 'T-PHISH' : 'V-WEAKPWD'" /></label>
+          <label class="fld">名称<input v-model="arf.name" /></label>
+          <label class="fld">分类<input v-model="arf.category" placeholder="如 人为/技术/环境" /></label>
+          <label class="fld">所属组织<select v-model.number="arf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="atvErr" class="cerr">{{ atvErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="atvRefKind = null">取消</button>
+            <button class="btn" :disabled="!arf.code || !arf.name || refSaving" @click="submitAtvRef">确认</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 处置决策弹窗（四选一，需求 4.5.3）-->
+      <div v-if="treatTarget" class="modal-mask" @click.self="treatTarget = null">
+        <div class="modal-card">
+          <h3>处置决策</h3>
+          <p class="muted" style="margin:-6px 0 14px">{{ treatTarget.title }}</p>
+          <label class="fld">决策（四选一）
+            <select v-model="tdf.decision">
+              <option value="MITIGATE">降低（实施控制措施）</option>
+              <option value="ACCEPT">接受（走管理层接受流程）</option>
+              <option value="TRANSFER">转移（保险/外包）</option>
+              <option value="AVOID">规避（停止相关活动）</option>
+            </select>
+          </label>
+          <label class="fld">处置方案<input v-model="tdf.plan" placeholder="如 强制改密+MFA / 购买网络安全险" /></label>
+          <p v-if="opError" class="cerr">{{ opError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="treatTarget = null">取消</button>
+            <button class="btn" :disabled="!tdf.plan || refSaving" @click="submitTreat">确认处置</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== 参考库「新建」弹窗（定义 KRI / 定义控件 / 新建模板，按 refModal 切换）===== -->
       <div v-if="refModal" class="modal-mask" @click.self="refModal = null">
         <!-- 定义 KRI -->
@@ -563,6 +722,9 @@
                 </td>
                 <td><span class="st" :class="findingStCls(f.status)"><span class="d"></span>{{ $t('risk.gate.fstatus.' + f.status) }}</span></td>
                 <td class="ops">
+                  <!-- 处置决策四选一（需求 4.5.3：降低/接受/转移/规避）：仅 OPEN 可录入 -->
+                  <button v-if="f.status === 'OPEN'" class="btn ghost sm" :disabled="busyId === f.id" @click="openTreat(f)">处置</button>
+                  <span v-else-if="f.treatmentDecision" class="pill" :title="f.treatmentPlan">{{ TD_LABEL[f.treatmentDecision] || f.treatmentDecision }}</span>
                   <!-- 风险接受（A5 审批化两步）：被门控且未申请 → 申请；已申请待审批 → 审批通过/驳回。
                        (待审批态本会期内用 requestedIds 跟踪；Phase D 由后端暴露 PENDING 态持久化) -->
                   <template v-if="isGated(f)">
@@ -631,7 +793,7 @@ const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 // ---- Tab 切换 ----
-const tabs = ['tasks', 'templates', 'controls', 'kri']
+const tabs = ['tasks', 'templates', 'controls', 'kri', 'atv']
 const activeTab = ref('tasks')
 
 // ---- 下钻：评估报告视图开关（点击任务行进入，← 返回）----
@@ -868,14 +1030,93 @@ async function loadKris() {
   try { kris.value = await api.get('/kris') } catch (e) { kris.value = [] }
 }
 
+// ===== M2 周边：评估计划管理（需求 4.2.1）=====
+const plans = ref([])
+const PT_LABEL = { ANNUAL: '年度', QUARTERLY: '季度', ADHOC: '临时专项' }
+const PLST_LABEL = { PLANNED: '已排期', STARTED: '已启动', DONE: '已完成' }
+const PLST_CLS = { PLANNED: 'wait', STARTED: 'doing', DONE: 'ok' }
+async function loadPlans() { try { plans.value = await api.get('/assessment-plans') } catch (e) { plans.value = [] } }
+const showPlan = ref(false)
+const plf = reactive({ title: '', periodType: 'ANNUAL', plannedDate: '', templateId: null, orgId: 12 })
+function openPlan() { Object.assign(plf, { title: '', periodType: 'ANNUAL', plannedDate: '', templateId: null, orgId: 12 }); opError.value = ''; showPlan.value = true }
+async function submitPlan() {
+  refSaving.value = true; opError.value = ''
+  try {
+    await api.post('/assessment-plans', { orgId: plf.orgId, title: plf.title, periodType: plf.periodType, plannedDate: plf.plannedDate || null, templateId: plf.templateId })
+    showPlan.value = false; await loadPlans()
+  } catch (e) { opError.value = e.message } finally { refSaving.value = false }
+}
+async function startPlan(pl) {
+  opError.value = ''
+  try { await api.post('/assessment-plans/' + pl.id + '/start', {}); await loadPlans(); liveTasks.value = await api.get('/assessments') }
+  catch (e) { opError.value = e.message }
+}
+async function donePlan(pl) {
+  opError.value = ''
+  try { await api.post('/assessment-plans/' + pl.id + '/done', {}); await loadPlans() } catch (e) { opError.value = e.message }
+}
+
+// ===== M2 周边：A-T-V 建模（后端 /api/threats|vulnerabilities|risk-scenarios）=====
+const threats = ref([])
+const vulns = ref([])
+const scenarios = ref([])
+const atvAssets = ref([])
+const atvErr = ref('')
+async function loadAtv() {
+  try {
+    const [t2, v2, s2, a2] = await Promise.all([
+      api.get('/threats'), api.get('/vulnerabilities'), api.get('/risk-scenarios'), api.get('/assets')
+    ])
+    threats.value = t2; vulns.value = v2; scenarios.value = s2; atvAssets.value = a2
+  } catch (e) { atvErr.value = e.message }
+}
+const threatNameOf = (id) => (threats.value.find((x) => x.id === id) || {}).name || '#' + id
+const vulnNameOf = (id) => (vulns.value.find((x) => x.id === id) || {}).name || '#' + id
+const assetNameOf = (id) => (atvAssets.value.find((x) => x.id === id) || {}).name || '#' + id
+const showScenario = ref(false)
+const scf = reactive({ assetId: 0, threatId: 0, vulnerabilityId: 0, likelihood: 3, impact: 3, description: '' })
+function openScenario() { Object.assign(scf, { assetId: 0, threatId: 0, vulnerabilityId: 0, likelihood: 3, impact: 3, description: '' }); atvErr.value = ''; showScenario.value = true }
+async function submitScenario() {
+  refSaving.value = true; atvErr.value = ''
+  try {
+    const a = atvAssets.value.find((x) => x.id === scf.assetId)
+    await api.post('/risk-scenarios', { orgId: a ? a.orgId : 12, assetId: scf.assetId, threatId: scf.threatId, vulnerabilityId: scf.vulnerabilityId, likelihood: scf.likelihood, impact: scf.impact, description: scf.description || null })
+    showScenario.value = false; await loadAtv()
+  } catch (e) { atvErr.value = e.message } finally { refSaving.value = false }
+}
+const atvRefKind = ref(null)
+const arf = reactive({ code: '', name: '', category: '', orgId: 12 })
+function openAtvRef(kind) { atvRefKind.value = kind; Object.assign(arf, { code: '', name: '', category: '', orgId: 12 }); atvErr.value = '' }
+async function submitAtvRef() {
+  refSaving.value = true; atvErr.value = ''
+  try {
+    const path = atvRefKind.value === 'threat' ? '/threats' : '/vulnerabilities'
+    await api.post(path, { orgId: arf.orgId, code: arf.code, name: arf.name, category: arf.category || null, description: null })
+    atvRefKind.value = null; await loadAtv()
+  } catch (e) { atvErr.value = e.message } finally { refSaving.value = false }
+}
+
+// ===== M2 周边：处置决策四选一（需求 4.5.3）=====
+const TD_LABEL = { MITIGATE: '降低', ACCEPT: '接受', TRANSFER: '转移', AVOID: '规避' }
+const treatTarget = ref(null)
+const tdf = reactive({ decision: 'MITIGATE', plan: '' })
+function openTreat(f) { treatTarget.value = f; Object.assign(tdf, { decision: 'MITIGATE', plan: '' }); opError.value = '' }
+async function submitTreat() {
+  refSaving.value = true; opError.value = ''
+  try {
+    await api.post('/risk-findings/' + treatTarget.value.id + '/treatment', { treatmentDecision: tdf.decision, treatmentPlan: tdf.plan })
+    treatTarget.value = null; await loadFindings()
+  } catch (e) { opError.value = e.message } finally { refSaving.value = false }
+}
+
 onMounted(async () => {
   try {
     liveTasks.value = await api.get('/assessments')
   } catch (e) {
     loadError.value = e.message
   }
-  // 并行拉取三个参考库
-  loadTemplates(); loadControls(); loadKris()
+  // 并行拉取三个参考库 + 评估计划 + A-T-V
+  loadTemplates(); loadControls(); loadKris(); loadPlans(); loadAtv()
 })
 
 // ---- 合规框架 枚举 → 短标/底色/语义类（统一控件库 + 模板库共用）----
@@ -1639,4 +1880,5 @@ td.ops {
   color: var(--text-2);
   padding: 18px 0;
 }
+.atv-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
 </style>

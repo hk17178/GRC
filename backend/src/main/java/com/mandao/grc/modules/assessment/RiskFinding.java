@@ -52,6 +52,10 @@ public class RiskFinding {
     @Column(name = "treatment_plan", columnDefinition = "TEXT")
     private String treatmentPlan;
 
+    /** 处置决策（需求 4.5.3 四选一）：MITIGATE 降低 / ACCEPT 接受 / TRANSFER 转移 / AVOID 规避。 */
+    @Column(name = "treatment_decision", length = 16)
+    private String treatmentDecision;
+
     /** 残余风险等级（五级，关闭门控判定依据）。 */
     @Enumerated(EnumType.STRING)
     @Column(name = "residual_level", length = 12)
@@ -105,6 +109,7 @@ public class RiskFinding {
     public String getTitle() { return title; }
     public RiskLevel getInherentLevel() { return inherentLevel; }
     public String getTreatmentPlan() { return treatmentPlan; }
+    public String getTreatmentDecision() { return treatmentDecision; }
     public RiskLevel getResidualLevel() { return residualLevel; }
     public Long getRiskAcceptanceId() { return riskAcceptanceId; }
     public RiskFindingStatus getStatus() { return status; }
@@ -113,6 +118,7 @@ public class RiskFinding {
 
     // 以下 setter 为包级可见，仅由 Service 在校验后调用，封装状态变更。
     void setTreatmentPlan(String treatmentPlan) { this.treatmentPlan = treatmentPlan; }
+    void setTreatmentDecision(String treatmentDecision) { this.treatmentDecision = treatmentDecision; }
     void setResidualLevel(RiskLevel residualLevel) { this.residualLevel = residualLevel; }
     void setRiskAcceptanceId(Long riskAcceptanceId) { this.riskAcceptanceId = riskAcceptanceId; }
     void setStatus(RiskFindingStatus status) { this.status = status; }

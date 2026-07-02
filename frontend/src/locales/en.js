@@ -425,7 +425,8 @@ export default {
       tasks: 'Assessments',
       templates: 'Templates',
       controls: 'Control Library',
-      kri: 'KRI Monitoring'
+      kri: 'KRI Monitoring',
+      atv: 'A-T-V Modeling'
     },
     kpi: {
       active: 'In Progress',

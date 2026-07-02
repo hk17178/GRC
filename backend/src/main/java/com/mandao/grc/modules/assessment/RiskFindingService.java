@@ -82,12 +82,19 @@ public class RiskFindingService {
      */
     @Transactional
     public RiskFinding setTreatment(Long id, String treatmentPlan, String actor) {
+        return setTreatment(id, null, treatmentPlan, actor);
+    }
+
+    /** 录入处置（带四选一决策：MITIGATE 降低/ACCEPT 接受/TRANSFER 转移/AVOID 规避，需求 4.5.3）。 */
+    @Transactional
+    public RiskFinding setTreatment(Long id, String treatmentDecision, String treatmentPlan, String actor) {
         RiskFinding f = get(id);
         if (f.getStatus() != RiskFindingStatus.OPEN) {
             throw new IllegalStateException(
                     "仅 OPEN 态风险发现可录入处置方案，当前状态：" + f.getStatus());
         }
         f.setTreatmentPlan(treatmentPlan);
+        f.setTreatmentDecision(treatmentDecision);
         f.setStatus(RiskFindingStatus.IN_TREATMENT);
         RiskFinding saved = findingRepository.save(f);
         appendLog(saved, "FINDING_TREAT", actor, "录入处置方案");

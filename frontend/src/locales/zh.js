@@ -463,7 +463,8 @@ export default {
       tasks: '评估任务',
       templates: '模板库',
       controls: '统一控件库',
-      kri: 'KRI 监控'
+      kri: 'KRI 监控',
+      atv: 'A-T-V 建模'
     },
     // Tab1 · 评估任务
     kpi: {

@@ -98,7 +98,7 @@ class RiskAssessmentTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE risk_acceptance, risk_finding, operation_log RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE assessment_plan, risk_acceptance, risk_finding, operation_log RESTART IDENTITY CASCADE");
             // 清除 Service 新建的评估（id >= 1000），保留 V1 手工种子（101/102/201/202）。
             s.executeUpdate("DELETE FROM assessment WHERE id >= 1000");
         }
@@ -116,6 +116,18 @@ class RiskAssessmentTest {
     }
 
     // ---------- 评估生命周期 ----------
+
+    @Test
+    void 处置决策四选一_随处置方案落库() {
+        Long aid = asOrg(ORG_PAY, () ->
+                assessmentService.create(ORG_PAY, "处置决策评估", "a", "2026Q3", "c").getId());
+        Long fid = asOrg(ORG_PAY, () ->
+                findingService.createFinding(ORG_PAY, aid, "跨境传输缺评估", RiskLevel.HIGH, "a").getId());
+        // 四选一：TRANSFER 转移 + 处置方案
+        var f = asOrg(ORG_PAY, () -> findingService.setTreatment(fid, "TRANSFER", "购买网络安全险+外包脱敏", "a"));
+        org.junit.jupiter.api.Assertions.assertEquals("TRANSFER", f.getTreatmentDecision());
+        org.junit.jupiter.api.Assertions.assertEquals(RiskFindingStatus.IN_TREATMENT, f.getStatus());
+    }
 
     @Test
     void 评估生命周期_草稿到完成全程通过() {

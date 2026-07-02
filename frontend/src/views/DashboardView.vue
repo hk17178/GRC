@@ -71,7 +71,7 @@
 
       <!-- ===== KPI 指标卡组（8 张） ===== -->
       <div class="kpibar">
-        <div class="kc" v-for="(k, i) in kpis" :key="i">
+        <div class="kc clk" v-for="(k, i) in kpis" :key="i" @click="drillKpi(k)" title="点击查看指标口径与构成">
           <div class="l">{{ $t('dash.kpi.' + k.key + '.l') }}</div>
           <div class="v" :style="k.vColor ? { color: k.vColor } : null">
             {{ k.v }}
@@ -87,6 +87,21 @@
 
       <!-- 诚实标注：上方 KPI 卡为真实后端汇总；下方热力矩阵/体系达成度为原型视觉示意（后端暂无该聚合）。 -->
       <div class="dash-note">{{ $t('dash.scaffoldNote') }}</div>
+
+      <!-- 指标下钻弹层（需求 4.5.4：口径/构成/来源可解释）-->
+      <div v-if="kpiDrill" class="modal-mask" @click.self="kpiDrill = null">
+        <div class="modal-card">
+          <h3>{{ $t('dash.kpi.' + kpiDrill.key + '.l') }} · 指标口径</h3>
+          <div class="kd-v">当前值：<b :style="kpiDrill.vColor ? { color: kpiDrill.vColor } : null">{{ kpiDrill.v }}</b></div>
+          <div class="kd-row"><span class="kd-k">口径</span>{{ (KPI_DOC[kpiDrill.key] || {}).formula || '—' }}</div>
+          <div class="kd-row"><span class="kd-k">数据来源</span>{{ (KPI_DOC[kpiDrill.key] || {}).source || '—' }}</div>
+          <div class="kd-row"><span class="kd-k">更新方式</span>实时（后端按可见组织汇总，RLS 裁剪）</div>
+          <div class="modal-actions">
+            <button v-if="(KPI_DOC[kpiDrill.key] || {}).route" class="btn ghost" @click="goKpi(kpiDrill)">查看明细 →</button>
+            <button class="btn" @click="kpiDrill = null">关闭</button>
+          </div>
+        </div>
+      </div>
 
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
       <div class="dgrid" :class="{ editing: editMode }">
@@ -412,6 +427,21 @@ const kpis = computed(() => {
     { key: 'pendingSod', v: dv(m.pendingSodExceptions), vColor: 'var(--warning)', bar: 'var(--warning)', pct: pct(m.pendingSodExceptions) }
   ]
 })
+
+// ===== 指标下钻（需求 4.5.4：可解释——口径/构成/来源）=====
+const KPI_DOC = {
+  openRisk: { formula: '风险发现中状态 ≠ VERIFIED 的数量（OPEN + IN_TREATMENT + DONE 待验证）', source: 'M2 风险评估 · risk_finding', route: '/risk' },
+  gated: { formula: '残余等级为 高/极高 且无有效风险接受的发现数（CR-002 关闭门控命中）', source: 'M2 风险评估 · risk_finding + risk_acceptance', route: '/risk' },
+  kriWarn: { formula: '当前值越过预警阈值(warning)的 KRI 指标数', source: 'M2 · kri_metric', route: '/risk' },
+  kriCrit: { formula: '当前值越过严重阈值(critical)的 KRI 指标数', source: 'M2 · kri_metric', route: '/risk' },
+  openAudit: { formula: '内外审发现中未闭环（无 VERIFIED 整改单）的数量', source: 'M3 审计管理 · audit_finding + remediation_order', route: '/internal-audit' },
+  pendingFiling: { formula: '监管报送中状态 ≠ 已报送 的事项数', source: 'M11 监管事项 · reg_filing', route: '/regulatory-affairs' },
+  effPolicy: { formula: '状态 = EFFECTIVE（已生效）的制度数', source: 'M1 制度体系 · policy', route: '/policy' },
+  pendingSod: { formula: '状态 = PENDING（待审批）的 SoD 例外申请数', source: 'M8 权限 · sod_exception', route: '/permission' }
+}
+const kpiDrill = ref(null)
+function drillKpi(k) { kpiDrill.value = k }
+function goKpi(k) { const r = (KPI_DOC[k.key] || {}).route; if (r) { kpiDrill.value = null; window.location.hash = '#' + r } }
 
 // ---- 热力矩阵：风险域列（等宽）与子公司行 ----
 const heatDomains = ['infosec', 'data', 'continuity', 'thirdparty', 'reg', 'control']
@@ -943,4 +973,15 @@ const feed = [
 .extrend .extcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; }
 .extrend .extcol i { width: 60%; max-width: 22px; background: linear-gradient(180deg, var(--accent-bright), var(--accent)); border-radius: 4px 4px 0 0; }
 .extrend .extcol span { font-size: 10.5px; color: var(--text-3); }
+/* KPI 下钻弹层 */
+.kc.clk { cursor: pointer; }
+.kc.clk:hover { border-color: var(--accent); }
+.modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.32); display: flex; align-items: center; justify-content: center; z-index: 50; }
+.modal-card { width: 480px; max-width: 92vw; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 22px 24px; }
+.modal-card h3 { margin: 0 0 14px; font-size: 16px; }
+.kd-v { font-size: 14px; margin-bottom: 12px; }
+.kd-v b { font-size: 20px; font-family: var(--font-display); }
+.kd-row { display: flex; gap: 10px; font-size: 12.5px; color: var(--text-2); padding: 7px 0; border-top: 1px solid var(--border-subtle); line-height: 1.6; }
+.kd-k { flex-shrink: 0; width: 60px; color: var(--text-3); font-weight: 700; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
 </style>

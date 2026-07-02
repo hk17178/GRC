@@ -58,7 +58,7 @@ public class RiskFindingController {
     public RiskFinding setTreatment(@PathVariable Long id,
                                     @RequestBody TreatmentRequest req,
                                     @RequestHeader(value = "X-User", required = false) String user) {
-        return service.setTreatment(id, req.treatmentPlan(), actor(user));
+        return service.setTreatment(id, req.treatmentDecision(), req.treatmentPlan(), actor(user));
     }
 
     /** 评估残余风险等级（不改变状态）。 */
@@ -121,7 +121,7 @@ public class RiskFindingController {
     }
 
     /** 处置方案请求体。 */
-    public record TreatmentRequest(String treatmentPlan) {
+    public record TreatmentRequest(String treatmentDecision, String treatmentPlan) {
     }
 
     /** 残余等级请求体。 */
