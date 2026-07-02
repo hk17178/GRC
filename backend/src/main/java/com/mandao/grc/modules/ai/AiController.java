@@ -2,6 +2,7 @@ package com.mandao.grc.modules.ai;
 
 import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.modules.rbac.RequiresPermission;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -9,6 +10,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -28,14 +30,17 @@ public class AiController {
     private final EmbeddingProvider embedding;
     private final AiConfigService configService;
     private final AiMaterialService materialService;
+    private final AiGovernanceService governanceService;
 
     public AiController(KnowledgeBaseService kb, AiQaService qa, EmbeddingProvider embedding,
-                        AiConfigService configService, AiMaterialService materialService) {
+                        AiConfigService configService, AiMaterialService materialService,
+                        AiGovernanceService governanceService) {
         this.kb = kb;
         this.qa = qa;
         this.embedding = embedding;
         this.configService = configService;
         this.materialService = materialService;
+        this.governanceService = governanceService;
     }
 
     /** 列出可见知识源文档。 */
@@ -55,6 +60,55 @@ public class AiController {
     @GetMapping("/documents/{id}/chunks")
     public List<KbChunk> chunks(@PathVariable Long id) {
         return kb.chunks(id);
+    }
+
+    /** 删除文档及其切块/向量（仅可见组织内）。写门控 "ai"。 */
+    @DeleteMapping("/documents/{id}")
+    @RequiresPermission("ai")
+    public void deleteDocument(@PathVariable Long id) {
+        kb.delete(id);
+    }
+
+    // ---------- AI 治理（V42：模型白名单 / 提示词模板）----------
+
+    /** 列出治理条目：kind=MODEL_WHITELIST / PROMPT_TEMPLATE。 */
+    @GetMapping("/governance")
+    public List<AiGovernance> listGovernance(@RequestParam String kind) {
+        return governanceService.listByKind(kind);
+    }
+
+    /** 新建治理条目。 */
+    @PostMapping("/governance")
+    @RequiresPermission("ai")
+    public AiGovernance createGovernance(@RequestBody GovernanceRequest req,
+                                         @RequestHeader(value = "X-User", required = false) String user) {
+        return governanceService.create(req.kind(), req.name(), req.detail(), actorOf(user));
+    }
+
+    /** 更新治理条目（名称/正文）。 */
+    @PutMapping("/governance/{id}")
+    @RequiresPermission("ai")
+    public AiGovernance updateGovernance(@PathVariable Long id, @RequestBody GovernanceRequest req,
+                                         @RequestHeader(value = "X-User", required = false) String user) {
+        return governanceService.update(id, req.name(), req.detail(), actorOf(user));
+    }
+
+    /** 启停治理条目。 */
+    @PutMapping("/governance/{id}/enabled")
+    @RequiresPermission("ai")
+    public AiGovernance setGovernanceEnabled(@PathVariable Long id, @RequestParam boolean enabled) {
+        return governanceService.setEnabled(id, enabled);
+    }
+
+    /** 删除治理条目。 */
+    @DeleteMapping("/governance/{id}")
+    @RequiresPermission("ai")
+    public void deleteGovernance(@PathVariable Long id) {
+        governanceService.delete(id);
+    }
+
+    /** 治理条目请求体。 */
+    public record GovernanceRequest(String kind, String name, String detail) {
     }
 
     /** 检索增强问答。 */
@@ -81,11 +135,15 @@ public class AiController {
     @RequiresPermission("ai")
     public AiConfigService.ConfigView updateConfig(@RequestBody ConfigRequest req,
                                                    @RequestHeader(value = "X-User", required = false) String user) {
-        String actor = CurrentUserContext.get() != null ? CurrentUserContext.get()
-                : (user == null || user.isBlank() ? "anonymous" : user);
         return configService.update(req.provider(), req.baseUrl(), req.model(),
                 req.maxTokens() == null ? 1024 : req.maxTokens(),
-                req.enabled() == null || req.enabled(), req.apiKey(), actor);
+                req.enabled() == null || req.enabled(), req.apiKey(), actorOf(user));
+    }
+
+    /** actor 归属：优先 JWT 登录人（CurrentUserContext），X-User 头兜底。 */
+    private String actorOf(String user) {
+        return CurrentUserContext.get() != null ? CurrentUserContext.get()
+                : (user == null || user.isBlank() ? "anonymous" : user);
     }
 
     /** 大模型接入配置请求体（apiKey 为空=保持原密钥不变）。 */

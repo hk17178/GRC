@@ -609,7 +609,7 @@ export default {
     seg: { all: '全集团', pay: '支付科技', consumer: '消费金融', tech: '数科' },
     due: { pending: '待处理 {v}', overdue: '逾期 {v}' },
 
-    scaffoldNote: '上方 KPI 指标卡为真实后端跨模块汇总；下方热力矩阵 / 体系达成度为原型视觉示意（后端暂无该聚合）。',
+    scaffoldNote: 'KPI 指标卡 / 热力矩阵 / 整改完成率为真实后端聚合（按可见组织）；KRI 折线与体系达成度为原型视觉示意。',
     // KPI 指标卡（l=标题, s=辅助说明）——接 /api/dashboard/summary 真实计数
     kpi: {
       openRisk: { l: '未关闭风险发现', s: '风险评估·处置中' },
@@ -624,15 +624,19 @@ export default {
 
     // 热力矩阵
     heat: {
-      title: '子公司 × 风险域 · 热力矩阵',
-      sub: '综合风险值 0–100',
+      title: '组织 × 风险域 · 热力矩阵',
+      sub: '未决事项计数（真值）',
       domain: {
         infosec: '信息安全',
         data: '数据合规',
         continuity: '业务连续',
         thirdparty: '第三方',
         reg: '监管合规',
-        control: '内控'
+        control: '内控',
+        risk: '风险敞口',
+        vendor: '第三方',
+        audit: '审计发现',
+        remed: '待整改'
       }
     },
 

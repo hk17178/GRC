@@ -63,6 +63,14 @@ public class AuditPlan {
     @Column(nullable = false, length = 24)
     private AuditPlanStatus status = AuditPlanStatus.PLANNED;
 
+    /** 绑定的检查表模板（V40，复用表单引擎 assessment_template；未绑定为空）。 */
+    @Column(name = "checklist_template_id")
+    private Long checklistTemplateId;
+
+    /** 执行检查表产生的评估 id（V40；未执行为空）。 */
+    @Column(name = "checklist_assessment_id")
+    private Long checklistAssessmentId;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -104,9 +112,13 @@ public class AuditPlan {
     public LocalDate getPlanStartDate() { return planStartDate; }
     public String getExternalStatus() { return externalStatus; }
     public AuditPlanStatus getStatus() { return status; }
+    public Long getChecklistTemplateId() { return checklistTemplateId; }
+    public Long getChecklistAssessmentId() { return checklistAssessmentId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 
     // 以下 setter 为包级可见，仅由 Service 在校验后调用，封装状态变更。
     void setStatus(AuditPlanStatus status) { this.status = status; }
+    void setChecklistTemplateId(Long templateId) { this.checklistTemplateId = templateId; }
+    void setChecklistAssessmentId(Long assessmentId) { this.checklistAssessmentId = assessmentId; }
 }

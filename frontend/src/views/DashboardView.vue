@@ -85,7 +85,7 @@
         </div>
       </div>
 
-      <!-- 诚实标注：上方 KPI 卡为真实后端汇总；下方热力矩阵/体系达成度为原型视觉示意（后端暂无该聚合）。 -->
+      <!-- 诚实标注：KPI 卡/热力矩阵/整改完成率为真实后端聚合；KRI 折线与体系达成度仍为原型示意。 -->
       <div class="dash-note">{{ $t('dash.scaffoldNote') }}</div>
 
       <!-- 指标下钻弹层（需求 4.5.4：口径/构成/来源可解释）-->
@@ -302,8 +302,8 @@
 </template>
 
 <script setup>
-// 驾驶舱主页：视觉/样式 1:1 取自原型；KPI 指标卡接真实后端 /api/dashboard/summary（按域汇总）。
-// 热力矩阵 / 体系达成度等分析图为原型视觉示意（后端暂无该聚合，标注示意，不臆造）。
+// 驾驶舱主页：视觉/样式 1:1 取自原型；KPI 指标卡接 /api/dashboard/summary，
+// 热力矩阵/整改完成率接 /api/dashboard/org-summary（按组织聚合真值）；KRI 折线与体系达成度仍为示意。
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
@@ -311,10 +311,8 @@ import { api } from '@/api/client.js'
 import { useOrgs } from '@/orgs.js'
 
 const { t } = useI18n()
-// 真实组织（消灭原型假子公司 数科/保理）：分段与"分子公司"维度由真实组织树驱动；
-// 因后端暂无"按组织聚合"接口，热力/整改的数值仍为示意，但组织名一律取真实树。
+// 真实组织（消灭原型假子公司 数科/保理）：分段维度由真实组织树驱动。
 const orgList = useOrgs()
-const orgRows = computed(() => orgList.value)                                  // 全部组织（集团 + 子公司/部门）
 const subsidiaries = computed(() => orgList.value.filter((o) => o.parentId === 1)) // 集团直属子公司
 
 // ---- 子公司分段切换（页头右侧 seg）----
@@ -400,6 +398,7 @@ const exWeek = ['一', '二', '三', '四', '五', '六', '日']
 const summary = ref(null)
 const loadError = ref('')
 onMounted(async () => {
+  loadOrgSummary()
   try {
     summary.value = await api.get('/dashboard/summary')
   } catch (e) {
@@ -443,24 +442,32 @@ const kpiDrill = ref(null)
 function drillKpi(k) { kpiDrill.value = k }
 function goKpi(k) { const r = (KPI_DOC[k.key] || {}).route; if (r) { kpiDrill.value = null; window.location.hash = '#' + r } }
 
-// ---- 热力矩阵：风险域列（等宽）与子公司行 ----
-const heatDomains = ['infosec', 'data', 'continuity', 'thirdparty', 'reg', 'control']
-// cells 的底色保留原型内联十六进制（红→绿综合风险值示例，0–100）。
-// 示意值池——按真实组织行序号取，保证稳定；组织名取真实树（非原型假名）。
-const HEAT_POOL = [
-  [{ v: 41, c: '#dfb84d' }, { v: 33, c: '#9cbf6e' }, { v: 28, c: '#7fa76a' }, { v: 52, c: '#e0a93f' }, { v: 38, c: '#cdbf57' }, { v: 30, c: '#86ab69' }],
-  [{ v: 78, c: '#c0392b' }, { v: 71, c: '#cf6233' }, { v: 55, c: '#e0a93f' }, { v: 68, c: '#d4853a' }, { v: 82, c: '#c0392b' }, { v: 49, c: '#dba148' }],
-  [{ v: 64, c: '#d99845' }, { v: 58, c: '#e0a93f' }, { v: 47, c: '#dba148' }, { v: 73, c: '#cf6233' }, { v: 66, c: '#d68a3c' }, { v: 44, c: '#d6aa49' }],
-  [{ v: 52, c: '#e0a93f' }, { v: 61, c: '#d99845' }, { v: 39, c: '#bcbf5c' }, { v: 57, c: '#e0a93f' }, { v: 54, c: '#dd9a44' }, { v: 36, c: '#a8b566' }]
-]
-const heatRows = computed(() => orgRows.value.map((o, i) => ({ name: o.name, cells: HEAT_POOL[i % HEAT_POOL.length] })))
+// ---- 热力矩阵：六域真值计数（后端 /api/dashboard/org-summary，按组织聚合）----
+// 值 = 该组织该域的未决事项数；色阶按计数分档（0 绿 → 越多越红），不再是示意值。
+const heatDomains = ['risk', 'data', 'vendor', 'reg', 'audit', 'remed']
+const orgSummary = ref([])
+async function loadOrgSummary() {
+  try { orgSummary.value = await api.get('/dashboard/org-summary') } catch (e) { orgSummary.value = [] }
+}
+function heatColor(v) {
+  if (v <= 0) return '#7fa76a'
+  if (v <= 2) return '#dfb84d'
+  if (v <= 5) return '#e0a93f'
+  if (v <= 9) return '#cf6233'
+  return '#c0392b'
+}
+const heatRows = computed(() => orgSummary.value.map((r) => ({
+  name: r.orgName,
+  cells: heatDomains.map((d) => ({ v: r[d], c: heatColor(r[d]) }))
+})))
 
-// ---- 整改完成率 · 分组织（示意值池 + 真实组织名）----
-const REMED_POOL = [
-  { pct: 88, overdue: 1, tone: 'g' }, { pct: 64, overdue: 7, tone: 'h' },
-  { pct: 73, overdue: 3, tone: 'm' }, { pct: 85, overdue: 1, tone: 'g' }
-]
-const remediation = computed(() => orgRows.value.map((o, i) => ({ name: o.name, ...REMED_POOL[i % REMED_POOL.length] })))
+// ---- 整改完成率 · 分组织（真值：VERIFIED/总数，逾期=过期未验证）----
+const remediation = computed(() => orgSummary.value
+  .filter((r) => r.remedTotal > 0 || r.remedOverdue > 0)
+  .map((r) => ({
+    name: r.orgName, pct: r.remedPct, overdue: r.remedOverdue,
+    tone: r.remedPct >= 85 ? 'g' : (r.remedPct >= 70 ? 'm' : 'h')
+  })))
 
 // ---- KRI 持续监控（含迷你折线 points 与状态色）----
 const kris = [

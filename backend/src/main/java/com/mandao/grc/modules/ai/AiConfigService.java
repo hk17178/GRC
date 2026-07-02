@@ -16,10 +16,12 @@ public class AiConfigService {
 
     private final AiProviderConfigRepository repo;
     private final ConfigCrypto crypto;
+    private final AiGovernanceService governance;
 
-    public AiConfigService(AiProviderConfigRepository repo, ConfigCrypto crypto) {
+    public AiConfigService(AiProviderConfigRepository repo, ConfigCrypto crypto, AiGovernanceService governance) {
         this.repo = repo;
         this.crypto = crypto;
+        this.governance = governance;
     }
 
     private AiProviderConfig load() {
@@ -45,6 +47,8 @@ public class AiConfigService {
     @Transactional
     public ConfigView update(String provider, String baseUrl, String model, int maxTokens,
                              boolean enabled, String apiKeyPlain, String actor) {
+        // 模型白名单管控（V42）：存在启用的白名单时，非 LOCAL 模型必须命中
+        governance.checkModelAllowed(provider, model);
         AiProviderConfig c = load();
         c.apply(provider, baseUrl, model, maxTokens, enabled, actor);
         if (apiKeyPlain != null && !apiKeyPlain.isBlank()) {

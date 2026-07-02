@@ -39,7 +39,7 @@
           <table style="min-width: 800px">
             <thead><tr>
               <th>{{ $t('fb.th.type') }}</th><th>{{ $t('fb.th.title') }}</th><th>{{ $t('fb.th.submitter') }}</th>
-              <th>{{ $t('fb.th.handler') }}</th><th>{{ $t('fb.th.status') }}</th><th>{{ $t('fb.th.op') }}</th>
+              <th>{{ $t('fb.th.handler') }}</th><th>{{ $t('fb.th.status') }}</th><th>出站</th><th>{{ $t('fb.th.op') }}</th>
             </tr></thead>
             <tbody>
               <tr v-for="f in items" :key="f.id">
@@ -48,14 +48,21 @@
                 <td>{{ f.submitter || '—' }}</td>
                 <td>{{ f.handler || '—' }}</td>
                 <td><span class="st" :class="stCls(f.status)"><span class="d"></span>{{ $t('fb.status.' + f.status) }}</span></td>
+                <td><span v-if="f.outboundStatus" class="obtag" :class="f.outboundStatus">{{ OB_LABEL[f.outboundStatus] }}</span><span v-else class="muted">—</span></td>
                 <td class="ops">
                   <button v-if="f.status === 'SUBMITTED'" class="btn ghost sm" :disabled="busyId === f.id" @click="openTriage(f)">{{ $t('fb.op.triage') }}</button>
                   <button v-if="f.status === 'IN_PROGRESS'" class="btn sm" :disabled="busyId === f.id" @click="openResolve(f)">{{ $t('fb.op.resolve') }}</button>
                   <button v-if="f.status === 'RESOLVED'" class="btn ghost sm" :disabled="busyId === f.id" @click="act(f, 'close')">{{ $t('fb.op.close') }}</button>
                   <button v-if="f.status === 'SUBMITTED' || f.status === 'IN_PROGRESS'" class="btn ghost sm danger" :disabled="busyId === f.id" @click="act(f, 'reject')">{{ $t('fb.op.reject') }}</button>
+                  <button v-if="(f.status === 'RESOLVED' || f.status === 'CLOSED') && (!f.outboundStatus || f.outboundStatus === 'REJECTED')"
+                          class="btn ghost sm" @click="openOutbound(f)">出站回复</button>
+                  <template v-if="f.outboundStatus === 'PENDING_APPROVAL'">
+                    <button class="btn sm" @click="obDecide(f, 'approve')">出站批准</button>
+                    <button class="btn ghost sm danger" @click="obDecide(f, 'reject')">出站驳回</button>
+                  </template>
                 </td>
               </tr>
-              <tr v-if="!items.length"><td colspan="6" class="emptyrow">{{ loadError || $t('fb.empty') }}</td></tr>
+              <tr v-if="!items.length"><td colspan="7" class="emptyrow">{{ loadError || $t('fb.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -78,6 +85,22 @@
           <div class="modal-actions">
             <button class="btn ghost" @click="showCreate = false">{{ $t('common.cancel') }}</button>
             <button class="btn" :disabled="!cf.title || saving" @click="submitCreate">{{ saving ? $t('common.submitting') : $t('fb.create.ok') }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 出站回复弹窗（V43：对外回复须经审批）-->
+      <div v-if="showOutbound" class="modal-mask" @click.self="showOutbound = false">
+        <div class="modal-card">
+          <h3>出站回复（须审批）</h3>
+          <p class="muted" style="margin:-6px 0 12px">#{{ obTarget && obTarget.id }} · {{ obTarget && obTarget.title }}<br/>回复稿经审批通过后方可对外发送。</p>
+          <label class="fld">对外回复稿
+            <textarea v-model="obText" rows="4" placeholder="对外回复内容…" style="display:block;width:100%;margin-top:5px;padding:8px 11px;border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-1);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical"></textarea>
+          </label>
+          <p v-if="opError" class="cerr">{{ opError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showOutbound = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!obText.trim() || saving" @click="submitOutbound">{{ saving ? $t('common.submitting') : '提交审批' }}</button>
           </div>
         </div>
       </div>
@@ -120,6 +143,25 @@ async function load() {
   try { items.value = await api.get('/feedback') } catch (e) { loadError.value = e.message; items.value = [] }
 }
 const stCls = (s) => ({ SUBMITTED: 'wait', IN_PROGRESS: 'doing', RESOLVED: 'ok', CLOSED: 'ok', REJECTED: 'over' }[s] || 'wait')
+
+// ===== 出站审批（V43）=====
+const OB_LABEL = { PENDING_APPROVAL: '待审批', APPROVED: '已批准', REJECTED: '已驳回' }
+const showOutbound = ref(false)
+const obTarget = ref(null)
+const obText = ref('')
+function openOutbound(f) { obTarget.value = f; obText.value = f.outboundReply || ''; opError.value = ''; showOutbound.value = true }
+async function submitOutbound() {
+  saving.value = true; opError.value = ''
+  try {
+    await api.post('/feedback/' + obTarget.value.id + '/outbound', { reply: obText.value })
+    showOutbound.value = false; await load()
+  } catch (e) { opError.value = e.message } finally { saving.value = false }
+}
+async function obDecide(f, op) {
+  opError.value = ''
+  try { await api.post('/feedback/' + f.id + '/outbound/' + op, {}); await load() }
+  catch (e) { opError.value = e.message }
+}
 
 // ===== 看板视图（按状态分列）=====
 const viewMode = ref('list')
@@ -199,6 +241,12 @@ td.ops { display: flex; gap: 6px; }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+
+/* 出站审批标签 */
+.obtag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; }
+.obtag.PENDING_APPROVAL { background: var(--warning-tint); color: #a87d22; }
+.obtag.APPROVED { background: var(--success-tint, rgba(40,150,90,.12)); color: var(--success); }
+.obtag.REJECTED { background: var(--danger-tint); color: var(--danger); }
 
 /* ===== 列表/看板 切换与看板 ===== */
 .seg { display: inline-flex; border: 1px solid var(--surface-border); border-radius: var(--radius-md); overflow: hidden; }

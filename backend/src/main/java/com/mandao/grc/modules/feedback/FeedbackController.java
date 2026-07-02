@@ -79,6 +79,37 @@ public class FeedbackController {
         return service.reject(id, req == null ? null : req.reason(), actor(user));
     }
 
+    /** 发起出站回复审批（V43：对外回复须经审批）。 */
+    @PostMapping("/{id}/outbound")
+    @RequiresPermission("feedback")
+    public Feedback submitOutbound(@PathVariable Long id,
+                                   @RequestBody OutboundRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.submitOutbound(id, req.reply(), actor(user));
+    }
+
+    /** 出站审批通过（回复可对外发送）。 */
+    @PostMapping("/{id}/outbound/approve")
+    @RequiresPermission("feedback")
+    public Feedback approveOutbound(@PathVariable Long id,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideOutbound(id, com.mandao.grc.modules.workflow.ApprovalDecision.APPROVED, actor(user), null);
+    }
+
+    /** 出站审批驳回（可改稿重发）。 */
+    @PostMapping("/{id}/outbound/reject")
+    @RequiresPermission("feedback")
+    public Feedback rejectOutbound(@PathVariable Long id,
+                                   @RequestBody(required = false) ReasonRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.decideOutbound(id, com.mandao.grc.modules.workflow.ApprovalDecision.REJECTED,
+                actor(user), req == null ? null : req.reason());
+    }
+
+    /** 出站回复请求体。 */
+    public record OutboundRequest(String reply) {
+    }
+
     private String actor(String user) {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }

@@ -141,7 +141,12 @@ public class WorkbenchService {
         return pi == null ? null : pi.getBusinessKey();
     }
 
-    /** 通知中心：可见组织范围内调度内核派发的提醒（新→旧）。 */
+    /**
+     * 通知中心：可见组织范围内调度内核派发的提醒（新→旧）。
+     *
+     * 降噪（V41）：同一 (object_type, object_id, event_type) 的多次提醒（不同阈值日各产一条）
+     * 合并为最新一条展示，mergedCount 记合并总数——避免同一事项在列表里刷屏。
+     */
     @Transactional(readOnly = true)
     public List<NotificationView> notifications(Integer limit) {
         List<Long> orgs = IsolationContext.get();
@@ -153,21 +158,82 @@ public class WorkbenchService {
         // reminder_dispatch_log 未启 RLS，显式按可见组织过滤；created_at 用 CAST 转 epoch 毫秒
         // （避免 Hibernate 原生 SQL 把 ::bigint 的 : 误判为命名参数）。
         Query q = em.createNativeQuery(
-                "SELECT object_type, object_id, event_type, threshold_key, org_id, "
-                        + "CAST(EXTRACT(EPOCH FROM created_at) * 1000 AS bigint) AS created_ms "
-                        + "FROM reminder_dispatch_log WHERE org_id IN (:orgs) ORDER BY id DESC LIMIT " + lim);
+                "SELECT id, object_type, object_id, event_type, threshold_key, org_id, "
+                        + "CAST(EXTRACT(EPOCH FROM created_at) * 1000 AS bigint) AS created_ms, "
+                        + "cnt, read_by, "
+                        + "COALESCE(CAST(EXTRACT(EPOCH FROM read_at) * 1000 AS bigint), 0) AS read_ms "
+                        + "FROM (SELECT *, "
+                        + "row_number() OVER (PARTITION BY object_type, object_id, event_type ORDER BY id DESC) AS rn, "
+                        + "count(*) OVER (PARTITION BY object_type, object_id, event_type) AS cnt "
+                        + "FROM reminder_dispatch_log WHERE org_id IN (:orgs)) t "
+                        + "WHERE rn = 1 ORDER BY id DESC LIMIT " + lim);
         q.setParameter("orgs", orgs);
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
         return rows.stream()
                 .map(r -> new NotificationView(
-                        (String) r[0],
-                        ((Number) r[1]).longValue(),
-                        (String) r[2],
+                        ((Number) r[0]).longValue(),
+                        (String) r[1],
+                        ((Number) r[2]).longValue(),
                         (String) r[3],
-                        ((Number) r[4]).longValue(),
-                        ((Number) r[5]).longValue()))
+                        (String) r[4],
+                        ((Number) r[5]).longValue(),
+                        ((Number) r[6]).longValue(),
+                        ((Number) r[7]).longValue(),
+                        (String) r[8],
+                        ((Number) r[9]).longValue()))
+                .toList();
+    }
+
+    /**
+     * 通知回执（V41）：确认收到某条提醒（写 read_by/read_at）。
+     * 仅能确认可见组织内的提醒；重复确认幂等（保留首次回执人）。
+     */
+    @Transactional
+    public void ackNotification(Long id, String actor) {
+        List<Long> orgs = IsolationContext.get();
+        if (orgs == null || orgs.isEmpty()) {
+            return;
+        }
+        em.createNativeQuery(
+                        "UPDATE reminder_dispatch_log SET read_by = :actor, read_at = now() "
+                                + "WHERE id = :id AND org_id IN (:orgs) AND read_by IS NULL")
+                .setParameter("actor", actor)
+                .setParameter("id", id)
+                .setParameter("orgs", orgs)
+                .executeUpdate();
+    }
+
+    /** 简报条目：某事件类型近 N 天的提醒次数与未回执数。 */
+    public record DigestRow(String eventType, long total, long unread) {
+    }
+
+    /**
+     * 定期简报（V41）：近 N 天可见组织范围内的提醒按事件类型聚合（总数/未回执数），
+     * 供通知中心「定期简报」卡展示；管理层文字版简报由 AI 生成材料（/api/ai/generate）承接。
+     */
+    @Transactional(readOnly = true)
+    public List<DigestRow> digest(Integer days) {
+        List<Long> orgs = IsolationContext.get();
+        if (orgs == null || orgs.isEmpty()) {
+            return List.of();
+        }
+        int d = (days == null || days <= 0) ? 7 : Math.min(days, 90);
+        Query q = em.createNativeQuery(
+                "SELECT event_type, count(*), count(*) FILTER (WHERE read_by IS NULL) "
+                        + "FROM reminder_dispatch_log "
+                        + "WHERE org_id IN (:orgs) AND created_at > now() - CAST(:days || ' days' AS interval) "
+                        + "GROUP BY event_type ORDER BY count(*) DESC");
+        q.setParameter("orgs", orgs);
+        q.setParameter("days", String.valueOf(d));
+
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = q.getResultList();
+        return rows.stream()
+                .map(r -> new DigestRow((String) r[0],
+                        ((Number) r[1]).longValue(),
+                        ((Number) r[2]).longValue()))
                 .toList();
     }
 }

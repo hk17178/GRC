@@ -564,7 +564,7 @@ export default {
     seg: { all: 'Group', pay: 'Payment', consumer: 'Consumer Fin.', tech: 'Tech' },
     due: { pending: 'Pending {v}', overdue: 'Overdue {v}' },
 
-    scaffoldNote: 'KPI cards above are live cross-module backend aggregates; the heat matrix / framework attainment below are prototype visual scaffolding (no backend aggregate yet).',
+    scaffoldNote: 'KPI cards / heat matrix / remediation rates are live backend aggregates (per visible org); KRI sparklines and framework attainment remain prototype scaffolding.',
     // KPI cards (l=label, s=hint) — bound to /api/dashboard/summary live counts
     kpi: {
       openRisk: { l: 'Open Risk Findings', s: 'Risk assessment · in treatment' },
@@ -579,15 +579,19 @@ export default {
 
     // heatmap
     heat: {
-      title: 'Subsidiary × Domain Heatmap',
-      sub: 'Composite risk 0–100',
+      title: 'Org × Domain Heatmap',
+      sub: 'Open item counts (real data)',
       domain: {
         infosec: 'InfoSec',
         data: 'Data Compl.',
         continuity: 'Continuity',
         thirdparty: 'Third-party',
         reg: 'Regulatory',
-        control: 'Internal Ctrl'
+        control: 'Internal Ctrl',
+        risk: 'Risk Exposure',
+        vendor: 'Third-party',
+        audit: 'Audit Findings',
+        remed: 'Remediation'
       }
     },
 

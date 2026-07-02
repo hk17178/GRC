@@ -58,7 +58,10 @@
                   <td>{{ d.title }}</td>
                   <td><span class="pill">{{ $t('ai.stype.' + d.sourceType) }}</span></td>
                   <td class="num">{{ d.chunkCount }}</td>
-                  <td><span class="st" :class="d.status === 'INDEXED' ? 'ok' : 'wait'"><span class="d"></span>{{ $t('ai.dstatus.' + d.status) }}</span></td>
+                  <td>
+                    <span class="st" :class="d.status === 'INDEXED' ? 'ok' : 'wait'"><span class="d"></span>{{ $t('ai.dstatus.' + d.status) }}</span>
+                    <button v-if="canWrite('ai')" class="doc-del" title="删除文档及切块" @click.stop="delDoc(d)">✕</button>
+                  </td>
                 </tr>
                 <tr v-if="!docs.length"><td colspan="4" class="emptyrow">{{ $t('ai.kbEmpty') }}</td></tr>
               </tbody>
@@ -198,6 +201,12 @@ async function openChunks(d) {
   finally { chunkBusy.value = false }
 }
 
+// 删除文档（连同切块与向量；后端 RLS 保证只能删可见组织的）
+async function delDoc(d) {
+  if (!window.confirm(`确认删除知识源「${d.title}」及其全部切块？`)) return
+  try { await api.del('/ai/documents/' + d.id); await loadDocs() } catch (e) { opError.value = e.message }
+}
+
 // ===== M5：生成报送/汇报材料（需求 7.5.1）=====
 const material = ref(null)
 const genBusy = ref(null)
@@ -278,6 +287,8 @@ tbody td { padding: 8px 12px; border-top: 1px solid var(--border-subtle); font-s
 .mat-warn { margin-top: 10px; padding: 9px 12px; font-size: 12px; color: var(--text-2); background: var(--warning-tint); border-left: 3px solid #a87d22; border-radius: var(--radius-md); }
 .hint { color: var(--text-3); font-size: 12.5px; padding: 14px; text-align: center; }
 /* 知识库切块管理 */
+.doc-del { border: 0; background: none; color: var(--text-3); font-size: 11px; cursor: pointer; margin-left: 8px; padding: 2px 5px; border-radius: 4px; }
+.doc-del:hover { color: var(--danger); background: var(--danger-tint); }
 .doc-row { cursor: pointer; }
 .doc-row:hover td { background: var(--accent-weak); }
 .modal-card.wide { width: 640px; }

@@ -14,14 +14,22 @@ import org.springframework.web.bind.annotation.RestController;
 public class DashboardController {
 
     private final DashboardService service;
+    private final OrgSummaryService orgSummaryService;
 
-    public DashboardController(DashboardService service) {
+    public DashboardController(DashboardService service, OrgSummaryService orgSummaryService) {
         this.service = service;
+        this.orgSummaryService = orgSummaryService;
     }
 
     /** 当前主体可见范围内的合规态势汇总。 */
     @GetMapping("/summary")
     public DashboardSummary summary() {
         return service.summary();
+    }
+
+    /** 按组织聚合：热力矩阵六域真值计数 + 整改完成率（驾驶舱下钻用）。 */
+    @GetMapping("/org-summary")
+    public java.util.List<OrgSummaryService.OrgRow> orgSummary() {
+        return orgSummaryService.orgSummary();
     }
 }

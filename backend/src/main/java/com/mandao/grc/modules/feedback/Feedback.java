@@ -61,6 +61,14 @@ public class Feedback {
     @Column(columnDefinition = "TEXT")
     private String resolution;
 
+    /** 对外回复稿（V43 出站审批：经审批后方可对外发送）。 */
+    @Column(name = "outbound_reply", columnDefinition = "TEXT")
+    private String outboundReply;
+
+    /** 出站审批状态：NULL 未发起 / PENDING_APPROVAL / APPROVED / REJECTED。 */
+    @Column(name = "outbound_status", length = 20)
+    private String outboundStatus;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -110,6 +118,14 @@ public class Feedback {
         this.resolution = resolution;
     }
 
+    /** 由 Service 在出站审批链路上回写回复稿与出站状态。 */
+    void setOutbound(String reply, String status) {
+        if (reply != null) {
+            this.outboundReply = reply;
+        }
+        this.outboundStatus = status;
+    }
+
     public Long getId() { return id; }
     public Long getOrgId() { return orgId; }
     public FeedbackType getType() { return type; }
@@ -119,6 +135,8 @@ public class Feedback {
     public FeedbackStatus getStatus() { return status; }
     public String getHandler() { return handler; }
     public String getResolution() { return resolution; }
+    public String getOutboundReply() { return outboundReply; }
+    public String getOutboundStatus() { return outboundStatus; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }

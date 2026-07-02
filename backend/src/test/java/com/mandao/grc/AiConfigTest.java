@@ -61,6 +61,8 @@ class AiConfigTest {
              Statement s = owner.createStatement()) {
             s.executeUpdate("UPDATE ai_provider_config SET provider='LOCAL', base_url=NULL, model=NULL, "
                     + "api_key_enc=NULL, key_hint=NULL, enabled=true WHERE id=1");
+            // 清掉 V42 白名单种子：本测试用任意模型 id 验证密钥加解密，白名单管控由 AiGovernanceTest 覆盖
+            s.executeUpdate("DELETE FROM ai_governance WHERE kind = 'MODEL_WHITELIST'");
         }
     }
 

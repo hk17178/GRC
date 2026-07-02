@@ -1,5 +1,7 @@
 package com.mandao.grc.modules.audit.management;
 
+import com.mandao.grc.modules.assessment.Assessment;
+import com.mandao.grc.modules.assessment.AssessmentService;
 import com.mandao.grc.modules.audit.HashChainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,10 +30,13 @@ public class AuditPlanService {
 
     private final AuditPlanRepository repository;
     private final HashChainService hashChainService;
+    private final AssessmentService assessmentService;
 
-    public AuditPlanService(AuditPlanRepository repository, HashChainService hashChainService) {
+    public AuditPlanService(AuditPlanRepository repository, HashChainService hashChainService,
+                            AssessmentService assessmentService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
+        this.assessmentService = assessmentService;
     }
 
     /** 列出当前主体可见组织范围内的审计计划（无 org 过滤，靠切面 + RLS）。 */
@@ -113,6 +118,46 @@ public class AuditPlanService {
         p.setStatus(AuditPlanStatus.CANCELLED);
         AuditPlan saved = repository.save(p);
         appendLog(saved, "AUDIT_PLAN_CANCEL", actor, "取消审计计划");
+        return saved;
+    }
+
+    // ---------- 检查表接表单引擎（V40，复用 M2 docx 表单引擎） ----------
+
+    /**
+     * 绑定检查表模板：把评估模板（docx 检查表）挂到审计计划上。
+     * 已执行（存在检查表评估）后不允许换绑，避免执行记录与模板脱节。
+     */
+    @Transactional
+    public AuditPlan bindChecklist(Long id, Long templateId, String actor) {
+        AuditPlan p = get(id);
+        if (p.getChecklistAssessmentId() != null) {
+            throw new IllegalStateException("检查表已执行（评估#" + p.getChecklistAssessmentId() + "），不允许换绑模板");
+        }
+        p.setChecklistTemplateId(templateId);
+        AuditPlan saved = repository.save(p);
+        appendLog(saved, "AUDIT_CHECKLIST_BIND", actor, "绑定检查表模板 template=" + templateId);
+        return saved;
+    }
+
+    /**
+     * 执行检查表：以绑定模板生成一份评估（复用表单引擎渲染/填写/导出全链路），回填评估 id。
+     * 幂等：已执行则直接返回当前计划（前端跳转既有评估继续填写）。
+     */
+    @Transactional
+    public AuditPlan startChecklist(Long id, String actor) {
+        AuditPlan p = get(id);
+        if (p.getChecklistAssessmentId() != null) {
+            return p;
+        }
+        if (p.getChecklistTemplateId() == null) {
+            throw new IllegalStateException("尚未绑定检查表模板，请先在计划上绑定模板");
+        }
+        Assessment a = assessmentService.create(p.getOrgId(), "审计检查表 · " + p.getTitle(),
+                actor, null, p.getChecklistTemplateId(), actor);
+        p.setChecklistAssessmentId(a.getId());
+        AuditPlan saved = repository.save(p);
+        appendLog(saved, "AUDIT_CHECKLIST_START", actor,
+                "执行检查表：生成评估#" + a.getId() + "（模板#" + p.getChecklistTemplateId() + "）");
         return saved;
     }
 

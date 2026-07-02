@@ -26,6 +26,7 @@
         <button :class="{ on: tab === 'plan' }" @click="tab = 'plan'">审计计划</button>
         <button :class="{ on: tab === 'finding' }" @click="tab = 'finding'">审计发现</button>
         <button :class="{ on: tab === 'remed' }" @click="tab = 'remed'">整改跟踪</button>
+        <button :class="{ on: tab === 'evidence' }" @click="tab = 'evidence'; loadEvidence()">证据库</button>
       </div>
 
       <!-- 审计计划 -->
@@ -47,7 +48,11 @@
                     <button v-if="p.status==='IN_PROGRESS'" class="mini" @click="planAction(p,'report')">出具报告</button>
                     <button v-if="p.status==='REPORTING'" class="mini" @click="planAction(p,'close')">关闭</button>
                     <button v-if="p.status==='PLANNED'||p.status==='IN_PROGRESS'" class="mini danger" @click="planAction(p,'cancel')">取消</button>
+                    <button v-if="!p.checklistTemplateId && !p.checklistAssessmentId" class="mini" @click="openBind(p)">绑定检查表</button>
+                    <button v-else-if="!p.checklistAssessmentId" class="mini" @click="startChecklist(p)">执行检查表</button>
+                    <button v-else class="mini" @click="gotoChecklist(p)">检查表 #{{ p.checklistAssessmentId }}</button>
                   </template>
+                  <button class="mini" @click="exportDossier(p)">卷宗导出</button>
                 </td>
               </tr>
               <tr v-if="!plans.length"><td colspan="6" class="emptyrow">暂无内审计划，点「＋ 新建审计计划」。</td></tr>
@@ -122,7 +127,80 @@
         </div>
       </div>
 
-      <p class="note">检查表执行（基于表单引擎的等保/ISO 审计检查表）将在后续接入，复用风险评估同一套 .docx 表单引擎。</p>
+      <!-- 证据库（V44：上传/反向取证/关联回溯）-->
+      <div v-show="tab === 'evidence'" class="card">
+        <div class="ch">
+          <h3>证据库</h3><span class="cnt">{{ evidences.length }}</span>
+          <span class="sub">SHA-256 指纹固化 · 反向取证可校验篡改</span>
+          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openEvUpload">＋ 上传证据</button>
+        </div>
+        <div class="cb" style="overflow-x:auto;padding-top:0">
+          <table style="min-width:860px">
+            <thead><tr><th>编号</th><th>名称</th><th>文件</th><th>关联对象</th><th>指纹（SHA-256 前 12 位）</th><th>上传</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="e in evidences" :key="e.id">
+                <td class="code">EV-{{ e.id }}</td>
+                <td><b>{{ e.name }}</b></td>
+                <td class="muted">{{ e.fileName || '—' }} · {{ (e.sizeBytes / 1024).toFixed(1) }}KB</td>
+                <td class="muted">
+                  <span v-if="e.planId">AP-{{ e.planId }} </span>
+                  <span v-if="e.findingId">AF-{{ e.findingId }} </span>
+                  <span v-if="e.remediationId">RO-{{ e.remediationId }}</span>
+                </td>
+                <td class="code" :title="e.sha256">{{ (e.sha256 || '').slice(0, 12) }}…</td>
+                <td class="muted">{{ e.uploadedBy || '—' }}</td>
+                <td class="ops">
+                  <a class="mini" :href="'/api/evidence/' + e.id + '/download'" target="_blank">下载</a>
+                  <button class="mini" @click="verifyEv(e)">反向取证</button>
+                </td>
+              </tr>
+              <tr v-if="!evidences.length"><td colspan="7" class="emptyrow">暂无证据，点「＋ 上传证据」并关联 计划/发现/整改单。</td></tr>
+            </tbody>
+          </table>
+          <div v-if="verifyResult" class="verify-box" :class="verifyResult.intact ? 'ok' : 'bad'">
+            <b>{{ verifyResult.intact ? '✓ 完整性校验通过' : '✕ 指纹不一致——文件可能被篡改！' }}</b>
+            <span>EV-{{ verifyResult.evidenceId }} · 固化指纹 {{ verifyResult.storedSha256.slice(0, 16) }}… · 现算 {{ verifyResult.actualSha256.slice(0, 16) }}…</span>
+            <span v-if="verifyResult.planTitle">回溯：计划「{{ verifyResult.planTitle }}」</span>
+            <span v-if="verifyResult.findingTitle">发现「{{ verifyResult.findingTitle }}」</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="note">检查表执行复用风险评估同一套 .docx 表单引擎：在计划上「绑定检查表」（选评估模板）→「执行检查表」生成评估 → 到风险评估页填写/导出。</p>
+
+      <!-- 上传证据弹窗 -->
+      <div v-if="showEvUpload" class="modal-mask" @click.self="showEvUpload = false">
+        <div class="modal-card">
+          <h3>上传证据</h3>
+          <label class="fld">证据名称/说明<input v-model="ev.name" placeholder="如 防火墙策略截图" /></label>
+          <label class="fld">文件<input type="file" @change="onEvFile" /></label>
+          <label class="fld">关联审计计划<select v-model.number="ev.planId"><option :value="0">— 不关联 —</option><option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option></select></label>
+          <label class="fld">关联审计发现<select v-model.number="ev.findingId"><option :value="0">— 不关联 —</option><option v-for="f in findings" :key="f.id" :value="f.id">AF-{{ f.id }} · {{ f.title }}</option></select></label>
+          <label class="fld">所属组织<select v-model.number="ev.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showEvUpload = false">取消</button>
+            <button class="btn" :disabled="!ev.name || !ev.file || (!ev.planId && !ev.findingId) || saving" @click="submitEvidence">{{ saving ? '上传中…' : '上传' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 绑定检查表模板弹窗 -->
+      <div v-if="showBind" class="modal-mask" @click.self="showBind = false">
+        <div class="modal-card">
+          <h3>绑定检查表模板</h3>
+          <p class="muted" style="margin:-6px 0 12px">AP-{{ bindTarget && bindTarget.id }} · {{ bindTarget && bindTarget.title }}（模板须已在风险评估页上传 docx 表单）</p>
+          <label class="fld">评估模板<select v-model.number="bindTemplateId">
+            <option :value="0" disabled>— 选择模板 —</option>
+            <option v-for="t in templates" :key="t.id" :value="t.id">#{{ t.id }} · {{ t.name }}</option>
+          </select></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showBind = false">取消</button>
+            <button class="btn" :disabled="!bindTemplateId || saving" @click="submitBind">{{ saving ? '提交中…' : '确认绑定' }}</button>
+          </div>
+        </div>
+      </div>
 
       <!-- 新建计划弹窗 -->
       <div v-if="showPlan" class="modal-mask" @click.self="showPlan = false">
@@ -226,6 +304,66 @@ async function remAction(r, action) {
   try { await api.post('/remediation-orders/' + r.id + '/' + action, {}); await loadRemed() } catch (e) { opErr.value = e.message }
 }
 
+// ===== 检查表接表单引擎（V40）：绑定评估模板 → 执行生成评估 → 跳风险评估页填写 =====
+const templates = ref([])
+const showBind = ref(false)
+const bindTarget = ref(null)
+const bindTemplateId = ref(0)
+async function openBind(p) {
+  bindTarget.value = p; bindTemplateId.value = 0; opErr.value = ''
+  try { templates.value = await api.get('/assessment-templates') } catch (e) { templates.value = [] }
+  showBind.value = true
+}
+async function submitBind() {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.post('/audit-plans/' + bindTarget.value.id + '/checklist/bind', { templateId: bindTemplateId.value })
+    showBind.value = false; await loadPlans()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function startChecklist(p) {
+  opErr.value = ''; opMsg.value = ''
+  try {
+    const saved = await api.post('/audit-plans/' + p.id + '/checklist/start', {})
+    opMsg.value = '已生成检查表评估 #' + saved.checklistAssessmentId + '，到风险评估页填写'
+    await loadPlans(); setTimeout(() => (opMsg.value = ''), 3000)
+  } catch (e) { opErr.value = e.message }
+}
+function gotoChecklist(p) { window.location.hash = '#/risk' }
+
+// ===== 证据库（V44）=====
+const evidences = ref([])
+const showEvUpload = ref(false)
+const verifyResult = ref(null)
+const ev = reactive({ name: '', planId: 0, findingId: 0, orgId: 12, file: null })
+async function loadEvidence() {
+  try { evidences.value = await api.get('/evidence') } catch (e) { evidences.value = [] }
+}
+function openEvUpload() {
+  Object.assign(ev, { name: '', planId: planId.value || 0, findingId: 0, orgId: 12, file: null })
+  opErr.value = ''; showEvUpload.value = true
+}
+function onEvFile(e) { ev.file = e.target.files && e.target.files[0] }
+async function submitEvidence() {
+  saving.value = true; opErr.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('file', ev.file)
+    fd.append('name', ev.name)
+    fd.append('orgId', ev.orgId)
+    if (ev.planId) fd.append('planId', ev.planId)
+    if (ev.findingId) fd.append('findingId', ev.findingId)
+    await api.upload('/evidence', fd)
+    showEvUpload.value = false; await loadEvidence()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function verifyEv(e) {
+  verifyResult.value = null
+  try { verifyResult.value = await api.get('/evidence/' + e.id + '/verify') } catch (err) { opErr.value = err.message }
+}
+// 卷宗导出：计划全貌（发现+整改+证据指纹清单）打包 .docx
+function exportDossier(p) { window.open('/api/audit-plans/' + p.id + '/dossier', '_blank') }
+
 // 新建计划
 const showPlan = ref(false)
 const pf = reactive({ title: '', planStartDate: '', orgId: 12 })
@@ -323,4 +461,10 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* V44 证据库/反向取证 */
+a.mini { text-decoration: none; display: inline-block; }
+.verify-box { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; }
+.verify-box.ok { background: var(--success-tint, rgba(40,150,90,.1)); color: var(--success); border-left: 3px solid var(--success); }
+.verify-box.bad { background: var(--danger-tint); color: var(--danger); border-left: 3px solid var(--danger); }
+.verify-box span { color: var(--text-2); }
 </style>

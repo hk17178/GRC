@@ -73,6 +73,57 @@
             <p class="warn">🔒 密钥经 AES 加密落库、接口不回显明文；上线须配置环境变量 <b>GRC_CONFIG_SECRET</b>（加密主密钥）。我（助手）不会代你输入真实密钥。</p>
           </div>
         </div>
+
+        <!-- 模型白名单（V42）：有启用条目时，非本地模型必须命中白名单方可保存 -->
+        <div class="card">
+          <div class="ch"><h3>模型白名单</h3><span class="sub">启用条目存在时强制管控</span></div>
+          <div class="cb">
+            <div v-for="w in whitelist" :key="w.id" class="gov-row">
+              <b class="mono">{{ w.name }}</b>
+              <span class="muted2">{{ w.detail || '' }}</span>
+              <span class="gap"></span>
+              <template v-if="writable">
+                <button class="mini" @click="toggleGov(w)">{{ w.enabled ? '停用' : '启用' }}</button>
+                <button class="mini danger" @click="delGov(w)">删</button>
+              </template>
+              <span v-else class="st" :class="w.enabled ? 'ok' : 'wait'"><span class="d"></span>{{ w.enabled ? '启用' : '停用' }}</span>
+            </div>
+            <div v-if="!whitelist.length" class="muted2" style="padding:8px 0">无白名单条目 = 未启用管控（任意模型可保存）。</div>
+            <div v-if="writable" class="gov-add">
+              <input v-model="newModel" placeholder="模型 id，如 qwen-plus" />
+              <input v-model="newModelNote" placeholder="备注（可选）" />
+              <button class="btn sm" :disabled="!newModel.trim()" @click="addGov('MODEL_WHITELIST', newModel, newModelNote)">加入白名单</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 提示词模板（V42）：材料生成/摘要等场景的系统提示词集中管理 -->
+        <div class="card">
+          <div class="ch"><h3>提示词模板</h3><span class="sub">系统提示词集中管理</span></div>
+          <div class="cb">
+            <div v-for="p in prompts" :key="p.id" class="gov-item">
+              <div class="gov-row">
+                <b>{{ p.name }}</b>
+                <span class="gap"></span>
+                <template v-if="writable">
+                  <button class="mini" @click="editGov(p)">{{ editId === p.id ? '收起' : '编辑' }}</button>
+                  <button class="mini" @click="toggleGov(p)">{{ p.enabled ? '停用' : '启用' }}</button>
+                  <button class="mini danger" @click="delGov(p)">删</button>
+                </template>
+              </div>
+              <div v-if="editId === p.id" class="gov-edit">
+                <textarea v-model="editText" rows="4"></textarea>
+                <button class="btn sm" @click="saveGov(p)">保存正文</button>
+              </div>
+              <div v-else class="muted2 clamp">{{ p.detail }}</div>
+            </div>
+            <div v-if="writable" class="gov-add">
+              <input v-model="newPrompt" placeholder="模板名，如 条款级变更摘要" />
+              <button class="btn sm" :disabled="!newPrompt.trim()" @click="addGov('PROMPT_TEMPLATE', newPrompt, '')">新建模板</button>
+            </div>
+            <p v-if="govErr" class="err-msg">{{ govErr }}</p>
+          </div>
+        </div>
       </div>
     </section>
   </AppShell>
@@ -120,7 +171,46 @@ async function save() {
   } catch (e) { saveErr.value = e.message } finally { saving.value = false }
 }
 
-onMounted(() => { loadStatus(); loadConfig() })
+// ===== AI 治理（V42）：模型白名单 + 提示词模板 =====
+const whitelist = ref([])
+const prompts = ref([])
+const newModel = ref('')
+const newModelNote = ref('')
+const newPrompt = ref('')
+const govErr = ref('')
+const editId = ref(null)
+const editText = ref('')
+async function loadGov() {
+  try { whitelist.value = await api.get('/ai/governance?kind=MODEL_WHITELIST') } catch (e) { whitelist.value = [] }
+  try { prompts.value = await api.get('/ai/governance?kind=PROMPT_TEMPLATE') } catch (e) { prompts.value = [] }
+}
+async function addGov(kind, name, detail) {
+  govErr.value = ''
+  try {
+    await api.post('/ai/governance', { kind, name: name.trim(), detail: detail || null })
+    newModel.value = ''; newModelNote.value = ''; newPrompt.value = ''
+    await loadGov()
+  } catch (e) { govErr.value = e.message }
+}
+async function toggleGov(g) {
+  try { await api.put('/ai/governance/' + g.id + '/enabled?enabled=' + (!g.enabled)); await loadGov() } catch (e) { govErr.value = e.message }
+}
+async function delGov(g) {
+  if (!window.confirm(`确认删除「${g.name}」？`)) return
+  try { await api.del('/ai/governance/' + g.id); await loadGov() } catch (e) { govErr.value = e.message }
+}
+function editGov(p) {
+  if (editId.value === p.id) { editId.value = null; return }
+  editId.value = p.id; editText.value = p.detail || ''
+}
+async function saveGov(p) {
+  try {
+    await api.put('/ai/governance/' + p.id, { kind: p.kind, name: p.name, detail: editText.value })
+    editId.value = null; await loadGov()
+  } catch (e) { govErr.value = e.message }
+}
+
+onMounted(() => { loadStatus(); loadConfig(); loadGov() })
 </script>
 
 <style scoped>
@@ -161,4 +251,16 @@ onMounted(() => { loadStatus(); loadConfig() })
 .acts { display: flex; align-items: center; gap: 12px; }
 .ok-msg { color: var(--success); font-weight: 600; font-size: 12px; }
 .err-msg { color: var(--danger); font-size: 12px; }
+/* ===== AI 治理（白名单/提示词）===== */
+.gov-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+.gov-row .gap { flex: 1; }
+.mono { font-family: var(--font-mono, monospace); }
+.muted2 { color: var(--text-3); font-size: 11.5px; }
+.clamp { padding: 4px 0 8px; line-height: 1.6; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gov-item { margin-bottom: 4px; }
+.gov-add { display: flex; gap: 8px; margin-top: 10px; }
+.gov-add input { flex: 1; height: 32px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
+.gov-edit textarea { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12.5px; font-family: inherit; line-height: 1.6; resize: vertical; }
+.mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; }
+.mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 </style>

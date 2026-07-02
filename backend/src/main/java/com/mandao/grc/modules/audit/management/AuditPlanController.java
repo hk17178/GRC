@@ -83,11 +83,32 @@ public class AuditPlanController {
         return service.cancel(id, actor(user));
     }
 
+    /** 绑定检查表模板（复用 M2 表单引擎的评估模板；已执行后不可换绑）。 */
+    @PostMapping("/{id}/checklist/bind")
+    @RequiresPermission("extaudit")
+    public AuditPlan bindChecklist(@PathVariable Long id,
+                                   @RequestBody BindChecklistRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.bindChecklist(id, req.templateId(), actor(user));
+    }
+
+    /** 执行检查表：按绑定模板生成评估（幂等，已执行返回既有）。 */
+    @PostMapping("/{id}/checklist/start")
+    @RequiresPermission("extaudit")
+    public AuditPlan startChecklist(@PathVariable Long id,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.startChecklist(id, actor(user));
+    }
+
     private String actor(String user) {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
     /** 新建审计计划请求体。 */
     public record CreatePlanRequest(Long orgId, String title, AuditType auditType, LocalDate planStartDate) {
+    }
+
+    /** 绑定检查表模板请求体。 */
+    public record BindChecklistRequest(Long templateId) {
     }
 }

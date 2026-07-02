@@ -13,5 +13,13 @@ public enum ControlFramework {
     /** PCI DSS 支付卡行业数据安全标准。 */
     PCI_DSS,
     /** 人民银行相关监管要求。 */
-    PBOC
+    PBOC,
+    /** ISO/IEC 27701 隐私信息管理体系（P4 八体系扩展）。 */
+    ISO27701,
+    /** ISO/IEC 20000-1 IT 服务管理体系（P4 八体系扩展）。 */
+    ISO20000,
+    /** ISO 22301 业务连续性管理体系（P4 八体系扩展）。 */
+    ISO22301,
+    /** 个人信息保护法（PIPL）合规（P4 八体系扩展）。 */
+    PIPL
 }

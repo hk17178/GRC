@@ -19,6 +19,7 @@
         <button :class="{ on: tab === 'rule' }" @click="tab = 'rule'">通知规则</button>
         <button :class="{ on: tab === 'channel' }" @click="tab = 'channel'">通道管理</button>
         <button :class="{ on: tab === 'log' }" @click="tab = 'log'">提醒记录</button>
+        <button :class="{ on: tab === 'digest' }" @click="tab = 'digest'; loadDigest()">定期简报</button>
       </div>
 
       <!-- 通知场景 -->
@@ -99,18 +100,45 @@
       <div v-show="tab === 'log'" class="card">
         <div class="ch"><h3>{{ $t('notify.listTitle') }}</h3><span class="cnt">{{ items.length }}</span></div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <table style="min-width:720px">
-            <thead><tr><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.threshold') }}</th></tr></thead>
+          <table style="min-width:820px">
+            <thead><tr><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.threshold') }}</th><th>回执</th></tr></thead>
             <tbody>
-              <tr v-for="(n, i) in items" :key="i">
+              <tr v-for="n in items" :key="n.id">
                 <td class="num">{{ fmtTime(n.createdAtMs) }}</td>
-                <td><span class="evt">{{ n.eventType }}</span></td>
+                <td><span class="evt">{{ n.eventType }}</span><span v-if="n.mergedCount > 1" class="merge" title="同对象同事件多次提醒已合并降噪">×{{ n.mergedCount }}</span></td>
                 <td class="code">{{ n.objectType }}:{{ n.objectId }}</td>
                 <td class="num">{{ n.thresholdKey }}</td>
+                <td>
+                  <span v-if="n.readBy" class="ackd">✓ {{ n.readBy }} · {{ fmtTime(n.readAtMs) }}</span>
+                  <button v-else class="mini" @click="ack(n)">确认收到</button>
+                </td>
               </tr>
-              <tr v-if="!items.length"><td colspan="4" class="emptyrow">{{ loadError || $t('notify.empty') }}</td></tr>
+              <tr v-if="!items.length"><td colspan="5" class="emptyrow">{{ loadError || $t('notify.empty') }}</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- 定期简报（近 7 天提醒按事件类型聚合）-->
+      <div v-show="tab === 'digest'" class="card">
+        <div class="ch"><h3>定期简报</h3><span class="sub">近 {{ digestDays }} 天提醒聚合 · 未回执数</span>
+          <select class="sel" v-model.number="digestDays" @change="loadDigest" style="margin-left:auto">
+            <option :value="7">近 7 天</option><option :value="30">近 30 天</option><option :value="90">近 90 天</option>
+          </select>
+        </div>
+        <div class="cb" style="padding-top:0">
+          <table style="min-width:520px">
+            <thead><tr><th>事件类型</th><th>提醒次数</th><th>未回执</th></tr></thead>
+            <tbody>
+              <tr v-for="r in digestRows" :key="r.eventType">
+                <td><span class="evt">{{ r.eventType }}</span></td>
+                <td class="num">{{ r.total }}</td>
+                <td class="num"><span :style="r.unread ? 'color:var(--danger);font-weight:700' : ''">{{ r.unread }}</span></td>
+              </tr>
+              <tr v-if="!digestRows.length"><td colspan="3" class="emptyrow">该周期内无提醒。</td></tr>
+            </tbody>
+          </table>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">管理层文字版合规简报：到「AI 智能问答」页点「生成管理层简报」（基于全量真实统计，AI 初稿须人工复核）。</div>
         </div>
       </div>
 
@@ -182,6 +210,16 @@ async function loadLog() {
   try { items.value = await api.get('/workbench/notifications') } catch (e) { loadError.value = e.message; items.value = [] }
 }
 function fmtTime(ms) { return ms ? new Date(ms).toLocaleString() : '—' }
+
+// ===== 回执 + 定期简报（V41）=====
+async function ack(n) {
+  try { await api.post('/workbench/notifications/' + n.id + '/ack', {}); await loadLog() } catch (e) { /* 忽略 */ }
+}
+const digestDays = ref(7)
+const digestRows = ref([])
+async function loadDigest() {
+  try { digestRows.value = await api.get('/workbench/digest?days=' + digestDays.value) } catch (e) { digestRows.value = [] }
+}
 
 // 启停 / 删除
 async function toggle(c) {
@@ -257,4 +295,9 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* V41 回执/降噪/简报 */
+.merge { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 700; color: var(--accent-strong); background: var(--accent-weak); border-radius: 999px; padding: 1px 7px; }
+.ackd { font-size: 11px; color: var(--success); font-weight: 600; }
+.sel { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
+.ch .sub { font-size: 10.5px; color: var(--text-3); }
 </style>

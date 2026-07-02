@@ -1,6 +1,9 @@
 package com.mandao.grc.modules.feedback;
 
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.workflow.ApprovalDecision;
+import com.mandao.grc.modules.workflow.WorkflowService;
+import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,12 +24,20 @@ import java.util.List;
 @Service
 public class FeedbackService {
 
+    /** 出站审批业务类型（Flowable businessKey 前缀）。 */
+    public static final String OUTBOUND_BIZ_TYPE = "FEEDBACK_OUTBOUND";
+    /** 出站审批组：命中该角色组的登录人可在「我的审批」处理。 */
+    public static final String OUTBOUND_APPROVER_GROUP = "FEEDBACK_OUTBOUND_APPROVER";
+
     private final FeedbackRepository repository;
     private final HashChainService hashChainService;
+    private final WorkflowService workflowService;
 
-    public FeedbackService(FeedbackRepository repository, HashChainService hashChainService) {
+    public FeedbackService(FeedbackRepository repository, HashChainService hashChainService,
+                           WorkflowService workflowService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
+        this.workflowService = workflowService;
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +106,57 @@ public class FeedbackService {
         Feedback saved = repository.save(f);
         hashChainService.append(f.getOrgId(), "FEEDBACK_CLOSE", actor, "FEEDBACK:" + id, "关闭反馈");
         return saved;
+    }
+
+    // ===== 出站审批（V43）：对外回复须经审批后方可出站 =====
+
+    /**
+     * 发起出站审批：把对外回复稿提交 Flowable 审批（PENDING_APPROVAL）。
+     * 仅已办结/已关闭（RESOLVED/CLOSED）反馈可发起；REJECTED 出站稿可改稿重发。
+     */
+    @Transactional
+    public Feedback submitOutbound(Long id, String reply, String actor) {
+        if (reply == null || reply.isBlank()) {
+            throw new IllegalArgumentException("出站回复稿不能为空");
+        }
+        Feedback f = get(id);
+        if (f.getStatus() != FeedbackStatus.RESOLVED && f.getStatus() != FeedbackStatus.CLOSED) {
+            throw new IllegalStateException("仅已办结/已关闭反馈可发起出站回复，当前状态：" + f.getStatus());
+        }
+        if ("PENDING_APPROVAL".equals(f.getOutboundStatus()) || "APPROVED".equals(f.getOutboundStatus())) {
+            throw new IllegalStateException("出站回复已在审批中或已批准，不可重复发起");
+        }
+        f.setOutbound(reply, "PENDING_APPROVAL");
+        Feedback saved = repository.save(f);
+        workflowService.submit(OUTBOUND_BIZ_TYPE, saved.getId(), saved.getOrgId(), OUTBOUND_APPROVER_GROUP, actor);
+        hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_SUBMIT", actor, "FEEDBACK:" + id, "发起出站回复审批");
+        return saved;
+    }
+
+    /**
+     * 出站审批处置：完成 Flowable 任务并回写出站状态（通过=APPROVED 可对外发送 / 驳回=REJECTED 可改稿重发）。
+     * 审批与状态回写同事务原子（同 PolicyService.decide 范式）。
+     */
+    @Transactional
+    public Feedback decideOutbound(Long id, ApprovalDecision decision, String approver, String comment) {
+        Feedback f = get(id);
+        if (!"PENDING_APPROVAL".equals(f.getOutboundStatus())) {
+            throw new IllegalStateException("该反馈无待审批的出站回复");
+        }
+        Task task = workflowService.activeTask(OUTBOUND_BIZ_TYPE, id);
+        if (task == null) {
+            throw new IllegalStateException("反馈 id=" + id + " 无进行中的出站审批任务");
+        }
+        workflowService.decide(task.getId(), decision, approver, comment);
+        if (decision == ApprovalDecision.APPROVED) {
+            f.setOutbound(null, "APPROVED");
+            hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_APPROVE", approver, "FEEDBACK:" + id, "出站回复审批通过");
+        } else {
+            f.setOutbound(null, "REJECTED");
+            hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_REJECT", approver, "FEEDBACK:" + id,
+                    "出站回复驳回：" + (comment == null ? "" : comment));
+        }
+        return repository.save(f);
     }
 
     /** 驳回：SUBMITTED/IN_PROGRESS → REJECTED（终态）。 */

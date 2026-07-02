@@ -66,6 +66,15 @@ public class KnowledgeBaseService {
         return vectorStore.search(embedding.embed(query), topK);
     }
 
+    /** 删除文档及其全部切块（连同向量）；仅能删可见组织内的文档（RLS 裁剪）。 */
+    @Transactional
+    public void delete(Long documentId) {
+        KbDocument doc = docRepo.findById(documentId)
+                .orElseThrow(() -> new IllegalArgumentException("知识源文档不存在或不可见：id=" + documentId));
+        chunkRepo.deleteAll(chunkRepo.findByDocumentIdOrderBySeqAsc(documentId));
+        docRepo.delete(doc);
+    }
+
     /**
      * 简易切块：先按空行分段，过长段再按 {@link #MAX_CHARS} 定长切。
      * 足以驱动 RAG；后续可换更讲究的语义切块（保留中文句界等）。

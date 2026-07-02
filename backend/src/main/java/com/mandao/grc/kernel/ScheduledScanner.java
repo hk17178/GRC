@@ -21,9 +21,11 @@ public class ScheduledScanner {
     private static final Logger log = LoggerFactory.getLogger(ScheduledScanner.class);
 
     private final ExpiryScanService expiryScanService;
+    private final ScheduledCrawlService scheduledCrawlService;
 
-    public ScheduledScanner(ExpiryScanService expiryScanService) {
+    public ScheduledScanner(ExpiryScanService expiryScanService, ScheduledCrawlService scheduledCrawlService) {
         this.expiryScanService = expiryScanService;
+        this.scheduledCrawlService = scheduledCrawlService;
     }
 
     /** 默认每 15 分钟扫描一次（可由 grc.scheduler.fixed-delay-ms 调整）。 */
@@ -32,6 +34,15 @@ public class ScheduledScanner {
         ScanResult result = expiryScanService.scanOnce(LocalDate.now());
         if (!result.skipped() && result.emitted() > 0) {
             log.info("到期扫描产出 {} 条时间事件", result.emitted());
+        }
+    }
+
+    /** 法规爬虫定时抓取：默认每 30 分钟选一次到期源（可由 grc.crawler.fixed-delay-ms 调整）。 */
+    @Scheduled(fixedDelayString = "${grc.crawler.fixed-delay-ms:1800000}")
+    public void crawlTick() {
+        int triggered = scheduledCrawlService.runOnce();
+        if (triggered > 0) {
+            log.info("定时抓取触发 {} 个法规追踪源", triggered);
         }
     }
 }

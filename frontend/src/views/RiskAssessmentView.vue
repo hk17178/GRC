@@ -568,7 +568,7 @@
           <label class="fld">{{ $t('risk.ref.code') }}<input v-model="tplForm.code" placeholder="TPL-MLPS-001" /></label>
           <label class="fld">{{ $t('risk.ref.name') }}<input v-model="tplForm.name" /></label>
           <label class="fld">{{ $t('risk.templates.f.framework') }}
-            <select v-model="tplForm.framework"><option value="MLPS">{{ $t('risk.templates.fw.MLPS') }}</option><option value="ISO27001">{{ $t('risk.templates.fw.ISO27001') }}</option><option value="PCI_DSS">{{ $t('risk.templates.fw.PCI_DSS') }}</option><option value="PBOC">{{ $t('risk.templates.fw.PBOC') }}</option></select>
+            <select v-model="tplForm.framework"><option value="MLPS">{{ $t('risk.templates.fw.MLPS') }}</option><option value="ISO27001">{{ $t('risk.templates.fw.ISO27001') }}</option><option value="PCI_DSS">{{ $t('risk.templates.fw.PCI_DSS') }}</option><option value="PBOC">{{ $t('risk.templates.fw.PBOC') }}</option><option value="ISO27701">ISO 27701 隐私管理</option><option value="ISO20000">ISO 20000 服务管理</option><option value="ISO22301">ISO 22301 业务连续性</option><option value="PIPL">PIPL 个人信息保护</option></select>
           </label>
           <label class="fld">{{ $t('risk.templates.f.desc') }}<input v-model="tplForm.description" /></label>
           <label class="fld">{{ $t('risk.ref.owner') }}<input v-model="tplForm.owner" /></label>
@@ -1120,14 +1120,21 @@ onMounted(async () => {
 })
 
 // ---- 合规框架 枚举 → 短标/底色/语义类（统一控件库 + 模板库共用）----
-const FW_SHORT = { MLPS: '等保', ISO27001: 'ISO', PCI_DSS: 'PCI', PBOC: 'PBOC' }
+const FW_SHORT = {
+  MLPS: '等保', ISO27001: 'ISO', PCI_DSS: 'PCI', PBOC: 'PBOC',
+  ISO27701: '27701', ISO20000: '20000', ISO22301: '22301', PIPL: 'PIPL'
+}
 const FW_BADGE = {
   MLPS: { background: 'var(--info-tint)', color: 'var(--info)' },
   ISO27001: { background: 'var(--accent-weak)', color: 'var(--accent-strong)' },
   PCI_DSS: { background: 'var(--plum-tint)', color: 'var(--plum)' },
-  PBOC: { background: 'var(--warning-tint)', color: '#a87d22' }
+  PBOC: { background: 'var(--warning-tint)', color: '#a87d22' },
+  ISO27701: { background: 'var(--accent-weak)', color: 'var(--accent-strong)' },
+  ISO20000: { background: 'var(--info-tint)', color: 'var(--info)' },
+  ISO22301: { background: 'var(--success-tint, rgba(40,150,90,.12))', color: 'var(--success)' },
+  PIPL: { background: 'var(--danger-tint)', color: 'var(--danger)' }
 }
-const FW_PILL = { MLPS: 'blue', ISO27001: 'teal', PCI_DSS: 'violet', PBOC: '' }
+const FW_PILL = { MLPS: 'blue', ISO27001: 'teal', PCI_DSS: 'violet', PBOC: '', ISO27701: 'teal', ISO20000: 'blue', ISO22301: '', PIPL: 'violet' }
 const fwShort = (f) => FW_SHORT[f] || f
 const fwBadge = (f) => FW_BADGE[f] || {}
 const fwPill = (f) => FW_PILL[f] || ''
