@@ -4,6 +4,7 @@ import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -91,8 +92,57 @@ public class PolicyController {
         return service.signoff(id, actor(user));
     }
 
-    /** actor 占位策略：取 X-User，缺省 anonymous。 */
+    // ---------- M1 深度：元数据 / 修订与版本历史 / 引用关系 / 签署明细 ----------
+
+    /** 更新元数据（体系分类/生效日期/复审周期/责任部门/责任人）。 */
+    @PutMapping("/{id}/meta")
+    @RequiresPermission("policy")
+    public Policy updateMeta(@PathVariable Long id, @RequestBody MetaRequest req,
+                             @RequestHeader(value = "X-User", required = false) String user) {
+        return service.updateMeta(id, req.framework(), req.effectiveDate(), req.reviewCycleMonths(),
+                req.ownerDept(), req.owner(), actor(user));
+    }
+
+    /** 修订（仅 EFFECTIVE）：旧版存快照 → 新内容 v+1 → 回 REVIEW 重走审批。 */
+    @PostMapping("/{id}/revise")
+    @RequiresPermission("policy.submit")
+    public Policy revise(@PathVariable Long id, @RequestBody ReviseRequest req,
+                         @RequestHeader(value = "X-User", required = false) String user) {
+        return service.revise(id, req.title(), req.content(), req.note(), actor(user));
+    }
+
+    /** 版本历史（新→旧）。 */
+    @GetMapping("/{id}/versions")
+    public List<PolicyVersion> versions(@PathVariable Long id) {
+        return service.versions(id);
+    }
+
+    /** 添加引用关系。 */
+    @PostMapping("/{id}/refs")
+    @RequiresPermission("policy")
+    public PolicyRef addRef(@PathVariable Long id, @RequestBody RefRequest req,
+                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addRef(id, req.refPolicyId(), req.note(), actor(user));
+    }
+
+    /** 引用关系（outgoing=本制度引用了谁 / incoming=谁引用了本制度）。 */
+    @GetMapping("/{id}/refs")
+    public java.util.Map<String, List<PolicyRef>> refs(@PathVariable Long id) {
+        return service.refs(id);
+    }
+
+    /** 签署确认明细。 */
+    @GetMapping("/{id}/signoffs")
+    public List<PolicySignoff> signoffs(@PathVariable Long id) {
+        return service.signoffs(id);
+    }
+
+    /** actor：优先登录态，其次 X-User，再 anonymous（签署/留痕归真实登录人）。 */
     private String actor(String user) {
+        String current = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
@@ -102,5 +152,18 @@ public class PolicyController {
 
     /** 驳回请求体（原因可选）。 */
     public record RejectRequest(String reason) {
+    }
+
+    /** 元数据请求体。 */
+    public record MetaRequest(String framework, java.time.LocalDate effectiveDate, Integer reviewCycleMonths,
+                              String ownerDept, String owner) {
+    }
+
+    /** 修订请求体。 */
+    public record ReviseRequest(String title, String content, String note) {
+    }
+
+    /** 引用请求体。 */
+    public record RefRequest(Long refPolicyId, String note) {
     }
 }

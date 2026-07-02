@@ -7,7 +7,9 @@ import org.flowable.task.api.Task;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 制度业务服务（M1 制度体系）。
@@ -37,15 +39,21 @@ public class PolicyService {
 
     private final PolicyRepository policyRepository;
     private final PolicySignoffRepository signoffRepository;
+    private final PolicyVersionRepository versionRepository;
+    private final PolicyRefRepository refRepository;
     private final HashChainService hashChainService;
     private final WorkflowService workflowService;
 
     public PolicyService(PolicyRepository policyRepository,
                          PolicySignoffRepository signoffRepository,
+                         PolicyVersionRepository versionRepository,
+                         PolicyRefRepository refRepository,
                          HashChainService hashChainService,
                          WorkflowService workflowService) {
         this.policyRepository = policyRepository;
         this.signoffRepository = signoffRepository;
+        this.versionRepository = versionRepository;
+        this.refRepository = refRepository;
         this.hashChainService = hashChainService;
         this.workflowService = workflowService;
     }
@@ -175,6 +183,76 @@ public class PolicyService {
         hashChainService.append(policy.getOrgId(), "POLICY_SIGNOFF", signer,
                 "POLICY:" + policy.getId(), "签署确认 signer=" + signer);
         return saved;
+    }
+
+    // ---------- M1 深度：元数据 / 版本历史 / 引用关系 / 签署明细 ----------
+
+    /** 更新制度元数据（体系分类/生效日期/复审周期/责任部门/责任人）。 */
+    @Transactional
+    public Policy updateMeta(Long id, String framework, java.time.LocalDate effectiveDate,
+                             Integer reviewCycleMonths, String ownerDept, String owner, String actor) {
+        Policy policy = get(id);
+        policy.updateMeta(framework, effectiveDate, reviewCycleMonths, ownerDept, owner);
+        Policy saved = policyRepository.save(policy);
+        appendLog(saved, "POLICY_META", actor, "更新元数据 framework=" + framework + " ownerDept=" + ownerDept);
+        return saved;
+    }
+
+    /**
+     * 修订制度：仅 EFFECTIVE 可修订。旧版(标题+正文)存快照 → 换入新内容、版本+1 →
+     * 回到 REVIEW 重走审批（MAJOR 修订触发重新评审，需求 3.2.1/原型版本时间线语义）。
+     */
+    @Transactional
+    public Policy revise(Long id, String newTitle, String newContent, String note, String actor) {
+        Policy policy = get(id);
+        if (policy.getStatus() != PolicyStatus.EFFECTIVE) {
+            throw new IllegalStateException("仅已生效(EFFECTIVE)制度可修订，当前状态：" + policy.getStatus());
+        }
+        // 1) 旧版快照存档
+        versionRepository.save(new PolicyVersion(policy.getOrgId(), policy.getId(), policy.getVersion(),
+                policy.getTitle(), policy.getContent(), note, actor));
+        // 2) 换入新内容、版本+1、回 REVIEW 重走审批
+        policy.reviseTo(newTitle, newContent);
+        policy.setStatus(PolicyStatus.REVIEW);
+        Policy saved = policyRepository.save(policy);
+        // 3) 重启审批工作流 + 留痕
+        workflowService.submit(BIZ_TYPE, saved.getId(), saved.getOrgId(), APPROVER_GROUP, actor);
+        appendLog(saved, "POLICY_REVISE", actor, "修订至 v" + saved.getVersion() + "，说明：" + (note == null ? "" : note));
+        return saved;
+    }
+
+    /** 版本历史（新→旧）。 */
+    @Transactional(readOnly = true)
+    public List<PolicyVersion> versions(Long policyId) {
+        return versionRepository.findByPolicyIdOrderByVersionNoDesc(policyId);
+    }
+
+    /** 添加引用关系（policy 引用 refPolicy；同组织内可见性由 RLS 保证）。 */
+    @Transactional
+    public PolicyRef addRef(Long policyId, Long refPolicyId, String note, String actor) {
+        Policy policy = get(policyId);
+        Policy ref = get(refPolicyId);
+        if (policy.getId().equals(ref.getId())) {
+            throw new IllegalArgumentException("制度不能引用自身");
+        }
+        PolicyRef saved = refRepository.save(new PolicyRef(policy.getOrgId(), policyId, refPolicyId, note));
+        appendLog(policy, "POLICY_REF_ADD", actor, "引用制度 #" + refPolicyId + "（" + ref.getTitle() + "）");
+        return saved;
+    }
+
+    /** 引用关系：本制度引用了谁 + 谁引用了本制度。 */
+    @Transactional(readOnly = true)
+    public Map<String, List<PolicyRef>> refs(Long policyId) {
+        Map<String, List<PolicyRef>> m = new LinkedHashMap<>();
+        m.put("outgoing", refRepository.findByPolicyId(policyId));
+        m.put("incoming", refRepository.findByRefPolicyId(policyId));
+        return m;
+    }
+
+    /** 某制度的签署确认明细（统计看板/待确认展示用）。 */
+    @Transactional(readOnly = true)
+    public List<PolicySignoff> signoffs(Long policyId) {
+        return signoffRepository.findByPolicyId(policyId);
     }
 
     // ---------- 内部辅助 ----------

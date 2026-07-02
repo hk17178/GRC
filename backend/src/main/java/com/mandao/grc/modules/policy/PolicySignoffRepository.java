@@ -9,4 +9,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * 重复签署由表上 UNIQUE(policy_id, signer) 约束在落库时拦截。
  */
 public interface PolicySignoffRepository extends JpaRepository<PolicySignoff, Long> {
+
+    /** 某制度的签署确认明细（签署统计/待确认展示用）。 */
+    java.util.List<PolicySignoff> findByPolicyId(Long policyId);
 }

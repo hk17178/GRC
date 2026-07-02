@@ -54,6 +54,28 @@ public class Policy {
     @Column(nullable = false)
     private Integer version = 1;
 
+    // ---- 元数据（需求 3.2.1：分类/生效日期/复审周期/责任部门/责任人）----
+
+    /** 体系分类（ISO27001/MLPS/PIPL/PBOC/PCI_DSS/GENERAL）。 */
+    @Column(length = 16)
+    private String framework;
+
+    /** 生效日期。 */
+    @Column(name = "effective_date")
+    private java.time.LocalDate effectiveDate;
+
+    /** 复审周期（月）。 */
+    @Column(name = "review_cycle_months")
+    private Integer reviewCycleMonths;
+
+    /** 责任部门。 */
+    @Column(name = "owner_dept", length = 64)
+    private String ownerDept;
+
+    /** 责任人。 */
+    @Column(length = 64)
+    private String owner;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -127,6 +149,29 @@ public class Policy {
 
     public OffsetDateTime getUpdatedAt() {
         return updatedAt;
+    }
+
+    public String getFramework() { return framework; }
+    public java.time.LocalDate getEffectiveDate() { return effectiveDate; }
+    public Integer getReviewCycleMonths() { return reviewCycleMonths; }
+    public String getOwnerDept() { return ownerDept; }
+    public String getOwner() { return owner; }
+
+    /** 更新元数据（由 Service 调用）。 */
+    void updateMeta(String framework, java.time.LocalDate effectiveDate, Integer reviewCycleMonths,
+                    String ownerDept, String owner) {
+        this.framework = framework;
+        this.effectiveDate = effectiveDate;
+        this.reviewCycleMonths = reviewCycleMonths;
+        this.ownerDept = ownerDept;
+        this.owner = owner;
+    }
+
+    /** 修订：换入新标题/正文并把版本号 +1（旧版快照由 Service 先行存档）。 */
+    void reviseTo(String title, String content) {
+        this.title = title;
+        this.content = content;
+        this.version = this.version + 1;
     }
 
     /** 由 Service 在校验合法流转后调用，推进状态机。 */

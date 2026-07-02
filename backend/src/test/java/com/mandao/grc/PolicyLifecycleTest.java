@@ -93,7 +93,7 @@ class PolicyLifecycleTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE policy_signoff, policy, operation_log RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE policy_ref, policy_version, policy_signoff, policy, operation_log RESTART IDENTITY CASCADE");
         }
         // 清理 Flowable 运行态/历史：本类用 RESTART IDENTITY 复用 policy id，会使各用例
         // businessKey(POLICY:{id}) 跨用例碰撞，残留的运行中实例致 activeTask 命中多条而报错。
@@ -110,6 +110,42 @@ class PolicyLifecycleTest {
     }
 
     // ---------- 用例 ----------
+
+    @Test
+    void M1深度_修订快照与版本历史_元数据_引用关系() {
+        // 建两个制度：A(将修订) + B(被 A 引用)
+        Long a = asOrg(ORG_PAY, () ->
+                policyService.create(ORG_PAY, "POL-A", "密码管理办法", "v1 正文", "drafter").getId());
+        Long b = asOrg(ORG_PAY, () ->
+                policyService.create(ORG_PAY, "POL-B", "密码技术实施细则", "细则正文", "drafter").getId());
+
+        // 元数据
+        var meta = asOrg(ORG_PAY, () -> policyService.updateMeta(a, "ISO27001",
+                java.time.LocalDate.of(2026, 7, 1), 12, "信息安全部", "张三", "admin"));
+        assertEquals("ISO27001", meta.getFramework());
+        assertEquals(12, meta.getReviewCycleMonths());
+        assertEquals("信息安全部", meta.getOwnerDept());
+
+        // 引用：细则 B 引用 办法 A
+        asOrg(ORG_PAY, () -> policyService.addRef(b, a, "第3章引用其密码策略", "admin"));
+        assertEquals(1, asOrg(ORG_PAY, () -> policyService.refs(b)).get("outgoing").size(), "B 引用了 A");
+        assertEquals(1, asOrg(ORG_PAY, () -> policyService.refs(a)).get("incoming").size(), "A 被 B 引用");
+
+        // 生效 A → 修订：旧版进快照、版本 2、回 REVIEW
+        asOrg(ORG_PAY, () -> policyService.submitForApproval(a, "drafter"));
+        asOrg(ORG_PAY, () -> policyService.approve(a, "approver"));
+        var revised = asOrg(ORG_PAY, () -> policyService.revise(a, "密码管理办法(修订)", "v2 正文", "新增远程办公条款", "drafter"));
+        assertEquals(2, revised.getVersion(), "修订后版本应为 2");
+        assertEquals(PolicyStatus.REVIEW, revised.getStatus(), "修订后应回 REVIEW 重走审批");
+        var versions = asOrg(ORG_PAY, () -> policyService.versions(a));
+        assertEquals(1, versions.size(), "旧版应有 1 条快照");
+        assertEquals(1, versions.get(0).getVersionNo());
+        assertEquals("v1 正文", versions.get(0).getContent(), "快照应保留旧版正文");
+
+        // 草稿态不可修订
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> policyService.revise(b, "x", "y", null, "drafter")));
+    }
 
     @Test
     void 正常生命周期_草稿到归档全程通过() {
