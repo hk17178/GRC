@@ -99,16 +99,59 @@
                 <th>{{ $t('reg.cth.desc') }}</th><th>{{ $t('reg.cth.impact') }}</th><th>{{ $t('reg.cth.op') }}</th>
               </tr></thead>
               <tbody>
-                <tr v-for="c in changes" :key="c.id">
-                  <td><span class="pill">{{ $t('reg.changeType.' + c.changeType) }}</span></td>
-                  <td class="num">{{ c.changeDate || '—' }}</td>
-                  <td class="desc">{{ c.description }}</td>
-                  <td><span class="st" :class="c.impactStatus === 'ASSESSED' ? 'ok' : 'wait'"><span class="d"></span>{{ $t('reg.impact.' + c.impactStatus) }}</span></td>
-                  <td><button v-if="c.impactStatus === 'PENDING'" class="btn sm" @click="openAssess(c)">{{ $t('reg.assess.btn') }}</button></td>
-                </tr>
+                <template v-for="c in changes" :key="c.id">
+                  <tr>
+                    <td><span class="pill">{{ $t('reg.changeType.' + c.changeType) }}</span></td>
+                    <td class="num">{{ c.changeDate || '—' }}</td>
+                    <td class="desc">{{ c.description }}</td>
+                    <td><span class="st" :class="c.impactStatus === 'ASSESSED' ? 'ok' : 'wait'"><span class="d"></span>{{ $t('reg.impact.' + c.impactStatus) }}</span></td>
+                    <td>
+                      <button v-if="c.impactStatus === 'PENDING'" class="btn sm" @click="openAssess(c)">{{ $t('reg.assess.btn') }}</button>
+                      <button v-if="!c.aiSummary" class="btn ghost sm" :disabled="!canWrite('law') || aiBusy === c.id" @click="aiSummarize(c)">{{ aiBusy === c.id ? '生成中…' : 'AI 摘要' }}</button>
+                    </td>
+                  </tr>
+                  <!-- AI 条款级变更摘要（需求 6.5.1；本地离线模式诚实标注）-->
+                  <tr v-if="c.aiSummary">
+                    <td colspan="5" class="aisum">⚡ AI 变更摘要：{{ c.aiSummary }}</td>
+                  </tr>
+                </template>
                 <tr v-if="!changes.length"><td colspan="5" class="emptyrow">{{ $t('reg.changeEmpty') }}</td></tr>
               </tbody>
             </table>
+          </div>
+
+          <!-- 法规-制度映射（需求 6.2：法规条款命中的制度）-->
+          <div v-if="selectedId" class="ch" style="border-top:1px solid var(--border-subtle)">
+            <h3>命中制度映射</h3><span class="cnt">{{ maps.length }}</span>
+            <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('law')" @click="openMap">＋ 登记映射</button>
+          </div>
+          <div v-if="selectedId" class="cb" style="padding-top:0">
+            <div v-for="m in maps" :key="m.id" class="map-row">
+              <span class="pill">{{ m.clause || '整篇' }}</span>
+              <span class="map-p">→ {{ policyName(m.policyId) }}</span>
+              <span class="muted">{{ m.note }}</span>
+            </div>
+            <div v-if="!maps.length" class="hint" style="padding:10px">暂无映射，点「＋ 登记映射」把法规条款关联到制度。</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 登记法规-制度映射弹窗 -->
+      <div v-if="showMap" class="modal-mask" @click.self="showMap = false">
+        <div class="modal-card">
+          <h3>登记法规-制度映射</h3>
+          <label class="fld">法规条款<input v-model="mf.clause" placeholder="如 §41（可空=整篇）" /></label>
+          <label class="fld">命中制度
+            <select v-model.number="mf.policyId">
+              <option :value="0" disabled>— 选择制度 —</option>
+              <option v-for="p in policies" :key="p.id" :value="p.id">{{ p.code }} · {{ p.title }}</option>
+            </select>
+          </label>
+          <label class="fld">映射说明<input v-model="mf.note" placeholder="如 对应制度第3章日志留存" /></label>
+          <p v-if="opError" class="cerr">{{ opError }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showMap = false">取消</button>
+            <button class="btn" :disabled="!mf.policyId || saving" @click="submitMap">确认登记</button>
           </div>
         </div>
       </div>
@@ -235,8 +278,38 @@ async function loadRegs() {
 async function selectReg(r) {
   selectedId.value = r.id
   try { changes.value = await api.get('/regulations/' + r.id + '/changes') } catch (e) { changes.value = [] }
+  loadMaps()
 }
 const regStCls = (s) => ({ TRACKING: 'wait', EFFECTIVE: 'ok', SUPERSEDED: 'over', ABOLISHED: 'over' }[s] || 'wait')
+
+// ===== M4 深度：法规-制度映射 + AI 变更摘要 =====
+const maps = ref([])
+const policies = ref([])
+async function loadMaps() {
+  try { maps.value = await api.get('/regulations/' + selectedId.value + '/policy-maps') } catch (e) { maps.value = [] }
+}
+async function loadPolicies() {
+  try { policies.value = await api.get('/policies') } catch (e) { policies.value = [] }
+}
+const policyName = (id) => { const p = policies.value.find((x) => x.id === id); return p ? p.code + ' · ' + p.title : '制度 #' + id }
+const showMap = ref(false)
+const mf = reactive({ clause: '', policyId: 0, note: '' })
+function openMap() { Object.assign(mf, { clause: '', policyId: 0, note: '' }); opError.value = ''; showMap.value = true }
+async function submitMap() {
+  saving.value = true; opError.value = ''
+  try {
+    await api.post('/regulations/' + selectedId.value + '/policy-maps', { policyId: mf.policyId, clause: mf.clause || null, note: mf.note || null })
+    showMap.value = false; await loadMaps()
+  } catch (e) { opError.value = e.message } finally { saving.value = false }
+}
+const aiBusy = ref(null)
+async function aiSummarize(c) {
+  aiBusy.value = c.id; opError.value = ''
+  try {
+    await api.post('/regulations/changes/' + c.id + '/ai-summary', {})
+    changes.value = await api.get('/regulations/' + selectedId.value + '/changes')
+  } catch (e) { opError.value = e.message } finally { aiBusy.value = null }
+}
 
 // 登记法规
 const showCreate = ref(false)
@@ -315,7 +388,7 @@ async function submitSource() {
 }
 function fmt(t) { try { return new Date(t).toLocaleString() } catch (e) { return t } }
 
-onMounted(() => { loadRegs(); loadSources(); loadCrawled() })
+onMounted(() => { loadRegs(); loadSources(); loadCrawled(); loadPolicies() })
 </script>
 
 <style scoped>
@@ -375,4 +448,8 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .lawmeta .lk { color: var(--text-3); display: inline-block; min-width: 64px; }
 .lawsum { font-size: 13px; color: var(--text-2); line-height: 1.7; background: var(--bg); border-radius: 8px; padding: 12px; margin: 0; }
 .muted { color: var(--text-3); font-size: 11.5px; }
+/* M4 深度 */
+.aisum { background: var(--accent-tint); color: var(--text-2); font-size: 12px; line-height: 1.7; border-left: 3px solid var(--accent); }
+.map-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+.map-row .map-p { font-weight: 600; }
 </style>

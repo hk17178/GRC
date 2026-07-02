@@ -23,13 +23,19 @@ public class RegulationService {
 
     private final RegulationRepository regulationRepository;
     private final RegulationChangeRepository changeRepository;
+    private final RegulationPolicyMapRepository mapRepository;
+    private final com.mandao.grc.modules.ai.LlmProvider llmProvider;
     private final HashChainService hashChainService;
 
     public RegulationService(RegulationRepository regulationRepository,
                              RegulationChangeRepository changeRepository,
+                             RegulationPolicyMapRepository mapRepository,
+                             com.mandao.grc.modules.ai.LlmProvider llmProvider,
                              HashChainService hashChainService) {
         this.regulationRepository = regulationRepository;
         this.changeRepository = changeRepository;
+        this.mapRepository = mapRepository;
+        this.llmProvider = llmProvider;
         this.hashChainService = hashChainService;
     }
 
@@ -108,6 +114,47 @@ public class RegulationService {
         hashChainService.append(c.getOrgId(), "REGULATION_IMPACT_ASSESS", actor,
                 "REGULATION:" + c.getRegulationId(),
                 "完成影响评估 changeId=" + changeId + " 范围=" + impactScope);
+        return saved;
+    }
+
+    // ---------- M4 深度：法规-制度映射 / AI 变更摘要 ----------
+
+    /** 某法规命中的制度映射。 */
+    @Transactional(readOnly = true)
+    public List<RegulationPolicyMap> listMaps(Long regulationId) {
+        return mapRepository.findByRegulationId(regulationId);
+    }
+
+    /** 登记法规-制度映射（法规条款 → 制度）。 */
+    @Transactional
+    public RegulationPolicyMap addMap(Long regulationId, Long policyId, String clause, String note, String actor) {
+        Regulation reg = get(regulationId);
+        RegulationPolicyMap saved = mapRepository.save(
+                new RegulationPolicyMap(reg.getOrgId(), regulationId, policyId, clause, note));
+        hashChainService.append(reg.getOrgId(), "REG_MAP_ADD", actor, "REGULATION:" + regulationId,
+                "登记法规-制度映射 policy=" + policyId + " 条款=" + clause);
+        return saved;
+    }
+
+    /**
+     * 生成变更的 AI 条款级摘要（需求 6.5.1）：把 变更描述+法规上下文 交给 LlmProvider，
+     * 结果落库到 regulation_change.ai_summary。本地离线 Provider 会返回检索式说明并诚实标注。
+     */
+    @Transactional
+    public RegulationChange aiSummarize(Long changeId, String actor) {
+        RegulationChange c = changeRepository.findById(changeId)
+                .orElseThrow(() -> new IllegalArgumentException("法规变更不存在或不可见：id=" + changeId));
+        Regulation reg = get(c.getRegulationId());
+        String question = "请对以下法规变更做条款级要点摘要（合规影响导向，中文，3 条以内）：\n"
+                + "法规：" + reg.getTitle() + "（" + reg.getCode() + "）\n"
+                + "变更类型：" + c.getChangeType() + "，变更描述：" + c.getDescription();
+        String summary = llmProvider.generate(question, List.of(
+                "法规标题：" + reg.getTitle(),
+                "变更描述：" + c.getDescription()));
+        c.setAiSummary(summary);
+        RegulationChange saved = changeRepository.save(c);
+        hashChainService.append(reg.getOrgId(), "REG_AI_SUMMARY", actor, "REGULATION:" + reg.getId(),
+                "生成变更 AI 摘要 changeId=" + changeId);
         return saved;
     }
 }

@@ -97,4 +97,32 @@ public class RegulationController {
     /** 影响评估请求体。 */
     public record AssessRequest(String impactScope, String impactNote) {
     }
+
+    // ---------- M4 深度：法规-制度映射 / AI 变更摘要 ----------
+
+    /** 某法规命中的制度映射。 */
+    @GetMapping("/{id}/policy-maps")
+    public List<RegulationPolicyMap> listMaps(@PathVariable Long id) {
+        return service.listMaps(id);
+    }
+
+    /** 登记法规-制度映射。 */
+    @PostMapping("/{id}/policy-maps")
+    @RequiresPermission("law")
+    public RegulationPolicyMap addMap(@PathVariable Long id, @RequestBody MapRequest req,
+                                      @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addMap(id, req.policyId(), req.clause(), req.note(), actor(user));
+    }
+
+    /** 生成变更 AI 条款级摘要（本地离线模式诚实标注）。 */
+    @PostMapping("/changes/{changeId}/ai-summary")
+    @RequiresPermission("law")
+    public RegulationChange aiSummarize(@PathVariable Long changeId,
+                                        @RequestHeader(value = "X-User", required = false) String user) {
+        return service.aiSummarize(changeId, actor(user));
+    }
+
+    /** 映射请求体。 */
+    public record MapRequest(Long policyId, String clause, String note) {
+    }
 }

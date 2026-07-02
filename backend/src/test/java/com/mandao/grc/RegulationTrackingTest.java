@@ -66,6 +66,9 @@ class RegulationTrackingTest {
     private RegulationService regulationService;
 
     @Autowired
+    private com.mandao.grc.modules.policy.PolicyService policyService;
+
+    @Autowired
     private HashChainService hashChainService;
 
     private static final long ORG_PAY = 12L;
@@ -76,13 +79,30 @@ class RegulationTrackingTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE regulation_change, regulation, operation_log RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE regulation_policy_map, regulation_change, regulation, operation_log RESTART IDENTITY CASCADE");
         }
     }
 
     @AfterEach
     void clearContext() {
         IsolationContext.clear();
+    }
+
+    @Test
+    void M4深度_法规制度映射与AI变更摘要() {
+        Long rid = asOrg(ORG_PAY, () -> regulationService.create(ORG_PAY, "REG-MAP", "支付机构条例", "PBOC", "支付", null, null, "c").getId());
+        Long pid = asOrg(ORG_PAY, () -> policyService.create(ORG_PAY, "POL-MAP", "交易日志留存制度", "正文", "c").getId());
+
+        // 登记映射：法规 §41 → 制度
+        var map = asOrg(ORG_PAY, () -> regulationService.addMap(rid, pid, "§41", "对应制度第3章日志留存", "c"));
+        org.junit.jupiter.api.Assertions.assertEquals("§41", map.getClause());
+        org.junit.jupiter.api.Assertions.assertEquals(1, asOrg(ORG_PAY, () -> regulationService.listMaps(rid)).size());
+
+        // AI 变更摘要：登记变更 → 生成摘要落库（本地离线 Provider 返回非空说明）
+        Long cid = asOrg(ORG_PAY, () -> regulationService.recordChange(rid, ChangeType.AMENDED, TODAY, "日志留存年限 5→10 年", "c").getId());
+        var summarized = asOrg(ORG_PAY, () -> regulationService.aiSummarize(cid, "c"));
+        org.junit.jupiter.api.Assertions.assertNotNull(summarized.getAiSummary(), "AI 摘要应落库");
+        org.junit.jupiter.api.Assertions.assertFalse(summarized.getAiSummary().isBlank());
     }
 
     @Test

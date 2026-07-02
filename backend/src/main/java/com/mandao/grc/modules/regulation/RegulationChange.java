@@ -62,6 +62,10 @@ public class RegulationChange {
     @Column(name = "impact_note", columnDefinition = "TEXT")
     private String impactNote;
 
+    /** AI 条款级变更摘要（需求 6.5.1；本地离线模式为检索式说明并诚实标注）。 */
+    @Column(name = "ai_summary", columnDefinition = "TEXT")
+    private String aiSummary;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -113,6 +117,8 @@ public class RegulationChange {
     public ImpactStatus getImpactStatus() { return impactStatus; }
     public String getImpactScope() { return impactScope; }
     public String getImpactNote() { return impactNote; }
+    public String getAiSummary() { return aiSummary; }
+    public void setAiSummary(String aiSummary) { this.aiSummary = aiSummary; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 }
