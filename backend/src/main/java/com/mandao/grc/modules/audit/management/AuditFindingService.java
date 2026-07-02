@@ -50,6 +50,12 @@ public class AuditFindingService {
         return findingRepository.findByAuditPlanId(auditPlanId);
     }
 
+    /** 按审计类型跨计划列发现（外审页汇总视图）。 */
+    @Transactional(readOnly = true)
+    public List<AuditFinding> listByType(AuditType type) {
+        return findingRepository.findByPlanType(type);
+    }
+
     /** 按 id 取审计发现（不可见则视为不存在）。 */
     @Transactional(readOnly = true)
     public AuditFinding get(Long id) {

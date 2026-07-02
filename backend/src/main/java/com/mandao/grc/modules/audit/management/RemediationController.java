@@ -30,8 +30,16 @@ public class RemediationController {
 
     /** 列出某审计发现的整改工单。 */
     @GetMapping
-    public List<RemediationOrder> listByFinding(@RequestParam Long findingId) {
-        return service.listByFinding(findingId);
+    public List<RemediationOrder> listByFinding(@RequestParam(required = false) Long findingId,
+                                                @RequestParam(required = false) AuditType type) {
+        // 二选一：按发现查或按审计类型跨发现汇总查
+        if (findingId != null) {
+            return service.listByFinding(findingId);
+        }
+        if (type != null) {
+            return service.listByType(type);
+        }
+        throw new IllegalArgumentException("请提供 findingId 或 type 参数");
     }
 
     /** 取单个整改工单。 */

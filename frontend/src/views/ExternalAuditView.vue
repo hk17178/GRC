@@ -40,6 +40,43 @@
         <button class="btn" :disabled="!canWrite('extaudit')" :title="canWrite('extaudit') ? '' : $t('common.noPerm')" @click="openReg">{{ $t('extaudit.register') }}</button>
       </div>
 
+      <!-- 下达整改弹窗（对外审发现建整改单）-->
+      <div v-if="showRemed" class="modal-mask" @click.self="showRemed = false">
+        <div class="modal-card">
+          <h3>下达整改单</h3>
+          <p class="mutedcell" style="margin:-6px 0 12px">针对发现 EF-{{ remedTarget && remedTarget.id }}：{{ remedTarget && remedTarget.title }}</p>
+          <label class="fld">责任人<input v-model="rmf.assignee" placeholder="如 张三" /></label>
+          <label class="fld">整改措施<input v-model="rmf.measure" placeholder="如 补齐网络分段并复测" /></label>
+          <label class="fld">截止日期<input type="date" v-model="rmf.dueDate" /></label>
+          <p v-if="erErr" class="cerr">{{ erErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showRemed = false">取消</button>
+            <button class="btn" :disabled="!rmf.assignee || remedSaving" @click="submitRemed">{{ remedSaving ? '提交中…' : '确认下达' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 登记外审发现弹窗（外部机构提出的发现，挂到某外审计划）-->
+      <div v-if="showFinding" class="modal-mask" @click.self="showFinding = false">
+        <div class="modal-card">
+          <h3>登记外审发现</h3>
+          <label class="fld">来源外审计划
+            <select v-model.number="ff.auditPlanId">
+              <option v-for="p in plans" :key="p.id" :value="p.id">EA-{{ p.id }} · {{ p.title }}</option>
+            </select>
+          </label>
+          <label class="fld">问题描述<input v-model="ff.title" placeholder="如 CDE 网络分段不充分" /></label>
+          <label class="fld">严重度
+            <select v-model="ff.severity"><option value="VERY_LOW">极低</option><option value="LOW">低</option><option value="MID">中</option><option value="HIGH">高</option></select>
+          </label>
+          <p v-if="erErr" class="cerr">{{ erErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showFinding = false">取消</button>
+            <button class="btn" :disabled="!ff.title || !ff.auditPlanId || findingSaving" @click="submitFinding">{{ findingSaving ? '提交中…' : '确认登记' }}</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 登记外审任务弹窗（创建 EXTERNAL 审计计划）-->
       <div v-if="showReg" class="modal-mask" @click.self="showReg = false">
         <div class="modal-card">
@@ -200,6 +237,7 @@
             <div class="ch">
               <h3>{{ $t('extaudit.findings.title') }}</h3>
               <span class="sub">{{ $t('extaudit.findings.sub') }}</span>
+              <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openFinding">＋ 登记外审发现</button>
             </div>
             <table>
               <thead>
@@ -207,26 +245,33 @@
                   <th>{{ $t('extaudit.findings.th.id') }}</th>
                   <th>{{ $t('extaudit.findings.th.source') }}</th>
                   <th>{{ $t('extaudit.findings.th.issue') }}</th>
-                  <th>{{ $t('extaudit.findings.th.cert') }}</th>
                   <th>{{ $t('extaudit.findings.th.sev') }}</th>
-                  <th>{{ $t('extaudit.findings.th.owner') }}</th>
-                  <th>{{ $t('extaudit.findings.th.status') }}</th>
+                  <th>对外回函（红线三段）</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in findingRows" :key="r.id">
-                  <td class="code">{{ r.id }}</td>
-                  <td>{{ r.source }}</td>
-                  <td>{{ $t(r.issue) }}</td>
-                  <td><span class="pill" :class="r.pill">{{ r.cert }}</span></td>
-                  <td><span class="tag" :class="r.sevClass">{{ $t(r.sevLabel) }}</span></td>
-                  <td>{{ r.owner }}</td>
+                <tr v-for="r in findings" :key="r.id">
+                  <td class="code">EF-{{ r.id }}</td>
+                  <td class="code">EA-{{ r.auditPlanId }}</td>
+                  <td><b>{{ r.title }}</b></td>
+                  <td><span class="tag" :class="SEV_TAG[r.severity]">{{ SEV_LABEL[r.severity] || r.severity }}</span></td>
                   <td>
-                    <span class="st" :class="r.stClass"><span class="d"></span>{{ $t(r.stLabel) }}</span>
+                    <span class="st" :class="ER_CLS[r.externalResponseStatus] || 'wait'"><span class="d"></span>{{ ER_LABEL[r.externalResponseStatus] || '未提交' }}</span>
+                  </td>
+                  <td class="ops">
+                    <template v-if="canWrite('extaudit')">
+                      <button class="mini" @click="openRemed(r)">下达整改</button>
+                      <button v-if="!r.externalResponseStatus" class="mini" @click="erAction(r,'submit')">提交外方</button>
+                      <button v-if="r.externalResponseStatus==='SUBMITTED'" class="mini" @click="erAction(r,'accept')">外方受理</button>
+                      <button v-if="r.externalResponseStatus==='ACCEPTED'" class="mini" @click="erAction(r,'confirm-close')">确认关闭</button>
+                    </template>
                   </td>
                 </tr>
+                <tr v-if="!findings.length"><td colspan="6" style="text-align:center;color:var(--text-3);padding:18px">暂无外审发现，点「＋ 登记外审发现」。</td></tr>
               </tbody>
             </table>
+            <p v-if="erErr" class="cerr" style="padding:0 14px 10px">{{ erErr }}</p>
           </div>
 
           <!-- 发现按严重度（五级） -->
@@ -251,31 +296,38 @@
         <div class="g g-16-1">
           <!-- 整改任务表（含企微通知状态） -->
           <div class="card">
-            <div class="ch"><h3>{{ $t('extaudit.remTasks.title') }}</h3></div>
+            <div class="ch"><h3>{{ $t('extaudit.remTasks.title') }}</h3>
+              <span class="sub">真实整改工单 · 在发现行「下达整改」后在此流转</span></div>
             <table>
               <thead>
                 <tr>
                   <th>{{ $t('extaudit.remTasks.th.task') }}</th>
                   <th>{{ $t('extaudit.remTasks.th.source') }}</th>
                   <th>{{ $t('extaudit.remTasks.th.owner') }}</th>
+                  <th>整改措施</th>
                   <th>{{ $t('extaudit.remTasks.th.due') }}</th>
-                  <th>{{ $t('extaudit.remTasks.th.notify') }}</th>
                   <th>{{ $t('extaudit.remTasks.th.status') }}</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in remRows" :key="r.id">
-                  <td class="code">{{ r.id }}</td>
-                  <td>{{ r.source }}</td>
-                  <td><span class="av-s">{{ r.avatar }}</span>{{ r.owner }}</td>
-                  <td class="num">{{ r.due }}</td>
-                  <td>
-                    <span class="st" :class="r.nClass"><span class="d"></span>{{ $t(r.nLabel) }}</span>
-                  </td>
-                  <td>
-                    <span class="st" :class="r.sClass"><span class="d"></span>{{ $t(r.sLabel) }}</span>
+                <tr v-for="r in remeds" :key="r.id">
+                  <td class="code">RO-{{ r.id }}</td>
+                  <td class="code">EF-{{ r.findingId }}</td>
+                  <td>{{ r.assignee || '—' }}</td>
+                  <td class="mutedcell">{{ r.measure || '—' }}</td>
+                  <td class="num">{{ r.dueDate || '—' }}</td>
+                  <td><span class="st" :class="REM_CLS[r.status]"><span class="d"></span>{{ REM_LABEL[r.status] || r.status }}</span></td>
+                  <td class="ops">
+                    <template v-if="canWrite('extaudit')">
+                      <button v-if="r.status==='PENDING'" class="mini" @click="remAction(r,'start')">开始</button>
+                      <button v-if="r.status==='IN_PROGRESS'" class="mini" @click="remAction(r,'submit')">提交</button>
+                      <button v-if="r.status==='SUBMITTED'" class="mini" @click="remAction(r,'verify')">验证通过</button>
+                      <button v-if="r.status==='SUBMITTED'" class="mini danger" @click="remAction(r,'reject')">驳回</button>
+                    </template>
                   </td>
                 </tr>
+                <tr v-if="!remeds.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">暂无外审整改工单。</td></tr>
               </tbody>
             </table>
           </div>
@@ -335,12 +387,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
-const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
+const orgOptions = useOrgs()
 
 // ---- 顶部子公司分段（默认「集团」高亮，纯展示）----
 const segs = ['all', 'pay', 'consumer', 'tech']
@@ -357,14 +409,15 @@ const STATUS = {
   REPORTING: { t: '待签批', c: 'wait' }, CLOSED: { t: '已关闭', c: 'ok' }, CANCELLED: { t: '已取消', c: 'over' }
 }
 const taskRows = ref([])
+const plans = ref([])   // 原始外审计划（登记发现时选择来源计划用）
 async function loadTasks() {
   try {
-    const plans = await api.get('/audit-plans?type=EXTERNAL')
-    taskRows.value = plans.map((p) => ({
+    plans.value = await api.get('/audit-plans?type=EXTERNAL')
+    taskRows.value = plans.value.map((p) => ({
       id: 'EA-' + p.id, pill: '', cert: p.title, body: '—', owner: '—', cycle: '—',
       planStart: p.planStartDate || '—', stClass: (STATUS[p.status] || {}).c || 'wait', stText: (STATUS[p.status] || {}).t || p.status
     }))
-  } catch (e) { taskRows.value = [] }
+  } catch (e) { taskRows.value = []; plans.value = [] }
 }
 
 // ---- 登记外审任务（真实创建 EXTERNAL 审计计划）----
@@ -381,7 +434,7 @@ async function submitReg() {
   } catch (e) { regErr.value = e.message } finally { regSaving.value = false }
 }
 
-onMounted(loadTasks)
+onMounted(() => { loadTasks(); loadFindings(); loadRemeds() })
 
 // ---- 按认证体系分布（bars）----
 const distBars = [
@@ -391,31 +444,71 @@ const distBars = [
   { nm: 'PBOC 监管检查', v: 2, w: '55%' }
 ]
 
-// ---- Tab2：外部审计发现表 ----
-const findingRows = [
-  { id: 'EF-031', source: 'EA-2026-04', issue: 'extaudit.findings.issue.chd', pill: 'violet', cert: 'PCI', sevClass: 'vh', sevLabel: 'extaudit.sevDist.vh', owner: '支付科技', stClass: 'doing', stLabel: 'extaudit.findings.status.remediating' },
-  { id: 'EF-028', source: 'EA-2026-05', issue: 'extaudit.findings.issue.access', pill: 'teal', cert: 'ISO', sevClass: 'h', sevLabel: 'extaudit.sevDist.h', owner: '集团', stClass: 'wait', stLabel: 'extaudit.findings.status.toRemed' },
-  { id: 'EF-022', source: 'EA-2026-02', issue: 'extaudit.findings.issue.log', pill: '', cert: 'PBOC', sevClass: 'h', sevLabel: 'extaudit.sevDist.h', owner: '消费金融', stClass: 'doing', stLabel: 'extaudit.findings.status.remediating' },
-  { id: 'EF-019', source: 'EA-2026-07', issue: 'extaudit.findings.issue.baseline', pill: 'blue', cert: '等保', sevClass: 'm', sevLabel: 'extaudit.sevDist.m', owner: '支付科技', stClass: 'wait', stLabel: 'extaudit.findings.status.toRemed' },
-  { id: 'EF-014', source: 'EA-2026-01', issue: 'extaudit.findings.issue.privacy', pill: 'teal', cert: '27701', sevClass: 'l', sevLabel: 'extaudit.sevDist.l', owner: '数据科技', stClass: 'ok', stLabel: 'extaudit.findings.status.verified' }
-]
+// ===== Tab2：外部审计发现（真实后端 /api/audit-findings?type=EXTERNAL）=====
+const SEV_LABEL = { VERY_LOW: '极低', LOW: '低', MID: '中', HIGH: '高' }
+const SEV_TAG = { VERY_LOW: '', LOW: 'l', MID: 'm', HIGH: 'h' }
+const ER_LABEL = { SUBMITTED: '已提交外方', ACCEPTED: '外方受理', CLOSED: '外方确认关闭' }
+const ER_CLS = { SUBMITTED: 'wait', ACCEPTED: 'doing', CLOSED: 'ok' }
+const findings = ref([])
+const erErr = ref('')
+async function loadFindings() {
+  try { findings.value = await api.get('/audit-findings?type=EXTERNAL') } catch (e) { findings.value = [] }
+}
+/** 对外回函三段红线：submit → accept → confirm-close（单向推进）。 */
+async function erAction(f, action) {
+  erErr.value = ''
+  try { await api.post('/audit-findings/' + f.id + '/external-response/' + action, {}); await loadFindings() }
+  catch (e) { erErr.value = e.message }
+}
+// 登记外审发现
+const showFinding = ref(false)
+const findingSaving = ref(false)
+const ff = reactive({ auditPlanId: 0, title: '', severity: 'MID' })
+function openFinding() { Object.assign(ff, { auditPlanId: plans.value[0]?.id || 0, title: '', severity: 'MID' }); erErr.value = ''; showFinding.value = true }
+async function submitFinding() {
+  findingSaving.value = true; erErr.value = ''
+  try {
+    const plan = plans.value.find((p) => p.id === ff.auditPlanId)
+    await api.post('/audit-findings', { orgId: plan ? plan.orgId : 12, auditPlanId: ff.auditPlanId, title: ff.title, severity: ff.severity })
+    showFinding.value = false; await loadFindings()
+  } catch (e) { erErr.value = e.message } finally { findingSaving.value = false }
+}
 
-// ---- 发现按严重度（五级）bars ----
-// 极高/极低保留原型内联底色；高/中/低复用 seg2.h/m/l 语义色
-const sevBars = [
-  { label: 'extaudit.sevDist.vh', v: 1, cls: '', style: { width: '14%', background: '#7a1620' } },
-  { label: 'extaudit.sevDist.h', v: 4, cls: 'h', style: { width: '55%' } },
-  { label: 'extaudit.sevDist.m', v: 5, cls: 'm', style: { width: '68%' } },
-  { label: 'extaudit.sevDist.l', v: 3, cls: 'l', style: { width: '40%' } },
-  { label: 'extaudit.sevDist.vl', v: 1, cls: '', style: { width: '14%', background: '#8aa0b3' } }
-]
+// 发现按严重度 bars（按真实发现统计，四级 AuditSeverity）
+const sevBars = computed(() => {
+  const cnt = { HIGH: 0, MID: 0, LOW: 0, VERY_LOW: 0 }
+  findings.value.forEach((f) => { if (cnt[f.severity] !== undefined) cnt[f.severity]++ })
+  const max = Math.max(1, ...Object.values(cnt))
+  const CFG = [
+    ['HIGH', 'extaudit.sevDist.h', 'h', null], ['MID', 'extaudit.sevDist.m', 'm', null],
+    ['LOW', 'extaudit.sevDist.l', 'l', null], ['VERY_LOW', 'extaudit.sevDist.vl', '', '#8aa0b3']
+  ]
+  return CFG.map(([k, label, cls, bg]) => ({ label, v: cnt[k], cls, style: { width: Math.round((cnt[k] / max) * 100) + '%', ...(bg ? { background: bg } : {}) } }))
+})
 
-// ---- Tab3：整改任务表 ----
-const remRows = [
-  { id: 'RT-0451', source: 'EF-031', avatar: '张', owner: '张伟', due: '06-28', nClass: 'ok', nLabel: 'extaudit.remTasks.notify.dueSoon', sClass: 'doing', sLabel: 'extaudit.remTasks.status.remediating' },
-  { id: 'RT-0448', source: 'EF-022', avatar: '陈', owner: '陈强', due: '06-22', nClass: 'over', nLabel: 'extaudit.remTasks.notify.escalated', sClass: 'over', sLabel: 'extaudit.remTasks.status.overdue' },
-  { id: 'RT-0442', source: 'EF-028', avatar: '王', owner: '王芳', due: '07-05', nClass: 'ok', nLabel: 'extaudit.remTasks.notify.notified', sClass: 'wait', sLabel: 'extaudit.remTasks.status.pending' }
-]
+// ===== Tab3：整改跟踪（真实后端 /api/remediation-orders?type=EXTERNAL）=====
+const REM_LABEL = { PENDING: '待开始', IN_PROGRESS: '整改中', SUBMITTED: '已提交', VERIFIED: '已验证', REJECTED: '已驳回' }
+const REM_CLS = { PENDING: 'wait', IN_PROGRESS: 'doing', SUBMITTED: 'wait', VERIFIED: 'ok', REJECTED: 'over' }
+const remeds = ref([])
+async function loadRemeds() {
+  try { remeds.value = await api.get('/remediation-orders?type=EXTERNAL') } catch (e) { remeds.value = [] }
+}
+async function remAction(r, action) {
+  try { await api.post('/remediation-orders/' + r.id + '/' + action, {}); await loadRemeds() } catch (e) { erErr.value = e.message }
+}
+// 下达整改（对某外审发现建整改单）
+const showRemed = ref(false)
+const remedSaving = ref(false)
+const remedTarget = ref(null)
+const rmf = reactive({ assignee: '', measure: '', dueDate: '' })
+function openRemed(f) { remedTarget.value = f; Object.assign(rmf, { assignee: '', measure: '', dueDate: '' }); erErr.value = ''; showRemed.value = true }
+async function submitRemed() {
+  remedSaving.value = true; erErr.value = ''
+  try {
+    await api.post('/remediation-orders', { findingId: remedTarget.value.id, assignee: rmf.assignee, dueDate: rmf.dueDate || null, measure: rmf.measure })
+    showRemed.value = false; await loadRemeds()
+  } catch (e) { erErr.value = e.message } finally { remedSaving.value = false }
+}
 
 // ---- 对外闭环漏斗（6 段；后三段为「对外三段」）----
 // width / background 完全照搬原型内联值
@@ -855,4 +948,9 @@ tbody tr:hover {
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; margin-right: 4px; }
+.mini:hover { background: var(--accent-tint); }
+.mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+.ops { white-space: nowrap; }
+.mutedcell { color: var(--text-2); max-width: 220px; }
 </style>

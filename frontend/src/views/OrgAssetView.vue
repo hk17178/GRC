@@ -32,7 +32,10 @@
         <div class="sp"></div>
         <button v-if="activeTab === 'org'" class="btn" :disabled="!canWrite('org')"
                 :title="canWrite('org') ? '' : $t('common.noPerm')" @click="openOrgAdd(null)">＋ 新增子组织</button>
-        <button v-else class="btn">{{ $t('orgasset.register') }}</button>
+        <button v-else-if="activeTab === 'asset'" class="btn" :disabled="!canWrite('org')"
+                :title="canWrite('org') ? '' : $t('common.noPerm')" @click="openAsset">＋ 登记资产</button>
+        <button v-else class="btn" :disabled="!canWrite('org')"
+                :title="canWrite('org') ? '' : $t('common.noPerm')" @click="openRopa">＋ 登记处理活动</button>
       </div>
 
       <!-- ===== Tab 切换 ===== -->
@@ -88,6 +91,55 @@
         </div>
       </div>
 
+      <!-- 登记资产弹窗（真实 POST /api/assets，含合规属性 CR-002）-->
+      <div v-if="showAsset" class="modal-mask" @click.self="showAsset = false">
+        <div class="modal-card">
+          <h3>登记资产</h3>
+          <label class="fld">资产名称<input v-model="af.name" placeholder="如 核心支付网关" /></label>
+          <label class="fld">类型
+            <select v-model="af.assetType"><option value="SYSTEM">系统</option><option value="DATABASE">数据库</option><option value="APP">应用</option><option value="PROCESS">流程</option><option value="VENDOR_SVC">供应商服务</option></select>
+          </label>
+          <label class="fld">责任人<input v-model="af.owner" placeholder="如 张三" /></label>
+          <label class="fld">数据分级
+            <select v-model="af.classification"><option value="PUBLIC">公开</option><option value="INTERNAL">内部</option><option value="SENSITIVE">敏感</option></select>
+          </label>
+          <label class="fld">重要性
+            <select v-model="af.criticality"><option value="HIGH">高</option><option value="MID">中</option><option value="LOW">低</option></select>
+          </label>
+          <div class="chkrow">
+            <label class="chk"><input type="checkbox" v-model="af.containsPi" /> 含个人信息</label>
+            <label class="chk"><input type="checkbox" v-model="af.crossBorder" /> 跨境</label>
+            <label class="chk"><input type="checkbox" v-model="af.mlpsFiled" /> 等保已备案</label>
+            <label class="chk"><input type="checkbox" v-model="af.containsChd" /> 含持卡人数据</label>
+          </div>
+          <label class="fld">所属组织<select v-model.number="af.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="assetErr" class="cerr">{{ assetErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showAsset = false">取消</button>
+            <button class="btn" :disabled="!af.name || assetSaving" @click="submitAsset">{{ assetSaving ? '提交中…' : '确认登记' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 登记 ROPA 处理活动弹窗（真实 POST /api/ropa）-->
+      <div v-if="showRopa" class="modal-mask" @click.self="showRopa = false">
+        <div class="modal-card">
+          <h3>登记个人信息处理活动</h3>
+          <label class="fld">处理活动<input v-model="rf.activityName" placeholder="如 商户实名认证" /></label>
+          <label class="fld">目的<input v-model="rf.purpose" placeholder="如 履行反洗钱义务" /></label>
+          <label class="fld">数据类别<input v-model="rf.dataCategories" placeholder="如 身份证号、人脸信息" /></label>
+          <label class="fld">法律依据<input v-model="rf.legalBasis" placeholder="如 个保法第13条第3款" /></label>
+          <label class="fld">留存期限<input v-model="rf.retention" placeholder="如 合同终止后5年" /></label>
+          <label class="chk"><input type="checkbox" v-model="rf.crossBorder" /> 涉及跨境提供</label>
+          <label class="fld">所属组织<select v-model.number="rf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="ropaErr" class="cerr">{{ ropaErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showRopa = false">取消</button>
+            <button class="btn" :disabled="!rf.activityName || ropaSaving" @click="submitRopa">{{ ropaSaving ? '提交中…' : '确认登记' }}</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 组织 新增/重命名 弹窗 -->
       <div v-if="orgModal" class="modal-mask" @click.self="orgModal = null">
         <div class="modal-card">
@@ -127,19 +179,19 @@
         <div class="kpibar k4">
           <div class="kc">
             <div class="l">{{ $t('orgasset.kpi.total') }}</div>
-            <div class="v">186</div>
+            <div class="v">{{ assetKpi.total }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('orgasset.kpi.systems') }}</div>
-            <div class="v">94</div>
+            <div class="v">{{ assetKpi.systems }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('orgasset.kpi.highCrit') }}</div>
-            <div class="v" style="color: var(--danger)">38</div>
+            <div class="v" style="color: var(--danger)">{{ assetKpi.highCrit }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('orgasset.kpi.coverage') }}</div>
-            <div class="v" style="color: var(--success)">86<small>%</small></div>
+            <div class="v" style="color: var(--success)">{{ assetKpi.coverage }}<small>%</small></div>
           </div>
         </div>
 
@@ -166,23 +218,18 @@
                   </tr>
                 </thead>
                 <tbody>
-                  <tr v-for="r in assetRows" :key="r.id">
-                    <td class="code">{{ r.id }}</td>
-                    <td>{{ $t(r.name) }}</td>
-                    <td><span class="pill" :class="r.typePill">{{ $t(r.type) }}</span></td>
-                    <td><span class="tag" :class="r.dataClass.cls">{{ $t(r.dataClass.label) }}</span></td>
-                    <td>{{ $t(r.pi) }}</td>
-                    <td>
-                      <span v-if="r.crossBorderTag" class="tag m">{{ $t(r.crossBorder) }}</span>
-                      <template v-else>{{ $t(r.crossBorder) }}</template>
-                    </td>
-                    <td>
-                      <span v-if="r.mlps" class="pill blue">{{ $t(r.mlps) }}</span>
-                      <template v-else>—</template>
-                    </td>
-                    <td>{{ $t(r.chd) }}</td>
-                    <td><span class="tag" :class="r.crit.cls">{{ $t(r.crit.label) }}</span></td>
+                  <tr v-for="r in assets" :key="r.id">
+                    <td class="code">AST-{{ r.id }}</td>
+                    <td>{{ r.name }}</td>
+                    <td><span class="pill">{{ ASSET_TYPE[r.assetType] || r.assetType }}</span></td>
+                    <td><span class="tag" :class="CLS_TAG[r.classification]">{{ CLS_LABEL[r.classification] || r.classification }}</span></td>
+                    <td>{{ r.containsPi ? '是' : '否' }}</td>
+                    <td><span v-if="r.crossBorder" class="tag m">是</span><template v-else>否</template></td>
+                    <td><span v-if="r.mlpsFiled" class="pill blue">已备案</span><template v-else>—</template></td>
+                    <td>{{ r.containsChd ? '是' : '否' }}</td>
+                    <td><span class="tag" :class="CRIT_TAG[r.criticality]">{{ CRIT_LABEL[r.criticality] || r.criticality || '—' }}</span></td>
                   </tr>
+                  <tr v-if="!assets.length"><td colspan="9" style="text-align:center;color:var(--text-3);padding:18px">暂无资产，点「登记资产」。</td></tr>
                 </tbody>
               </table>
             </div>
@@ -220,27 +267,23 @@
                   <th>{{ $t('orgasset.ropa.th.activity') }}</th>
                   <th>{{ $t('orgasset.ropa.th.purpose') }}</th>
                   <th>{{ $t('orgasset.ropa.th.piType') }}</th>
-                  <th>{{ $t('orgasset.ropa.th.volume') }}</th>
-                  <th>{{ $t('orgasset.ropa.th.sensitive') }}</th>
+                  <th>法律依据</th>
                   <th>{{ $t('orgasset.ropa.th.export') }}</th>
                   <th>{{ $t('orgasset.ropa.th.retention') }}</th>
-                  <th>{{ $t('orgasset.ropa.th.owner') }}</th>
+                  <th>状态</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="r in ropaRows" :key="r.owner">
-                  <td>{{ $t(r.activity) }}</td>
-                  <td>{{ $t(r.purpose) }}</td>
-                  <td>{{ $t(r.piType) }}</td>
-                  <td>{{ $t(r.volume) }}</td>
-                  <td><span class="tag" :class="r.sensitive.cls">{{ $t(r.sensitive.label) }}</span></td>
-                  <td>
-                    <span v-if="r.exportTag" class="tag m">{{ $t(r.export) }}</span>
-                    <template v-else>{{ $t(r.export) }}</template>
-                  </td>
-                  <td>{{ $t(r.retention) }}</td>
-                  <td>{{ $t(r.owner) }}</td>
+                <tr v-for="r in ropas" :key="r.id">
+                  <td><b>{{ r.activityName }}</b></td>
+                  <td class="mutedcell">{{ r.purpose || '—' }}</td>
+                  <td>{{ r.dataCategories || '—' }}</td>
+                  <td class="mutedcell">{{ r.legalBasis || '—' }}</td>
+                  <td><span v-if="r.crossBorder" class="tag m">是</span><template v-else>否</template></td>
+                  <td>{{ r.retention || '—' }}</td>
+                  <td><span class="pill" :class="r.status === 'ACTIVE' ? 'blue' : ''">{{ ROPA_ST[r.status] || r.status }}</span></td>
                 </tr>
+                <tr v-if="!ropas.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">暂无处理活动记录，点「＋ 登记处理活动」。</td></tr>
               </tbody>
             </table>
           </div>
@@ -314,36 +357,74 @@ async function delOrg(n) {
   } catch (e) { orgError.value = e.message }
 }
 
-onMounted(loadTree)
+// ===== Tab2：资产台账（真实后端 /api/assets，含合规属性 CR-002）=====
+const ASSET_TYPE = { SYSTEM: '系统', DATABASE: '数据库', APP: '应用', PROCESS: '流程', VENDOR_SVC: '供应商服务' }
+const CLS_LABEL = { PUBLIC: '公开', INTERNAL: '内部', SENSITIVE: '敏感' }
+const CLS_TAG = { SENSITIVE: 'h', INTERNAL: 'm', PUBLIC: 'l' }
+const CRIT_LABEL = { HIGH: '高', MID: '中', LOW: '低' }
+const CRIT_TAG = { HIGH: 'h', MID: 'm', LOW: 'l' }
+const assets = ref([])
+async function loadAssets() {
+  try { assets.value = await api.get('/assets') } catch (e) { assets.value = [] }
+}
+// KPI（按真实资产统计：总数/系统类/高重要性/等保备案覆盖率）
+const assetKpi = computed(() => {
+  const total = assets.value.length
+  return {
+    total,
+    systems: assets.value.filter((a) => a.assetType === 'SYSTEM').length,
+    highCrit: assets.value.filter((a) => a.criticality === 'HIGH').length,
+    coverage: total ? Math.round((assets.value.filter((a) => a.mlpsFiled).length / total) * 100) : 0
+  }
+})
+// 右栏：资产类型分布（按真实资产统计）
+const distBars = computed(() => {
+  const total = assets.value.length || 1
+  const byType = {}
+  assets.value.forEach((a) => { byType[a.assetType] = (byType[a.assetType] || 0) + 1 })
+  return Object.entries(byType).map(([k, v]) => ({ label: ASSET_TYPE[k] || k, v, w: Math.round((v / total) * 100) + '%' }))
+})
 
-// ---- Tab2：资产台账（含数据/合规属性，静态示例值取自原型）----
-// dataClass：敏感=tag.h / 内部=tag.m；crit：高=tag.h / 中=tag.m
-// crossBorderTag=true 时渲染 tag.m「是」，否则纯文本「否」
-// mlps 为空（云擎科技供应商）时渲染 —
-const assetRows = [
-  { id: 'AST-001', name: 'orgasset.asset.coreGw', type: 'orgasset.asset.typeSystem', typePill: '', dataClass: { cls: 'h', label: 'orgasset.asset.sensitive' }, pi: 'orgasset.asset.yes', crossBorder: 'orgasset.asset.no', crossBorderTag: false, mlps: 'orgasset.asset.l3', chd: 'orgasset.asset.yes', crit: { cls: 'h', label: 'orgasset.asset.high' } },
-  { id: 'AST-014', name: 'orgasset.asset.merchantSettle', type: 'orgasset.asset.typeSystem', typePill: '', dataClass: { cls: 'h', label: 'orgasset.asset.sensitive' }, pi: 'orgasset.asset.yes', crossBorder: 'orgasset.asset.no', crossBorderTag: false, mlps: 'orgasset.asset.l3', chd: 'orgasset.asset.yes', crit: { cls: 'h', label: 'orgasset.asset.high' } },
-  { id: 'AST-022', name: 'orgasset.asset.crossClearing', type: 'orgasset.asset.typeSystem', typePill: '', dataClass: { cls: 'h', label: 'orgasset.asset.sensitive' }, pi: 'orgasset.asset.yes', crossBorder: 'orgasset.asset.yes', crossBorderTag: true, mlps: 'orgasset.asset.l3', chd: 'orgasset.asset.no', crit: { cls: 'h', label: 'orgasset.asset.high' } },
-  { id: 'AST-031', name: 'orgasset.asset.dataWarehouse', type: 'orgasset.asset.typeSystem', typePill: '', dataClass: { cls: 'm', label: 'orgasset.asset.internal' }, pi: 'orgasset.asset.yes', crossBorder: 'orgasset.asset.no', crossBorderTag: false, mlps: 'orgasset.asset.l2', chd: 'orgasset.asset.no', crit: { cls: 'm', label: 'orgasset.asset.mid' } },
-  { id: 'AST-039', name: 'orgasset.asset.yunqing', type: 'orgasset.asset.typeVendor', typePill: 'violet', dataClass: { cls: 'h', label: 'orgasset.asset.sensitive' }, pi: 'orgasset.asset.yes', crossBorder: 'orgasset.asset.yes', crossBorderTag: true, mlps: '', chd: 'orgasset.asset.yes', crit: { cls: 'h', label: 'orgasset.asset.high' } }
-]
+// 登记资产
+const showAsset = ref(false)
+const assetSaving = ref(false)
+const assetErr = ref('')
+const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
+function openAsset() {
+  Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
+  assetErr.value = ''; showAsset.value = true
+}
+async function submitAsset() {
+  assetSaving.value = true; assetErr.value = ''
+  try {
+    await api.post('/assets', { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality })
+    showAsset.value = false; await loadAssets()
+  } catch (e) { assetErr.value = e.message } finally { assetSaving.value = false }
+}
 
-// ---- Tab2 右栏：资产类型分布 bars（seg2.a 强调色）----
-const distBars = [
-  { label: 'orgasset.dist.system', v: '94', w: '100%' },
-  { label: 'orgasset.dist.process', v: '52', w: '55%' },
-  { label: 'orgasset.dist.data', v: '26', w: '28%' },
-  { label: 'orgasset.dist.vendor', v: '14', w: '15%' }
-]
+// ===== Tab3：个人信息处理活动 ROPA（真实后端 /api/ropa）=====
+const ROPA_ST = { DRAFT: '草稿', ACTIVE: '生效', RETIRED: '已停用' }
+const ropas = ref([])
+async function loadRopas() {
+  try { ropas.value = await api.get('/ropa') } catch (e) { ropas.value = [] }
+}
+const showRopa = ref(false)
+const ropaSaving = ref(false)
+const ropaErr = ref('')
+const rf = reactive({ activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', crossBorder: false, orgId: 12 })
+function openRopa() {
+  Object.assign(rf, { activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', crossBorder: false, orgId: 12 })
+  ropaErr.value = ''; showRopa.value = true
+}
+async function submitRopa() {
+  ropaSaving.value = true; ropaErr.value = ''
+  try {
+    await api.post('/ropa', { orgId: rf.orgId, activityName: rf.activityName, purpose: rf.purpose || null, dataCategories: rf.dataCategories || null, legalBasis: rf.legalBasis || null, crossBorder: rf.crossBorder, retention: rf.retention || null })
+    showRopa.value = false; await loadRopas()
+  } catch (e) { ropaErr.value = e.message } finally { ropaSaving.value = false }
+}
 
-// ---- Tab3：个人信息处理活动记录（ROPA）----
-// sensitive：是=tag.h / 否=tag.l；exportTag=true 渲染 tag.m「是」，否则纯文本「否」
-const ropaRows = [
-  { activity: 'orgasset.ropa.merchantSettle', purpose: 'orgasset.ropa.clearing', piType: 'orgasset.ropa.idCard', volume: 'orgasset.ropa.vMillion', sensitive: { cls: 'h', label: 'orgasset.ropa.yes' }, export: 'orgasset.ropa.no', exportTag: false, retention: 'orgasset.ropa.y10', owner: 'orgasset.ropa.ownerLi' },
-  { activity: 'orgasset.ropa.crossClearing', purpose: 'orgasset.ropa.crossPay', piType: 'orgasset.ropa.idTxn', volume: 'orgasset.ropa.vHundredK', sensitive: { cls: 'h', label: 'orgasset.ropa.yes' }, export: 'orgasset.ropa.yes', exportTag: true, retention: 'orgasset.ropa.y10', owner: 'orgasset.ropa.ownerLiu' },
-  { activity: 'orgasset.ropa.riskModel', purpose: 'orgasset.ropa.antiFraud', piType: 'orgasset.ropa.deviceBehavior', volume: 'orgasset.ropa.vTenMillion', sensitive: { cls: 'l', label: 'orgasset.ropa.no' }, export: 'orgasset.ropa.no', exportTag: false, retention: 'orgasset.ropa.y5', owner: 'orgasset.ropa.ownerWang' },
-  { activity: 'orgasset.ropa.service', purpose: 'orgasset.ropa.quality', piType: 'orgasset.ropa.phoneCall', volume: 'orgasset.ropa.vHundredK', sensitive: { cls: 'l', label: 'orgasset.ropa.no' }, export: 'orgasset.ropa.no', exportTag: false, retention: 'orgasset.ropa.y2', owner: 'orgasset.ropa.ownerChen' }
-]
+onMounted(() => { loadTree(); loadAssets(); loadRopas() })
 </script>
 
 <style scoped>
@@ -751,4 +832,7 @@ tbody tr:hover {
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .cerr { color: var(--danger); font-size: 12.5px; margin: 0 0 12px; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+.chkrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 2px 0 12px; }
+.chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); }
+.mutedcell { color: var(--text-2); max-width: 220px; }
 </style>

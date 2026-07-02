@@ -32,8 +32,16 @@ public class AuditFindingController {
 
     /** 列出某审计计划下的发现。 */
     @GetMapping
-    public List<AuditFinding> listByPlan(@RequestParam Long auditPlanId) {
-        return service.listByPlan(auditPlanId);
+    public List<AuditFinding> listByPlan(@RequestParam(required = false) Long auditPlanId,
+                                          @RequestParam(required = false) AuditType type) {
+        // 二选一：按计划查（内审页逐计划视图）或按类型跨计划查（外审页汇总视图）
+        if (auditPlanId != null) {
+            return service.listByPlan(auditPlanId);
+        }
+        if (type != null) {
+            return service.listByType(type);
+        }
+        throw new IllegalArgumentException("请提供 auditPlanId 或 type 参数");
     }
 
     /** 取单个审计发现。 */

@@ -55,7 +55,20 @@
                 <circle cx="11" cy="11" r="7" />
                 <path d="m21 21-4-4" />
               </svg>
-              <input :placeholder="$t('top.searchPlaceholder')" />
+              <input v-model="searchQ" :placeholder="$t('top.searchPlaceholder')"
+                     @input="onSearchInput" @focus="searchQ && (searchOpen = true)" @blur="closeSearchSoon" />
+            </div>
+            <!-- 全局搜索结果面板（跨法规/制度/评估/审计/义务/供应商/知识库，RLS 裁剪） -->
+            <div v-if="searchOpen" class="sresults">
+              <div v-if="searching" class="sr-empty">搜索中…</div>
+              <template v-else-if="searchHits.length">
+                <div v-for="h in searchHits" :key="h.module + h.id" class="sr-item" @mousedown.prevent="goHit(h)">
+                  <span class="sr-mod">{{ MODULE_LABEL[h.module] || h.module }}</span>
+                  <span class="sr-title">{{ h.title }}</span>
+                  <span class="sr-sub">{{ h.sub }}</span>
+                </div>
+              </template>
+              <div v-else class="sr-empty">未找到「{{ searchQ }}」相关内容</div>
             </div>
           </div>
           <div class="ico">
@@ -102,6 +115,37 @@ import { authState, canSee, clearUser } from '@/auth.js'
 const route = useRoute()
 const router = useRouter()
 const { t, locale } = useI18n()
+
+// ===== 全局搜索（需求 §13.3：跨法规/制度/评估/审计/义务/供应商/知识库）=====
+const MODULE_LABEL = {
+  regulation: '法规', crawled: '采集法规', policy: '制度', assessment: '评估',
+  obligation: '义务', vendor: '供应商', audit: '内审', extaudit: '外审', finding: '审计发现', kb: '知识库'
+}
+const MODULE_ROUTE = {
+  regulation: '/regulation', crawled: '/regulation', policy: '/policy', assessment: '/risk',
+  obligation: '/obligations', vendor: '/vendor', audit: '/internal-audit', extaudit: '/external-audit',
+  finding: '/internal-audit', kb: '/ai-assistant'
+}
+const searchQ = ref('')
+const searchHits = ref([])
+const searchOpen = ref(false)
+const searching = ref(false)
+let searchTimer = null
+function onSearchInput() {
+  clearTimeout(searchTimer)
+  if (!searchQ.value.trim()) { searchOpen.value = false; searchHits.value = []; return }
+  searchOpen.value = true; searching.value = true
+  searchTimer = setTimeout(async () => {
+    try { searchHits.value = await api.get('/search?q=' + encodeURIComponent(searchQ.value.trim())) }
+    catch (e) { searchHits.value = [] }
+    finally { searching.value = false }
+  }, 280)
+}
+function closeSearchSoon() { setTimeout(() => (searchOpen.value = false), 180) }
+function goHit(h) {
+  searchOpen.value = false; searchQ.value = ''
+  router.push(MODULE_ROUTE[h.module] || '/dashboard')
+}
 
 // 品牌：读系统设置→登录页与品牌(/api/branding)，全局生效（含侧栏品牌区）；空字段回退 i18n 默认。
 const brand = ref({})
@@ -387,6 +431,19 @@ function onAiFab() {
   color: var(--text-1);
   width: 180px;
 }
+/* 全局搜索结果面板 */
+.searchwrap { position: relative; }
+.sresults {
+  position: absolute; top: 46px; right: 0; width: 340px; max-height: 420px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2); z-index: 80; padding: 6px;
+}
+.sr-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; cursor: pointer; }
+.sr-item:hover { background: var(--accent-tint); }
+.sr-mod { flex-shrink: 0; font-size: 10px; font-weight: 700; color: var(--accent-strong); background: var(--accent-weak); border-radius: 5px; padding: 2px 7px; }
+.sr-title { font-size: 12.5px; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sr-sub { margin-left: auto; flex-shrink: 0; font-size: 10.5px; color: var(--text-3); font-family: var(--font-mono, monospace); }
+.sr-empty { padding: 14px; text-align: center; font-size: 12px; color: var(--text-3); }
 .ico {
   width: 40px;
   height: 40px;

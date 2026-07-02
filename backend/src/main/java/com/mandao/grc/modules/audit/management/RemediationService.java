@@ -37,6 +37,12 @@ public class RemediationService {
         return orderRepository.findByFindingId(findingId);
     }
 
+    /** 按审计类型跨发现列整改工单（外审页"整改跟踪"汇总视图）。 */
+    @Transactional(readOnly = true)
+    public List<RemediationOrder> listByType(AuditType type) {
+        return orderRepository.findByPlanType(type);
+    }
+
     @Transactional(readOnly = true)
     public RemediationOrder get(Long id) {
         return orderRepository.findById(id)
