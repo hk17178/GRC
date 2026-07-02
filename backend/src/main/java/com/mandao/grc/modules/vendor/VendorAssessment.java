@@ -52,6 +52,10 @@ public class VendorAssessment {
     @Column(columnDefinition = "TEXT")
     private String conclusion;
 
+    /** 评估类型：ONBOARDING 首次准入 / ANNUAL 年度定期 / RENEWAL 续约 / EVENT 事件复评。 */
+    @Column(name = "assess_type", nullable = false, length = 16)
+    private String assessType = "ONBOARDING";
+
     @Column(name = "assessed_at", updatable = false)
     private OffsetDateTime assessedAt;
 
@@ -61,7 +65,14 @@ public class VendorAssessment {
 
     /** 业务构造：登记一次供应商评估。 */
     public VendorAssessment(Long orgId, Long vendorId, RiskLevel riskLevel, Integer score,
-                            String assessor, String conclusion) {
+                            String assessor, String conclusion, String assessType) {
+        this.assessType = assessType == null ? "ONBOARDING" : assessType;
+        // 委托旧构造逻辑：
+        init(orgId, vendorId, riskLevel, score, assessor, conclusion);
+    }
+
+    private void init(Long orgId, Long vendorId, RiskLevel riskLevel, Integer score,
+                      String assessor, String conclusion) {
         this.orgId = orgId;
         this.vendorId = vendorId;
         this.riskLevel = riskLevel;
@@ -81,6 +92,7 @@ public class VendorAssessment {
     public Long getOrgId() { return orgId; }
     public Long getVendorId() { return vendorId; }
     public RiskLevel getRiskLevel() { return riskLevel; }
+    public String getAssessType() { return assessType; }
     public Integer getScore() { return score; }
     public String getAssessor() { return assessor; }
     public String getConclusion() { return conclusion; }

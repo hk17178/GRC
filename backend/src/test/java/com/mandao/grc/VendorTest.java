@@ -72,13 +72,46 @@ class VendorTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE vendor_assessment, vendor, operation_log RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE vendor_incident, vendor_sla, vendor_assessment, vendor, operation_log RESTART IDENTITY CASCADE");
         }
     }
 
     @AfterEach
     void clearContext() {
         IsolationContext.clear();
+    }
+
+    @Test
+    void M7深度_SLA跟踪_事件触发复评闭环_合规属性() {
+        Long vid = asOrg(ORG_PAY, () -> vendorService.register(ORG_PAY, "V-SMS", "短信网关B",
+                "通信", null, "MID", "c").getId());
+
+        // 技术安全/DPA 属性
+        var v = asOrg(ORG_PAY, () -> vendorService.updateCompliance(vid, "境内", true, "ISO27001,PCI DSS",
+                true, false, "无再委托", "admin"));
+        org.junit.jupiter.api.Assertions.assertTrue(v.isPciScope());
+        org.junit.jupiter.api.Assertions.assertEquals("境内", v.getDataResidency());
+
+        // SLA：新增 + 回填不达标
+        var sla = asOrg(ORG_PAY, () -> vendorService.addSla(vid, "到达率", "≥98%", "99.1%",
+                java.time.LocalDate.of(2026, 9, 1), true, "ops"));
+        var tracked = asOrg(ORG_PAY, () -> vendorService.trackSla(sla.getId(), "96.7%", false, "ops"));
+        org.junit.jupiter.api.Assertions.assertFalse(tracked.isMet(), "回填后应不达标");
+        org.junit.jupiter.api.Assertions.assertEquals(1, asOrg(ORG_PAY, () -> vendorService.listAllSla()).size());
+
+        // 事件触发复评：登记(OPEN)→复评(REASSESSING, EVENT 评估)→闭环(CLOSED)
+        var inc = asOrg(ORG_PAY, () -> vendorService.reportIncident(vid, "被曝数据泄露", "媒体", "HIGH", "risk"));
+        org.junit.jupiter.api.Assertions.assertEquals("OPEN", inc.getStatus());
+        var re = asOrg(ORG_PAY, () -> vendorService.triggerReassess(inc.getId(), RiskLevel.HIGH, 55, "复评：高风险", "assessor"));
+        org.junit.jupiter.api.Assertions.assertEquals("REASSESSING", re.getStatus());
+        // EVENT 评估已登记且回写供应商风险
+        var assessments = asOrg(ORG_PAY, () -> vendorService.listAssessments(vid));
+        org.junit.jupiter.api.Assertions.assertTrue(assessments.stream().anyMatch(a -> "EVENT".equals(a.getAssessType())), "应有 EVENT 类评估");
+        var closed = asOrg(ORG_PAY, () -> vendorService.closeIncident(inc.getId(), "risk"));
+        org.junit.jupiter.api.Assertions.assertEquals("CLOSED", closed.getStatus());
+        // OPEN 才能复评
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> vendorService.triggerReassess(inc.getId(), RiskLevel.MID, 70, "x", "a")));
     }
 
     @Test

@@ -24,13 +24,19 @@ public class VendorService {
 
     private final VendorRepository vendorRepository;
     private final VendorAssessmentRepository assessmentRepository;
+    private final VendorSlaRepository slaRepository;
+    private final VendorIncidentRepository incidentRepository;
     private final HashChainService hashChainService;
 
     public VendorService(VendorRepository vendorRepository,
                          VendorAssessmentRepository assessmentRepository,
+                         VendorSlaRepository slaRepository,
+                         VendorIncidentRepository incidentRepository,
                          HashChainService hashChainService) {
         this.vendorRepository = vendorRepository;
         this.assessmentRepository = assessmentRepository;
+        this.slaRepository = slaRepository;
+        this.incidentRepository = incidentRepository;
         this.hashChainService = hashChainService;
     }
 
@@ -65,9 +71,16 @@ public class VendorService {
     @Transactional
     public VendorAssessment assess(Long vendorId, RiskLevel riskLevel, Integer score,
                                    String conclusion, String actor) {
+        return assess(vendorId, riskLevel, score, conclusion, "ONBOARDING", actor);
+    }
+
+    /** 评估供应商（带评估类型：ONBOARDING/ANNUAL/RENEWAL/EVENT，需求 9.3.2 四类评估分类）。 */
+    @Transactional
+    public VendorAssessment assess(Long vendorId, RiskLevel riskLevel, Integer score,
+                                   String conclusion, String assessType, String actor) {
         Vendor v = get(vendorId);
         VendorAssessment saved = assessmentRepository.save(
-                new VendorAssessment(v.getOrgId(), vendorId, riskLevel, score, actor, conclusion));
+                new VendorAssessment(v.getOrgId(), vendorId, riskLevel, score, actor, conclusion, assessType));
         v.setRiskLevel(riskLevel);
         vendorRepository.save(v);
         hashChainService.append(v.getOrgId(), "VENDOR_ASSESS", actor, "VENDOR:" + vendorId,
@@ -132,6 +145,103 @@ public class VendorService {
         Vendor saved = vendorRepository.save(v);
         hashChainService.append(v.getOrgId(), "VENDOR_TERMINATE", actor, "VENDOR:" + vendorId,
                 "终止供应商：" + (reason == null ? "" : reason));
+        return saved;
+    }
+
+    // ---------- M7 深度：技术安全/DPA / SLA 跟踪 / 事件触发复评 ----------
+
+    /** 更新技术安全/DPA 合规属性（需求 9.3.1 两卡片）。 */
+    @Transactional
+    public Vendor updateCompliance(Long vendorId, String dataResidency, boolean pciScope, String certifications,
+                                   boolean dpaSigned, boolean crossBorder, String subProcessing, String actor) {
+        Vendor v = get(vendorId);
+        v.updateCompliance(dataResidency, pciScope, certifications, dpaSigned, crossBorder, subProcessing);
+        Vendor saved = vendorRepository.save(v);
+        hashChainService.append(v.getOrgId(), "VENDOR_COMPLIANCE", actor, "VENDOR:" + vendorId,
+                "更新技术安全/DPA 属性 驻留=" + dataResidency + " DPA=" + dpaSigned);
+        return saved;
+    }
+
+    /** 某供应商的 SLA 项。 */
+    @Transactional(readOnly = true)
+    public List<VendorSla> listSla(Long vendorId) {
+        return slaRepository.findByVendorIdOrderByIdAsc(vendorId);
+    }
+
+    /** 全部 SLA（跟踪页汇总视图，按到期升序）。 */
+    @Transactional(readOnly = true)
+    public List<VendorSla> listAllSla() {
+        return slaRepository.findAllByOrderByDueDateAsc();
+    }
+
+    /** 新增 SLA 项。 */
+    @Transactional
+    public VendorSla addSla(Long vendorId, String item, String target, String actual,
+                            java.time.LocalDate dueDate, boolean met, String actor) {
+        Vendor v = get(vendorId);
+        VendorSla saved = slaRepository.save(new VendorSla(v.getOrgId(), vendorId, item, target, actual, dueDate, met));
+        hashChainService.append(v.getOrgId(), "VENDOR_SLA_ADD", actor, "VENDOR:" + vendorId,
+                "新增 SLA 项 " + item + " 目标=" + target);
+        return saved;
+    }
+
+    /** 回填 SLA 实际值与达标状态。 */
+    @Transactional
+    public VendorSla trackSla(Long slaId, String actual, boolean met, String actor) {
+        VendorSla sla = slaRepository.findById(slaId)
+                .orElseThrow(() -> new IllegalArgumentException("SLA 项不存在或不可见：id=" + slaId));
+        sla.track(actual, met);
+        VendorSla saved = slaRepository.save(sla);
+        hashChainService.append(sla.getOrgId(), "VENDOR_SLA_TRACK", actor, "VENDOR:" + sla.getVendorId(),
+                "SLA " + sla.getItem() + " 实际=" + actual + " 达标=" + met);
+        return saved;
+    }
+
+    /** 全部外部事件（事件触发复评页）。 */
+    @Transactional(readOnly = true)
+    public List<VendorIncident> listIncidents() {
+        return incidentRepository.findAllByOrderByIdDesc();
+    }
+
+    /** 登记外部负面事件（OPEN）。 */
+    @Transactional
+    public VendorIncident reportIncident(Long vendorId, String event, String source, String riskLevel, String actor) {
+        Vendor v = get(vendorId);
+        VendorIncident saved = incidentRepository.save(new VendorIncident(v.getOrgId(), vendorId, event, source, riskLevel));
+        hashChainService.append(v.getOrgId(), "VENDOR_INCIDENT", actor, "VENDOR:" + vendorId,
+                "登记外部事件：" + event + "（来源 " + source + "）");
+        return saved;
+    }
+
+    /**
+     * 事件触发复评：对该事件的供应商登记一次 EVENT 类型评估，事件转 REASSESSING。
+     * 复评结论回写供应商最近风险等级（复用 assess）。
+     */
+    @Transactional
+    public VendorIncident triggerReassess(Long incidentId, RiskLevel riskLevel, Integer score,
+                                          String conclusion, String actor) {
+        VendorIncident inc = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IllegalArgumentException("事件不存在或不可见：id=" + incidentId));
+        if (!VendorIncident.OPEN.equals(inc.getStatus())) {
+            throw new IllegalStateException("仅 OPEN 事件可触发复评，当前状态：" + inc.getStatus());
+        }
+        assess(inc.getVendorId(), riskLevel, score, conclusion, "EVENT", actor);
+        inc.markReassessing();
+        return incidentRepository.save(inc);
+    }
+
+    /** 事件闭环：复评完成后关闭（REASSESSING → CLOSED）。 */
+    @Transactional
+    public VendorIncident closeIncident(Long incidentId, String actor) {
+        VendorIncident inc = incidentRepository.findById(incidentId)
+                .orElseThrow(() -> new IllegalArgumentException("事件不存在或不可见：id=" + incidentId));
+        if (!VendorIncident.REASSESSING.equals(inc.getStatus())) {
+            throw new IllegalStateException("仅复评中(REASSESSING)事件可闭环，当前状态：" + inc.getStatus());
+        }
+        inc.close();
+        VendorIncident saved = incidentRepository.save(inc);
+        hashChainService.append(inc.getOrgId(), "VENDOR_INCIDENT_CLOSE", actor, "VENDOR:" + inc.getVendorId(),
+                "外部事件复评闭环：" + inc.getEvent());
         return saved;
     }
 }

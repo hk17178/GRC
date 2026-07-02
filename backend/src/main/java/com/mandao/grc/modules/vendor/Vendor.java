@@ -63,6 +63,32 @@ public class Vendor {
     @Column(length = 16)
     private String criticality;
 
+    // ---- 技术安全 / DPA 合规属性（需求 9.3.1）----
+
+    /** 数据驻留（如 境内/新加坡）。 */
+    @Column(name = "data_residency", length = 64)
+    private String dataResidency;
+
+    /** 是否在 PCI 范围。 */
+    @Column(name = "pci_scope", nullable = false)
+    private boolean pciScope = false;
+
+    /** 自身认证（如 ISO27001,PCI DSS）。 */
+    @Column(length = 256)
+    private String certifications;
+
+    /** DPA（数据处理协议）已签。 */
+    @Column(name = "dpa_signed", nullable = false)
+    private boolean dpaSigned = false;
+
+    /** 涉跨境。 */
+    @Column(name = "cross_border", nullable = false)
+    private boolean crossBorder = false;
+
+    /** 再委托说明。 */
+    @Column(name = "sub_processing", length = 256)
+    private String subProcessing;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -119,4 +145,21 @@ public class Vendor {
     public String getCriticality() { return criticality; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
+    public String getDataResidency() { return dataResidency; }
+    public boolean isPciScope() { return pciScope; }
+    public String getCertifications() { return certifications; }
+    public boolean isDpaSigned() { return dpaSigned; }
+    public boolean isCrossBorder() { return crossBorder; }
+    public String getSubProcessing() { return subProcessing; }
+
+    /** 更新技术安全/DPA 合规属性（由 Service 调用）。 */
+    void updateCompliance(String dataResidency, boolean pciScope, String certifications,
+                          boolean dpaSigned, boolean crossBorder, String subProcessing) {
+        this.dataResidency = dataResidency;
+        this.pciScope = pciScope;
+        this.certifications = certifications;
+        this.dpaSigned = dpaSigned;
+        this.crossBorder = crossBorder;
+        this.subProcessing = subProcessing;
+    }
 }

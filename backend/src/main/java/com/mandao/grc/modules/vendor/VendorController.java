@@ -5,6 +5,7 @@ import com.mandao.grc.modules.assessment.RiskLevel;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -93,7 +94,83 @@ public class VendorController {
         return service.terminate(id, req == null ? null : req.reason(), actor(user));
     }
 
+    // ---------- M7 深度：技术安全/DPA / SLA / 事件复评 ----------
+
+    /** 更新技术安全/DPA 合规属性。 */
+    @PutMapping("/{id}/compliance")
+    @RequiresPermission("vendor")
+    public Vendor updateCompliance(@PathVariable Long id, @RequestBody ComplianceRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.updateCompliance(id, req.dataResidency(), req.pciScope() != null && req.pciScope(),
+                req.certifications(), req.dpaSigned() != null && req.dpaSigned(),
+                req.crossBorder() != null && req.crossBorder(), req.subProcessing(), actor(user));
+    }
+
+    /** 某供应商 SLA 项。 */
+    @GetMapping("/{id}/sla")
+    public List<VendorSla> listSla(@PathVariable Long id) {
+        return service.listSla(id);
+    }
+
+    /** 全部 SLA（SLA 跟踪页）。 */
+    @GetMapping("/sla")
+    public List<VendorSla> listAllSla() {
+        return service.listAllSla();
+    }
+
+    /** 新增 SLA 项。 */
+    @PostMapping("/{id}/sla")
+    @RequiresPermission("vendor")
+    public VendorSla addSla(@PathVariable Long id, @RequestBody SlaRequest req,
+                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addSla(id, req.item(), req.target(), req.actual(), req.dueDate(),
+                req.met() == null || req.met(), actor(user));
+    }
+
+    /** 回填 SLA 实际值/达标。 */
+    @PutMapping("/sla/{slaId}")
+    @RequiresPermission("vendor")
+    public VendorSla trackSla(@PathVariable Long slaId, @RequestBody SlaTrackRequest req,
+                              @RequestHeader(value = "X-User", required = false) String user) {
+        return service.trackSla(slaId, req.actual(), req.met() == null || req.met(), actor(user));
+    }
+
+    /** 全部外部事件。 */
+    @GetMapping("/incidents")
+    public List<VendorIncident> listIncidents() {
+        return service.listIncidents();
+    }
+
+    /** 登记外部负面事件。 */
+    @PostMapping("/{id}/incidents")
+    @RequiresPermission("vendor")
+    public VendorIncident reportIncident(@PathVariable Long id, @RequestBody IncidentRequest req,
+                                         @RequestHeader(value = "X-User", required = false) String user) {
+        return service.reportIncident(id, req.event(), req.source(), req.riskLevel(), actor(user));
+    }
+
+    /** 事件触发复评（登记 EVENT 类型评估 + 事件转 REASSESSING）。 */
+    @PostMapping("/incidents/{incidentId}/reassess")
+    @RequiresPermission("vendor")
+    public VendorIncident reassess(@PathVariable Long incidentId, @RequestBody AssessRequest req,
+                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.triggerReassess(incidentId, req.riskLevel(), req.score(), req.conclusion(), actor(user));
+    }
+
+    /** 事件闭环。 */
+    @PostMapping("/incidents/{incidentId}/close")
+    @RequiresPermission("vendor")
+    public VendorIncident closeIncident(@PathVariable Long incidentId,
+                                        @RequestHeader(value = "X-User", required = false) String user) {
+        return service.closeIncident(incidentId, actor(user));
+    }
+
+    /** actor：优先登录态，其次 X-User，再 anonymous。 */
     private String actor(String user) {
+        String current = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
@@ -108,5 +185,19 @@ public class VendorController {
 
     /** 原因请求体（暂停/终止）。 */
     public record ReasonRequest(String reason) {
+    }
+
+    // M7 深度请求体
+    public record ComplianceRequest(String dataResidency, Boolean pciScope, String certifications,
+                                    Boolean dpaSigned, Boolean crossBorder, String subProcessing) {
+    }
+
+    public record SlaRequest(String item, String target, String actual, java.time.LocalDate dueDate, Boolean met) {
+    }
+
+    public record SlaTrackRequest(String actual, Boolean met) {
+    }
+
+    public record IncidentRequest(String event, String source, String riskLevel) {
     }
 }
