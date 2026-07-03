@@ -76,50 +76,50 @@
 
         <!-- 模型白名单（V42）：有启用条目时，非本地模型必须命中白名单方可保存 -->
         <div class="card">
-          <div class="ch"><h3>模型白名单</h3><span class="sub">启用条目存在时强制管控</span></div>
+          <div class="ch"><h3>{{ $t('aimodel.wl.title') }}</h3><span class="sub">{{ $t('aimodel.wl.sub') }}</span></div>
           <div class="cb">
             <div v-for="w in whitelist" :key="w.id" class="gov-row">
               <b class="mono">{{ w.name }}</b>
               <span class="muted2">{{ w.detail || '' }}</span>
               <span class="gap"></span>
               <template v-if="writable">
-                <button class="mini" @click="toggleGov(w)">{{ w.enabled ? '停用' : '启用' }}</button>
-                <button class="mini danger" @click="delGov(w)">删</button>
+                <button class="mini" @click="toggleGov(w)">{{ w.enabled ? $t('aimodel.gov.disable') : $t('aimodel.gov.enable') }}</button>
+                <button class="mini danger" @click="delGov(w)">{{ $t('aimodel.gov.del') }}</button>
               </template>
-              <span v-else class="st" :class="w.enabled ? 'ok' : 'wait'"><span class="d"></span>{{ w.enabled ? '启用' : '停用' }}</span>
+              <span v-else class="st" :class="w.enabled ? 'ok' : 'wait'"><span class="d"></span>{{ w.enabled ? $t('aimodel.gov.enable') : $t('aimodel.gov.disable') }}</span>
             </div>
-            <div v-if="!whitelist.length" class="muted2" style="padding:8px 0">无白名单条目 = 未启用管控（任意模型可保存）。</div>
+            <div v-if="!whitelist.length" class="muted2" style="padding:8px 0">{{ $t('aimodel.wl.empty') }}</div>
             <div v-if="writable" class="gov-add">
-              <input v-model="newModel" placeholder="模型 id，如 qwen-plus" />
-              <input v-model="newModelNote" placeholder="备注（可选）" />
-              <button class="btn sm" :disabled="!newModel.trim()" @click="addGov('MODEL_WHITELIST', newModel, newModelNote)">加入白名单</button>
+              <input v-model="newModel" :placeholder="$t('aimodel.wl.modelPh')" />
+              <input v-model="newModelNote" :placeholder="$t('aimodel.wl.notePh')" />
+              <button class="btn sm" :disabled="!newModel.trim()" @click="addGov('MODEL_WHITELIST', newModel, newModelNote)">{{ $t('aimodel.wl.add') }}</button>
             </div>
           </div>
         </div>
 
         <!-- 提示词模板（V42）：材料生成/摘要等场景的系统提示词集中管理 -->
         <div class="card">
-          <div class="ch"><h3>提示词模板</h3><span class="sub">系统提示词集中管理</span></div>
+          <div class="ch"><h3>{{ $t('aimodel.pt.title') }}</h3><span class="sub">{{ $t('aimodel.pt.sub') }}</span></div>
           <div class="cb">
             <div v-for="p in prompts" :key="p.id" class="gov-item">
               <div class="gov-row">
                 <b>{{ p.name }}</b>
                 <span class="gap"></span>
                 <template v-if="writable">
-                  <button class="mini" @click="editGov(p)">{{ editId === p.id ? '收起' : '编辑' }}</button>
-                  <button class="mini" @click="toggleGov(p)">{{ p.enabled ? '停用' : '启用' }}</button>
-                  <button class="mini danger" @click="delGov(p)">删</button>
+                  <button class="mini" @click="editGov(p)">{{ editId === p.id ? $t('aimodel.pt.collapse') : $t('aimodel.pt.edit') }}</button>
+                  <button class="mini" @click="toggleGov(p)">{{ p.enabled ? $t('aimodel.gov.disable') : $t('aimodel.gov.enable') }}</button>
+                  <button class="mini danger" @click="delGov(p)">{{ $t('aimodel.gov.del') }}</button>
                 </template>
               </div>
               <div v-if="editId === p.id" class="gov-edit">
                 <textarea v-model="editText" rows="4"></textarea>
-                <button class="btn sm" @click="saveGov(p)">保存正文</button>
+                <button class="btn sm" @click="saveGov(p)">{{ $t('aimodel.pt.save') }}</button>
               </div>
               <div v-else class="muted2 clamp">{{ p.detail }}</div>
             </div>
             <div v-if="writable" class="gov-add">
-              <input v-model="newPrompt" placeholder="模板名，如 条款级变更摘要" />
-              <button class="btn sm" :disabled="!newPrompt.trim()" @click="addGov('PROMPT_TEMPLATE', newPrompt, '')">新建模板</button>
+              <input v-model="newPrompt" :placeholder="$t('aimodel.pt.namePh')" />
+              <button class="btn sm" :disabled="!newPrompt.trim()" @click="addGov('PROMPT_TEMPLATE', newPrompt, '')">{{ $t('aimodel.pt.add') }}</button>
             </div>
             <p v-if="govErr" class="err-msg">{{ govErr }}</p>
           </div>
@@ -131,9 +131,12 @@
 
 <script setup>
 import { reactive, ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { canWrite } from '@/auth.js'
+
+const { t } = useI18n()
 
 const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })
 async function loadStatus() { try { Object.assign(status, await api.get('/ai/status')) } catch (e) { /* 保持默认 */ } }
@@ -196,7 +199,7 @@ async function toggleGov(g) {
   try { await api.put('/ai/governance/' + g.id + '/enabled?enabled=' + (!g.enabled)); await loadGov() } catch (e) { govErr.value = e.message }
 }
 async function delGov(g) {
-  if (!window.confirm(`确认删除「${g.name}」？`)) return
+  if (!window.confirm(t('aimodel.gov.delConfirm', { t: g.name }))) return
   try { await api.del('/ai/governance/' + g.id); await loadGov() } catch (e) { govErr.value = e.message }
 }
 function editGov(p) {

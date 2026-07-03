@@ -864,7 +864,13 @@ export default {
     myEmpty: '暂无分给我的审批',
     th: { type: '类型', matter: '事项', due: '期限', status: '状态' },
     ath: { biz: '业务', node: '审批节点', role: '角色组', time: '到达时间' },
-    type: { REMEDIATION: '整改工单', COMPLIANCE_ITEM: '合规计划项', REG_FILING: '监管报送' }
+    type: { REMEDIATION: '整改工单', COMPLIANCE_ITEM: '合规计划项', REG_FILING: '监管报送' },
+    grp: {
+      fill: '待填写', fillSub: '进行中评估', fillEmpty: '无待填写评估', draft: '草稿', filling: '填写中',
+      sign: '待签署', signSub: '生效制度签署确认', signEmpty: '无待签署制度',
+      remed: '待整改', remedSub: '逾期红 · 7日内琥珀', remedEmpty: '无待整改任务', remedDefault: '整改单'
+    },
+    due: { none: '无期限', overdue: '逾期 {n} 天', today: '今日到期', left: '剩 {n} 天' }
   },
 
   // ---- 通知中心（NotifyView）----
@@ -874,7 +880,15 @@ export default {
     refresh: '刷新',
     listTitle: '调度提醒',
     empty: '暂无通知',
-    th: { time: '时间', event: '事件', object: '对象', threshold: '触发阈值' }
+    th: { time: '时间', event: '事件', object: '对象', threshold: '触发阈值', receipt: '回执' },
+    ack: '确认收到',
+    mergeTip: '同对象同事件多次提醒已合并降噪',
+    digest: {
+      tab: '定期简报', sub: '近 {d} 天提醒聚合 · 未回执数',
+      d7: '近 7 天', d30: '近 30 天', d90: '近 90 天',
+      event: '事件类型', total: '提醒次数', unread: '未回执', empty: '该周期内无提醒。',
+      aiHint: '管理层文字版合规简报：到「AI 智能问答」页点「生成管理层简报」（基于全量真实统计，AI 初稿须人工复核）。'
+    }
   },
 
   // ---- 法规跟踪（RegulationView）----
@@ -945,7 +959,14 @@ export default {
     op: { triage: '受理', resolve: '办结', close: '关闭', reject: '驳回' },
     create: { btn: '＋ 提交反馈', content: '内容', org: '归属组织', ok: '确认提交' },
     triage: { handler: '处理人', handlerPh: '指派处理人，如：合规部-张' },
-    resolve: { title: '办结反馈', resolution: '处置结果', resolutionPh: '说明处置结论与措施' }
+    resolve: { title: '办结反馈', resolution: '处置结果', resolutionPh: '说明处置结论与措施' },
+    view: { list: '列表', board: '看板' },
+    ob: {
+      col: '出站', submit: '出站回复', approve: '出站批准', reject: '出站驳回',
+      PENDING_APPROVAL: '待审批', APPROVED: '已批准', REJECTED: '已驳回',
+      title: '出站回复（须审批）', hint: '回复稿经审批通过后方可对外发送。',
+      field: '对外回复稿', ph: '对外回复内容…', ok: '提交审批'
+    }
   },
 
   // ---- 系统设置（SettingsView）----
@@ -1047,7 +1068,26 @@ export default {
     stype: { POLICY: '制度', REGULATION: '法规', OBLIGATION: '义务', MANUAL: '手工' },
     dstatus: { PENDING: '待索引', INDEXED: '已索引' },
     org: { pay: '支付科技', consumer: '消费金融' },
-    ingest: { btn: '＋ 录入知识', ref: '来源引用', content: '正文', contentPh: '粘贴制度/法规正文，将自动切块并向量化', org: '归属组织', ok: '录入并索引' }
+    ingest: { btn: '＋ 录入知识', ref: '来源引用', content: '正文', contentPh: '粘贴制度/法规正文，将自动切块并向量化', org: '归属组织', ok: '录入并索引' },
+    ds: {
+      title: '数据源覆盖',
+      d1: 'M1 制度 / M4 法规（知识库 {n} 篇，语义检索）',
+      d2: 'M2 风险 / M3 审计 / M11 监管（实时统计，材料生成用）',
+      d3: '权限范围：仅你可见组织的数据（RLS 裁剪）'
+    },
+    gen: {
+      title: '生成报送 / 汇报材料', sub: '基于当前真实合规统计 · AI 初稿须人工复核后使用',
+      filing: '生成监管报送稿', brief: '生成管理层简报', busy: '生成中…',
+      briefLabel: '管理层简报', filingLabel: '监管报送稿', asOf: '数据截至 {t} · 提供方 {p}',
+      warn: '⚠ AI 生成初稿，须经人工复核、补充与签批后方可使用；数据以生成时点为准。',
+      hint: '点右上按钮，基于当前可见组织的真实统计生成材料初稿。',
+      fail: '生成失败：'
+    },
+    chunks: {
+      title: '切块明细', chars: '{n} 字', loading: '加载中…',
+      empty: '该文档暂无切块（可能尚未索引完成）。', rowTip: '点击查看切块',
+      delTip: '删除文档及切块', delConfirm: '确认删除知识源「{t}」及其全部切块？'
+    }
   },
 
   // ---- 模型接入（ModelAccessView）----
@@ -1071,7 +1111,18 @@ export default {
     provClaude: 'Claude（Anthropic 云）',
     provOpenai: 'OpenAI 兼容（OpenAI / 通义 / DeepSeek / Kimi / 智谱 / 本地 vLLM·Ollama…）',
     keyDeploy: '（部署时注入，界面不展示）',
-    keyWarn: '出于安全，API 密钥仅经部署环境变量注入，平台界面不提供密钥录入框、也不回显密钥。'
+    keyWarn: '出于安全，API 密钥仅经部署环境变量注入，平台界面不提供密钥录入框、也不回显密钥。',
+    wl: {
+      title: '模型白名单', sub: '启用条目存在时强制管控',
+      empty: '无白名单条目 = 未启用管控（任意模型可保存）。',
+      add: '加入白名单', modelPh: '模型 id，如 qwen-plus', notePh: '备注（可选）'
+    },
+    pt: {
+      title: '提示词模板', sub: '系统提示词集中管理',
+      add: '新建模板', namePh: '模板名，如 条款级变更摘要',
+      edit: '编辑', collapse: '收起', save: '保存正文'
+    },
+    gov: { enable: '启用', disable: '停用', del: '删', delConfirm: '确认删除「{t}」？' }
   },
 
   // ---- 审批流配置（ApprovalFlowDesignerView · Vue Flow 画布）----

@@ -9,8 +9,8 @@
         <div><div class="kqt">{{ $t('fb.tag') }}</div><h1>{{ $t('fb.title') }}</h1></div>
         <div class="sp"></div>
         <div class="seg">
-          <button :class="{ on: viewMode === 'list' }" @click="viewMode = 'list'">列表</button>
-          <button :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">看板</button>
+          <button :class="{ on: viewMode === 'list' }" @click="viewMode = 'list'">{{ $t('fb.view.list') }}</button>
+          <button :class="{ on: viewMode === 'board' }" @click="viewMode = 'board'">{{ $t('fb.view.board') }}</button>
         </div>
         <button class="btn" :disabled="!canWrite('feedback')" :title="canWrite('feedback') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('fb.create.btn') }}</button>
       </div>
@@ -39,7 +39,7 @@
           <table style="min-width: 800px">
             <thead><tr>
               <th>{{ $t('fb.th.type') }}</th><th>{{ $t('fb.th.title') }}</th><th>{{ $t('fb.th.submitter') }}</th>
-              <th>{{ $t('fb.th.handler') }}</th><th>{{ $t('fb.th.status') }}</th><th>出站</th><th>{{ $t('fb.th.op') }}</th>
+              <th>{{ $t('fb.th.handler') }}</th><th>{{ $t('fb.th.status') }}</th><th>{{ $t('fb.ob.col') }}</th><th>{{ $t('fb.th.op') }}</th>
             </tr></thead>
             <tbody>
               <tr v-for="f in items" :key="f.id">
@@ -48,17 +48,17 @@
                 <td>{{ f.submitter || '—' }}</td>
                 <td>{{ f.handler || '—' }}</td>
                 <td><span class="st" :class="stCls(f.status)"><span class="d"></span>{{ $t('fb.status.' + f.status) }}</span></td>
-                <td><span v-if="f.outboundStatus" class="obtag" :class="f.outboundStatus">{{ OB_LABEL[f.outboundStatus] }}</span><span v-else class="muted">—</span></td>
+                <td><span v-if="f.outboundStatus" class="obtag" :class="f.outboundStatus">{{ $t('fb.ob.' + f.outboundStatus) }}</span><span v-else class="muted">—</span></td>
                 <td class="ops">
                   <button v-if="f.status === 'SUBMITTED'" class="btn ghost sm" :disabled="busyId === f.id" @click="openTriage(f)">{{ $t('fb.op.triage') }}</button>
                   <button v-if="f.status === 'IN_PROGRESS'" class="btn sm" :disabled="busyId === f.id" @click="openResolve(f)">{{ $t('fb.op.resolve') }}</button>
                   <button v-if="f.status === 'RESOLVED'" class="btn ghost sm" :disabled="busyId === f.id" @click="act(f, 'close')">{{ $t('fb.op.close') }}</button>
                   <button v-if="f.status === 'SUBMITTED' || f.status === 'IN_PROGRESS'" class="btn ghost sm danger" :disabled="busyId === f.id" @click="act(f, 'reject')">{{ $t('fb.op.reject') }}</button>
                   <button v-if="(f.status === 'RESOLVED' || f.status === 'CLOSED') && (!f.outboundStatus || f.outboundStatus === 'REJECTED')"
-                          class="btn ghost sm" @click="openOutbound(f)">出站回复</button>
+                          class="btn ghost sm" @click="openOutbound(f)">{{ $t('fb.ob.submit') }}</button>
                   <template v-if="f.outboundStatus === 'PENDING_APPROVAL'">
-                    <button class="btn sm" @click="obDecide(f, 'approve')">出站批准</button>
-                    <button class="btn ghost sm danger" @click="obDecide(f, 'reject')">出站驳回</button>
+                    <button class="btn sm" @click="obDecide(f, 'approve')">{{ $t('fb.ob.approve') }}</button>
+                    <button class="btn ghost sm danger" @click="obDecide(f, 'reject')">{{ $t('fb.ob.reject') }}</button>
                   </template>
                 </td>
               </tr>
@@ -92,15 +92,15 @@
       <!-- 出站回复弹窗（V43：对外回复须经审批）-->
       <div v-if="showOutbound" class="modal-mask" @click.self="showOutbound = false">
         <div class="modal-card">
-          <h3>出站回复（须审批）</h3>
-          <p class="muted" style="margin:-6px 0 12px">#{{ obTarget && obTarget.id }} · {{ obTarget && obTarget.title }}<br/>回复稿经审批通过后方可对外发送。</p>
-          <label class="fld">对外回复稿
-            <textarea v-model="obText" rows="4" placeholder="对外回复内容…" style="display:block;width:100%;margin-top:5px;padding:8px 11px;border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-1);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical"></textarea>
+          <h3>{{ $t('fb.ob.title') }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">#{{ obTarget && obTarget.id }} · {{ obTarget && obTarget.title }}<br/>{{ $t('fb.ob.hint') }}</p>
+          <label class="fld">{{ $t('fb.ob.field') }}
+            <textarea v-model="obText" rows="4" :placeholder="$t('fb.ob.ph')" style="display:block;width:100%;margin-top:5px;padding:8px 11px;border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-1);font-size:13px;font-family:inherit;outline:none;box-sizing:border-box;resize:vertical"></textarea>
           </label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showOutbound = false">{{ $t('common.cancel') }}</button>
-            <button class="btn" :disabled="!obText.trim() || saving" @click="submitOutbound">{{ saving ? $t('common.submitting') : '提交审批' }}</button>
+            <button class="btn" :disabled="!obText.trim() || saving" @click="submitOutbound">{{ saving ? $t('common.submitting') : $t('fb.ob.ok') }}</button>
           </div>
         </div>
       </div>
@@ -145,7 +145,6 @@ async function load() {
 const stCls = (s) => ({ SUBMITTED: 'wait', IN_PROGRESS: 'doing', RESOLVED: 'ok', CLOSED: 'ok', REJECTED: 'over' }[s] || 'wait')
 
 // ===== 出站审批（V43）=====
-const OB_LABEL = { PENDING_APPROVAL: '待审批', APPROVED: '已批准', REJECTED: '已驳回' }
 const showOutbound = ref(false)
 const obTarget = ref(null)
 const obText = ref('')

@@ -54,13 +54,13 @@
             <table>
               <thead><tr><th>{{ $t('ai.dth.title') }}</th><th>{{ $t('ai.dth.type') }}</th><th>{{ $t('ai.dth.chunks') }}</th><th>{{ $t('ai.dth.status') }}</th></tr></thead>
               <tbody>
-                <tr v-for="d in docs" :key="d.id" class="doc-row" title="点击查看切块" @click="openChunks(d)">
+                <tr v-for="d in docs" :key="d.id" class="doc-row" :title="$t('ai.chunks.rowTip')" @click="openChunks(d)">
                   <td>{{ d.title }}</td>
                   <td><span class="pill">{{ $t('ai.stype.' + d.sourceType) }}</span></td>
                   <td class="num">{{ d.chunkCount }}</td>
                   <td>
                     <span class="st" :class="d.status === 'INDEXED' ? 'ok' : 'wait'"><span class="d"></span>{{ $t('ai.dstatus.' + d.status) }}</span>
-                    <button v-if="canWrite('ai')" class="doc-del" title="删除文档及切块" @click.stop="delDoc(d)">✕</button>
+                    <button v-if="canWrite('ai')" class="doc-del" :title="$t('ai.chunks.delTip')" @click.stop="delDoc(d)">✕</button>
                   </td>
                 </tr>
                 <tr v-if="!docs.length"><td colspan="4" class="emptyrow">{{ $t('ai.kbEmpty') }}</td></tr>
@@ -69,45 +69,45 @@
           </div>
 
           <!-- 数据源覆盖标注（需求 7.2：问答/生成的数据源透明）-->
-          <div class="ch" style="border-top:1px solid var(--border-subtle)"><h3>数据源覆盖</h3></div>
+          <div class="ch" style="border-top:1px solid var(--border-subtle)"><h3>{{ $t('ai.ds.title') }}</h3></div>
           <div class="cb" style="padding-top:0">
-            <div class="ds-row"><span class="ds-ok">✓</span>M1 制度 / M4 法规（知识库 {{ docs.length }} 篇，语义检索）</div>
-            <div class="ds-row"><span class="ds-ok">✓</span>M2 风险 / M3 审计 / M11 监管（实时统计，材料生成用）</div>
-            <div class="ds-row"><span class="ds-mut">·</span>权限范围：仅你可见组织的数据（RLS 裁剪）</div>
+            <div class="ds-row"><span class="ds-ok">✓</span>{{ $t('ai.ds.d1', { n: docs.length }) }}</div>
+            <div class="ds-row"><span class="ds-ok">✓</span>{{ $t('ai.ds.d2') }}</div>
+            <div class="ds-row"><span class="ds-mut">·</span>{{ $t('ai.ds.d3') }}</div>
           </div>
         </div>
       </div>
 
       <!-- 生成报送/汇报材料（需求 7.5.1：初稿须人工复核）-->
       <div class="card" style="margin-top:14px">
-        <div class="ch"><h3>生成报送 / 汇报材料</h3><span class="sub">基于当前真实合规统计 · AI 初稿须人工复核后使用</span>
+        <div class="ch"><h3>{{ $t('ai.gen.title') }}</h3><span class="sub">{{ $t('ai.gen.sub') }}</span>
           <div style="margin-left:auto;display:flex;gap:8px">
-            <button class="btn ghost sm" :disabled="!canWrite('ai') || genBusy" @click="generate('FILING_DRAFT')">{{ genBusy === 'FILING_DRAFT' ? '生成中…' : '生成监管报送稿' }}</button>
-            <button class="btn sm" :disabled="!canWrite('ai') || genBusy" @click="generate('MGMT_BRIEF')">{{ genBusy === 'MGMT_BRIEF' ? '生成中…' : '生成管理层简报' }}</button>
+            <button class="btn ghost sm" :disabled="!canWrite('ai') || genBusy" @click="generate('FILING_DRAFT')">{{ genBusy === 'FILING_DRAFT' ? $t('ai.gen.busy') : $t('ai.gen.filing') }}</button>
+            <button class="btn sm" :disabled="!canWrite('ai') || genBusy" @click="generate('MGMT_BRIEF')">{{ genBusy === 'MGMT_BRIEF' ? $t('ai.gen.busy') : $t('ai.gen.brief') }}</button>
           </div>
         </div>
         <div class="cb" v-if="material">
           <div class="mat-meta">
-            <span class="pill">{{ material.type === 'MGMT_BRIEF' ? '管理层简报' : '监管报送稿' }}</span>
-            <span class="muted">数据截至 {{ fmtTime(material.dataAsOf) }} · 提供方 {{ material.provider }}</span>
+            <span class="pill">{{ material.type === 'MGMT_BRIEF' ? $t('ai.gen.briefLabel') : $t('ai.gen.filingLabel') }}</span>
+            <span class="muted">{{ $t('ai.gen.asOf', { t: fmtTime(material.dataAsOf), p: material.provider }) }}</span>
           </div>
           <pre class="mat-draft">{{ material.draft }}</pre>
-          <div class="mat-warn">⚠ AI 生成初稿，须经人工复核、补充与签批后方可使用；数据以生成时点为准。</div>
+          <div class="mat-warn">{{ $t('ai.gen.warn') }}</div>
         </div>
-        <div class="cb" v-else><div class="hint">点右上按钮，基于当前可见组织的真实统计生成材料初稿。</div></div>
+        <div class="cb" v-else><div class="hint">{{ $t('ai.gen.hint') }}</div></div>
       </div>
 
       <!-- 切块管理弹窗（M1 遗留：知识库切片管理）-->
       <div v-if="chunkDoc" class="modal-mask" @click.self="chunkDoc = null">
         <div class="modal-card wide">
-          <h3>切块明细 · {{ chunkDoc.title }}<span class="cnt" style="margin-left:8px">{{ chunks.length }}</span></h3>
+          <h3>{{ $t('ai.chunks.title') }} · {{ chunkDoc.title }}<span class="cnt" style="margin-left:8px">{{ chunks.length }}</span></h3>
           <div class="chunk-list">
-            <div v-if="chunkBusy" class="hint">加载中…</div>
+            <div v-if="chunkBusy" class="hint">{{ $t('ai.chunks.loading') }}</div>
             <div v-for="c in chunks" :key="c.id" class="chunk-item">
-              <div class="chunk-head"><span class="cref">#{{ chunkDoc.id }}·{{ c.seq }}</span><span class="muted">{{ (c.content || '').length }} 字</span></div>
+              <div class="chunk-head"><span class="cref">#{{ chunkDoc.id }}·{{ c.seq }}</span><span class="muted">{{ $t('ai.chunks.chars', { n: (c.content || '').length }) }}</span></div>
               <div class="chunk-body">{{ c.content }}</div>
             </div>
-            <div v-if="!chunkBusy && !chunks.length" class="hint">该文档暂无切块（可能尚未索引完成）。</div>
+            <div v-if="!chunkBusy && !chunks.length" class="hint">{{ $t('ai.chunks.empty') }}</div>
           </div>
           <div class="modal-actions"><button class="btn ghost" @click="chunkDoc = null">{{ $t('common.cancel') }}</button></div>
         </div>
@@ -137,11 +137,14 @@
 
 <script setup>
 import { ref, reactive, nextTick, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
+
+const { t } = useI18n()
 
 const status = reactive({ provider: 'local', model: 'local', offline: true, embeddingDim: 1024 })
 const docs = ref([])
@@ -203,7 +206,7 @@ async function openChunks(d) {
 
 // 删除文档（连同切块与向量；后端 RLS 保证只能删可见组织的）
 async function delDoc(d) {
-  if (!window.confirm(`确认删除知识源「${d.title}」及其全部切块？`)) return
+  if (!window.confirm(t('ai.chunks.delConfirm', { t: d.title }))) return
   try { await api.del('/ai/documents/' + d.id); await loadDocs() } catch (e) { opError.value = e.message }
 }
 
@@ -213,7 +216,7 @@ const genBusy = ref(null)
 async function generate(type) {
   genBusy.value = type
   try { material.value = await api.post('/ai/generate', { type }) }
-  catch (e) { material.value = { type, draft: '生成失败：' + e.message, dataAsOf: new Date().toISOString(), provider: '-' } }
+  catch (e) { material.value = { type, draft: t('ai.gen.fail') + e.message, dataAsOf: new Date().toISOString(), provider: '-' } }
   finally { genBusy.value = null }
 }
 function fmtTime(t) { try { return new Date(t).toLocaleString() } catch (e) { return t } }

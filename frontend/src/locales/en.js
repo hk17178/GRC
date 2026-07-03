@@ -801,7 +801,13 @@ export default {
     myEmpty: 'No approvals assigned to me',
     th: { type: 'Type', matter: 'Item', due: 'Due', status: 'Status' },
     ath: { biz: 'Business', node: 'Node', role: 'Role Group', time: 'Arrived' },
-    type: { REMEDIATION: 'Remediation', COMPLIANCE_ITEM: 'Compliance Item', REG_FILING: 'Reg Filing' }
+    type: { REMEDIATION: 'Remediation', COMPLIANCE_ITEM: 'Compliance Item', REG_FILING: 'Reg Filing' },
+    grp: {
+      fill: 'To Fill', fillSub: 'Assessments in progress', fillEmpty: 'No assessments to fill', draft: 'Draft', filling: 'Filling',
+      sign: 'To Sign', signSub: 'Effective policy sign-off', signEmpty: 'No policies to sign',
+      remed: 'To Remediate', remedSub: 'Overdue red · <7d amber', remedEmpty: 'No remediation tasks', remedDefault: 'Remediation order'
+    },
+    due: { none: 'No deadline', overdue: 'Overdue {n}d', today: 'Due today', left: '{n}d left' }
   },
 
   // ---- Notifications (NotifyView) ----
@@ -811,7 +817,15 @@ export default {
     refresh: 'Refresh',
     listTitle: 'Scheduled Reminders',
     empty: 'No notifications',
-    th: { time: 'Time', event: 'Event', object: 'Object', threshold: 'Threshold' }
+    th: { time: 'Time', event: 'Event', object: 'Object', threshold: 'Threshold', receipt: 'Receipt' },
+    ack: 'Acknowledge',
+    mergeTip: 'Multiple reminders for the same object & event merged (noise reduction)',
+    digest: {
+      tab: 'Digest', sub: 'Last {d} days by event type · unacknowledged count',
+      d7: 'Last 7 days', d30: 'Last 30 days', d90: 'Last 90 days',
+      event: 'Event Type', total: 'Reminders', unread: 'Unacked', empty: 'No reminders in this period.',
+      aiHint: 'For a written management brief, use "Generate Management Brief" on the AI Assistant page (based on live stats; AI drafts require human review).'
+    }
   },
 
   // ---- Regulation Tracking (RegulationView) ----
@@ -882,7 +896,14 @@ export default {
     op: { triage: 'Triage', resolve: 'Resolve', close: 'Close', reject: 'Reject' },
     create: { btn: '＋ Submit Feedback', content: 'Content', org: 'Organization', ok: 'Submit' },
     triage: { handler: 'Handler', handlerPh: 'Assign handler, e.g. Compliance-Zhang' },
-    resolve: { title: 'Resolve Feedback', resolution: 'Resolution', resolutionPh: 'Describe conclusion and actions' }
+    resolve: { title: 'Resolve Feedback', resolution: 'Resolution', resolutionPh: 'Describe conclusion and actions' },
+    view: { list: 'List', board: 'Board' },
+    ob: {
+      col: 'Outbound', submit: 'Outbound Reply', approve: 'Approve Outbound', reject: 'Reject Outbound',
+      PENDING_APPROVAL: 'Pending', APPROVED: 'Approved', REJECTED: 'Rejected',
+      title: 'Outbound Reply (approval required)', hint: 'The reply may only be sent externally after approval.',
+      field: 'External reply draft', ph: 'Reply content…', ok: 'Submit for Approval'
+    }
   },
 
   // ---- System Settings (SettingsView) ----
@@ -983,7 +1004,26 @@ export default {
     stype: { POLICY: 'Policy', REGULATION: 'Regulation', OBLIGATION: 'Obligation', MANUAL: 'Manual' },
     dstatus: { PENDING: 'Pending', INDEXED: 'Indexed' },
     org: { pay: 'Payment Co.', consumer: 'Consumer Finance' },
-    ingest: { btn: '＋ Ingest', ref: 'Source Ref', content: 'Content', contentPh: 'Paste policy/regulation text; auto-chunked & embedded', org: 'Organization', ok: 'Ingest & Index' }
+    ingest: { btn: '＋ Ingest', ref: 'Source Ref', content: 'Content', contentPh: 'Paste policy/regulation text; auto-chunked & embedded', org: 'Organization', ok: 'Ingest & Index' },
+    ds: {
+      title: 'Data Source Coverage',
+      d1: 'M1 Policies / M4 Regulations (KB {n} docs, semantic retrieval)',
+      d2: 'M2 Risk / M3 Audit / M11 Regulatory (live stats, for material generation)',
+      d3: 'Scope: only data of organizations visible to you (RLS)'
+    },
+    gen: {
+      title: 'Generate Filing / Reporting Material', sub: 'Based on live compliance stats · AI drafts require human review',
+      filing: 'Generate Filing Draft', brief: 'Generate Management Brief', busy: 'Generating…',
+      briefLabel: 'Management Brief', filingLabel: 'Filing Draft', asOf: 'Data as of {t} · provider {p}',
+      warn: '⚠ AI-generated draft — must be reviewed, supplemented and signed off before use; data reflects generation time.',
+      hint: 'Use the buttons above to generate a draft from live stats of your visible organizations.',
+      fail: 'Generation failed: '
+    },
+    chunks: {
+      title: 'Chunks', chars: '{n} chars', loading: 'Loading…',
+      empty: 'No chunks yet (indexing may be pending).', rowTip: 'Click to view chunks',
+      delTip: 'Delete document & chunks', delConfirm: 'Delete knowledge source "{t}" and all its chunks?'
+    }
   },
 
   // ---- Model Access (ModelAccessView) ----
@@ -1007,7 +1047,18 @@ export default {
     provClaude: 'Claude (Anthropic)',
     provOpenai: 'OpenAI-compatible (OpenAI / Qwen / DeepSeek / Kimi / GLM / local vLLM·Ollama…)',
     keyDeploy: '(injected at deploy, not shown)',
-    keyWarn: 'For security, the API key is injected only via deployment env vars. The UI provides no key-entry field and never echoes the key.'
+    keyWarn: 'For security, the API key is injected only via deployment env vars. The UI provides no key-entry field and never echoes the key.',
+    wl: {
+      title: 'Model Whitelist', sub: 'Enforced when enabled entries exist',
+      empty: 'No whitelist entries = enforcement off (any model can be saved).',
+      add: 'Add to Whitelist', modelPh: 'Model id, e.g. qwen-plus', notePh: 'Note (optional)'
+    },
+    pt: {
+      title: 'Prompt Templates', sub: 'Centralized system prompts',
+      add: 'New Template', namePh: 'Template name, e.g. Clause-level Change Summary',
+      edit: 'Edit', collapse: 'Collapse', save: 'Save Body'
+    },
+    gov: { enable: 'Enable', disable: 'Disable', del: 'Del', delConfirm: 'Delete "{t}"?' }
   },
 
   // ---- Approval Flow Designer (Vue Flow canvas) ----

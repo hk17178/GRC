@@ -42,35 +42,35 @@
       <div class="g3">
         <!-- 待填写：进行中的评估 -->
         <div class="card">
-          <div class="ch"><h3>待填写</h3><span class="cnt">{{ toFill.length }}</span><span class="sub">进行中评估</span></div>
+          <div class="ch"><h3>{{ $t('todo.grp.fill') }}</h3><span class="cnt">{{ toFill.length }}</span><span class="sub">{{ $t('todo.grp.fillSub') }}</span></div>
           <div class="cb" style="padding-top:0">
             <div v-for="a in toFill" :key="a.id" class="td-row clk" @click="go('/risk')">
               <span class="code">#{{ a.id }}</span><span class="td-t">{{ a.title }}</span>
-              <span class="st doing" style="margin-left:auto"><span class="d"></span>{{ a.status === 'DRAFT' ? '草稿' : '填写中' }}</span>
+              <span class="st doing" style="margin-left:auto"><span class="d"></span>{{ a.status === 'DRAFT' ? $t('todo.grp.draft') : $t('todo.grp.filling') }}</span>
             </div>
-            <div v-if="!toFill.length" class="emptyrow">无待填写评估</div>
+            <div v-if="!toFill.length" class="emptyrow">{{ $t('todo.grp.fillEmpty') }}</div>
           </div>
         </div>
         <!-- 待签署：已生效制度 -->
         <div class="card">
-          <div class="ch"><h3>待签署</h3><span class="cnt">{{ toSign.length }}</span><span class="sub">生效制度签署确认</span></div>
+          <div class="ch"><h3>{{ $t('todo.grp.sign') }}</h3><span class="cnt">{{ toSign.length }}</span><span class="sub">{{ $t('todo.grp.signSub') }}</span></div>
           <div class="cb" style="padding-top:0">
             <div v-for="p in toSign" :key="p.id" class="td-row clk" @click="go('/policy')">
               <span class="code">{{ p.code }}</span><span class="td-t">{{ p.title }}</span>
               <span class="pill" style="margin-left:auto">v{{ p.version }}</span>
             </div>
-            <div v-if="!toSign.length" class="emptyrow">无待签署制度</div>
+            <div v-if="!toSign.length" class="emptyrow">{{ $t('todo.grp.signEmpty') }}</div>
           </div>
         </div>
         <!-- 待整改：未闭环整改单 + 时限预警 -->
         <div class="card">
-          <div class="ch"><h3>待整改</h3><span class="cnt">{{ toRemed.length }}</span><span class="sub">逾期红 · 7日内琥珀</span></div>
+          <div class="ch"><h3>{{ $t('todo.grp.remed') }}</h3><span class="cnt">{{ toRemed.length }}</span><span class="sub">{{ $t('todo.grp.remedSub') }}</span></div>
           <div class="cb" style="padding-top:0">
             <div v-for="r in toRemed" :key="r.id" class="td-row clk" @click="go('/internal-audit')">
-              <span class="code">RO-{{ r.id }}</span><span class="td-t">{{ r.measure || r.assignee || '整改单' }}</span>
+              <span class="code">RO-{{ r.id }}</span><span class="td-t">{{ r.measure || r.assignee || $t('todo.grp.remedDefault') }}</span>
               <span class="duetag" :class="dueCls(r.dueDate)" style="margin-left:auto">{{ dueText(r.dueDate) }}</span>
             </div>
-            <div v-if="!toRemed.length" class="emptyrow">无待整改任务</div>
+            <div v-if="!toRemed.length" class="emptyrow">{{ $t('todo.grp.remedEmpty') }}</div>
           </div>
         </div>
       </div>
@@ -108,8 +108,11 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+
+const { t } = useI18n()
 
 const todos = ref([])
 const myApprovals = ref([])
@@ -132,9 +135,9 @@ function dueCls(d) {
   return days < 0 ? 'over' : (days <= 7 ? 'warn' : '')
 }
 function dueText(d) {
-  if (!d) return '无期限'
+  if (!d) return t('todo.due.none')
   const days = Math.ceil((new Date(d) - new Date()) / 86400000)
-  return days < 0 ? ('逾期 ' + (-days) + ' 天') : (days === 0 ? '今日到期' : ('剩 ' + days + ' 天'))
+  return days < 0 ? t('todo.due.overdue', { n: -days }) : (days === 0 ? t('todo.due.today') : t('todo.due.left', { n: days }))
 }
 async function loadGroups() {
   try {
