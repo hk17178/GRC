@@ -118,6 +118,85 @@ public class AuditReportService {
         return saved;
     }
 
+    // ---------- 文书套打（V52 · A3：通知书 / 报告 .docx） ----------
+
+    /** 审计报告导出 .docx（标题/意见/总体评价/正文成文）。 */
+    @Transactional(readOnly = true)
+    public byte[] buildReportDocx(Long reportId) {
+        AuditReport r = get(reportId);
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument doc = new org.apache.poi.xwpf.usermodel.XWPFDocument();
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            var title = doc.createParagraph();
+            title.setAlignment(org.apache.poi.xwpf.usermodel.ParagraphAlignment.CENTER);
+            var tr = title.createRun();
+            tr.setText(r.getTitle());
+            tr.setBold(true);
+            tr.setFontSize(18);
+
+            para(doc, "报告编号：AR-" + r.getId() + "　状态：" + r.getStatus()
+                    + (r.getIssuedBy() == null ? "" : "　签发：" + r.getIssuedBy() + " " + r.getIssuedAt()));
+            para(doc, "审计意见：" + (r.getOpinion() == null ? "（未定）" : OPINION_LABEL.get(r.getOpinion())));
+            heading(doc, "总体评价");
+            para(doc, r.getSummary() == null ? "—" : r.getSummary());
+            heading(doc, "报告正文");
+            for (String line : (r.getContent() == null ? "" : r.getContent()).split("\n")) {
+                para(doc, line);
+            }
+            doc.write(out);
+            return out.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException("报告导出失败", ex);
+        }
+    }
+
+    /** 审计通知书导出 .docx（致被审计单位的正式文书结构）。 */
+    @Transactional(readOnly = true)
+    public byte[] buildNoticeDocx(Long planId) {
+        AuditPlan p = planRepo.findById(planId)
+                .orElseThrow(() -> new IllegalArgumentException("审计计划不存在或不可见：id=" + planId));
+        try (org.apache.poi.xwpf.usermodel.XWPFDocument doc = new org.apache.poi.xwpf.usermodel.XWPFDocument();
+             java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
+            var title = doc.createParagraph();
+            title.setAlignment(org.apache.poi.xwpf.usermodel.ParagraphAlignment.CENTER);
+            var tr = title.createRun();
+            tr.setText("审 计 通 知 书");
+            tr.setBold(true);
+            tr.setFontSize(20);
+
+            para(doc, "编号：AN-" + p.getId());
+            para(doc, (p.getAuditee() == null ? "（被审计单位）" : p.getAuditee()) + "：");
+            para(doc, "　　根据" + (p.getNoticeBasis() == null ? "年度审计安排" : p.getNoticeBasis())
+                    + "，我部将对你单位开展「" + p.getTitle() + "」，现将有关事项通知如下：");
+            heading(doc, "一、审计范围");
+            para(doc, p.getNoticeScope() == null ? "—" : p.getNoticeScope());
+            heading(doc, "二、审计时间");
+            para(doc, "计划开始日：" + p.getPlanStartDate() + "，具体安排以现场沟通为准。");
+            heading(doc, "三、审计组组成");
+            para(doc, p.getAuditTeam() == null ? "—" : p.getAuditTeam());
+            heading(doc, "四、配合要求");
+            para(doc, "请你单位据实提供相关制度、记录与系统权限，并指定接口人配合审计工作。");
+            para(doc, "");
+            para(doc, "签发：" + (p.getNoticeIssuedBy() == null ? "（未签发）" : p.getNoticeIssuedBy())
+                    + (p.getNoticeIssuedAt() == null ? "" : "　" + p.getNoticeIssuedAt().toLocalDate()));
+            doc.write(out);
+            return out.toByteArray();
+        } catch (java.io.IOException ex) {
+            throw new java.io.UncheckedIOException("通知书导出失败", ex);
+        }
+    }
+
+    private static void para(org.apache.poi.xwpf.usermodel.XWPFDocument doc, String text) {
+        doc.createParagraph().createRun().setText(text);
+    }
+
+    private static void heading(org.apache.poi.xwpf.usermodel.XWPFDocument doc, String text) {
+        var p = doc.createParagraph();
+        var r = p.createRun();
+        r.setText(text);
+        r.setBold(true);
+        r.setFontSize(13);
+    }
+
     // ---------- 内部辅助 ----------
 
     private AuditReport get(Long id) {

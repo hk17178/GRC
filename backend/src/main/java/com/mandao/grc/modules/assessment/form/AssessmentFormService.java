@@ -182,6 +182,13 @@ public class AssessmentFormService {
         }
     }
 
+    /** 取某表单版本（R4 模板中心 docx 下载用；不可见即视为不存在）。 */
+    @Transactional(readOnly = true)
+    public TemplateForm getForm(Long formId) {
+        return formRepo.findById(formId)
+                .orElseThrow(() -> new IllegalArgumentException("表单版本不存在或不可见：id=" + formId));
+    }
+
     // ---------- 报告导出（P3）----------
 
     /**

@@ -63,6 +63,36 @@ public class AuditPlan {
     @Column(nullable = false, length = 24)
     private AuditPlanStatus status = AuditPlanStatus.PLANNED;
 
+    /** 后续审计关联的原计划（V52 · A3 follow-up；普通计划为空）。 */
+    @Column(name = "follow_up_of")
+    private Long followUpOf;
+
+    // ===== 审计通知书（V50 · A2）=====
+
+    /** 被审计单位/部门。 */
+    @Column(length = 128)
+    private String auditee;
+
+    /** 审计范围（通知书）。 */
+    @Column(name = "notice_scope", columnDefinition = "TEXT")
+    private String noticeScope;
+
+    /** 审计依据（制度/年度计划/监管要求）。 */
+    @Column(name = "notice_basis", columnDefinition = "TEXT")
+    private String noticeBasis;
+
+    /** 审计组成员（组长在前）。 */
+    @Column(name = "audit_team", length = 256)
+    private String auditTeam;
+
+    /** 通知书签发人（签发后即视为已通知被审计单位）。 */
+    @Column(name = "notice_issued_by", length = 64)
+    private String noticeIssuedBy;
+
+    /** 通知书签发时间。 */
+    @Column(name = "notice_issued_at")
+    private OffsetDateTime noticeIssuedAt;
+
     /** 绑定的检查表模板（V40，复用表单引擎 assessment_template；未绑定为空）。 */
     @Column(name = "checklist_template_id")
     private Long checklistTemplateId;
@@ -112,6 +142,30 @@ public class AuditPlan {
     public LocalDate getPlanStartDate() { return planStartDate; }
     public String getExternalStatus() { return externalStatus; }
     public AuditPlanStatus getStatus() { return status; }
+    public Long getFollowUpOf() { return followUpOf; }
+
+    /** 标记为某计划的后续审计（V52，由 Service 在创建 follow-up 时调用）。 */
+    void setFollowUpOf(Long followUpOf) { this.followUpOf = followUpOf; }
+
+    public String getAuditee() { return auditee; }
+    public String getNoticeScope() { return noticeScope; }
+    public String getNoticeBasis() { return noticeBasis; }
+    public String getAuditTeam() { return auditTeam; }
+    public String getNoticeIssuedBy() { return noticeIssuedBy; }
+    public OffsetDateTime getNoticeIssuedAt() { return noticeIssuedAt; }
+
+    /** 填写/签发通知书（V50，由 Service 校验后调用；issuer 非空即签发）。 */
+    void applyNotice(String auditee, String noticeScope, String noticeBasis, String auditTeam, String issuer) {
+        this.auditee = auditee;
+        this.noticeScope = noticeScope;
+        this.noticeBasis = noticeBasis;
+        this.auditTeam = auditTeam;
+        if (issuer != null) {
+            this.noticeIssuedBy = issuer;
+            this.noticeIssuedAt = OffsetDateTime.now();
+        }
+    }
+
     public Long getChecklistTemplateId() { return checklistTemplateId; }
     public Long getChecklistAssessmentId() { return checklistAssessmentId; }
     public OffsetDateTime getCreatedAt() { return createdAt; }

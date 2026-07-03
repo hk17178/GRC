@@ -100,7 +100,12 @@ public class AuditPlanController {
         return service.startChecklist(id, actor(user));
     }
 
+    /** actor 归属：优先 JWT 登录人（底稿执行/复核人须为真实登录人），X-User 头兜底。 */
     private String actor(String user) {
+        String current = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
@@ -110,5 +115,62 @@ public class AuditPlanController {
 
     /** 绑定检查表模板请求体。 */
     public record BindChecklistRequest(Long templateId) {
+    }
+
+    // ---------- 审计通知书 + 程序/底稿（V50 · A2） ----------
+
+    /** 保存/签发审计通知书（issue=true 签发，签发后冻结）。 */
+    @PostMapping("/{id}/notice")
+    @RequiresPermission("extaudit")
+    public AuditPlan saveNotice(@PathVariable Long id,
+                                @RequestBody NoticeRequest req,
+                                @RequestHeader(value = "X-User", required = false) String user) {
+        return service.saveNotice(id, req.auditee(), req.noticeScope(), req.noticeBasis(),
+                req.auditTeam(), req.issue() != null && req.issue(), actor(user));
+    }
+
+    /** 计划的审计程序/底稿清单。 */
+    @GetMapping("/{id}/procedures")
+    public List<AuditProcedure> listProcedures(@PathVariable Long id) {
+        return service.listProcedures(id);
+    }
+
+    /** 新增审计程序（底稿编号自动 WP-{plan}-{seq}）。 */
+    @PostMapping("/{id}/procedures")
+    @RequiresPermission("extaudit")
+    public AuditProcedure addProcedure(@PathVariable Long id,
+                                       @RequestBody ProcedureRequest req,
+                                       @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addProcedure(id, req.name(), req.objective(), actor(user));
+    }
+
+    /** 执行程序（落工作底稿，执行记录必填）。 */
+    @PostMapping("/procedures/{procedureId}/execute")
+    @RequiresPermission("extaudit")
+    public AuditProcedure executeProcedure(@PathVariable Long procedureId,
+                                           @RequestBody ExecuteRequest req,
+                                           @RequestHeader(value = "X-User", required = false) String user) {
+        return service.executeProcedure(procedureId, req.result(), actor(user));
+    }
+
+    /** 复核底稿（复核人≠执行人）。 */
+    @PostMapping("/procedures/{procedureId}/review")
+    @RequiresPermission("extaudit")
+    public AuditProcedure reviewProcedure(@PathVariable Long procedureId,
+                                          @RequestHeader(value = "X-User", required = false) String user) {
+        return service.reviewProcedure(procedureId, actor(user));
+    }
+
+    /** 通知书请求体（V50）。 */
+    public record NoticeRequest(String auditee, String noticeScope, String noticeBasis,
+                                String auditTeam, Boolean issue) {
+    }
+
+    /** 新增程序请求体（V50）。 */
+    public record ProcedureRequest(String name, String objective) {
+    }
+
+    /** 执行程序请求体（V50）。 */
+    public record ExecuteRequest(String result) {
     }
 }

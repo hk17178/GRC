@@ -294,6 +294,10 @@
               </div>
               <div v-if="tplFormState(t.id).error" class="fb-err">{{ tplFormState(t.id).error }}</div>
             </div>
+            <div class="fb-actions" style="margin-top:8px">
+              <button class="btn ghost sm" @click="openTplDetail(t)">预览详情</button>
+              <button class="btn ghost sm" :disabled="!canWriteRisk" @click="openTplClone(t)">克隆</button>
+            </div>
           </div>
           <!-- 新建体系模板（虚线卡 → 真实创建弹窗） -->
           <div
@@ -542,20 +546,34 @@
         </div>
       </div>
 
-      <!-- 处置决策弹窗（四选一，需求 4.5.3）-->
+      <!-- 处置决策弹窗（四选一 + RTP 落地要素，需求 4.5.3 / ISO 27001 RTP）-->
       <div v-if="treatTarget" class="modal-mask" @click.self="treatTarget = null">
-        <div class="modal-card">
-          <h3>处置决策</h3>
+        <div class="modal-card wide">
+          <h3>处置决策与计划（RTP）</h3>
           <p class="muted" style="margin:-6px 0 14px">{{ treatTarget.title }}</p>
-          <label class="fld">决策（四选一）
-            <select v-model="tdf.decision">
-              <option value="MITIGATE">降低（实施控制措施）</option>
-              <option value="ACCEPT">接受（走管理层接受流程）</option>
-              <option value="TRANSFER">转移（保险/外包）</option>
-              <option value="AVOID">规避（停止相关活动）</option>
-            </select>
-          </label>
-          <label class="fld">处置方案<input v-model="tdf.plan" placeholder="如 强制改密+MFA / 购买网络安全险" /></label>
+          <div class="fld-2col">
+            <label class="fld">决策（四选一）
+              <select v-model="tdf.decision">
+                <option value="MITIGATE">降低（实施控制措施）</option>
+                <option value="ACCEPT">接受（走管理层接受流程）</option>
+                <option value="TRANSFER">转移（保险/外包）</option>
+                <option value="AVOID">规避（停止相关活动）</option>
+              </select>
+            </label>
+            <label class="fld">预期残余等级
+              <select v-model="tdf.expectedResidual">
+                <option :value="null">— 未定 —</option>
+                <option value="VERY_LOW">极低</option><option value="LOW">低</option><option value="MID">中</option>
+                <option value="HIGH">高</option><option value="VERY_HIGH">极高</option>
+              </select>
+            </label>
+          </div>
+          <label class="fld">处置措施<input v-model="tdf.plan" placeholder="如 强制改密+MFA / 购买网络安全险" /></label>
+          <div class="fld-2col">
+            <label class="fld">责任人<input v-model="tdf.owner" placeholder="如 张三" /></label>
+            <label class="fld">完成期限<input type="date" v-model="tdf.dueDate" /></label>
+          </div>
+          <label class="fld">所需资源/预算<input v-model="tdf.resource" placeholder="如 安全预算 5 万、外部渗透团队 2 人周" /></label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="treatTarget = null">取消</button>
@@ -630,6 +648,7 @@
         <div class="sp"></div>
         <span v-if="exportError" class="cerr" style="margin-right: 10px">{{ exportError }}</span>
         <!-- 表单引擎 P3：回填上传模板 → 导出 Word/PDF（格式同官方模板，可交审计） -->
+        <button class="btn ghost" @click="exportRtp">导出 RTP</button>
         <button class="btn ghost" :disabled="!!exporting" @click="exportReport('docx')">
           {{ exporting === 'docx' ? '导出中…' : '导出 Word' }}
         </button>
@@ -651,6 +670,61 @@
           <div class="ctxrow"><span class="ck">评估准则</span><span class="cv">{{ drillMeta.criteria || '—' }}</span></div>
           <div class="ctxrow"><span class="ck">评估组</span><span class="cv">{{ drillMeta.team || '—' }}</span></div>
           <div class="ctxrow"><span class="ck">评估期间</span><span class="cv">{{ (drillMeta.startDate || '?') + ' ~ ' + (drillMeta.endDate || '?') }}</span></div>
+        </div>
+      </div>
+
+      <!-- 模板详情抽屉（R4 模板中心：条款预览 + 表单版本 + 两层关系说明）-->
+      <div v-if="tplDetail" class="modal-mask" @click.self="tplDetail = null">
+        <div class="modal-card wide" style="width:720px">
+          <h3>{{ tplDetail.name }}<span class="pill" style="margin-left:8px">{{ tplDetail.code }}</span></h3>
+          <p class="muted" style="margin:-8px 0 12px">{{ tplDetail.description || '—' }}</p>
+          <div class="tpl-note">
+            两层关系：<b>①条款清单</b>（本模板的体系检查项，定义评什么）→ <b>②报告表单</b>（挂在模板下的 .docx，
+            定义怎么填/报告长什么样）。内置模板未挂表单时，上传贵司官方 .docx（占位符约定）即可启用规范填写与报告导出。
+          </div>
+          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">条款清单</h3><span class="cnt">{{ tplItems.length }}</span></div>
+          <div class="tpl-items">
+            <div v-if="tplItemsBusy" class="hint">加载中…</div>
+            <table v-else-if="tplItems.length" style="width:100%">
+              <thead><tr><th style="width:40px">#</th><th style="width:110px">条款</th><th>要求</th></tr></thead>
+              <tbody>
+                <tr v-for="it in tplItems" :key="it.id">
+                  <td class="num">{{ it.seq }}</td>
+                  <td><span class="pill">{{ it.clause || '—' }}</span></td>
+                  <td style="font-size:12.5px;line-height:1.6">{{ it.requirement }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <div v-else class="hint">该模板暂无条款项。</div>
+          </div>
+          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">报告表单版本</h3><span class="cnt">{{ tplDetailForms.length }}</span></div>
+          <div class="tpl-forms">
+            <div v-for="f in tplDetailForms" :key="f.id" class="scope-row">
+              <span class="code">v{{ f.versionNo }}</span><b>{{ f.name }}</b>
+              <span class="st" :class="f.status === 'ACTIVE' ? 'ok' : 'wait'" style="margin-left:6px"><span class="d"></span>{{ f.status === 'ACTIVE' ? '已启用' : '草稿' }}</span>
+              <a class="mini-a" style="margin-left:auto" :href="'/api/assessment-templates/forms/' + f.id + '/docx'" target="_blank">下载 .docx</a>
+            </div>
+            <div v-if="!tplDetailForms.length" class="hint">未挂报告表单——在模板卡上「上传 .docx 模板」。</div>
+          </div>
+          <div class="modal-actions"><button class="btn ghost" @click="tplDetail = null">关闭</button></div>
+        </div>
+      </div>
+
+      <!-- 克隆模板弹窗（R4）-->
+      <div v-if="tplCloneTarget" class="modal-mask" @click.self="tplCloneTarget = null">
+        <div class="modal-card">
+          <h3>克隆模板 · {{ tplCloneTarget.name }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">复制元数据与全部条款项，新模板为草稿（可增改后发布）。</p>
+          <label class="fld">新模板编码<input v-model="tplCloneForm.code" placeholder="如 TPL-MLPS-PAY" /></label>
+          <label class="fld">新模板名称<input v-model="tplCloneForm.name" :placeholder="tplCloneTarget.name + '（副本）'" /></label>
+          <label class="fld">目标组织
+            <select v-model.number="tplCloneForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
+          </label>
+          <p v-if="tplCloneErr" class="cerr">{{ tplCloneErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="tplCloneTarget = null">取消</button>
+            <button class="btn" :disabled="!tplCloneForm.code || tplCloneBusy" @click="submitTplClone">{{ tplCloneBusy ? '克隆中…' : '确认克隆' }}</button>
+          </div>
         </div>
       </div>
 
@@ -721,6 +795,31 @@
             <button v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" class="mini-x" title="移出范围" @click="removeScopeAsset(s)">✕</button>
           </div>
           <div v-if="!scopeAssets.length" class="emptyrow">暂无范围资产——右上选择资产「纳入范围」，或在 A-T-V 建模页从场景生成发现。</div>
+        </div>
+      </div>
+
+      <!-- R3 · 过程文档中心（GB/T 20984 过程文档：计划书/访谈记录等上传件 + 系统生成件导出）-->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ch"><h3>过程文档</h3><span class="cnt">{{ assessDocs.length }}</span><span class="sub">计划书 / 访谈记录等上传留档 · 报告与 RTP 由右上按钮即时生成</span>
+          <div v-if="canWriteRisk" style="margin-left:auto;display:flex;gap:8px;align-items:center">
+            <select class="selmini" v-model="docUp.docType">
+              <option value="PLAN">评估计划书</option><option value="INTERVIEW">访谈记录</option>
+              <option value="ACCEPTANCE">接受声明</option><option value="OTHER">其他</option>
+            </select>
+            <input type="file" style="display:none" id="assess-doc-file" @change="onDocFile" />
+            <button class="btn ghost sm" @click="pickDocFile">＋ 上传文档</button>
+          </div>
+        </div>
+        <div class="cb" style="padding-top:0">
+          <div v-for="d in assessDocs" :key="d.id" class="scope-row">
+            <span class="pill">{{ DOC_TYPE_LABEL[d.docType] || d.docType }}</span>
+            <b>{{ d.name }}</b>
+            <span class="muted">{{ d.fileName }} · {{ (d.sizeBytes / 1024).toFixed(1) }}KB · {{ d.uploadedBy }}</span>
+            <span class="muted" :title="d.sha256" style="margin-left:auto">{{ (d.sha256 || '').slice(0, 10) }}…</span>
+            <a class="mini-a" :href="'/api/assessment-docs/' + d.id + '/download'" target="_blank">下载</a>
+            <button v-if="canWriteRisk" class="mini-x" title="删除" @click="deleteDoc(d)">✕</button>
+          </div>
+          <div v-if="!assessDocs.length" class="emptyrow">暂无过程文档——上传评估计划书/访谈记录等留档（sha256 固化防篡改）。</div>
         </div>
       </div>
 
@@ -972,6 +1071,7 @@ async function drillInto(r) {
   drillTitle.value = r.title
   loadDrillMeta()
   loadScopeAssets()
+  loadAssessDocs()
   await loadFindings()
 }
 
@@ -1004,6 +1104,69 @@ async function removeScopeAsset(s) {
   try { await api.del('/assessments/' + drillId.value + '/assets/' + s.id); await loadScopeAssets() }
   catch (e) { opError.value = e.message }
 }
+
+// ---- R4 · 模板中心：详情预览 + 克隆 ----
+const tplDetail = ref(null)
+const tplItems = ref([])
+const tplItemsBusy = ref(false)
+const tplDetailForms = ref([])
+async function openTplDetail(t) {
+  tplDetail.value = t
+  tplItems.value = []; tplDetailForms.value = []; tplItemsBusy.value = true
+  try {
+    const [items, forms] = await Promise.all([
+      api.get('/assessment-templates/' + t.id + '/items').catch(() => []),
+      api.get('/assessment-templates/' + t.id + '/forms').catch(() => [])
+    ])
+    tplItems.value = items; tplDetailForms.value = forms
+  } finally { tplItemsBusy.value = false }
+}
+const tplCloneTarget = ref(null)
+const tplCloneForm = reactive({ code: '', name: '', orgId: 12 })
+const tplCloneBusy = ref(false)
+const tplCloneErr = ref('')
+function openTplClone(t) {
+  tplCloneTarget.value = t
+  Object.assign(tplCloneForm, { code: t.code + '-COPY', name: '', orgId: 12 })
+  tplCloneErr.value = ''
+}
+async function submitTplClone() {
+  tplCloneBusy.value = true; tplCloneErr.value = ''
+  try {
+    await api.post('/assessment-templates/' + tplCloneTarget.value.id + '/clone', {
+      orgId: tplCloneForm.orgId, code: tplCloneForm.code, name: tplCloneForm.name || null
+    })
+    tplCloneTarget.value = null
+    await loadTemplates()
+  } catch (e) { tplCloneErr.value = e.message } finally { tplCloneBusy.value = false }
+}
+
+// ---- R3 · 过程文档中心 + RTP 导出 ----
+const DOC_TYPE_LABEL = { PLAN: '计划书', INTERVIEW: '访谈记录', REPORT: '报告', RTP: '处置计划', ACCEPTANCE: '接受声明', OTHER: '其他' }
+const assessDocs = ref([])
+const docUp = reactive({ docType: 'PLAN' })
+async function loadAssessDocs() {
+  try { assessDocs.value = await api.get('/assessments/' + drillId.value + '/docs') } catch (e) { assessDocs.value = [] }
+}
+function pickDocFile() { document.getElementById('assess-doc-file').click() }
+async function onDocFile(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!file) return
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('docType', docUp.docType)
+    fd.append('name', file.name.replace(/\.[^.]+$/, ''))
+    await api.upload('/assessments/' + drillId.value + '/docs', fd)
+    await loadAssessDocs()
+  } catch (err) { opError.value = err.message }
+}
+async function deleteDoc(d) {
+  if (!window.confirm(`确认删除过程文档「${d.name}」？`)) return
+  try { await api.del('/assessment-docs/' + d.id); await loadAssessDocs() } catch (e) { opError.value = e.message }
+}
+function exportRtp() { window.open('/api/assessments/' + drillId.value + '/rtp.docx', '_blank') }
 
 // ---- R1 · 评估背景（背景建立元数据展示与编辑）----
 const drillMeta = ref(null)
@@ -1288,15 +1451,26 @@ async function submitAtvRef() {
   } catch (e) { atvErr.value = e.message } finally { refSaving.value = false }
 }
 
-// ===== M2 周边：处置决策四选一（需求 4.5.3）=====
+// ===== M2 周边：处置决策四选一 + RTP 落地要素（V51）=====
 const TD_LABEL = { MITIGATE: '降低', ACCEPT: '接受', TRANSFER: '转移', AVOID: '规避' }
 const treatTarget = ref(null)
-const tdf = reactive({ decision: 'MITIGATE', plan: '' })
-function openTreat(f) { treatTarget.value = f; Object.assign(tdf, { decision: 'MITIGATE', plan: '' }); opError.value = '' }
+const tdf = reactive({ decision: 'MITIGATE', plan: '', owner: '', dueDate: '', resource: '', expectedResidual: null })
+function openTreat(f) {
+  treatTarget.value = f
+  Object.assign(tdf, { decision: 'MITIGATE', plan: '', owner: '', dueDate: '', resource: '', expectedResidual: null })
+  opError.value = ''
+}
 async function submitTreat() {
   refSaving.value = true; opError.value = ''
   try {
     await api.post('/risk-findings/' + treatTarget.value.id + '/treatment', { treatmentDecision: tdf.decision, treatmentPlan: tdf.plan })
+    // RTP 落地要素（有任一项填了才写，决策与计划互补）
+    if (tdf.owner || tdf.dueDate || tdf.resource || tdf.expectedResidual) {
+      await api.put('/risk-findings/' + treatTarget.value.id + '/rtp', {
+        measure: tdf.plan, owner: tdf.owner || null, dueDate: tdf.dueDate || null,
+        resource: tdf.resource || null, expectedResidual: tdf.expectedResidual, status: 'IN_PROGRESS'
+      })
+    }
     treatTarget.value = null; await loadFindings()
   } catch (e) { opError.value = e.message } finally { refSaving.value = false }
 }
@@ -2125,4 +2299,12 @@ td.ops {
 .selmini { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; max-width: 220px; }
 .mini-x { border: 0; background: none; color: var(--text-3); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
 .mini-x:hover { color: var(--danger); background: var(--danger-tint); }
+.mini-a { font-size: 11px; color: var(--accent-strong); text-decoration: none; padding: 2px 8px; border: 1px solid var(--surface-border); border-radius: 6px; }
+.mini-a:hover { border-color: var(--accent); }
+/* R4 · 模板中心 */
+.tpl-note { font-size: 12px; color: var(--text-2); background: var(--accent-weak); border-left: 3px solid var(--accent); border-radius: var(--radius-md); padding: 9px 12px; line-height: 1.7; margin-bottom: 6px; }
+.tpl-items { max-height: 32vh; overflow-y: auto; }
+.tpl-items thead th { text-align: left; font-size: 10.5px; color: var(--text-3); padding: 0 8px 6px; }
+.tpl-items tbody td { padding: 6px 8px; border-top: 1px solid var(--border-subtle); vertical-align: top; }
+.tpl-forms { max-height: 18vh; overflow-y: auto; }
 </style>

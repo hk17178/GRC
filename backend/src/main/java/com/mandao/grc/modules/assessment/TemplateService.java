@@ -71,6 +71,26 @@ public class TemplateService {
         return saved;
     }
 
+    /**
+     * 克隆模板（R4 模板中心：内置脚手架"克隆起步"的落地）：
+     * 复制元数据与全部条款项到目标组织，新模板为 DRAFT（可增改后再发布）。
+     */
+    @Transactional
+    public AssessmentTemplate clone(Long templateId, Long orgId, String code, String name, String actor) {
+        AssessmentTemplate src = get(templateId);
+        AssessmentTemplate copy = new AssessmentTemplate(orgId, code,
+                name == null || name.isBlank() ? src.getName() + "（副本）" : name,
+                src.getFramework(), src.getDescription(), actor);
+        AssessmentTemplate saved = templateRepository.save(copy);
+        for (AssessmentTemplateItem it : templateItemRepository.findByTemplateIdOrderBySeqAsc(templateId)) {
+            templateItemRepository.save(new AssessmentTemplateItem(
+                    orgId, saved.getId(), it.getSeq(), it.getControlId(), it.getClause(), it.getRequirement()));
+        }
+        hashChainService.append(orgId, "TEMPLATE_CLONE", actor, "TEMPLATE:" + saved.getId(),
+                "克隆模板自 #" + templateId + "（" + src.getCode() + "）→ " + code);
+        return saved;
+    }
+
     /** 追加一条模板检查项（仅 DRAFT 模板可改），序号自动顺延。 */
     @Transactional
     public AssessmentTemplateItem addItem(Long templateId, Long controlId, String clause,

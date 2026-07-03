@@ -31,12 +31,14 @@ public class AuditPlanService {
     private final AuditPlanRepository repository;
     private final HashChainService hashChainService;
     private final AssessmentService assessmentService;
+    private final AuditProcedureRepository procedureRepository;
 
     public AuditPlanService(AuditPlanRepository repository, HashChainService hashChainService,
-                            AssessmentService assessmentService) {
+                            AssessmentService assessmentService, AuditProcedureRepository procedureRepository) {
         this.repository = repository;
         this.hashChainService = hashChainService;
         this.assessmentService = assessmentService;
+        this.procedureRepository = procedureRepository;
     }
 
     /** 列出当前主体可见组织范围内的审计计划（无 org 过滤，靠切面 + RLS）。 */
@@ -118,6 +120,81 @@ public class AuditPlanService {
         p.setStatus(AuditPlanStatus.CANCELLED);
         AuditPlan saved = repository.save(p);
         appendLog(saved, "AUDIT_PLAN_CANCEL", actor, "取消审计计划");
+        return saved;
+    }
+
+    // ---------- 审计通知书（V50 · A2） ----------
+
+    /**
+     * 保存/签发审计通知书：填写 被审计单位/范围/依据/审计组；issue=true 时落签发人与时间。
+     * 已签发后内容冻结（通知书是对外文书，签发即定稿）。
+     */
+    @Transactional
+    public AuditPlan saveNotice(Long id, String auditee, String noticeScope, String noticeBasis,
+                                String auditTeam, boolean issue, String actor) {
+        AuditPlan p = get(id);
+        if (p.getNoticeIssuedAt() != null) {
+            throw new IllegalStateException("通知书已签发，内容冻结不可修改");
+        }
+        p.applyNotice(auditee, noticeScope, noticeBasis, auditTeam, issue ? actor : null);
+        AuditPlan saved = repository.save(p);
+        appendLog(saved, issue ? "AUDIT_NOTICE_ISSUE" : "AUDIT_NOTICE_SAVE", actor,
+                (issue ? "签发" : "保存") + "审计通知书 · 被审计单位=" + auditee);
+        return saved;
+    }
+
+    // ---------- 审计程序 / 工作底稿（V50 · A2） ----------
+
+    @Transactional(readOnly = true)
+    public List<AuditProcedure> listProcedures(Long planId) {
+        get(planId); // 可见性校验
+        return procedureRepository.findByPlanIdOrderBySeqAsc(planId);
+    }
+
+    /** 新增审计程序（底稿编号 WP-{plan}-{seq} 自动递增）。 */
+    @Transactional
+    public AuditProcedure addProcedure(Long planId, String name, String objective, String actor) {
+        AuditPlan p = get(planId);
+        Integer max = procedureRepository.maxSeq(planId);
+        AuditProcedure saved = procedureRepository.save(
+                new AuditProcedure(p.getOrgId(), planId, (max == null ? 0 : max) + 1, name, objective));
+        appendLog(p, "AUDIT_PROC_ADD", actor, "新增审计程序 " + saved.getWorkpaperNo() + "：" + name);
+        return saved;
+    }
+
+    /** 执行程序：落执行记录（工作底稿）。执行记录必填——底稿是审计证据链的核心。 */
+    @Transactional
+    public AuditProcedure executeProcedure(Long procedureId, String result, String actor) {
+        if (result == null || result.isBlank()) {
+            throw new IllegalArgumentException("执行记录（工作底稿）不能为空");
+        }
+        AuditProcedure proc = procedureRepository.findById(procedureId)
+                .orElseThrow(() -> new IllegalArgumentException("审计程序不存在或不可见：id=" + procedureId));
+        if (!"PENDING".equals(proc.getStatus())) {
+            throw new IllegalStateException("该程序已执行，底稿不可覆盖（如需补充另立程序）");
+        }
+        proc.execute(result, actor);
+        AuditProcedure saved = procedureRepository.save(proc);
+        hashChainService.append(proc.getOrgId(), "AUDIT_PROC_EXECUTE", actor,
+                "AUDIT_PROC:" + procedureId, "执行程序并留底稿 " + proc.getWorkpaperNo());
+        return saved;
+    }
+
+    /** 复核底稿（复核人不得与执行人相同——底稿复核的基本控制）。 */
+    @Transactional
+    public AuditProcedure reviewProcedure(Long procedureId, String actor) {
+        AuditProcedure proc = procedureRepository.findById(procedureId)
+                .orElseThrow(() -> new IllegalArgumentException("审计程序不存在或不可见：id=" + procedureId));
+        if (!"DONE".equals(proc.getStatus())) {
+            throw new IllegalStateException("仅已执行(DONE)的底稿可复核，当前：" + proc.getStatus());
+        }
+        if (actor != null && actor.equals(proc.getExecutor())) {
+            throw new IllegalStateException("复核人不得与执行人相同（底稿复核控制）");
+        }
+        proc.review(actor);
+        AuditProcedure saved = procedureRepository.save(proc);
+        hashChainService.append(proc.getOrgId(), "AUDIT_PROC_REVIEW", actor,
+                "AUDIT_PROC:" + procedureId, "复核底稿 " + proc.getWorkpaperNo());
         return saved;
     }
 

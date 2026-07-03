@@ -55,6 +55,17 @@ public class AssessmentFormController {
                 .toList();
     }
 
+    /** 下载某表单版本的 .docx 原件（R4 模板中心：模板预览/取回官方模板）。 */
+    @GetMapping("/assessment-templates/forms/{formId}/docx")
+    public ResponseEntity<byte[]> downloadFormDocx(@PathVariable Long formId) {
+        TemplateForm form = service.getForm(formId);
+        if (form.getDocx() == null) {
+            throw new IllegalStateException("该表单版本无 .docx 原件");
+        }
+        return download(form.getDocx(), "template-form-" + formId + ".docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+    }
+
     /** 启用某表单版本（同模板仅一条 ACTIVE）。 */
     @PostMapping("/assessment-templates/forms/{formId}/activate")
     @RequiresPermission("risk")

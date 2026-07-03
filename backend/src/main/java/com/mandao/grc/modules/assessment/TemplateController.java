@@ -80,6 +80,19 @@ public class TemplateController {
         return service.retire(id, actor(user));
     }
 
+    /** 克隆模板到目标组织（R4：内置脚手架克隆起步；新模板为 DRAFT）。 */
+    @PostMapping("/{id}/clone")
+    @RequiresPermission("risk")
+    public AssessmentTemplate clone(@PathVariable Long id,
+                                    @RequestBody CloneRequest req,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.clone(id, req.orgId(), req.code(), req.name(), actor(user));
+    }
+
+    /** 克隆请求体（R4）。 */
+    public record CloneRequest(Long orgId, String code, String name) {
+    }
+
     /** 实例化为一次评估（返回新建的评估）。 */
     @PostMapping("/{id}/instantiate")
     @RequiresPermission("risk")

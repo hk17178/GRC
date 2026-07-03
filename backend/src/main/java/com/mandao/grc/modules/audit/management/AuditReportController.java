@@ -74,6 +74,16 @@ public class AuditReportController {
         return service.issue(id, actor(user));
     }
 
+    /** 报告导出 .docx（V52 文书套打）。 */
+    @GetMapping("/{id}/docx")
+    public org.springframework.http.ResponseEntity<byte[]> reportDocx(@PathVariable Long id) {
+        byte[] body = service.buildReportDocx(id);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                .header("Content-Disposition", "attachment; filename=\"audit-report-" + id + ".docx\"")
+                .body(body);
+    }
+
     private String actor(String user) {
         String current = CurrentUserContext.get();
         if (current != null && !current.isBlank()) {

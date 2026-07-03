@@ -23,9 +23,11 @@
       </div>
 
       <div class="tabbar">
+        <button :class="{ on: tab === 'annual' }" @click="tab = 'annual'; loadAnnual()">年度计划</button>
         <button :class="{ on: tab === 'plan' }" @click="tab = 'plan'">审计计划</button>
         <button :class="{ on: tab === 'finding' }" @click="tab = 'finding'">审计发现</button>
         <button :class="{ on: tab === 'remed' }" @click="tab = 'remed'">整改跟踪</button>
+        <button :class="{ on: tab === 'proc' }" @click="tab = 'proc'; loadProcedures()">程序底稿</button>
         <button :class="{ on: tab === 'evidence' }" @click="tab = 'evidence'; loadEvidence()">证据库</button>
         <button :class="{ on: tab === 'report' }" @click="tab = 'report'; loadReport()">审计报告</button>
       </div>
@@ -53,6 +55,9 @@
                     <button v-else-if="!p.checklistAssessmentId" class="mini" @click="startChecklist(p)">执行检查表</button>
                     <button v-else class="mini" @click="gotoChecklist(p)">检查表 #{{ p.checklistAssessmentId }}</button>
                   </template>
+                  <button class="mini" @click="openNotice(p)">通知书{{ p.noticeIssuedAt ? ' ✓' : '' }}</button>
+                  <button v-if="p.status==='CLOSED' && canWrite('extaudit')" class="mini" @click="followUp(p)">后续审计</button>
+                  <span v-if="p.followUpOf" class="pill" title="后续审计：验证原计划整改有效性">↩ AP-{{ p.followUpOf }}</span>
                   <button class="mini" @click="exportDossier(p)">卷宗导出</button>
                 </td>
               </tr>
@@ -126,6 +131,169 @@
               <tr v-if="!remeds.length"><td colspan="6" class="emptyrow">该发现暂无整改单，去「审计发现」下达整改。</td></tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- 年度计划（V52 · A3：风险导向排项目 → 批准 → 逐项立项）-->
+      <div v-show="tab === 'annual'" class="card">
+        <div class="ch">
+          <h3>年度审计计划</h3>
+          <select class="sel" v-model.number="annualId" @change="loadAnnualItems">
+            <option :value="0" disabled>— 选择年度计划 —</option>
+            <option v-for="a in annuals" :key="a.id" :value="a.id">{{ a.year }} · {{ a.title }}（{{ a.status === 'APPROVED' ? '已批准' : '草稿' }}）</option>
+          </select>
+          <div style="margin-left:auto;display:flex;gap:8px" v-if="canWrite('extaudit')">
+            <button class="btn ghost sm" @click="showAnnualNew = true">＋ 新建年度计划</button>
+            <template v-if="annualId && currentAnnual">
+              <button v-if="currentAnnual.status==='DRAFT'" class="btn ghost sm" @click="showAnnualItem = true">＋ 纳入对象</button>
+              <button v-if="currentAnnual.status==='DRAFT'" class="btn sm" @click="approveAnnual">批准（冻结清单）</button>
+            </template>
+          </div>
+        </div>
+        <div class="cb" style="overflow-x:auto;padding-top:0">
+          <div v-if="!annualId" class="hint">年度层：按风险排序纳入审计对象 → 批准冻结 → 逐项转单项审计计划（防重复立项）。</div>
+          <table v-else style="min-width:760px">
+            <thead><tr><th>风险序</th><th>审计对象</th><th>排期</th><th>关注要点</th><th>立项</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="it in annualItems" :key="it.id">
+                <td><span class="tag" :class="it.riskRank <= 2 ? 'h' : (it.riskRank === 3 ? 'm' : '')">#{{ it.riskRank }}</span></td>
+                <td><b>{{ it.target }}</b></td>
+                <td class="num">{{ it.quarter }}</td>
+                <td class="muted">{{ it.note || '—' }}</td>
+                <td><span v-if="it.planId" class="code">AP-{{ it.planId }}</span><span v-else class="muted">未立项</span></td>
+                <td class="ops">
+                  <button v-if="!it.planId && currentAnnual && currentAnnual.status==='APPROVED' && canWrite('extaudit')"
+                          class="mini" @click="itemToPlan(it)">转审计计划</button>
+                </td>
+              </tr>
+              <tr v-if="!annualItems.length"><td colspan="6" class="emptyrow">暂无审计对象，点「＋ 纳入对象」。</td></tr>
+            </tbody>
+          </table>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+        </div>
+      </div>
+
+      <!-- 新建年度计划弹窗 -->
+      <div v-if="showAnnualNew" class="modal-mask" @click.self="showAnnualNew = false">
+        <div class="modal-card">
+          <h3>新建年度审计计划</h3>
+          <label class="fld">计划年度<input type="number" v-model.number="af2.year" /></label>
+          <label class="fld">标题（可空，默认「{{ af2.year }} 年度内部审计计划」）<input v-model="af2.title" /></label>
+          <label class="fld">所属组织<select v-model.number="af2.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showAnnualNew = false">取消</button>
+            <button class="btn" :disabled="!af2.year || saving" @click="submitAnnual">{{ saving ? '提交中…' : '确认' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 纳入审计对象弹窗 -->
+      <div v-if="showAnnualItem" class="modal-mask" @click.self="showAnnualItem = false">
+        <div class="modal-card">
+          <h3>纳入审计对象</h3>
+          <label class="fld">审计对象（单位/系统/流程）<input v-model="aif.target" placeholder="如 支付结算系统" /></label>
+          <div class="fld-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <label class="fld">风险排序（1 最高）
+              <select v-model.number="aif.riskRank"><option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option><option :value="5">5</option></select>
+            </label>
+            <label class="fld">排期
+              <select v-model="aif.quarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select>
+            </label>
+          </div>
+          <label class="fld">关注要点/理由<input v-model="aif.note" placeholder="如 备付金合规重点、上年发现较多" /></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showAnnualItem = false">取消</button>
+            <button class="btn" :disabled="!aif.target || saving" @click="submitAnnualItem">{{ saving ? '提交中…' : '确认' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 程序底稿（V50 · A2：审计程序 → 执行留底稿 → 复核）-->
+      <div v-show="tab === 'proc'" class="card">
+        <div class="ch">
+          <h3>审计程序 / 工作底稿</h3>
+          <select class="sel" v-model.number="procPlanId" @change="loadProcedures">
+            <option :value="0" disabled>— 选择审计计划 —</option>
+            <option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option>
+          </select>
+          <span class="sub">执行记录即底稿 · 复核人须≠执行人</span>
+          <button v-if="procPlanId && canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showProcAdd = true">＋ 新增程序</button>
+        </div>
+        <div class="cb" style="overflow-x:auto;padding-top:0">
+          <div v-if="!procPlanId" class="hint">选择计划后维护审计程序：程序（做什么/验证什么）→ 执行留工作底稿（WP 编号）→ 交叉复核。</div>
+          <table v-else style="min-width:860px">
+            <thead><tr><th>底稿号</th><th>程序步骤</th><th>目标</th><th>执行记录（底稿）</th><th>执行</th><th>复核</th><th>状态</th><th>操作</th></tr></thead>
+            <tbody>
+              <tr v-for="pr in procedures" :key="pr.id">
+                <td class="code">{{ pr.workpaperNo }}</td>
+                <td><b>{{ pr.name }}</b></td>
+                <td class="muted">{{ pr.objective || '—' }}</td>
+                <td class="muted" style="max-width:260px">{{ pr.result || '—' }}</td>
+                <td class="muted">{{ pr.executor || '—' }}</td>
+                <td class="muted">{{ pr.reviewer || '—' }}</td>
+                <td><span class="st" :class="PROC_CLS[pr.status]"><span class="d"></span>{{ PROC_LABEL[pr.status] }}</span></td>
+                <td class="ops">
+                  <template v-if="canWrite('extaudit')">
+                    <button v-if="pr.status==='PENDING'" class="mini" @click="openProcExec(pr)">执行</button>
+                    <button v-if="pr.status==='DONE'" class="mini" @click="reviewProc(pr)">复核</button>
+                  </template>
+                </td>
+              </tr>
+              <tr v-if="!procedures.length"><td colspan="8" class="emptyrow">暂无程序，点「＋ 新增程序」建立审计程序表。</td></tr>
+            </tbody>
+          </table>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+        </div>
+      </div>
+
+      <!-- 通知书弹窗（V50：签发后冻结）-->
+      <div v-if="noticeTarget" class="modal-mask" @click.self="noticeTarget = null">
+        <div class="modal-card">
+          <h3>审计通知书 · AP-{{ noticeTarget.id }}</h3>
+          <p v-if="noticeTarget.noticeIssuedAt" class="rpt-issued" style="margin-bottom:12px">✓ 已签发 · {{ noticeTarget.noticeIssuedBy }} · {{ fmtDt(noticeTarget.noticeIssuedAt) }}（内容已冻结）</p>
+          <label class="fld">被审计单位/部门<input v-model="nf.auditee" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
+          <label class="fld">审计范围<textarea v-model="nf.noticeScope" rows="2" :disabled="!!noticeTarget.noticeIssuedAt"></textarea></label>
+          <label class="fld">审计依据<input v-model="nf.noticeBasis" :disabled="!!noticeTarget.noticeIssuedAt" placeholder="如 2026 年度内审计划第 3 项" /></label>
+          <label class="fld">审计组成员（组长在前）<input v-model="nf.auditTeam" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <a v-if="noticeTarget.noticeIssuedAt" class="btn ghost" :href="'/api/audit-plans/' + noticeTarget.id + '/notice.docx'" target="_blank" style="text-decoration:none">导出通知书 .docx</a>
+            <button class="btn ghost" @click="noticeTarget = null">关闭</button>
+            <template v-if="!noticeTarget.noticeIssuedAt && canWrite('extaudit')">
+              <button class="btn ghost" :disabled="saving" @click="saveNotice(false)">保存草稿</button>
+              <button class="btn" :disabled="!nf.auditee || saving" @click="saveNotice(true)">{{ saving ? '提交中…' : '签发通知书' }}</button>
+            </template>
+          </div>
+        </div>
+      </div>
+
+      <!-- 新增程序弹窗 -->
+      <div v-if="showProcAdd" class="modal-mask" @click.self="showProcAdd = false">
+        <div class="modal-card">
+          <h3>新增审计程序</h3>
+          <label class="fld">程序步骤（做什么）<input v-model="pf2.name" placeholder="如 抽样核验离职账号禁用情况" /></label>
+          <label class="fld">程序目标（验证什么）<input v-model="pf2.objective" placeholder="如 验证账号回收控制有效性" /></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showProcAdd = false">取消</button>
+            <button class="btn" :disabled="!pf2.name || saving" @click="submitProc">{{ saving ? '提交中…' : '确认' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 执行程序（落底稿）弹窗 -->
+      <div v-if="procExecTarget" class="modal-mask" @click.self="procExecTarget = null">
+        <div class="modal-card wide2">
+          <h3>执行程序 · {{ procExecTarget.workpaperNo }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">{{ procExecTarget.name }}<br/>执行记录即工作底稿，提交后不可覆盖（如需补充另立程序）。</p>
+          <label class="fld">执行记录（工作底稿）<textarea v-model="procResult" rows="5" placeholder="做了什么、抽了哪些样本、发现了什么、证据在哪…"></textarea></label>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="procExecTarget = null">取消</button>
+            <button class="btn" :disabled="!procResult.trim() || saving" @click="submitProcExec">{{ saving ? '提交中…' : '提交底稿' }}</button>
+          </div>
         </div>
       </div>
 
@@ -210,7 +378,10 @@
             <label class="fld">报告正文（自动组稿，可编辑）
               <textarea v-model="rptEdit.content" rows="14" :disabled="rptFrozen" class="rpt-ta mono"></textarea>
             </label>
-            <div v-if="report.status==='ISSUED'" class="rpt-issued">✓ 已签发 · {{ report.issuedBy }} · {{ fmtDt(report.issuedAt) }}（正文已冻结）</div>
+            <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
+              <a class="btn ghost sm" :href="'/api/audit-reports/' + report.id + '/docx'" target="_blank" style="text-decoration:none">导出报告 .docx</a>
+              <div v-if="report.status==='ISSUED'" class="rpt-issued" style="flex:1">✓ 已签发 · {{ report.issuedBy }} · {{ fmtDt(report.issuedAt) }}（正文已冻结）</div>
+            </div>
             <p v-if="opErr" class="cerr">{{ opErr }}</p>
           </template>
           <div v-else class="hint">该计划暂无报告——点右上「生成报告草稿」。</div>
@@ -469,6 +640,110 @@ async function submitResponse() {
     detailTarget.value = saved; df.response = ''
     await loadFindings()
   } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+
+// ===== 年度计划 + follow-up（V52 · A3）=====
+const annuals = ref([])
+const annualId = ref(0)
+const annualItems = ref([])
+const showAnnualNew = ref(false)
+const showAnnualItem = ref(false)
+const af2 = reactive({ year: new Date().getFullYear(), title: '', orgId: 12 })
+const aif = reactive({ target: '', riskRank: 3, quarter: 'Q1', note: '' })
+const currentAnnual = computed(() => annuals.value.find((a) => a.id === annualId.value))
+async function loadAnnual() {
+  try { annuals.value = await api.get('/audit-annual') } catch (e) { annuals.value = [] }
+}
+async function loadAnnualItems() {
+  annualItems.value = []
+  if (!annualId.value) return
+  try { annualItems.value = await api.get('/audit-annual/' + annualId.value + '/items') } catch (e) { annualItems.value = [] }
+}
+async function submitAnnual() {
+  saving.value = true; opErr.value = ''
+  try {
+    const saved = await api.post('/audit-annual', { orgId: af2.orgId, year: af2.year, title: af2.title || null })
+    showAnnualNew.value = false; await loadAnnual(); annualId.value = saved.id; await loadAnnualItems()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function submitAnnualItem() {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.post('/audit-annual/' + annualId.value + '/items', { target: aif.target, riskRank: aif.riskRank, quarter: aif.quarter, note: aif.note || null })
+    Object.assign(aif, { target: '', riskRank: 3, quarter: 'Q1', note: '' })
+    showAnnualItem.value = false; await loadAnnualItems()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function approveAnnual() {
+  opErr.value = ''
+  try { await api.post('/audit-annual/' + annualId.value + '/approve', {}); await loadAnnual() } catch (e) { opErr.value = e.message }
+}
+async function itemToPlan(it) {
+  opErr.value = ''
+  try { await api.post('/audit-annual/items/' + it.id + '/to-plan', {}); await loadAnnualItems(); await loadPlans() }
+  catch (e) { opErr.value = e.message }
+}
+async function followUp(p) {
+  opErr.value = ''; opMsg.value = ''
+  try {
+    const f = await api.post('/audit-plans/' + p.id + '/follow-up', {})
+    opMsg.value = '已发起后续审计 AP-' + f.id
+    await loadPlans(); setTimeout(() => (opMsg.value = ''), 3000)
+  } catch (e) { opErr.value = e.message }
+}
+
+// ===== 审计通知书 + 程序底稿（V50 · A2）=====
+const noticeTarget = ref(null)
+const nf = reactive({ auditee: '', noticeScope: '', noticeBasis: '', auditTeam: '' })
+function openNotice(p) {
+  noticeTarget.value = p
+  Object.assign(nf, { auditee: p.auditee || '', noticeScope: p.noticeScope || '', noticeBasis: p.noticeBasis || '', auditTeam: p.auditTeam || '' })
+  opErr.value = ''
+}
+async function saveNotice(issue) {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.post('/audit-plans/' + noticeTarget.value.id + '/notice', {
+      auditee: nf.auditee || null, noticeScope: nf.noticeScope || null,
+      noticeBasis: nf.noticeBasis || null, auditTeam: nf.auditTeam || null, issue
+    })
+    noticeTarget.value = null; await loadPlans()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+
+const PROC_LABEL = { PENDING: '待执行', DONE: '已执行', REVIEWED: '已复核' }
+const PROC_CLS = { PENDING: 'wait', DONE: 'doing', REVIEWED: 'ok' }
+const procPlanId = ref(0)
+const procedures = ref([])
+const showProcAdd = ref(false)
+const pf2 = reactive({ name: '', objective: '' })
+const procExecTarget = ref(null)
+const procResult = ref('')
+async function loadProcedures() {
+  procedures.value = []
+  if (!procPlanId.value) return
+  try { procedures.value = await api.get('/audit-plans/' + procPlanId.value + '/procedures') } catch (e) { procedures.value = [] }
+}
+async function submitProc() {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.post('/audit-plans/' + procPlanId.value + '/procedures', { name: pf2.name, objective: pf2.objective || null })
+    Object.assign(pf2, { name: '', objective: '' })
+    showProcAdd.value = false; await loadProcedures()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+function openProcExec(pr) { procExecTarget.value = pr; procResult.value = ''; opErr.value = '' }
+async function submitProcExec() {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.post('/audit-plans/procedures/' + procExecTarget.value.id + '/execute', { result: procResult.value })
+    procExecTarget.value = null; await loadProcedures()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function reviewProc(pr) {
+  opErr.value = ''
+  try { await api.post('/audit-plans/procedures/' + pr.id + '/review', {}); await loadProcedures() }
+  catch (e) { opErr.value = e.message }
 }
 
 // ===== 审计报告（V47：自动组稿 → 征求意见 → 定稿 → 签发）=====
