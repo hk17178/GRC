@@ -169,6 +169,41 @@ public class EvidenceService {
         }
     }
 
+    /**
+     * 卷宗打包（.zip）：卷宗 .docx + 全部关联证据原件（文件名前缀 EV-{id}，保留原始扩展名）。
+     * 证据原件与 docx 内的 sha256 清单互为印证——收件方可自行重算指纹核验。
+     */
+    @Transactional(readOnly = true)
+    public byte[] buildDossierZip(Long planId) {
+        byte[] docx = buildDossier(planId);
+        List<AuditFinding> findings = findingRepo.findAll().stream()
+                .filter(f -> planId.equals(f.getAuditPlanId())).toList();
+        List<RemediationOrder> remediations = remediationRepo.findAll().stream()
+                .filter(r -> findings.stream().anyMatch(f -> f.getId().equals(r.getFindingId()))).toList();
+        List<Evidence> evidences = evidenceRepo.findAllByOrderByIdDesc().stream()
+                .filter(e -> planId.equals(e.getPlanId())
+                        || findings.stream().anyMatch(f -> f.getId().equals(e.getFindingId()))
+                        || remediations.stream().anyMatch(r -> r.getId().equals(e.getRemediationId())))
+                .toList();
+
+        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
+             java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(bos, StandardCharsets.UTF_8)) {
+            zip.putNextEntry(new java.util.zip.ZipEntry("audit-dossier-" + planId + ".docx"));
+            zip.write(docx);
+            zip.closeEntry();
+            for (Evidence e : evidences) {
+                String fn = e.getFileName() == null || e.getFileName().isBlank() ? "evidence" : e.getFileName();
+                zip.putNextEntry(new java.util.zip.ZipEntry("evidence/EV-" + e.getId() + "-" + fn));
+                zip.write(e.getData());
+                zip.closeEntry();
+            }
+            zip.finish();
+            return bos.toByteArray();
+        } catch (IOException ex) {
+            throw new UncheckedIOException("卷宗打包失败", ex);
+        }
+    }
+
     // ---------- 内部辅助 ----------
 
     private static void para(XWPFDocument doc, String text) {

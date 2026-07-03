@@ -21,21 +21,27 @@ import java.util.List;
 @Service
 public class RegulationService {
 
+    /** 治理提示词模板名（V42）：运营建同名启用模板即可自定义摘要口径。 */
+    static final String TPL_CHANGE_SUMMARY = "变更摘要";
+
     private final RegulationRepository regulationRepository;
     private final RegulationChangeRepository changeRepository;
     private final RegulationPolicyMapRepository mapRepository;
     private final com.mandao.grc.modules.ai.LlmProvider llmProvider;
+    private final com.mandao.grc.modules.ai.AiGovernanceRepository governanceRepo;
     private final HashChainService hashChainService;
 
     public RegulationService(RegulationRepository regulationRepository,
                              RegulationChangeRepository changeRepository,
                              RegulationPolicyMapRepository mapRepository,
                              com.mandao.grc.modules.ai.LlmProvider llmProvider,
+                             com.mandao.grc.modules.ai.AiGovernanceRepository governanceRepo,
                              HashChainService hashChainService) {
         this.regulationRepository = regulationRepository;
         this.changeRepository = changeRepository;
         this.mapRepository = mapRepository;
         this.llmProvider = llmProvider;
+        this.governanceRepo = governanceRepo;
         this.hashChainService = hashChainService;
     }
 
@@ -145,7 +151,15 @@ public class RegulationService {
         RegulationChange c = changeRepository.findById(changeId)
                 .orElseThrow(() -> new IllegalArgumentException("法规变更不存在或不可见：id=" + changeId));
         Regulation reg = get(c.getRegulationId());
-        String question = "请对以下法规变更做条款级要点摘要（合规影响导向，中文，3 条以内）：\n"
+        // 提示词优先取治理里启用的「变更摘要」模板（V42），无则回退内置口径
+        String ask = governanceRepo.findByKindAndEnabledTrue(
+                        com.mandao.grc.modules.ai.AiGovernance.KIND_PROMPT_TEMPLATE).stream()
+                .filter(g -> TPL_CHANGE_SUMMARY.equals(g.getName()))
+                .map(com.mandao.grc.modules.ai.AiGovernance::getDetail)
+                .filter(d -> d != null && !d.isBlank())
+                .findFirst()
+                .orElse("请对以下法规变更做条款级要点摘要（合规影响导向，中文，3 条以内）：");
+        String question = ask + "\n"
                 + "法规：" + reg.getTitle() + "（" + reg.getCode() + "）\n"
                 + "变更类型：" + c.getChangeType() + "，变更描述：" + c.getDescription();
         String summary = llmProvider.generate(question, List.of(

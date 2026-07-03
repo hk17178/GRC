@@ -85,6 +85,16 @@ public class EvidenceController {
                 .body(body);
     }
 
+    /** 卷宗打包（.zip）：卷宗 .docx + 全部关联证据原件（与 docx 内 sha256 清单互为印证）。 */
+    @GetMapping("/audit-plans/{id}/dossier.zip")
+    public ResponseEntity<byte[]> dossierZip(@PathVariable Long id) {
+        byte[] body = service.buildDossierZip(id);
+        return ResponseEntity.ok()
+                .header("Content-Type", "application/zip")
+                .header("Content-Disposition", "attachment; filename=\"audit-dossier-" + id + ".zip\"")
+                .body(body);
+    }
+
     private String actorOf(String user) {
         return CurrentUserContext.get() != null ? CurrentUserContext.get()
                 : (user == null || user.isBlank() ? "anonymous" : user);

@@ -361,8 +361,8 @@ async function verifyEv(e) {
   verifyResult.value = null
   try { verifyResult.value = await api.get('/evidence/' + e.id + '/verify') } catch (err) { opErr.value = err.message }
 }
-// 卷宗导出：计划全貌（发现+整改+证据指纹清单）打包 .docx
-function exportDossier(p) { window.open('/api/audit-plans/' + p.id + '/dossier', '_blank') }
+// 卷宗导出：zip = 卷宗 .docx（发现+整改+证据指纹清单）+ 证据原件（EV-{id}-原名，与指纹互为印证）
+function exportDossier(p) { window.open('/api/audit-plans/' + p.id + '/dossier.zip', '_blank') }
 
 // 新建计划
 const showPlan = ref(false)

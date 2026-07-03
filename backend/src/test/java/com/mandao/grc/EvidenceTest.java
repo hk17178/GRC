@@ -127,6 +127,27 @@ class EvidenceTest {
     }
 
     @Test
+    void 卷宗打包zip_含docx与证据原件() throws Exception {
+        AuditPlan plan = asOrg(ORG_PAY, () ->
+                planService.create(ORG_PAY, "打包审计", AuditType.INTERNAL, LocalDate.now(), "c"));
+        asOrg(ORG_PAY, () -> evidenceService.upload(ORG_PAY, plan.getId(), null, null,
+                "原件", "policy.txt", "text/plain", "内容".getBytes(StandardCharsets.UTF_8), "c"));
+
+        byte[] zipBytes = asOrg(ORG_PAY, () -> evidenceService.buildDossierZip(plan.getId()));
+        java.util.List<String> entries = new java.util.ArrayList<>();
+        try (java.util.zip.ZipInputStream zin = new java.util.zip.ZipInputStream(
+                new java.io.ByteArrayInputStream(zipBytes), StandardCharsets.UTF_8)) {
+            java.util.zip.ZipEntry en;
+            while ((en = zin.getNextEntry()) != null) {
+                entries.add(en.getName());
+            }
+        }
+        assertTrue(entries.stream().anyMatch(n -> n.endsWith(".docx")), "zip 应含卷宗 docx，实际：" + entries);
+        assertTrue(entries.stream().anyMatch(n -> n.startsWith("evidence/EV-") && n.endsWith("policy.txt")),
+                "zip 应含证据原件，实际：" + entries);
+    }
+
+    @Test
     void 隔离_org13不可见org12证据() {
         AuditPlan plan = asOrg(ORG_PAY, () ->
                 planService.create(ORG_PAY, "P", AuditType.INTERNAL, LocalDate.now(), "c"));
