@@ -39,7 +39,7 @@ public class AiQaService {
         int k = (topK == null || topK <= 0) ? DEFAULT_TOP_K : topK;
         List<VectorStore.ChunkHit> hits = kb.search(question, k);
         List<String> snippets = hits.stream().map(VectorStore.ChunkHit::content).toList();
-        String answer = llm.generate(question, snippets);
+        String answer = llm.generateFor("QA", question, snippets); // V49 场景路由：问答
         List<Citation> citations = hits.stream()
                 .map(h -> new Citation(h.documentId(), h.seq(), snippet(h.content()), h.score()))
                 .toList();

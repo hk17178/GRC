@@ -28,4 +28,14 @@ public interface LlmProvider {
      * @return 回答文本
      */
     String generate(String question, List<String> contextSnippets);
+
+    /**
+     * 按场景生成（V49 模型分配）：支持路由的实现（ConfiguredLlmProvider）按场景选模型；
+     * 其余实现默认忽略场景直接生成——调用方统一带场景，无须关心提供方是否支持路由。
+     *
+     * @param scenario AI 场景（{@link AiScenario} 枚举名；null=全局默认）
+     */
+    default String generateFor(String scenario, String question, List<String> contextSnippets) {
+        return generate(question, contextSnippets);
+    }
 }

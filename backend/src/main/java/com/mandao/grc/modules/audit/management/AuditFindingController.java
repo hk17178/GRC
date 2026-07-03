@@ -119,7 +119,32 @@ public class AuditFindingController {
         return service.confirmClose(id, actor(user));
     }
 
+    // ---------- 五要素 + 管理层回应（V47 · IIA 4C+R） ----------
+
+    /** 五要素补全：现状/标准/原因/影响/建议（闭环后冻结）。 */
+    @org.springframework.web.bind.annotation.PutMapping("/{id}/detail")
+    @RequiresPermission("extaudit")
+    public AuditFinding setDetail(@PathVariable Long id,
+                                  @RequestBody DetailRequest req,
+                                  @RequestHeader(value = "X-User", required = false) String user) {
+        return service.setDetail(id, req.conditionDesc(), req.criteriaDesc(),
+                req.cause(), req.effect(), req.recommendation(), actor(user));
+    }
+
+    /** 管理层回应：被审计单位意见/整改承诺（回应人=登录人）。 */
+    @PostMapping("/{id}/response")
+    @RequiresPermission("extaudit")
+    public AuditFinding respond(@PathVariable Long id,
+                                @RequestBody ResponseRequest req,
+                                @RequestHeader(value = "X-User", required = false) String user) {
+        return service.respond(id, req.response(), actor(user));
+    }
+
     private String actor(String user) {
+        String current = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (current != null && !current.isBlank()) {
+            return current;
+        }
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
@@ -129,5 +154,14 @@ public class AuditFindingController {
 
     /** 严重度请求体。 */
     public record SeverityRequest(AuditSeverity severity) {
+    }
+
+    /** 五要素请求体（V47）。 */
+    public record DetailRequest(String conditionDesc, String criteriaDesc,
+                                String cause, String effect, String recommendation) {
+    }
+
+    /** 管理层回应请求体（V47）。 */
+    public record ResponseRequest(String response) {
     }
 }

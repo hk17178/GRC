@@ -85,6 +85,19 @@ public class AtvController {
         return service.reassess(id, req.likelihood(), req.impact(), actor(user));
     }
 
+    /** 场景一键生成风险发现（V48 风险登记册：同一评估同一场景只生成一次）。 */
+    @PostMapping("/risk-scenarios/{id}/to-finding")
+    @RequiresPermission("risk")
+    public com.mandao.grc.modules.assessment.RiskFinding toFinding(@PathVariable Long id,
+                                                                   @RequestBody ToFindingRequest req,
+                                                                   @RequestHeader(value = "X-User", required = false) String user) {
+        return service.toFinding(id, req.assessmentId(), actor(user));
+    }
+
+    /** 场景生成发现请求体。 */
+    public record ToFindingRequest(Long assessmentId) {
+    }
+
     private String actor(String user) {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }

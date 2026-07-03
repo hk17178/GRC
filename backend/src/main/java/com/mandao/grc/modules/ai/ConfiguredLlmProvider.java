@@ -70,7 +70,16 @@ public class ConfiguredLlmProvider implements LlmProvider {
 
     @Override
     public String generate(String question, List<String> contextSnippets) {
-        AiConfigService.Snapshot s = configService.snapshot();
+        return generateFor(null, question, contextSnippets);
+    }
+
+    /**
+     * 按场景生成（V49 模型分配）：先取场景快照（路由启用→路由配置；否则全局），
+     * 再按快照的 provider 分发；LOCAL/未配密钥 → env 兜底（缺省本地离线）。
+     */
+    @Override
+    public String generateFor(String scenario, String question, List<String> contextSnippets) {
+        AiConfigService.Snapshot s = configService.snapshotFor(scenario);
         if (!dbActive(s)) {
             return envFallback().generate(question, contextSnippets);
         }

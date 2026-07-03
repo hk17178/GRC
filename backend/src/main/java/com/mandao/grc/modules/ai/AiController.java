@@ -111,6 +111,29 @@ public class AiController {
     public record GovernanceRequest(String kind, String name, String detail) {
     }
 
+    // ---------- 场景模型路由（V49 模型分配）----------
+
+    /** 全部场景路由（QA/MATERIAL/REG_SUMMARY/POLICY_MAP，未配置的给默认停用行）。 */
+    @GetMapping("/routes")
+    public List<AiConfigService.RouteView> listRoutes() {
+        return configService.listRoutes();
+    }
+
+    /** 保存某场景路由（白名单管控生效；apiKey 留空=不改；停用=回退全局）。 */
+    @PutMapping("/routes/{scenario}")
+    @RequiresPermission("ai")
+    public List<AiConfigService.RouteView> updateRoute(@PathVariable String scenario,
+                                                       @RequestBody RouteRequest req,
+                                                       @RequestHeader(value = "X-User", required = false) String user) {
+        return configService.updateRoute(scenario, req.provider(), req.baseUrl(), req.model(),
+                req.maxTokens(), req.enabled() != null && req.enabled(), req.apiKey(), actorOf(user));
+    }
+
+    /** 场景路由请求体（V49）。 */
+    public record RouteRequest(String provider, String baseUrl, String model, Integer maxTokens,
+                               Boolean enabled, String apiKey) {
+    }
+
     /** 检索增强问答。 */
     @PostMapping("/ask")
     @RequiresPermission("ai")

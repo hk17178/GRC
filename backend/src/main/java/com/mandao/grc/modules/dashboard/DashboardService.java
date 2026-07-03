@@ -111,4 +111,19 @@ public class DashboardService {
                 .filter(e -> e.getStatus() == SodExceptionStatus.PENDING).count();
         return new DashboardSummary.Permission(pendingSod);
     }
+
+    /**
+     * 风险等级分布（驾驶舱真值组件）：按发现的"残余优先、无残余取固有"等级计数，
+     * 键为五级枚举名 + UNSET（未定级）。可见范围由 RLS 裁剪。
+     */
+    @Transactional(readOnly = true)
+    public java.util.Map<String, Long> riskLevelDist() {
+        java.util.Map<String, Long> out = new java.util.LinkedHashMap<>();
+        for (var f : riskFindingRepository.findAll()) {
+            var lv = f.getResidualLevel() != null ? f.getResidualLevel() : f.getInherentLevel();
+            String key = lv == null ? "UNSET" : lv.name();
+            out.merge(key, 1L, Long::sum);
+        }
+        return out;
+    }
 }

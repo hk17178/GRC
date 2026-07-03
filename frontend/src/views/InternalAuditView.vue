@@ -27,6 +27,7 @@
         <button :class="{ on: tab === 'finding' }" @click="tab = 'finding'">审计发现</button>
         <button :class="{ on: tab === 'remed' }" @click="tab = 'remed'">整改跟踪</button>
         <button :class="{ on: tab === 'evidence' }" @click="tab = 'evidence'; loadEvidence()">证据库</button>
+        <button :class="{ on: tab === 'report' }" @click="tab = 'report'; loadReport()">审计报告</button>
       </div>
 
       <!-- 审计计划 -->
@@ -83,6 +84,7 @@
                 <td><b>{{ f.title }}</b></td>
                 <td><span class="tag" :class="SEV_CLS[f.severity]">{{ SEV_LABEL[f.severity] }}</span></td>
                 <td class="ops" @click.stop>
+                  <button class="mini" @click="openDetail(f)">五要素{{ f.conditionDesc ? ' ✓' : '' }}</button>
                   <button v-if="canWrite('extaudit')" class="mini" @click="openRemed(f)">下达整改</button>
                 </td>
               </tr>
@@ -166,7 +168,81 @@
         </div>
       </div>
 
+      <!-- 审计报告（V47 · A1：自动组稿 → 征求意见 → 定稿(选意见) → 签发）-->
+      <div v-show="tab === 'report'" class="card">
+        <div class="ch">
+          <h3>审计报告</h3>
+          <select class="sel" v-model.number="reportPlanId" @change="loadReport">
+            <option :value="0" disabled>— 选择审计计划 —</option>
+            <option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option>
+          </select>
+          <template v-if="reportPlanId">
+            <span v-if="report" class="st" :class="RPT_CLS[report.status]" style="margin-left:8px"><span class="d"></span>{{ RPT_LABEL[report.status] }}</span>
+            <div style="margin-left:auto;display:flex;gap:8px" v-if="canWrite('extaudit')">
+              <button v-if="!report" class="btn sm" @click="createReport">生成报告草稿（自动组稿）</button>
+              <template v-else>
+                <button v-if="report.status==='DRAFT'||report.status==='COMMENTING'" class="btn ghost sm" :disabled="rptSaving" @click="saveReport">{{ rptSaving ? '保存中…' : '保存' }}</button>
+                <button v-if="report.status==='DRAFT'" class="btn sm" @click="rptAction('comment')">征求意见</button>
+                <button v-if="report.status==='COMMENTING'" class="btn sm" @click="rptAction('finalize')">定稿</button>
+                <button v-if="report.status==='FINAL'" class="btn sm" @click="rptAction('issue')">签发</button>
+              </template>
+            </div>
+          </template>
+        </div>
+        <div class="cb">
+          <div v-if="!reportPlanId" class="hint">选择一个审计计划：无报告可一键自动组稿（计划+发现五要素+整改台账），再走 征求意见 → 定稿（选审计意见）→ 签发。</div>
+          <template v-else-if="report">
+            <div class="rpt-meta">
+              <label class="fld">报告标题<input v-model="rptEdit.title" :disabled="rptFrozen" /></label>
+              <label class="fld">审计意见（定稿必选）
+                <select v-model="rptEdit.opinion" :disabled="rptFrozen">
+                  <option :value="null">— 未定 —</option>
+                  <option value="SATISFACTORY">满意</option>
+                  <option value="GENERALLY_SATISFACTORY">基本满意</option>
+                  <option value="NEEDS_IMPROVEMENT">需改进</option>
+                  <option value="UNSATISFACTORY">不满意</option>
+                </select>
+              </label>
+            </div>
+            <label class="fld">审计概述与总体评价
+              <textarea v-model="rptEdit.summary" rows="2" :disabled="rptFrozen" class="rpt-ta"></textarea>
+            </label>
+            <label class="fld">报告正文（自动组稿，可编辑）
+              <textarea v-model="rptEdit.content" rows="14" :disabled="rptFrozen" class="rpt-ta mono"></textarea>
+            </label>
+            <div v-if="report.status==='ISSUED'" class="rpt-issued">✓ 已签发 · {{ report.issuedBy }} · {{ fmtDt(report.issuedAt) }}（正文已冻结）</div>
+            <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          </template>
+          <div v-else class="hint">该计划暂无报告——点右上「生成报告草稿」。</div>
+        </div>
+      </div>
+
       <p class="note">检查表执行复用风险评估同一套 .docx 表单引擎：在计划上「绑定检查表」（选评估模板）→「执行检查表」生成评估 → 到风险评估页填写/导出。</p>
+
+      <!-- 发现五要素弹窗（V47 · IIA 4C+R：现状/标准/原因/影响/建议 + 管理层回应）-->
+      <div v-if="detailTarget" class="modal-mask" @click.self="detailTarget = null">
+        <div class="modal-card wide2">
+          <h3>发现五要素 · AF-{{ detailTarget.id }}<span class="muted" style="font-weight:400;font-size:12.5px;margin-left:8px">{{ detailTarget.title }}</span></h3>
+          <label class="fld">现状（condition：客观事实）<textarea v-model="df.conditionDesc" rows="2"></textarea></label>
+          <label class="fld">标准（criteria：应遵循的制度/法规）<textarea v-model="df.criteriaDesc" rows="2"></textarea></label>
+          <label class="fld">原因（cause）<textarea v-model="df.cause" rows="2"></textarea></label>
+          <label class="fld">影响（effect：风险与后果）<textarea v-model="df.effect" rows="2"></textarea></label>
+          <label class="fld">建议（recommendation）<textarea v-model="df.recommendation" rows="2"></textarea></label>
+          <div class="resp-box">
+            <div class="resp-h">管理层回应</div>
+            <div v-if="detailTarget.mgmtResponse" class="resp-v">{{ detailTarget.mgmtResponse }}<span class="muted">　— {{ detailTarget.responseBy }} · {{ fmtDt(detailTarget.responseAt) }}</span></div>
+            <div v-else class="resp-add">
+              <input v-model="df.response" placeholder="被审计单位意见 / 整改承诺…" />
+              <button class="btn ghost sm" :disabled="!df.response || saving" @click="submitResponse">提交回应</button>
+            </div>
+          </div>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="detailTarget = null">关闭</button>
+            <button v-if="canWrite('extaudit')" class="btn" :disabled="saving" @click="submitDetail">{{ saving ? '保存中…' : '保存五要素' }}</button>
+          </div>
+        </div>
+      </div>
 
       <!-- 上传证据弹窗 -->
       <div v-if="showEvUpload" class="modal-mask" @click.self="showEvUpload = false">
@@ -364,6 +440,78 @@ async function verifyEv(e) {
 // 卷宗导出：zip = 卷宗 .docx（发现+整改+证据指纹清单）+ 证据原件（EV-{id}-原名，与指纹互为印证）
 function exportDossier(p) { window.open('/api/audit-plans/' + p.id + '/dossier.zip', '_blank') }
 
+// ===== 发现五要素 + 管理层回应（V47）=====
+const detailTarget = ref(null)
+const df = reactive({ conditionDesc: '', criteriaDesc: '', cause: '', effect: '', recommendation: '', response: '' })
+function fmtDt(t) { return t ? new Date(t).toLocaleString() : '' }
+function openDetail(f) {
+  detailTarget.value = f
+  Object.assign(df, {
+    conditionDesc: f.conditionDesc || '', criteriaDesc: f.criteriaDesc || '', cause: f.cause || '',
+    effect: f.effect || '', recommendation: f.recommendation || '', response: ''
+  })
+  opErr.value = ''
+}
+async function submitDetail() {
+  saving.value = true; opErr.value = ''
+  try {
+    await api.put('/audit-findings/' + detailTarget.value.id + '/detail', {
+      conditionDesc: df.conditionDesc || null, criteriaDesc: df.criteriaDesc || null,
+      cause: df.cause || null, effect: df.effect || null, recommendation: df.recommendation || null
+    })
+    detailTarget.value = null; await loadFindings()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+async function submitResponse() {
+  saving.value = true; opErr.value = ''
+  try {
+    const saved = await api.post('/audit-findings/' + detailTarget.value.id + '/response', { response: df.response })
+    detailTarget.value = saved; df.response = ''
+    await loadFindings()
+  } catch (e) { opErr.value = e.message } finally { saving.value = false }
+}
+
+// ===== 审计报告（V47：自动组稿 → 征求意见 → 定稿 → 签发）=====
+const RPT_LABEL = { DRAFT: '草稿', COMMENTING: '征求意见中', FINAL: '已定稿', ISSUED: '已签发' }
+const RPT_CLS = { DRAFT: 'wait', COMMENTING: 'doing', FINAL: 'wait', ISSUED: 'ok' }
+const reportPlanId = ref(0)
+const report = ref(null)
+const rptSaving = ref(false)
+const rptEdit = reactive({ title: '', opinion: null, summary: '', content: '' })
+const rptFrozen = computed(() => !report.value || (report.value.status !== 'DRAFT' && report.value.status !== 'COMMENTING'))
+async function loadReport() {
+  report.value = null
+  if (!reportPlanId.value) return
+  try {
+    const r = await api.get('/audit-reports?planId=' + reportPlanId.value)
+    report.value = r && r.id ? r : null
+    if (report.value) Object.assign(rptEdit, { title: r.title, opinion: r.opinion, summary: r.summary || '', content: r.content || '' })
+  } catch (e) { report.value = null }
+}
+async function createReport() {
+  opErr.value = ''
+  try { await api.post('/audit-reports', { planId: reportPlanId.value }); await loadReport() }
+  catch (e) { opErr.value = e.message }
+}
+async function saveReport() {
+  rptSaving.value = true; opErr.value = ''
+  try {
+    await api.put('/audit-reports/' + report.value.id, {
+      title: rptEdit.title, opinion: rptEdit.opinion || null, summary: rptEdit.summary || null, content: rptEdit.content || null
+    })
+    await loadReport()
+  } catch (e) { opErr.value = e.message } finally { rptSaving.value = false }
+}
+async function rptAction(op) {
+  opErr.value = ''
+  try {
+    // 流转前先落当前编辑（草稿/征求意见阶段），避免丢改动
+    if (report.value.status === 'DRAFT' || report.value.status === 'COMMENTING') await saveReport()
+    await api.post('/audit-reports/' + report.value.id + '/' + op, {})
+    await loadReport()
+  } catch (e) { opErr.value = e.message }
+}
+
 // 新建计划
 const showPlan = ref(false)
 const pf = reactive({ title: '', planStartDate: '', orgId: 12 })
@@ -461,6 +609,19 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* V47 五要素/审计报告 */
+.modal-card.wide2 { width: 620px; max-height: 88vh; overflow-y: auto; }
+.modal-card .fld textarea, .cb .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }
+.resp-box { margin: 4px 0 12px; padding: 10px 12px; background: var(--bg); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md); }
+.resp-h { font-size: 11px; font-weight: 700; color: var(--text-3); margin-bottom: 6px; }
+.resp-v { font-size: 12.5px; color: var(--text-1); line-height: 1.6; }
+.resp-add { display: flex; gap: 8px; }
+.resp-add input { flex: 1; height: 34px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--surface); color: var(--text-1); font-size: 12.5px; font-family: inherit; outline: none; }
+.rpt-meta { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; }
+.cb .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
+.cb .fld input, .cb .fld select { display: block; width: 100%; height: 36px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box; }
+.rpt-ta.mono { font-family: var(--font-mono, monospace); font-size: 12.5px; }
+.rpt-issued { padding: 9px 12px; font-size: 12.5px; color: var(--success); background: var(--success-tint, rgba(40,150,90,.1)); border-left: 3px solid var(--success); border-radius: var(--radius-md); }
 /* V44 证据库/反向取证 */
 a.mini { text-decoration: none; display: inline-block; }
 .verify-box { display: flex; flex-direction: column; gap: 4px; margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-md); font-size: 12px; }

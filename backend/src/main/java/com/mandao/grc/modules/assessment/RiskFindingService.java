@@ -78,6 +78,23 @@ public class RiskFindingService {
     }
 
     /**
+     * 由 A-T-V 场景生成风险发现（V48 风险登记册：识别→登记打通）。
+     * 同一评估同一场景只生成一次（重复生成抛错，前端提示已存在）。
+     */
+    @Transactional
+    public RiskFinding createFromScenario(Long orgId, Long assessmentId, String title,
+                                          RiskLevel inherentLevel, Long scenarioId, String actor) {
+        if (findingRepository.existsByAssessmentIdAndScenarioId(assessmentId, scenarioId)) {
+            throw new IllegalStateException("该场景已在此评估中生成过风险发现，不可重复生成");
+        }
+        RiskFinding f = new RiskFinding(orgId, assessmentId, title, inherentLevel, scenarioId);
+        RiskFinding saved = findingRepository.save(f);
+        appendLog(saved, "FINDING_FROM_SCENARIO", actor,
+                "A-T-V 场景生成风险发现 scenario=" + scenarioId + " inherent=" + inherentLevel);
+        return saved;
+    }
+
+    /**
      * 录入处置方案：OPEN → IN_TREATMENT（仅 OPEN 态可设置）。
      */
     @Transactional

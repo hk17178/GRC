@@ -26,17 +26,20 @@ public class AtvService {
     private final VulnerabilityRepository vulnerabilityRepository;
     private final RiskScenarioRepository scenarioRepository;
     private final AssetService assetService;
+    private final com.mandao.grc.modules.assessment.RiskFindingService riskFindingService;
     private final HashChainService hashChainService;
 
     public AtvService(ThreatRepository threatRepository,
                       VulnerabilityRepository vulnerabilityRepository,
                       RiskScenarioRepository scenarioRepository,
                       AssetService assetService,
+                      com.mandao.grc.modules.assessment.RiskFindingService riskFindingService,
                       HashChainService hashChainService) {
         this.threatRepository = threatRepository;
         this.vulnerabilityRepository = vulnerabilityRepository;
         this.scenarioRepository = scenarioRepository;
         this.assetService = assetService;
+        this.riskFindingService = riskFindingService;
         this.hashChainService = hashChainService;
     }
 
@@ -128,6 +131,27 @@ public class AtvService {
         RiskScenario saved = scenarioRepository.save(scenario);
         hashChainService.append(scenario.getOrgId(), "SCENARIO_REASSESS", actor, "SCENARIO:" + scenarioId,
                 "重评风险场景 可能性=" + likelihood + " 影响=" + impact + " 固有=" + saved.getInherentLevel());
+        return saved;
+    }
+
+    /**
+     * A-T-V 场景一键生成风险发现（V48 风险登记册：识别→分析→评价打通）。
+     *
+     * 标题自动组装为「资产：威胁（脆弱性）」，固有等级取场景派生等级；
+     * 同一评估同一场景防重复由 RiskFindingService 校验。
+     */
+    @Transactional
+    public com.mandao.grc.modules.assessment.RiskFinding toFinding(Long scenarioId, Long assessmentId, String actor) {
+        RiskScenario s = getScenario(scenarioId);
+        Asset asset = assetService.get(s.getAssetId());
+        String threatName = threatRepository.findById(s.getThreatId()).map(Threat::getName).orElse("威胁#" + s.getThreatId());
+        String vulnName = vulnerabilityRepository.findById(s.getVulnerabilityId())
+                .map(Vulnerability::getName).orElse("脆弱性#" + s.getVulnerabilityId());
+        String title = asset.getName() + "：" + threatName + "（" + vulnName + "）";
+        com.mandao.grc.modules.assessment.RiskFinding saved = riskFindingService.createFromScenario(
+                s.getOrgId(), assessmentId, title, s.getInherentLevel(), scenarioId, actor);
+        hashChainService.append(s.getOrgId(), "SCENARIO_TO_FINDING", actor, "SCENARIO:" + scenarioId,
+                "场景生成风险发现 finding=" + saved.getId() + " assessment=" + assessmentId);
         return saved;
     }
 

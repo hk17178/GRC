@@ -70,6 +70,10 @@ public class RiskFinding {
     @Column(nullable = false, length = 16)
     private RiskFindingStatus status = RiskFindingStatus.OPEN;
 
+    /** 来源 A-T-V 场景（V48，软引用，可空：手工登记的发现无来源场景）。 */
+    @Column(name = "scenario_id")
+    private Long scenarioId;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -82,10 +86,16 @@ public class RiskFinding {
 
     /** 业务构造：以 OPEN 态新建一条风险发现。 */
     public RiskFinding(Long orgId, Long assessmentId, String title, RiskLevel inherentLevel) {
+        this(orgId, assessmentId, title, inherentLevel, null);
+    }
+
+    /** 业务构造（带来源场景，V48）：A-T-V 场景生成的发现携 scenarioId 溯源。 */
+    public RiskFinding(Long orgId, Long assessmentId, String title, RiskLevel inherentLevel, Long scenarioId) {
         this.orgId = orgId;
         this.assessmentId = assessmentId;
         this.title = title;
         this.inherentLevel = inherentLevel;
+        this.scenarioId = scenarioId;
         this.status = RiskFindingStatus.OPEN;
     }
 
@@ -112,6 +122,7 @@ public class RiskFinding {
     public String getTreatmentDecision() { return treatmentDecision; }
     public RiskLevel getResidualLevel() { return residualLevel; }
     public Long getRiskAcceptanceId() { return riskAcceptanceId; }
+    public Long getScenarioId() { return scenarioId; }
     public RiskFindingStatus getStatus() { return status; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

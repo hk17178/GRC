@@ -15,11 +15,14 @@ import java.util.Optional;
 public class AiConfigService {
 
     private final AiProviderConfigRepository repo;
+    private final AiModelRouteRepository routeRepo;
     private final ConfigCrypto crypto;
     private final AiGovernanceService governance;
 
-    public AiConfigService(AiProviderConfigRepository repo, ConfigCrypto crypto, AiGovernanceService governance) {
+    public AiConfigService(AiProviderConfigRepository repo, AiModelRouteRepository routeRepo,
+                           ConfigCrypto crypto, AiGovernanceService governance) {
         this.repo = repo;
+        this.routeRepo = routeRepo;
         this.crypto = crypto;
         this.governance = governance;
     }
@@ -71,6 +74,72 @@ public class AiConfigService {
             }
         }
         return new Snapshot(c.getProvider(), c.getBaseUrl(), c.getModel(), c.getMaxTokens(), c.isEnabled(), key);
+    }
+
+    // ===== 场景模型路由（V49 模型分配）=====
+
+    /** 路由视图（无密钥明文）。 */
+    public record RouteView(String scenario, String provider, String baseUrl, String model, int maxTokens,
+                            boolean enabled, boolean keyConfigured, String keyHint) {
+    }
+
+    /** 全部场景的路由视图（未配置的场景给默认停用行，前端恒见四行）。 */
+    @Transactional(readOnly = true)
+    public java.util.List<RouteView> listRoutes() {
+        java.util.List<RouteView> out = new java.util.ArrayList<>();
+        for (AiScenario sc : AiScenario.values()) {
+            AiModelRoute r = routeRepo.findByScenario(sc.name()).orElse(null);
+            if (r == null) {
+                out.add(new RouteView(sc.name(), AiProviderConfig.LOCAL, null, null, 1024, false, false, null));
+            } else {
+                boolean keyConfigured = r.getApiKeyEnc() != null && !r.getApiKeyEnc().isBlank();
+                out.add(new RouteView(sc.name(), r.getProvider(), r.getBaseUrl(), r.getModel(),
+                        r.getMaxTokens(), r.isEnabled(), keyConfigured, r.getKeyHint()));
+            }
+        }
+        return out;
+    }
+
+    /** 保存某场景的路由（白名单管控同样生效；apiKey 留空=不改）。 */
+    @Transactional
+    public java.util.List<RouteView> updateRoute(String scenario, String provider, String baseUrl, String model,
+                                                 Integer maxTokens, boolean enabled, String apiKeyPlain, String actor) {
+        AiScenario.valueOf(scenario); // 非法场景直接抛 IllegalArgumentException
+        governance.checkModelAllowed(provider, model);
+        AiModelRoute r = routeRepo.findByScenario(scenario).orElseGet(() -> new AiModelRoute(scenario));
+        r.apply(provider, baseUrl, model, maxTokens == null ? 1024 : maxTokens, enabled, actor);
+        if (apiKeyPlain != null && !apiKeyPlain.isBlank()) {
+            r.setKey(crypto.encrypt(apiKeyPlain.trim()), crypto.hint(apiKeyPlain.trim()));
+        }
+        routeRepo.save(r);
+        return listRoutes();
+    }
+
+    /**
+     * 场景快照：该场景路由 enabled 且（LOCAL 或已配密钥）→ 用路由；否则回退全局 {@link #snapshot()}。
+     * LOCAL 路由=显式让该场景走本地离线（即使全局接了大模型）。
+     */
+    @Transactional(readOnly = true)
+    public Snapshot snapshotFor(String scenario) {
+        AiModelRoute r = scenario == null ? null : routeRepo.findByScenario(scenario).orElse(null);
+        if (r == null || !r.isEnabled()) {
+            return snapshot();
+        }
+        if (AiProviderConfig.LOCAL.equalsIgnoreCase(r.getProvider())) {
+            return new Snapshot(AiProviderConfig.LOCAL, null, null, r.getMaxTokens(), true, null);
+        }
+        String key = null;
+        if (r.getApiKeyEnc() != null && !r.getApiKeyEnc().isBlank()) {
+            try {
+                key = crypto.decrypt(r.getApiKeyEnc());
+            } catch (Exception e) {
+                key = null;
+            }
+        }
+        if (key == null) {
+            return snapshot(); // 路由启用但密钥不可用 → 回退全局，避免场景瘫痪
+        }
+        return new Snapshot(r.getProvider(), r.getBaseUrl(), r.getModel(), r.getMaxTokens(), true, key);
     }
 
     /** 界面视图 DTO（无密钥明文）。 */

@@ -33,37 +33,73 @@
         <button class="btn" :disabled="!canWrite('risk.create')" :title="canWrite('risk.create') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('risk.newAssess') }}</button>
       </div>
 
-      <!-- 登记弹窗：发起评估 → POST /api/assessments → 刷新列表（端到端写） -->
+      <!-- 发起评估向导（R1）：① 基本信息 → ② 背景建立（ISO 27005/GB/T 20984 第一阶段）-->
       <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
-        <div class="modal-card">
-          <h3>{{ $t('risk.newAssess') }}</h3>
-          <label class="fld">{{ $t('risk.create.obj') }}
-            <input v-model="form.title" :placeholder="$t('risk.create.objPh')" />
-          </label>
-          <label class="fld">{{ $t('risk.create.assessor') }}
-            <input v-model="form.assessor" />
-          </label>
-          <label class="fld">{{ $t('risk.create.period') }}
-            <input v-model="form.period" placeholder="2026Q2" />
-          </label>
-          <label class="fld">{{ $t('risk.create.org') }}
-            <select v-model="form.orgId">
-              <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
-            </select>
-          </label>
-          <!-- 表单引擎 P1：选模板则评估按该模板的 .docx 表单填写规范报告（可不选）-->
-          <label class="fld">评估模板（选模板则用其报告表单填写，可不选）
-            <select v-model="form.templateId">
-              <option :value="null">— 不使用模板表单 —</option>
-              <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}（{{ t.code }}）</option>
-            </select>
-          </label>
+        <div class="modal-card" :class="{ wide: createStep === 2 }">
+          <h3>{{ $t('risk.newAssess') }}<span class="stepdot">{{ createStep }}/2 · {{ createStep === 1 ? '基本信息' : '背景建立' }}</span></h3>
+
+          <template v-if="createStep === 1">
+            <label class="fld">{{ $t('risk.create.obj') }}
+              <input v-model="form.title" :placeholder="$t('risk.create.objPh')" />
+            </label>
+            <label class="fld">{{ $t('risk.create.assessor') }}
+              <input v-model="form.assessor" />
+            </label>
+            <label class="fld">{{ $t('risk.create.period') }}
+              <input v-model="form.period" placeholder="2026Q2" />
+            </label>
+            <label class="fld">{{ $t('risk.create.org') }}
+              <select v-model="form.orgId">
+                <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
+              </select>
+            </label>
+            <!-- 表单引擎 P1：选模板则评估按该模板的 .docx 表单填写规范报告（可不选）-->
+            <label class="fld">评估模板（选模板则用其报告表单填写，可不选）
+              <select v-model="form.templateId">
+                <option :value="null">— 不使用模板表单 —</option>
+                <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}（{{ t.code }}）</option>
+              </select>
+            </label>
+          </template>
+
+          <template v-else>
+            <label class="fld">评估范围与边界（系统 / 业务 / 部门 / 场所）
+              <textarea v-model="ctx.scope" rows="2" placeholder="如 支付核心网关及其数据库、机房 A 区；不含灾备中心"></textarea>
+            </label>
+            <label class="fld">评估目的与背景
+              <textarea v-model="ctx.objective" rows="2" placeholder="如 满足等保三级年度自评与内部风控要求"></textarea>
+            </label>
+            <div class="fld">依据标准（多选）
+              <div class="chips">
+                <label v-for="b in BASIS_OPTS" :key="b.v" class="chip" :class="{ on: ctx.basis.includes(b.v) }">
+                  <input type="checkbox" :value="b.v" v-model="ctx.basis" />{{ b.l }}
+                </label>
+              </div>
+            </div>
+            <div class="fld">方式方法（多选）
+              <div class="chips">
+                <label v-for="m in METHOD_OPTS" :key="m.v" class="chip" :class="{ on: ctx.methods.includes(m.v) }">
+                  <input type="checkbox" :value="m.v" v-model="ctx.methods" />{{ m.l }}
+                </label>
+              </div>
+            </div>
+            <label class="fld">评估准则
+              <textarea v-model="ctx.criteria" rows="2"></textarea>
+            </label>
+            <label class="fld">评估组成员
+              <input v-model="ctx.team" placeholder="如 张三（组长）、李四、外部顾问王五" />
+            </label>
+            <div class="fld-2col">
+              <label class="fld">开始日<input type="date" v-model="ctx.startDate" /></label>
+              <label class="fld">结束日<input type="date" v-model="ctx.endDate" /></label>
+            </div>
+          </template>
+
           <p v-if="createError" class="cerr">{{ createError }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showCreate = false">{{ $t('common.cancel') }}</button>
-            <button class="btn" :disabled="!form.title || saving" @click="submitCreate">
-              {{ saving ? $t('common.submitting') : $t('risk.create.confirm') }}
-            </button>
+            <button class="btn ghost" @click="createStep === 1 ? (showCreate = false) : (createStep = 1)">{{ createStep === 1 ? $t('common.cancel') : '上一步' }}</button>
+            <button v-if="createStep === 1" class="btn" :disabled="!form.title" @click="createStep = 2">下一步 · 背景建立</button>
+            <button v-else class="btn" :disabled="saving" @click="submitCreate">{{ saving ? $t('common.submitting') : $t('risk.create.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -404,7 +440,7 @@
             </div>
             <div class="cb" style="overflow-x:auto;padding-top:0">
               <table style="min-width:720px">
-                <thead><tr><th>资产</th><th>威胁</th><th>脆弱性</th><th>可能性×影响</th><th>固有等级</th><th>说明</th></tr></thead>
+                <thead><tr><th>资产</th><th>威胁</th><th>脆弱性</th><th>可能性×影响</th><th>固有等级</th><th>说明</th><th>操作</th></tr></thead>
                 <tbody>
                   <tr v-for="s in scenarios" :key="s.id">
                     <td>{{ assetNameOf(s.assetId) }}</td>
@@ -413,8 +449,9 @@
                     <td class="num">{{ s.likelihood }} × {{ s.impact }} = {{ s.likelihood * s.impact }}</td>
                     <td><span class="tag" :class="riskCls(s.inherentLevel)">{{ $t(riskLabel(s.inherentLevel)) }}</span></td>
                     <td class="muted">{{ s.description || '—' }}</td>
+                    <td><button v-if="canWrite('risk')" class="btn ghost sm" @click="openToFinding(s)">生成发现</button></td>
                   </tr>
-                  <tr v-if="!scenarios.length"><td colspan="6" class="emptyrow">暂无风险场景，点「＋ 建模场景」。</td></tr>
+                  <tr v-if="!scenarios.length"><td colspan="7" class="emptyrow">暂无风险场景，点「＋ 建模场景」。</td></tr>
                 </tbody>
               </table>
               <p v-if="atvErr" class="cerr">{{ atvErr }}</p>
@@ -599,6 +636,92 @@
         <button class="btn" :disabled="!!exporting" @click="exportReport('pdf')">
           {{ exporting === 'pdf' ? '导出中…' : '导出 PDF' }}
         </button>
+      </div>
+
+      <!-- R1 · 报告第一节：评估背景（背景建立元数据，终态冻结）-->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ch"><h3>一、评估背景</h3><span class="sub">范围 · 目的 · 依据 · 方法 · 准则（ISO 27005 / GB/T 20984 背景建立）</span>
+          <button v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" class="btn ghost sm" style="margin-left:auto" @click="openCtxEdit">编辑背景</button>
+        </div>
+        <div class="cb ctxgrid" v-if="drillMeta">
+          <div class="ctxrow"><span class="ck">评估范围</span><span class="cv">{{ drillMeta.scope || '—（未填写，编辑背景补齐）' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估目的</span><span class="cv">{{ drillMeta.objective || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">依据标准</span><span class="cv"><template v-if="drillMeta.basis"><span v-for="b in drillMeta.basis.split(',')" :key="b" class="pill" style="margin-right:5px">{{ basisLabel(b) }}</span></template><template v-else>—</template></span></div>
+          <div class="ctxrow"><span class="ck">方式方法</span><span class="cv"><template v-if="drillMeta.methods"><span v-for="m in drillMeta.methods.split(',')" :key="m" class="pill" style="margin-right:5px">{{ methodLabel(m) }}</span></template><template v-else>—</template></span></div>
+          <div class="ctxrow"><span class="ck">评估准则</span><span class="cv">{{ drillMeta.criteria || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估组</span><span class="cv">{{ drillMeta.team || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估期间</span><span class="cv">{{ (drillMeta.startDate || '?') + ' ~ ' + (drillMeta.endDate || '?') }}</span></div>
+        </div>
+      </div>
+
+      <!-- 场景生成发现弹窗（V48 · R2：识别→登记打通）-->
+      <div v-if="toFindingTarget" class="modal-mask" @click.self="toFindingTarget = null">
+        <div class="modal-card">
+          <h3>场景生成风险发现</h3>
+          <p class="muted" style="margin:-6px 0 12px">
+            {{ assetNameOf(toFindingTarget.assetId) }} × {{ threatNameOf(toFindingTarget.threatId) }} × {{ vulnNameOf(toFindingTarget.vulnerabilityId) }}
+            · 固有 {{ $t(riskLabel(toFindingTarget.inherentLevel)) }}
+          </p>
+          <label class="fld">纳入评估（同一评估同一场景只生成一次）
+            <select v-model.number="toFindingAssessmentId">
+              <option :value="0" disabled>— 选择进行中的评估 —</option>
+              <option v-for="a in liveTasks.filter(x => x.status !== 'COMPLETED')" :key="a.id" :value="a.id">#{{ a.id }} · {{ a.title }}</option>
+            </select>
+          </label>
+          <p v-if="toFindingErr" class="cerr">{{ toFindingErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="toFindingTarget = null">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!toFindingAssessmentId || toFindingBusy" @click="submitToFinding">{{ toFindingBusy ? $t('common.submitting') : '生成发现' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 编辑背景弹窗 -->
+      <div v-if="showCtxEdit" class="modal-mask" @click.self="showCtxEdit = false">
+        <div class="modal-card wide">
+          <h3>编辑评估背景 · RA-{{ drillId }}</h3>
+          <label class="fld">评估范围与边界<textarea v-model="ctxEdit.scope" rows="2"></textarea></label>
+          <label class="fld">评估目的与背景<textarea v-model="ctxEdit.objective" rows="2"></textarea></label>
+          <div class="fld">依据标准（多选）
+            <div class="chips"><label v-for="b in BASIS_OPTS" :key="b.v" class="chip" :class="{ on: ctxEdit.basis.includes(b.v) }"><input type="checkbox" :value="b.v" v-model="ctxEdit.basis" />{{ b.l }}</label></div>
+          </div>
+          <div class="fld">方式方法（多选）
+            <div class="chips"><label v-for="m in METHOD_OPTS" :key="m.v" class="chip" :class="{ on: ctxEdit.methods.includes(m.v) }"><input type="checkbox" :value="m.v" v-model="ctxEdit.methods" />{{ m.l }}</label></div>
+          </div>
+          <label class="fld">评估准则<textarea v-model="ctxEdit.criteria" rows="2"></textarea></label>
+          <label class="fld">评估组成员<input v-model="ctxEdit.team" /></label>
+          <div class="fld-2col">
+            <label class="fld">开始日<input type="date" v-model="ctxEdit.startDate" /></label>
+            <label class="fld">结束日<input type="date" v-model="ctxEdit.endDate" /></label>
+          </div>
+          <p v-if="ctxErr" class="cerr">{{ ctxErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showCtxEdit = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="ctxSaving" @click="saveCtxEdit">{{ ctxSaving ? $t('common.submitting') : '保存背景' }}</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- R2 · 评估范围资产（GB/T 20984 资产识别：背景的"范围"落到具体资产清单）-->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ch"><h3>二、范围资产清单</h3><span class="cnt">{{ scopeAssets.length }}</span><span class="sub">资产识别 · 与 A-T-V 场景联动</span>
+          <div v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" style="margin-left:auto;display:flex;gap:8px">
+            <select class="selmini" v-model.number="scopeAddId">
+              <option :value="0" disabled>— 选择资产 —</option>
+              <option v-for="a in atvAssets.filter(x => !scopeAssets.some(s => s.assetId === x.id))" :key="a.id" :value="a.id">{{ a.name }}</option>
+            </select>
+            <button class="btn ghost sm" :disabled="!scopeAddId" @click="addScopeAsset">纳入范围</button>
+          </div>
+        </div>
+        <div class="cb" style="padding-top:0">
+          <div v-for="s in scopeAssets" :key="s.id" class="scope-row">
+            <span class="code">A-{{ s.assetId }}</span><b>{{ s.assetName }}</b>
+            <span class="pill" v-if="s.assetType">{{ s.assetType }}</span>
+            <span class="muted" style="margin-left:auto">{{ s.addedBy }}</span>
+            <button v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" class="mini-x" title="移出范围" @click="removeScopeAsset(s)">✕</button>
+          </div>
+          <div v-if="!scopeAssets.length" class="emptyrow">暂无范围资产——右上选择资产「纳入范围」，或在 A-T-V 建模页从场景生成发现。</div>
+        </div>
       </div>
 
       <!-- 表单引擎 P1：按模板 .docx 解析出的规范评估表单（真实后端，可填写保存） -->
@@ -847,7 +970,76 @@ async function drillInto(r) {
   drill.value = true
   drillId.value = r.id
   drillTitle.value = r.title
+  loadDrillMeta()
+  loadScopeAssets()
   await loadFindings()
+}
+
+// ---- R2 · 场景生成发现 + 评估范围资产 ----
+const toFindingTarget = ref(null)
+const toFindingAssessmentId = ref(0)
+const toFindingBusy = ref(false)
+const toFindingErr = ref('')
+function openToFinding(s) { toFindingTarget.value = s; toFindingAssessmentId.value = 0; toFindingErr.value = '' }
+async function submitToFinding() {
+  toFindingBusy.value = true; toFindingErr.value = ''
+  try {
+    await api.post('/risk-scenarios/' + toFindingTarget.value.id + '/to-finding', { assessmentId: toFindingAssessmentId.value })
+    toFindingTarget.value = null
+  } catch (e) { toFindingErr.value = e.message } finally { toFindingBusy.value = false }
+}
+
+const scopeAssets = ref([])
+const scopeAddId = ref(0)
+async function loadScopeAssets() {
+  try { scopeAssets.value = await api.get('/assessments/' + drillId.value + '/assets') } catch (e) { scopeAssets.value = [] }
+}
+async function addScopeAsset() {
+  try {
+    await api.post('/assessments/' + drillId.value + '/assets', { assetId: scopeAddId.value })
+    scopeAddId.value = 0; await loadScopeAssets()
+  } catch (e) { opError.value = e.message }
+}
+async function removeScopeAsset(s) {
+  try { await api.del('/assessments/' + drillId.value + '/assets/' + s.id); await loadScopeAssets() }
+  catch (e) { opError.value = e.message }
+}
+
+// ---- R1 · 评估背景（背景建立元数据展示与编辑）----
+const drillMeta = ref(null)
+const showCtxEdit = ref(false)
+const ctxSaving = ref(false)
+const ctxErr = ref('')
+const ctxEdit = reactive({ scope: '', objective: '', basis: [], methods: [], criteria: '', team: '', startDate: '', endDate: '' })
+const basisLabel = (v) => (BASIS_OPTS.find((b) => b.v === v.trim()) || { l: v }).l
+const methodLabel = (v) => (METHOD_OPTS.find((m) => m.v === v.trim()) || { l: v }).l
+async function loadDrillMeta() {
+  drillMeta.value = null
+  try { drillMeta.value = await api.get('/assessments/' + drillId.value) } catch (e) { /* 保持空 */ }
+}
+function openCtxEdit() {
+  const m = drillMeta.value || {}
+  Object.assign(ctxEdit, {
+    scope: m.scope || '', objective: m.objective || '',
+    basis: m.basis ? m.basis.split(',') : [], methods: m.methods ? m.methods.split(',') : [],
+    criteria: m.criteria || DEFAULT_CRITERIA, team: m.team || '',
+    startDate: m.startDate || '', endDate: m.endDate || ''
+  })
+  ctxErr.value = ''
+  showCtxEdit.value = true
+}
+async function saveCtxEdit() {
+  ctxSaving.value = true; ctxErr.value = ''
+  try {
+    await api.put('/assessments/' + drillId.value + '/context', {
+      scope: ctxEdit.scope || null, objective: ctxEdit.objective || null,
+      basis: ctxEdit.basis.join(',') || null, methods: ctxEdit.methods.join(',') || null,
+      criteria: ctxEdit.criteria || null, team: ctxEdit.team || null,
+      startDate: ctxEdit.startDate || null, endDate: ctxEdit.endDate || null
+    })
+    showCtxEdit.value = false
+    await loadDrillMeta()
+  } catch (e) { ctxErr.value = e.message } finally { ctxSaving.value = false }
 }
 async function loadFindings() {
   findingsError.value = ''
@@ -1197,17 +1389,31 @@ async function submitRef() {
   } catch (e) { refError.value = e.message } finally { refSaving.value = false }
 }
 
-// ---- 发起评估：登记弹窗 → POST /api/assessments → 刷新列表 ----
+// ---- 发起评估向导（R1）：① 基本信息 → ② 背景建立 → POST create + PUT context ----
 const showCreate = ref(false)
+const createStep = ref(1)
 const saving = ref(false)
 const createError = ref('')
 const form = reactive({ title: '', assessor: '', period: '', orgId: 12, templateId: null })
+// 背景建立选项（ISO 27005 / GB/T 20984）
+const BASIS_OPTS = [
+  { v: 'GBT20984', l: 'GB/T 20984' }, { v: 'ISO27001', l: 'ISO/IEC 27001' }, { v: 'ISO27005', l: 'ISO/IEC 27005' },
+  { v: 'MLPS', l: '等保 2.0' }, { v: 'PCI_DSS', l: 'PCI DSS' }, { v: 'PIPL', l: '个保法' }, { v: 'PBOC', l: '人行监管' }
+]
+const METHOD_OPTS = [
+  { v: 'INTERVIEW', l: '人员访谈' }, { v: 'DOC_REVIEW', l: '文档核查' }, { v: 'TOOL_SCAN', l: '工具扫描' },
+  { v: 'PENTEST', l: '渗透测试' }, { v: 'CONFIG_CHECK', l: '配置核查' }
+]
+const DEFAULT_CRITERIA = '可能性五级 × 影响五级 → 风险矩阵定级（极低/低/中/高/极高）；残余风险为高/极高须经管理层接受签批方可关闭（CR-002）。'
+const ctx = reactive({ scope: '', objective: '', basis: [], methods: [], criteria: DEFAULT_CRITERIA, team: '', startDate: '', endDate: '' })
 function openCreate() {
   form.title = ''
   form.assessor = ''
   form.period = ''
   form.orgId = 12
   form.templateId = null
+  Object.assign(ctx, { scope: '', objective: '', basis: [], methods: [], criteria: DEFAULT_CRITERIA, team: '', startDate: '', endDate: '' })
+  createStep.value = 1
   createError.value = ''
   showCreate.value = true
 }
@@ -1215,13 +1421,22 @@ async function submitCreate() {
   saving.value = true
   createError.value = ''
   try {
-    await api.post('/assessments', {
+    const created = await api.post('/assessments', {
       orgId: form.orgId,
       title: form.title,
       assessor: form.assessor || null,
       period: form.period || null,
       templateId: form.templateId || null
     })
+    // 背景建立随建随写（有任一项填了才提交，避免空 PUT）
+    if (ctx.scope || ctx.objective || ctx.basis.length || ctx.methods.length || ctx.team || ctx.startDate) {
+      await api.put('/assessments/' + created.id + '/context', {
+        scope: ctx.scope || null, objective: ctx.objective || null,
+        basis: ctx.basis.join(',') || null, methods: ctx.methods.join(',') || null,
+        criteria: ctx.criteria || null, team: ctx.team || null,
+        startDate: ctx.startDate || null, endDate: ctx.endDate || null
+      })
+    }
     liveTasks.value = await api.get('/assessments') // 创建后刷新列表
     showCreate.value = false
   } catch (e) {
@@ -1888,4 +2103,26 @@ td.ops {
   padding: 18px 0;
 }
 .atv-row { display: flex; align-items: center; gap: 8px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+
+/* ===== R1 · 背景建立向导 + 评估背景卡 ===== */
+.modal-card.wide { width: 640px; max-height: 88vh; overflow-y: auto; }
+.stepdot { margin-left: 10px; font-size: 11px; font-weight: 600; color: var(--accent-strong); background: var(--accent-weak); border-radius: 999px; padding: 2px 10px; vertical-align: middle; }
+.modal-card .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }
+.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
+.chip { display: inline-flex; align-items: center; padding: 4px 12px; border: 1px solid var(--surface-border); border-radius: 999px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--bg); user-select: none; }
+.chip input { display: none; }
+.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.fld-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.ctxgrid { padding-top: 6px; }
+.ctxrow { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--border-subtle); font-size: 12.5px; }
+.ctxrow:last-child { border-bottom: 0; }
+.ctxrow .ck { flex: 0 0 76px; color: var(--text-3); font-weight: 600; }
+.ctxrow .cv { color: var(--text-1); white-space: pre-wrap; line-height: 1.6; }
+.ch .sub { font-size: 11px; color: var(--text-3); }
+/* R2 · 范围资产 */
+.scope-row { display: flex; align-items: center; gap: 9px; padding: 8px 2px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
+.scope-row:last-child { border-bottom: 0; }
+.selmini { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; max-width: 220px; }
+.mini-x { border: 0; background: none; color: var(--text-3); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.mini-x:hover { color: var(--danger); background: var(--danger-tint); }
 </style>

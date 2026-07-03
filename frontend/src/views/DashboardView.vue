@@ -279,20 +279,75 @@
             <button class="wsz rm" @click="removeW(e.id)">移除</button>
           </div>
           <div v-if="editMode" class="wgrip" @mousedown="startResize(e.id, $event)" title="拖拽自由调整宽度"></div>
-          <div class="ch"><h3>{{ extraName(e.id) }}</h3><span class="sub">可视化组件</span></div>
+          <div class="ch"><h3>{{ extraName(e.id) }}</h3><span class="sub">真值 · 实时接口</span></div>
           <div class="cb">
-            <div v-if="e.id === 'ex-compliance'" class="exdonut">
+            <!-- 残余风险等级分布 -->
+            <div v-if="e.id === 'ex-risk'" class="exbars">
+              <div v-for="b in exRisk" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+              <div v-if="!exRisk.length" class="exempty">暂无风险发现</div>
+            </div>
+            <!-- 组织 × 六域构成条 -->
+            <div v-else-if="e.id === 'ex-orgbar'">
+              <div v-for="o in exOrgBar" :key="o.name" class="orgbar-row">
+                <div class="hd"><span class="nm">{{ o.name }}</span><b>{{ o.total }}</b></div>
+                <div class="orgbar-track"><i v-for="(s, i) in o.segs" :key="i" :style="{ width: s.w, background: s.c }" :title="s.l + ' ' + s.v"></i></div>
+              </div>
+              <div class="orgbar-legend"><span v-for="[k, l, c] in ORGBAR_DOMAINS" :key="k"><i :style="{ background: c }"></i>{{ l }}</span></div>
+            </div>
+            <!-- 整改逾期排行 -->
+            <div v-else-if="e.id === 'ex-remedrank'">
+              <div v-for="r in exRemedRank" :key="r.orgId" class="rankrow">
+                <span class="nm">{{ r.orgName }}</span>
+                <span class="ov" v-if="r.remedOverdue">逾期 {{ r.remedOverdue }}</span>
+                <b style="margin-left:auto">{{ r.remedPct }}%</b>
+              </div>
+              <div v-if="!exRemedRank.length" class="exempty">暂无整改数据</div>
+            </div>
+            <!-- 供应商风险分布 -->
+            <div v-else-if="e.id === 'ex-vendor'" class="exbars">
+              <div v-for="b in exVendor" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+              <div v-if="!exVendor.length" class="exempty">暂无供应商</div>
+            </div>
+            <!-- 报送临近到期 -->
+            <div v-else-if="e.id === 'ex-filing'">
+              <div v-for="f in exFiling" :key="f.id" class="rankrow">
+                <span class="code2">#{{ f.id }}</span><span class="nm">{{ f.title }}</span>
+                <span class="fdate">{{ f.due }}</span>
+                <span class="ftag" :class="f.cls">{{ f.days < 0 ? ('逾期 ' + (-f.days) + ' 天') : ('剩 ' + f.days + ' 天') }}</span>
+              </div>
+              <div v-if="!exFiling.length" class="exempty">无未报送事项</div>
+            </div>
+            <!-- 通知回执率 -->
+            <div v-else-if="e.id === 'ex-ack'" class="exdonut">
               <svg width="96" height="96" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)">
                 <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.14)" stroke-width="5" />
-                <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--accent)" stroke-width="5" stroke-dasharray="87 13" stroke-linecap="round" />
+                <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--success)" stroke-width="5" :stroke-dasharray="exAck.pct + ' ' + (100 - exAck.pct)" stroke-linecap="round" />
               </g></svg>
-              <div class="exd-c"><b>87%</b><span>合规达标率</span></div>
+              <div class="exd-c"><b>{{ exAck.pct }}%</b><span>{{ exAck.acked }}/{{ exAck.total }} 已回执</span></div>
             </div>
-            <div v-else-if="e.id === 'ex-risk'" class="exbars">
-              <div v-for="b in exRisk" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+            <!-- 制度生命周期漏斗 -->
+            <div v-else-if="e.id === 'ex-policy'" class="exbars">
+              <div v-for="b in exPolicy" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+              <div v-if="!exPolicy.length" class="exempty">暂无制度</div>
             </div>
-            <div v-else-if="e.id === 'ex-trend'" class="extrend">
-              <div v-for="(v, i) in exTrend" :key="i" class="extcol"><i :style="{ height: (v * 3 + 8) + 'px' }"></i><span>{{ exWeek[i] }}</span></div>
+            <!-- 评估进度分布 -->
+            <div v-else-if="e.id === 'ex-assess'" class="exbars">
+              <div v-for="b in exAssess" :key="b.l" class="exbar-row"><span class="exl">{{ b.l }}</span><div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div><b>{{ b.v }}</b></div>
+              <div v-if="!exAssess.length" class="exempty">暂无评估</div>
+            </div>
+            <!-- 合规义务落实率 -->
+            <div v-else-if="e.id === 'ex-compliance'" class="exdonut">
+              <svg width="96" height="96" viewBox="0 0 42 42"><g transform="rotate(-90 21 21)">
+                <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.14)" stroke-width="5" />
+                <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--accent)" stroke-width="5" :stroke-dasharray="exObl.pct + ' ' + (100 - exObl.pct)" stroke-linecap="round" />
+              </g></svg>
+              <div class="exd-c"><b>{{ exObl.pct }}%</b><span>{{ exObl.done }}/{{ exObl.total }} 已落实</span></div>
+            </div>
+            <!-- KRI 状态计数 -->
+            <div v-else-if="e.id === 'ex-kri'" class="kricnt">
+              <div class="kc2 ok"><b>{{ exKri.NORMAL }}</b><span>正常</span></div>
+              <div class="kc2 warn"><b>{{ exKri.WARNING }}</b><span>预警</span></div>
+              <div class="kc2 crit"><b>{{ exKri.CRITICAL }}</b><span>严重</span></div>
             </div>
           </div>
         </div>
@@ -304,7 +359,7 @@
 <script setup>
 // 驾驶舱主页：视觉/样式 1:1 取自原型；KPI 指标卡接 /api/dashboard/summary，
 // 热力矩阵/整改完成率接 /api/dashboard/org-summary（按组织聚合真值）；KRI 折线与体系达成度仍为示意。
-import { ref, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
@@ -328,9 +383,17 @@ const CATALOG = [
   { id: 'frame', k: 'dash.frame.title', w: 4, builtin: true },
   { id: 'approve', k: 'dash.approve.title', w: 4, builtin: true },
   { id: 'feed', k: 'dash.feed.title', w: 4, builtin: true },
-  { id: 'ex-compliance', label: '合规达标率（环形）', w: 3, builtin: false },
-  { id: 'ex-risk', label: '风险等级分布（柱）', w: 3, builtin: false },
-  { id: 'ex-trend', label: '近 7 日审批趋势（柱）', w: 6, builtin: false }
+  // ---- 可添加的真值可视化组件（数据全部来自真实后端接口，无示意值）----
+  { id: 'ex-risk', label: '残余风险等级分布', w: 3, builtin: false },
+  { id: 'ex-orgbar', label: '组织 × 六域构成条', w: 4, builtin: false },
+  { id: 'ex-remedrank', label: '整改逾期排行', w: 3, builtin: false },
+  { id: 'ex-vendor', label: '供应商风险分布', w: 3, builtin: false },
+  { id: 'ex-filing', label: '报送临近到期', w: 4, builtin: false },
+  { id: 'ex-ack', label: '通知回执率（30 天）', w: 3, builtin: false },
+  { id: 'ex-policy', label: '制度生命周期漏斗', w: 3, builtin: false },
+  { id: 'ex-assess', label: '评估进度分布', w: 3, builtin: false },
+  { id: 'ex-compliance', label: '合规义务落实率', w: 3, builtin: false },
+  { id: 'ex-kri', label: 'KRI 状态计数', w: 3, builtin: false }
 ]
 const DEFAULT_LAYOUT = CATALOG.filter((c) => c.builtin).map((c) => ({ id: c.id, w: c.w }))
 const LKEY = 'grc-dash-layout'
@@ -385,20 +448,105 @@ const available = computed(() => CATALOG.filter((c) => !inLayout(c.id)))        
 const placedExtras = computed(() => layout.value.filter((e) => { const c = CATALOG.find((x) => x.id === e.id); return c && !c.builtin }))
 function extraName(id) { const c = CATALOG.find((x) => x.id === id); return c ? c.label : id }
 function resetLayout() { layout.value = DEFAULT_LAYOUT.slice(); persist() }
-// 额外可视化组件的示意数据
-const exRisk = [
-  { l: '极高', v: 2, w: '12%', c: '#7a1620' }, { l: '高', v: 6, w: '34%', c: 'var(--danger)' },
-  { l: '中', v: 11, w: '62%', c: '#a87d22' }, { l: '低', v: 18, w: '100%', c: 'var(--safe)' },
-  { l: '极低', v: 9, w: '52%', c: 'var(--accent-bright)' }
+// ===== 额外可视化组件的真值数据（全部来自真实后端接口）=====
+const exData = reactive({ riskLevels: {}, vendors: [], filings: [], policies: [], assessments: [], obligations: [], kris: [], digest: [] })
+async function loadExtras() {
+  const safe = (p) => p.catch(() => null)
+  const [rl, vd, fl, pl, as, ob, kr, dg] = await Promise.all([
+    safe(api.get('/dashboard/risk-levels')), safe(api.get('/vendors')), safe(api.get('/reg-filings')),
+    safe(api.get('/policies')), safe(api.get('/assessments')), safe(api.get('/obligations')),
+    safe(api.get('/kris')), safe(api.get('/workbench/digest?days=30'))
+  ])
+  exData.riskLevels = rl || {}
+  exData.vendors = vd || []
+  exData.filings = fl || []
+  exData.policies = pl || []
+  exData.assessments = as || []
+  exData.obligations = ob || []
+  exData.kris = kr || []
+  exData.digest = dg || []
+}
+const LV_ORDER = ['VERY_HIGH', 'HIGH', 'MID', 'LOW', 'VERY_LOW', 'UNSET']
+const LV_ZH = { VERY_HIGH: '极高', HIGH: '高', MID: '中', LOW: '低', VERY_LOW: '极低', UNSET: '未定级' }
+const LV_COLOR = { VERY_HIGH: '#7a1620', HIGH: 'var(--danger)', MID: '#a87d22', LOW: 'var(--safe, #4a8)', VERY_LOW: 'var(--accent-bright, var(--accent))', UNSET: 'var(--text-3)' }
+// 残余风险等级分布（真值柱）
+const exRisk = computed(() => {
+  const max = Math.max(1, ...Object.values(exData.riskLevels))
+  return LV_ORDER.filter((k) => exData.riskLevels[k]).map((k) => ({
+    l: LV_ZH[k], v: exData.riskLevels[k], w: Math.round(exData.riskLevels[k] * 100 / max) + '%', c: LV_COLOR[k]
+  }))
+})
+// 供应商风险分布（真值柱，含未评估）
+const exVendor = computed(() => {
+  const cnt = {}
+  exData.vendors.forEach((v) => { const k = v.riskLevel || 'UNSET'; cnt[k] = (cnt[k] || 0) + 1 })
+  const max = Math.max(1, ...Object.values(cnt))
+  return LV_ORDER.filter((k) => cnt[k]).map((k) => ({
+    l: k === 'UNSET' ? '未评估' : LV_ZH[k], v: cnt[k], w: Math.round(cnt[k] * 100 / max) + '%', c: LV_COLOR[k]
+  }))
+})
+// 报送临近到期（未报送按期限升序 top6）
+const exFiling = computed(() => exData.filings
+  .filter((f) => f.status !== 'SUBMITTED' && f.status !== 'CLOSED' && f.statutoryDeadline)
+  .sort((a, b) => (a.statutoryDeadline < b.statutoryDeadline ? -1 : 1)).slice(0, 6)
+  .map((f) => {
+    const days = Math.ceil((new Date(f.statutoryDeadline) - new Date()) / 86400000)
+    return { id: f.id, title: f.title, due: f.statutoryDeadline, days, cls: days < 0 ? 'over' : (days <= 7 ? 'warn' : '') }
+  }))
+// 通知回执率（30 天）
+const exAck = computed(() => {
+  const total = exData.digest.reduce((s, d) => s + d.total, 0)
+  const unread = exData.digest.reduce((s, d) => s + d.unread, 0)
+  return { total, acked: total - unread, pct: total ? Math.round((total - unread) * 100 / total) : 100 }
+})
+// 制度生命周期漏斗
+const exPolicy = computed(() => {
+  const cnt = {}
+  exData.policies.forEach((p) => { cnt[p.status] = (cnt[p.status] || 0) + 1 })
+  const order = [['DRAFT', '草稿'], ['REVIEW', '评审中'], ['EFFECTIVE', '已生效'], ['DEPRECATED', '已废止']]
+  const max = Math.max(1, ...Object.values(cnt))
+  return order.filter(([k]) => cnt[k]).map(([k, l]) => ({ l, v: cnt[k], w: Math.round(cnt[k] * 100 / max) + '%', c: k === 'EFFECTIVE' ? 'var(--success)' : (k === 'REVIEW' ? '#a87d22' : 'var(--text-3)') }))
+})
+// 评估进度分布
+const exAssess = computed(() => {
+  const cnt = {}
+  exData.assessments.forEach((a) => { cnt[a.status] = (cnt[a.status] || 0) + 1 })
+  const order = [['DRAFT', '草稿'], ['IN_PROGRESS', '评估中'], ['PENDING_REVIEW', '待复核'], ['COMPLETED', '已完成']]
+  const max = Math.max(1, ...Object.values(cnt))
+  return order.filter(([k]) => cnt[k]).map(([k, l]) => ({ l, v: cnt[k], w: Math.round(cnt[k] * 100 / max) + '%', c: k === 'COMPLETED' ? 'var(--success)' : 'var(--accent)' }))
+})
+// 合规义务落实率（环形真值）
+const exObl = computed(() => {
+  const total = exData.obligations.length
+  const done = exData.obligations.filter((o) => o.status === 'FULFILLED').length
+  return { total, done, pct: total ? Math.round(done * 100 / total) : 0 }
+})
+// KRI 状态计数
+const exKri = computed(() => {
+  const cnt = { NORMAL: 0, WARNING: 0, CRITICAL: 0 }
+  exData.kris.forEach((k) => { if (cnt[k.currentStatus] != null) cnt[k.currentStatus]++ })
+  return cnt
+})
+// 整改逾期排行（org-summary 真值，逾期降序）
+const exRemedRank = computed(() => [...orgSummary.value]
+  .filter((r) => r.remedTotal > 0 || r.remedOverdue > 0)
+  .sort((a, b) => b.remedOverdue - a.remedOverdue || a.remedPct - b.remedPct))
+// 组织 × 六域构成条（org-summary 真值分段条）
+const ORGBAR_DOMAINS = [
+  ['risk', '风险', 'var(--danger)'], ['data', '数据', '#a87d22'], ['vendor', '第三方', 'var(--plum, #96c)'],
+  ['reg', '监管', 'var(--warning, #c90)'], ['audit', '审计', 'var(--info, #47c)'], ['remed', '整改', 'var(--accent)']
 ]
-const exTrend = [12, 18, 9, 22, 16, 7, 14]
-const exWeek = ['一', '二', '三', '四', '五', '六', '日']
+const exOrgBar = computed(() => orgSummary.value.map((r) => {
+  const total = ORGBAR_DOMAINS.reduce((s, [k]) => s + r[k], 0)
+  return { name: r.orgName, total, segs: ORGBAR_DOMAINS.map(([k, l, c]) => ({ l, c, v: r[k], w: total ? (r[k] * 100 / total) + '%' : '0%' })) }
+}))
 
 // ---- 合规态势汇总（真实后端：跨模块按可见组织计数）----
 const summary = ref(null)
 const loadError = ref('')
 onMounted(async () => {
   loadOrgSummary()
+  loadExtras()
   try {
     summary.value = await api.get('/dashboard/summary')
   } catch (e) {
@@ -976,10 +1124,32 @@ const feed = [
 .exbar-row .extrack { flex: 1; height: 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
 .exbar-row .extrack i { display: block; height: 100%; border-radius: 5px; }
 .exbar-row b { width: 22px; text-align: right; font-variant-numeric: tabular-nums; }
-.extrend { display: flex; align-items: flex-end; gap: 10px; height: 110px; padding: 6px 4px 0; }
-.extrend .extcol { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; }
-.extrend .extcol i { width: 60%; max-width: 22px; background: linear-gradient(180deg, var(--accent-bright), var(--accent)); border-radius: 4px 4px 0 0; }
-.extrend .extcol span { font-size: 10.5px; color: var(--text-3); }
+.exbar-row .exl { width: 40px; }
+.exempty { text-align: center; color: var(--text-3); font-size: 12px; padding: 14px 0; }
+/* 组织 × 六域构成条 */
+.orgbar-row { padding: 5px 2px; }
+.orgbar-row .hd { display: flex; justify-content: space-between; font-size: 11.5px; margin-bottom: 4px; }
+.orgbar-row .nm { color: var(--text-2); }
+.orgbar-track { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--bg); }
+.orgbar-track i { display: block; height: 100%; }
+.orgbar-legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; font-size: 10.5px; color: var(--text-3); }
+.orgbar-legend i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 4px; vertical-align: middle; }
+/* 排行/报送行 */
+.rankrow { display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--border-subtle); font-size: 11.5px; }
+.rankrow:last-of-type { border-bottom: 0; }
+.rankrow .nm { color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rankrow .ov { color: var(--danger); font-weight: 700; }
+.rankrow .code2 { color: var(--accent-strong); font-weight: 700; }
+.rankrow .fdate { margin-left: auto; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.rankrow .ftag { padding: 1px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 700; background: rgba(120,120,120,.1); color: var(--text-2); white-space: nowrap; }
+.rankrow .ftag.warn { background: var(--warning-tint); color: #a87d22; }
+.rankrow .ftag.over { background: var(--danger-tint); color: var(--danger); }
+/* KRI 状态计数 */
+.kricnt { display: flex; gap: 12px; padding: 10px 2px; }
+.kc2 { flex: 1; text-align: center; padding: 12px 0; border-radius: var(--radius-md); background: var(--bg); }
+.kc2 b { display: block; font-size: 24px; font-family: var(--font-display); }
+.kc2 span { font-size: 11px; color: var(--text-3); }
+.kc2.ok b { color: var(--success); } .kc2.warn b { color: #a87d22; } .kc2.crit b { color: var(--danger); }
 /* KPI 下钻弹层 */
 .kc.clk { cursor: pointer; }
 .kc.clk:hover { border-color: var(--accent); }

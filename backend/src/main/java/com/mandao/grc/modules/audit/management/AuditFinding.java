@@ -59,6 +59,38 @@ public class AuditFinding {
     @Column(name = "external_response_status", length = 24)
     private ExternalResponseStatus externalResponseStatus;
 
+    // ===== 发现五要素（V47 · IIA 4C+R）=====
+
+    /** 现状：审计发现的客观事实。 */
+    @Column(name = "condition_desc", columnDefinition = "TEXT")
+    private String conditionDesc;
+
+    /** 标准：应当遵循的制度/法规/最佳实践。 */
+    @Column(name = "criteria_desc", columnDefinition = "TEXT")
+    private String criteriaDesc;
+
+    /** 原因：现状与标准差异的成因。 */
+    @Column(columnDefinition = "TEXT")
+    private String cause;
+
+    /** 影响：差异带来的风险与后果。 */
+    @Column(columnDefinition = "TEXT")
+    private String effect;
+
+    /** 建议：审计建议。 */
+    @Column(columnDefinition = "TEXT")
+    private String recommendation;
+
+    /** 管理层回应（被审计单位意见/整改承诺）。 */
+    @Column(name = "mgmt_response", columnDefinition = "TEXT")
+    private String mgmtResponse;
+
+    @Column(name = "response_by", length = 64)
+    private String responseBy;
+
+    @Column(name = "response_at")
+    private OffsetDateTime responseAt;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -99,8 +131,32 @@ public class AuditFinding {
     public AuditSeverity getSeverity() { return severity; }
     public AuditFindingStatus getStatus() { return status; }
     public ExternalResponseStatus getExternalResponseStatus() { return externalResponseStatus; }
+    public String getConditionDesc() { return conditionDesc; }
+    public String getCriteriaDesc() { return criteriaDesc; }
+    public String getCause() { return cause; }
+    public String getEffect() { return effect; }
+    public String getRecommendation() { return recommendation; }
+    public String getMgmtResponse() { return mgmtResponse; }
+    public String getResponseBy() { return responseBy; }
+    public OffsetDateTime getResponseAt() { return responseAt; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
+
+    /** 五要素补全（V47，由 Service 校验后调用）。 */
+    void applyDetail(String conditionDesc, String criteriaDesc, String cause, String effect, String recommendation) {
+        this.conditionDesc = conditionDesc;
+        this.criteriaDesc = criteriaDesc;
+        this.cause = cause;
+        this.effect = effect;
+        this.recommendation = recommendation;
+    }
+
+    /** 管理层回应（V47）。 */
+    void applyResponse(String response, String responder) {
+        this.mgmtResponse = response;
+        this.responseBy = responder;
+        this.responseAt = OffsetDateTime.now();
+    }
 
     // 以下 setter 为包级可见，仅由 Service 在校验后调用，封装状态变更。
     void setSeverity(AuditSeverity severity) { this.severity = severity; }

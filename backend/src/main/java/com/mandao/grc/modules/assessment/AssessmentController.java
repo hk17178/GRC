@@ -4,6 +4,7 @@ import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -103,8 +104,53 @@ public class AssessmentController {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
+    /** 背景建立（V46）：写入/更新评估元数据（范围/目的/依据/方法/准则/评估组/起止）。终态冻结。 */
+    @PutMapping("/{id}/context")
+    @RequiresPermission("risk")
+    public Assessment setContext(@PathVariable Long id,
+                                 @RequestBody ContextRequest req,
+                                 @RequestHeader(value = "X-User", required = false) String user) {
+        return service.setContext(id, req.scope(), req.objective(), req.basis(), req.methods(),
+                req.criteria(), req.team(), req.startDate(), req.endDate(), actor(user));
+    }
+
     /** 新建评估请求体（templateId 可空：关联来源模板则启用表单引擎填写）。 */
     public record CreateAssessmentRequest(Long orgId, String title, String assessor, String period, Long templateId) {
+    }
+
+    /** 背景建立请求体（V46）。 */
+    public record ContextRequest(String scope, String objective, String basis, String methods,
+                                 String criteria, String team,
+                                 java.time.LocalDate startDate, java.time.LocalDate endDate) {
+    }
+
+    // ===== 评估范围资产（V48 · R2）=====
+
+    /** 范围资产清单（携资产名/类型）。 */
+    @GetMapping("/{id}/assets")
+    public List<AssessmentService.ScopeAssetView> listScopeAssets(@PathVariable Long id) {
+        return service.listScopeAssets(id);
+    }
+
+    /** 勾选资产进评估范围（幂等）。 */
+    @PostMapping("/{id}/assets")
+    @RequiresPermission("risk")
+    public AssessmentAsset addScopeAsset(@PathVariable Long id,
+                                         @RequestBody ScopeAssetRequest req,
+                                         @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addScopeAsset(id, req.assetId(), actor(user));
+    }
+
+    /** 从评估范围移除资产。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/assets/{linkId}")
+    @RequiresPermission("risk")
+    public void removeScopeAsset(@PathVariable Long id, @PathVariable Long linkId,
+                                 @RequestHeader(value = "X-User", required = false) String user) {
+        service.removeScopeAsset(id, linkId, actor(user));
+    }
+
+    /** 范围资产请求体（V48）。 */
+    public record ScopeAssetRequest(Long assetId) {
     }
 
     /** 驳回请求体（原因可选）。 */

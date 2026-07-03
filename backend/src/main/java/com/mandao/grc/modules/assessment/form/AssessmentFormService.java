@@ -199,8 +199,50 @@ public class AssessmentFormService {
             throw new IllegalStateException("该表单无 .docx 原件，无法回填导出");
         }
         FormSchema schema = readJson(form.getSchemaJson());
-        Map<String, Object> answers = readAnswerMap(ans.getAnswersJson());
+        Map<String, Object> answers = new java.util.HashMap<>(readAnswerMap(ans.getAnswersJson()));
+        // V46：叠加"背景建立"保留占位符——模板里写 ${评估范围} 等即可回填评估元数据，
+        // 无须在表单 schema 中定义（填写值同名时以填写值优先，不覆盖）。
+        assessmentRepo.findById(assessmentId).ifPresent(a -> contextPlaceholders(a)
+                .forEach((k, v) -> answers.putIfAbsent(k, v)));
         return reportFiller.fill(form.getDocx(), schema, answers);
+    }
+
+    /** 背景建立元数据 → 保留占位符键值（空值给"—"，报告不留裸占位符）。 */
+    public static Map<String, Object> contextPlaceholders(Assessment a) {
+        Map<String, Object> m = new java.util.HashMap<>();
+        m.put("评估标题", nvl(a.getTitle()));
+        m.put("评估范围", nvl(a.getScope()));
+        m.put("评估目的", nvl(a.getObjective()));
+        m.put("依据标准", nvl(a.getBasis()));
+        m.put("评估方法", methodsLabel(a.getMethods()));
+        m.put("评估准则", nvl(a.getCriteria()));
+        m.put("评估组", nvl(a.getTeam()));
+        m.put("评估人", nvl(a.getAssessor()));
+        m.put("评估期间", a.getStartDate() == null && a.getEndDate() == null ? "—"
+                : (a.getStartDate() == null ? "" : a.getStartDate().toString()) + " ~ "
+                + (a.getEndDate() == null ? "" : a.getEndDate().toString()));
+        return m;
+    }
+
+    /** 方式方法码 → 中文（逗号多值）。 */
+    private static String methodsLabel(String methods) {
+        if (methods == null || methods.isBlank()) {
+            return "—";
+        }
+        Map<String, String> label = Map.of(
+                "INTERVIEW", "人员访谈", "DOC_REVIEW", "文档核查", "TOOL_SCAN", "工具扫描",
+                "PENTEST", "渗透测试", "CONFIG_CHECK", "配置核查");
+        StringBuilder sb = new StringBuilder();
+        for (String m : methods.split(",")) {
+            if (!m.isBlank()) {
+                sb.append(sb.length() > 0 ? "、" : "").append(label.getOrDefault(m.trim(), m.trim()));
+            }
+        }
+        return sb.toString();
+    }
+
+    private static String nvl(String s) {
+        return s == null || s.isBlank() ? "—" : s;
     }
 
     /** 生成回填后的报告 PDF（docx → LibreOffice 转 PDF）。 */

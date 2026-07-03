@@ -32,4 +32,10 @@ public class DashboardController {
     public java.util.List<OrgSummaryService.OrgRow> orgSummary() {
         return orgSummaryService.orgSummary();
     }
+
+    /** 风险等级分布（真值组件）：残余优先、无残余取固有。 */
+    @GetMapping("/risk-levels")
+    public java.util.Map<String, Long> riskLevels() {
+        return service.riskLevelDist();
+    }
 }

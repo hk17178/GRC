@@ -74,6 +74,34 @@
           </div>
         </div>
 
+        <!-- 场景模型分配（V49）：问答/材料生成/变更摘要/制度匹配 各配各的模型，停用=回退全局 -->
+        <div class="card" style="grid-column: 1 / -1">
+          <div class="ch"><h3>场景模型分配</h3><span class="sub">按场景路由 · 停用的场景回退上方全局配置 · 白名单管控同样生效</span></div>
+          <div class="cb" style="overflow-x:auto">
+            <table class="rt">
+              <thead><tr><th>场景</th><th>提供方</th><th>Base URL</th><th>模型</th><th>API Key</th><th>启用</th><th></th></tr></thead>
+              <tbody>
+                <tr v-for="r in routes" :key="r.scenario">
+                  <td><b>{{ SCEN_LABEL[r.scenario] || r.scenario }}</b></td>
+                  <td>
+                    <select v-model="r.provider" :disabled="!writable">
+                      <option value="LOCAL">本地离线</option><option value="OPENAI">OpenAI 兼容</option><option value="CLAUDE">Claude</option>
+                    </select>
+                  </td>
+                  <td><input v-model="r.baseUrl" :disabled="!writable || r.provider==='LOCAL'" placeholder="https://…" /></td>
+                  <td><input v-model="r.model" :disabled="!writable || r.provider==='LOCAL'" placeholder="模型 id" /></td>
+                  <td><input v-model="r.apiKey" type="password" :disabled="!writable || r.provider==='LOCAL'"
+                             :placeholder="r.keyConfigured ? ('已配置（' + (r.keyHint || '····') + '）· 留空不改') : '密钥'" /></td>
+                  <td style="text-align:center"><input type="checkbox" v-model="r.enabled" :disabled="!writable" /></td>
+                  <td><button class="btn sm" :disabled="!writable || routeSaving === r.scenario" @click="saveRoute(r)">{{ routeSaving === r.scenario ? '…' : '保存' }}</button></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-if="routeErr" class="err-msg">{{ routeErr }}</p>
+            <p class="note" style="margin-top:8px">场景说明：问答=AI 智能问答（RAG）；材料生成=报送稿/管理层简报；变更摘要=法规条款级摘要；制度匹配=法规→制度映射建议。</p>
+          </div>
+        </div>
+
         <!-- 模型白名单（V42）：有启用条目时，非本地模型必须命中白名单方可保存 -->
         <div class="card">
           <div class="ch"><h3>{{ $t('aimodel.wl.title') }}</h3><span class="sub">{{ $t('aimodel.wl.sub') }}</span></div>
@@ -174,6 +202,28 @@ async function save() {
   } catch (e) { saveErr.value = e.message } finally { saving.value = false }
 }
 
+// ===== 场景模型分配（V49）=====
+const SCEN_LABEL = { QA: '智能问答', MATERIAL: '材料生成', REG_SUMMARY: '法规变更摘要', POLICY_MAP: '制度匹配建议' }
+const routes = ref([])
+const routeSaving = ref('')
+const routeErr = ref('')
+async function loadRoutes() {
+  try {
+    const list = await api.get('/ai/routes')
+    routes.value = list.map((r) => ({ ...r, apiKey: '' }))   // 密钥永不回显
+  } catch (e) { routes.value = [] }
+}
+async function saveRoute(r) {
+  routeSaving.value = r.scenario; routeErr.value = ''
+  try {
+    await api.put('/ai/routes/' + r.scenario, {
+      provider: r.provider, baseUrl: r.baseUrl || null, model: r.model || null,
+      maxTokens: r.maxTokens || 1024, enabled: r.enabled, apiKey: r.apiKey || null
+    })
+    await loadRoutes()
+  } catch (e) { routeErr.value = e.message } finally { routeSaving.value = '' }
+}
+
 // ===== AI 治理（V42）：模型白名单 + 提示词模板 =====
 const whitelist = ref([])
 const prompts = ref([])
@@ -213,7 +263,7 @@ async function saveGov(p) {
   } catch (e) { govErr.value = e.message }
 }
 
-onMounted(() => { loadStatus(); loadConfig(); loadGov() })
+onMounted(() => { loadStatus(); loadConfig(); loadGov(); loadRoutes() })
 </script>
 
 <style scoped>
@@ -266,4 +316,12 @@ onMounted(() => { loadStatus(); loadConfig(); loadGov() })
 .gov-edit textarea { display: block; width: 100%; box-sizing: border-box; margin: 6px 0; padding: 8px 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12.5px; font-family: inherit; line-height: 1.6; resize: vertical; }
 .mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; }
 .mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+/* ===== 场景模型分配（V49）===== */
+.rt { width: 100%; border-collapse: collapse; }
+.rt thead th { text-align: left; font-size: 10.5px; font-weight: 600; color: var(--text-3); padding: 0 8px 8px; }
+.rt tbody td { padding: 6px 8px; border-top: 1px solid var(--border-subtle); font-size: 12px; }
+.rt input, .rt select { width: 100%; height: 32px; padding: 0 9px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; box-sizing: border-box; }
+.rt input[type=checkbox] { width: auto; height: auto; }
+.rt td:nth-child(1) { white-space: nowrap; }
+.btn.sm { padding: 4px 10px; font-size: 11.5px; }
 </style>

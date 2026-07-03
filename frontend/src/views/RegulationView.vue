@@ -123,7 +123,10 @@
           <!-- 法规-制度映射（需求 6.2：法规条款命中的制度）-->
           <div v-if="selectedId" class="ch" style="border-top:1px solid var(--border-subtle)">
             <h3>命中制度映射</h3><span class="cnt">{{ maps.length }}</span>
-            <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('law')" @click="openMap">＋ 登记映射</button>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn ghost sm" :disabled="!canWrite('law') || suggestBusy" @click="suggestMap">{{ suggestBusy ? '分析中…' : '⚡ AI 匹配建议' }}</button>
+              <button class="btn ghost sm" :disabled="!canWrite('law')" @click="openMap">＋ 登记映射</button>
+            </div>
           </div>
           <div v-if="selectedId" class="cb" style="padding-top:0">
             <div v-for="m in maps" :key="m.id" class="map-row">
@@ -131,7 +134,11 @@
               <span class="map-p">→ {{ policyName(m.policyId) }}</span>
               <span class="muted">{{ m.note }}</span>
             </div>
-            <div v-if="!maps.length" class="hint" style="padding:10px">暂无映射，点「＋ 登记映射」把法规条款关联到制度。</div>
+            <div v-if="!maps.length" class="hint" style="padding:10px">暂无映射，点「⚡ AI 匹配建议」由 AI 初筛，或「＋ 登记映射」手工关联。</div>
+            <div v-if="suggestion" class="suggest-box">
+              <div class="sg-h">⚡ AI 匹配建议（{{ suggestion.provider }} · 初稿须人工确认后用「＋ 登记映射」落库）</div>
+              <pre class="sg-body">{{ suggestion.suggestion }}</pre>
+            </div>
           </div>
         </div>
       </div>
@@ -292,6 +299,17 @@ async function loadPolicies() {
   try { policies.value = await api.get('/policies') } catch (e) { policies.value = [] }
 }
 const policyName = (id) => { const p = policies.value.find((x) => x.id === id); return p ? p.code + ' · ' + p.title : '制度 #' + id }
+
+// ===== AI 匹配建议（V49 · POLICY_MAP 场景：只出建议不落库，人工确认后登记映射）=====
+const suggestion = ref(null)
+const suggestBusy = ref(false)
+async function suggestMap() {
+  suggestBusy.value = true; suggestion.value = null
+  try { suggestion.value = await api.post('/regulations/' + selectedId.value + '/map-suggest', {}) }
+  catch (e) { suggestion.value = { suggestion: '建议生成失败：' + e.message, provider: '-' } }
+  finally { suggestBusy.value = false }
+}
+
 const showMap = ref(false)
 const mf = reactive({ clause: '', policyId: 0, note: '' })
 function openMap() { Object.assign(mf, { clause: '', policyId: 0, note: '' }); opError.value = ''; showMap.value = true }
@@ -452,4 +470,8 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .aisum { background: var(--accent-tint); color: var(--text-2); font-size: 12px; line-height: 1.7; border-left: 3px solid var(--accent); }
 .map-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
 .map-row .map-p { font-weight: 600; }
+/* V49 AI 匹配建议 */
+.suggest-box { margin-top: 10px; border: 1px dashed var(--accent); border-radius: var(--radius-md); overflow: hidden; }
+.suggest-box .sg-h { padding: 8px 12px; font-size: 11.5px; font-weight: 700; color: var(--accent-strong); background: var(--accent-weak); }
+.suggest-box .sg-body { margin: 0; padding: 10px 12px; font-size: 12.5px; font-family: inherit; white-space: pre-wrap; line-height: 1.7; color: var(--text-2); }
 </style>

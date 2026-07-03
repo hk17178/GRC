@@ -27,6 +27,16 @@ public class AssessmentService {
     private final AssessmentRepository repository;
     private final HashChainService hashChainService;
 
+    private com.mandao.grc.modules.asset.AssetService assetService;
+    private AssessmentAssetRepository assessmentAssetRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireScopeAssets(com.mandao.grc.modules.asset.AssetService assetService,
+                         AssessmentAssetRepository assessmentAssetRepository) {
+        this.assetService = assetService;
+        this.assessmentAssetRepository = assessmentAssetRepository;
+    }
+
     public AssessmentService(AssessmentRepository repository, HashChainService hashChainService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
@@ -89,6 +99,80 @@ public class AssessmentService {
         Assessment saved = repository.save(a);
         appendLog(saved, "ASSESSMENT_SUBMIT", actor, "提交复核");
         return saved;
+    }
+
+    /**
+     * 背景建立（V46 · ISO 27005/GB/T 20984 ①阶段）：写入评估元数据。
+     * 终态（COMPLETED）后不可再改——背景是报告的组成部分，定稿即冻结。
+     */
+    @Transactional
+    public Assessment setContext(Long id, String scope, String objective, String basis, String methods,
+                                 String criteria, String team,
+                                 java.time.LocalDate startDate, java.time.LocalDate endDate, String actor) {
+        Assessment a = get(id);
+        if (a.getStatus() == AssessmentStatus.COMPLETED) {
+            throw new IllegalStateException("评估已完成，背景信息随报告定稿冻结，不可修改");
+        }
+        a.applyContext(scope, objective, basis, methods, criteria, team, startDate, endDate);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_CONTEXT", actor, "背景建立/更新：范围·目的·依据·方法·准则·评估组·周期");
+        return saved;
+    }
+
+    // ===== 评估范围资产（V48 · R2：资产识别清单）=====
+
+    /** 范围资产视图（携资产名称/类型，前端免二次查询）。 */
+    public record ScopeAssetView(Long id, Long assetId, String assetName, String assetType, String addedBy) {
+    }
+
+    @Transactional(readOnly = true)
+    public java.util.List<ScopeAssetView> listScopeAssets(Long assessmentId) {
+        get(assessmentId); // 可见性校验
+        return assessmentAssetRepository.findByAssessmentIdOrderByIdAsc(assessmentId).stream()
+                .map(a -> {
+                    String name = "资产#" + a.getAssetId();
+                    String type = null;
+                    try {
+                        var asset = assetService.get(a.getAssetId());
+                        name = asset.getName();
+                        type = asset.getAssetType();
+                    } catch (RuntimeException ignore) {
+                        // 资产已删除/不可见——保留 id 占位，不断链
+                    }
+                    return new ScopeAssetView(a.getId(), a.getAssetId(), name, type, a.getAddedBy());
+                })
+                .toList();
+    }
+
+    /** 勾选资产进评估范围（重复勾选幂等返回既有；资产须可见）。 */
+    @Transactional
+    public AssessmentAsset addScopeAsset(Long assessmentId, Long assetId, String actor) {
+        Assessment a = get(assessmentId);
+        if (a.getStatus() == AssessmentStatus.COMPLETED) {
+            throw new IllegalStateException("评估已完成，范围资产随报告冻结");
+        }
+        var existing = assessmentAssetRepository.findByAssessmentIdAndAssetId(assessmentId, assetId);
+        if (existing.isPresent()) {
+            return existing.get();
+        }
+        assetService.get(assetId); // 可见性校验（不可见即视为不存在）
+        AssessmentAsset saved = assessmentAssetRepository.save(
+                new AssessmentAsset(a.getOrgId(), assessmentId, assetId, actor));
+        appendLog(a, "ASSESSMENT_ASSET_ADD", actor, "范围纳入资产 asset=" + assetId);
+        return saved;
+    }
+
+    /** 从评估范围移除资产。 */
+    @Transactional
+    public void removeScopeAsset(Long assessmentId, Long linkId, String actor) {
+        Assessment a = get(assessmentId);
+        if (a.getStatus() == AssessmentStatus.COMPLETED) {
+            throw new IllegalStateException("评估已完成，范围资产随报告冻结");
+        }
+        assessmentAssetRepository.findById(linkId).ifPresent(link -> {
+            assessmentAssetRepository.delete(link);
+            appendLog(a, "ASSESSMENT_ASSET_REMOVE", actor, "范围移除资产 asset=" + link.getAssetId());
+        });
     }
 
     /** 复核驳回：PENDING_REVIEW → IN_PROGRESS（退回继续评估）。 */

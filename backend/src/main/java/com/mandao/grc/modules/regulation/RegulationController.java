@@ -122,6 +122,13 @@ public class RegulationController {
         return service.aiSummarize(changeId, actor(user));
     }
 
+    /** AI 法规-制度匹配建议（V49 POLICY_MAP 场景；只出建议不落库，人工确认后登记映射）。 */
+    @PostMapping("/{id}/map-suggest")
+    @RequiresPermission("law")
+    public RegulationService.MapSuggestion suggestPolicyMap(@PathVariable Long id) {
+        return service.suggestPolicyMap(id);
+    }
+
     /** 映射请求体。 */
     public record MapRequest(Long policyId, String clause, String note) {
     }

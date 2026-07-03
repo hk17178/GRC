@@ -66,7 +66,13 @@ public class DocxReportFiller {
                     return null; // 明细表标记，Pass 2 处理
                 }
                 if (!scalarTypes.containsKey(key)) {
-                    return null; // 非标量（明细表列），留给 Pass 2
+                    // 非 schema 字段：若填写值里有同名标量（如 V46 背景建立保留占位符 ${评估范围} 等），
+                    // 按文本回填；值为数组（明细表数据）则仍留给 Pass 2。
+                    Object v = ans.get(key);
+                    if (v != null && !(v instanceof List)) {
+                        return format(v, "text");
+                    }
+                    return null;
                 }
                 return format(ans.get(key), scalarTypes.get(key));
             };

@@ -89,6 +89,36 @@ public class AuditFindingService {
         return saved;
     }
 
+    /**
+     * 五要素补全（V47 · IIA 4C+R）：现状/标准/原因/影响/建议。
+     * 已闭环（CLOSED）后冻结——要素随报告定稿，不再改。
+     */
+    @Transactional
+    public AuditFinding setDetail(Long id, String conditionDesc, String criteriaDesc,
+                                  String cause, String effect, String recommendation, String actor) {
+        AuditFinding f = get(id);
+        if (f.getStatus() == AuditFindingStatus.CLOSED) {
+            throw new IllegalStateException("发现已闭环，五要素随报告冻结，不可修改");
+        }
+        f.applyDetail(conditionDesc, criteriaDesc, cause, effect, recommendation);
+        AuditFinding saved = findingRepository.save(f);
+        appendLog(saved, "AUDIT_FINDING_DETAIL", actor, "补全发现五要素（现状/标准/原因/影响/建议）");
+        return saved;
+    }
+
+    /** 管理层回应（V47）：被审计单位对发现的意见/整改承诺。 */
+    @Transactional
+    public AuditFinding respond(Long id, String response, String actor) {
+        if (response == null || response.isBlank()) {
+            throw new IllegalArgumentException("管理层回应不能为空");
+        }
+        AuditFinding f = get(id);
+        f.applyResponse(response, actor);
+        AuditFinding saved = findingRepository.save(f);
+        appendLog(saved, "AUDIT_FINDING_RESPONSE", actor, "管理层回应");
+        return saved;
+    }
+
     // ---------- 内部处置状态机 ----------
 
     /** 开始分析：OPEN → ANALYZING。 */

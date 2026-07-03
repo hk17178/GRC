@@ -79,6 +79,40 @@ public class Assessment {
     @Column(name = "mgmt_accepted", nullable = false)
     private boolean mgmtAccepted = false;
 
+    // ===== 背景建立（V46 · ISO 27005/GB/T 20984 ①阶段元数据）=====
+
+    /** 评估范围与边界（系统/业务/部门/场所）。 */
+    @Column(columnDefinition = "TEXT")
+    private String scope;
+
+    /** 评估目的与背景。 */
+    @Column(columnDefinition = "TEXT")
+    private String objective;
+
+    /** 依据标准（逗号多值，如 ISO27001,GBT20984,MLPS）。 */
+    @Column(length = 256)
+    private String basis;
+
+    /** 方式方法（逗号多值：INTERVIEW/DOC_REVIEW/TOOL_SCAN/PENTEST/CONFIG_CHECK）。 */
+    @Column(length = 128)
+    private String methods;
+
+    /** 评估准则（可能性/影响分级与接受准则说明）。 */
+    @Column(columnDefinition = "TEXT")
+    private String criteria;
+
+    /** 评估组成员。 */
+    @Column(length = 256)
+    private String team;
+
+    /** 评估开始日。 */
+    @Column(name = "start_date")
+    private java.time.LocalDate startDate;
+
+    /** 评估结束日。 */
+    @Column(name = "end_date")
+    private java.time.LocalDate endDate;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -126,6 +160,28 @@ public class Assessment {
     public String getAssessor() { return assessor; }
     public String getPeriod() { return period; }
     public Long getTemplateId() { return templateId; }
+    public String getScope() { return scope; }
+    public String getObjective() { return objective; }
+    public String getBasis() { return basis; }
+    public String getMethods() { return methods; }
+    public String getCriteria() { return criteria; }
+    public String getTeam() { return team; }
+    public java.time.LocalDate getStartDate() { return startDate; }
+    public java.time.LocalDate getEndDate() { return endDate; }
+
+    /** 背景建立：由 Service 校验后一次性写入评估元数据（V46）。 */
+    public void applyContext(String scope, String objective, String basis, String methods,
+                             String criteria, String team, java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        this.scope = scope;
+        this.objective = objective;
+        this.basis = basis;
+        this.methods = methods;
+        this.criteria = criteria;
+        this.team = team;
+        this.startDate = startDate;
+        this.endDate = endDate;
+    }
+
     public String getMgmtSigner() { return mgmtSigner; }
     public OffsetDateTime getMgmtSignedAt() { return mgmtSignedAt; }
     public String getMgmtOpinion() { return mgmtOpinion; }

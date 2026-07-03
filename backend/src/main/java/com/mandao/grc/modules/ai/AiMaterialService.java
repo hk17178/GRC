@@ -63,7 +63,7 @@ public class AiMaterialService {
         String ask = promptFor(brief ? TPL_MGMT_BRIEF : TPL_FILING_DRAFT,
                 brief ? FALLBACK_MGMT_BRIEF : FALLBACK_FILING_DRAFT);
         String question = ask + "\n【统计数据(JSON)】" + statsJson;
-        String draft = llm.generate(question, List.of("当前合规统计：" + statsJson));
+        String draft = llm.generateFor("MATERIAL", question, List.of("当前合规统计：" + statsJson));
         return new Material(type, draft, OffsetDateTime.now().toString(), true, llm.name());
     }
 

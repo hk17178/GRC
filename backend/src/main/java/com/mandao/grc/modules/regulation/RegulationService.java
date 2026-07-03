@@ -31,6 +31,14 @@ public class RegulationService {
     private final com.mandao.grc.modules.ai.AiGovernanceRepository governanceRepo;
     private final HashChainService hashChainService;
 
+    /** 制度库（V49 匹配建议用；setter 注入避免构造器继续膨胀）。 */
+    private com.mandao.grc.modules.policy.PolicyRepository policyRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wirePolicyRepository(com.mandao.grc.modules.policy.PolicyRepository policyRepository) {
+        this.policyRepository = policyRepository;
+    }
+
     public RegulationService(RegulationRepository regulationRepository,
                              RegulationChangeRepository changeRepository,
                              RegulationPolicyMapRepository mapRepository,
@@ -142,6 +150,38 @@ public class RegulationService {
         return saved;
     }
 
+    /** AI 匹配建议结果（V49 · POLICY_MAP 场景）：初稿须人工确认后再手工登记映射。 */
+    public record MapSuggestion(Long regulationId, String suggestion, boolean needsReview, String provider) {
+    }
+
+    /**
+     * AI 法规-制度匹配建议（V49 · POLICY_MAP 场景消费方）：
+     * 把 法规信息+现有制度清单 交给 LlmProvider，产出"哪些制度可能受该法规约束/需建映射"的建议初稿。
+     * 只出建议不落库——运营确认后再手工「登记映射」（AI 初稿须人工复核红线）。
+     */
+    @Transactional(readOnly = true)
+    public MapSuggestion suggestPolicyMap(Long regulationId) {
+        Regulation reg = get(regulationId);
+        List<com.mandao.grc.modules.policy.Policy> policies = policyRepository.findAll();
+        if (policies.isEmpty()) {
+            return new MapSuggestion(regulationId, "当前可见范围内暂无制度，无法给出匹配建议——请先在「制度发布」登记制度。",
+                    true, llmProvider.name());
+        }
+        StringBuilder plist = new StringBuilder();
+        for (var p : policies) {
+            plist.append("- [").append(p.getId()).append("] ").append(p.getTitle())
+                    .append("（").append(p.getStatus()).append("）\n");
+        }
+        String question = "以下法规需要建立与内部制度的映射关系。请从制度清单中找出可能受该法规约束、"
+                + "应建立条款映射或需要修订的制度，逐条给出制度编号与理由（中文，仅从清单中选择，不得编造）。\n"
+                + "法规：" + reg.getTitle() + "（" + reg.getCode() + "，" + reg.getIssuer() + "）\n"
+                + "法规摘要：" + (reg.getSummary() == null ? "—" : reg.getSummary()) + "\n"
+                + "【制度清单】\n" + plist;
+        String suggestion = llmProvider.generateFor("POLICY_MAP", question,
+                List.of("制度清单：\n" + plist));
+        return new MapSuggestion(regulationId, suggestion, true, llmProvider.name());
+    }
+
     /**
      * 生成变更的 AI 条款级摘要（需求 6.5.1）：把 变更描述+法规上下文 交给 LlmProvider，
      * 结果落库到 regulation_change.ai_summary。本地离线 Provider 会返回检索式说明并诚实标注。
@@ -162,7 +202,7 @@ public class RegulationService {
         String question = ask + "\n"
                 + "法规：" + reg.getTitle() + "（" + reg.getCode() + "）\n"
                 + "变更类型：" + c.getChangeType() + "，变更描述：" + c.getDescription();
-        String summary = llmProvider.generate(question, List.of(
+        String summary = llmProvider.generateFor("REG_SUMMARY", question, List.of(
                 "法规标题：" + reg.getTitle(),
                 "变更描述：" + c.getDescription()));
         c.setAiSummary(summary);
