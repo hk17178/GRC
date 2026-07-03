@@ -481,7 +481,7 @@ export default {
       status: { filling: '填写中', pending: '待审批', live: '已生效' }
     },
     // 评估状态（对齐后端 AssessmentStatus）
-    assessStatus: { DRAFT: '草稿', IN_PROGRESS: '进行中', PENDING_REVIEW: '待复核', COMPLETED: '已完成' },
+    assessStatus: { DRAFT: '草稿', IN_PROGRESS: '进行中', PENDING_REVIEW: '待复核', COMPLETED: '已完成', CANCELLED: '已作废' },
     // 风险等级分布（五级）
     levelDist: {
       title: '风险等级分布',

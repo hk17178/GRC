@@ -70,18 +70,14 @@
               <textarea v-model="ctx.objective" rows="2" placeholder="如 满足等保三级年度自评与内部风控要求"></textarea>
             </label>
             <div class="fld">依据标准（多选）
-              <div class="chips">
-                <label v-for="b in BASIS_OPTS" :key="b.v" class="chip" :class="{ on: ctx.basis.includes(b.v) }">
-                  <input type="checkbox" :value="b.v" v-model="ctx.basis" />{{ b.l }}
-                </label>
-              </div>
+              <div class="opt-grid">
+                <label v-for="b in BASIS_OPTS" :key="b.v" class="opt" :class="{ on: ctx.basis.includes(b.v) }"><input type="checkbox" :value="b.v" v-model="ctx.basis" /><span>{{ b.l }}</span></label>
+                </div>
             </div>
             <div class="fld">方式方法（多选）
-              <div class="chips">
-                <label v-for="m in METHOD_OPTS" :key="m.v" class="chip" :class="{ on: ctx.methods.includes(m.v) }">
-                  <input type="checkbox" :value="m.v" v-model="ctx.methods" />{{ m.l }}
-                </label>
-              </div>
+              <div class="opt-grid">
+                <label v-for="m in METHOD_OPTS" :key="m.v" class="opt" :class="{ on: ctx.methods.includes(m.v) }"><input type="checkbox" :value="m.v" v-model="ctx.methods" /><span>{{ m.l }}</span></label>
+                </div>
             </div>
             <label class="fld">评估准则
               <textarea v-model="ctx.criteria" rows="2"></textarea>
@@ -170,7 +166,11 @@
                 </tbody>
               </table>
             </div>
-            <div class="ch"><h3>{{ $t('risk.tasks.title') }}</h3></div>
+            <div class="ch"><h3>{{ $t('risk.tasks.title') }}</h3>
+              <label class="opt" style="margin-left:auto;height:26px;font-size:11.5px">
+                <input type="checkbox" v-model="showCancelled" /><span>显示已作废</span>
+              </label>
+            </div>
             <table>
               <thead>
                 <tr>
@@ -181,11 +181,12 @@
                   <th>{{ $t('risk.tasks.th.risk') }}</th>
                   <th>{{ $t('risk.tasks.th.due') }}</th>
                   <th>{{ $t('risk.tasks.th.status') }}</th>
+                  <th>管理</th>
                 </tr>
               </thead>
               <tbody>
                 <tr
-                  v-for="r in liveTasks"
+                  v-for="r in visibleTasks"
                   :key="r.id"
                   class="clk"
                   @click="drillInto(r)"
@@ -202,9 +203,16 @@
                   <td>
                     <span class="st" :class="stCls(r.status)"><span class="d"></span>{{ $t(stLabel(r.status)) }}</span>
                   </td>
+                  <td class="ops" @click.stop>
+                    <template v-if="canWrite('risk')">
+                      <button v-if="r.status === 'DRAFT'" class="mini danger" @click="deleteTask(r)">删除</button>
+                      <button v-else-if="r.status === 'IN_PROGRESS' || r.status === 'PENDING_REVIEW'" class="mini danger" @click="cancelTask(r)">作废</button>
+                      <span v-else class="muted" style="font-size:11px">{{ r.status === 'CANCELLED' ? '已作废' : '定稿' }}</span>
+                    </template>
+                  </td>
                 </tr>
-                <tr v-if="!liveTasks.length">
-                  <td colspan="7" style="color: var(--text-3); text-align: center; padding: 18px;">
+                <tr v-if="!visibleTasks.length">
+                  <td colspan="8" style="color: var(--text-3); text-align: center; padding: 18px;">
                     {{ loadError || '暂无评估数据（后端真实数据）' }}
                   </td>
                 </tr>
@@ -763,10 +771,10 @@
           <label class="fld">评估范围与边界<textarea v-model="ctxEdit.scope" rows="2"></textarea></label>
           <label class="fld">评估目的与背景<textarea v-model="ctxEdit.objective" rows="2"></textarea></label>
           <div class="fld">依据标准（多选）
-            <div class="chips"><label v-for="b in BASIS_OPTS" :key="b.v" class="chip" :class="{ on: ctxEdit.basis.includes(b.v) }"><input type="checkbox" :value="b.v" v-model="ctxEdit.basis" />{{ b.l }}</label></div>
+            <div class="opt-grid"><label v-for="b in BASIS_OPTS" :key="b.v" class="opt" :class="{ on: ctxEdit.basis.includes(b.v) }"><input type="checkbox" :value="b.v" v-model="ctxEdit.basis" /><span>{{ b.l }}</span></label></div>
           </div>
           <div class="fld">方式方法（多选）
-            <div class="chips"><label v-for="m in METHOD_OPTS" :key="m.v" class="chip" :class="{ on: ctxEdit.methods.includes(m.v) }"><input type="checkbox" :value="m.v" v-model="ctxEdit.methods" />{{ m.l }}</label></div>
+            <div class="opt-grid"><label v-for="m in METHOD_OPTS" :key="m.v" class="opt" :class="{ on: ctxEdit.methods.includes(m.v) }"><input type="checkbox" :value="m.v" v-model="ctxEdit.methods" /><span>{{ m.l }}</span></label></div>
           </div>
           <label class="fld">评估准则<textarea v-model="ctxEdit.criteria" rows="2"></textarea></label>
           <label class="fld">评估组成员<input v-model="ctxEdit.team" /></label>
@@ -835,78 +843,38 @@
       <!-- 表单引擎 P2：整体残余等级 + 管理层接受签批（CR-002 完成门控） -->
       <AssessmentSignoff :assessment-id="drillId" ref="signoffRef" />
 
-      <!-- 诚实标注：下方分析图示为原型视觉示意；「评估表单」与「风险发现·关闭门控」为真实后端数据与红线 -->
-      <div class="note-strip">{{ $t('risk.gate.scaffoldNote') }}</div>
-
-      <!-- 报告 KPI 四卡：综合风险指数下钻 -->
+      <!-- 评估 KPI 四卡（真值：由本评估的风险发现实时计算）-->
       <div class="kpibar k4">
         <div class="kc">
-          <div class="l">{{ $t('risk.report.kpi.riskVal') }}</div>
-          <div class="v" style="color: var(--danger)">16.0</div>
-          <div class="s">{{ $t('risk.report.kpi.high') }}</div>
+          <div class="l">整体残余等级</div>
+          <div class="v" :style="{ color: drillMeta && (drillMeta.riskLevel === 'HIGH' || drillMeta.riskLevel === 'VERY_HIGH') ? 'var(--danger)' : 'var(--text-1)' }">
+            {{ drillMeta && drillMeta.riskLevel ? $t(riskLabel(drillMeta.riskLevel)) : '—' }}
+          </div>
+          <div class="s">打分聚合（残余最高档）</div>
         </div>
         <div class="kc">
-          <div class="l">{{ $t('risk.report.kpi.points') }}</div>
-          <div class="v">14</div>
+          <div class="l">风险发现</div>
+          <div class="v">{{ findings.length }}</div>
         </div>
         <div class="kc">
-          <div class="l">{{ $t('risk.report.kpi.highPoints') }}</div>
-          <div class="v" style="color: var(--danger)">4</div>
+          <div class="l">高/极高残余</div>
+          <div class="v" style="color: var(--danger)">{{ drillHigh }}</div>
         </div>
         <div class="kc">
-          <div class="l">{{ $t('risk.report.kpi.toRemed') }}</div>
-          <div class="v">4</div>
+          <div class="l">待处置</div>
+          <div class="v">{{ drillOpen }}</div>
         </div>
       </div>
 
-      <div class="g g-16-1">
-        <!-- 风险点清单 -->
-        <div class="card">
-          <div class="ch"><h3>{{ $t('risk.report.list.title') }}</h3></div>
-          <table>
-            <thead>
-              <tr>
-                <th>{{ $t('risk.report.list.th.ctrl') }}</th>
-                <th>{{ $t('risk.report.list.th.concl') }}</th>
-                <th>{{ $t('risk.report.list.th.level') }}</th>
-                <th>{{ $t('risk.report.list.th.advice') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(r, i) in pointRows" :key="i">
-                <td>{{ $t('risk.report.list.rows.' + r.key + '.ctrl') }}</td>
-                <td>{{ $t('risk.report.list.rows.' + r.key + '.concl') }}</td>
-                <td><span class="tag" :class="r.cls">{{ $t('risk.levelDist.' + r.lvl) }}</span></td>
-                <td>{{ $t('risk.report.list.rows.' + r.key + '.advice') }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 等级分布 donut 下钻 -->
-        <div class="card">
-          <div class="ch"><h3>{{ $t('risk.report.donut.title') }}</h3></div>
-          <div class="cb">
-            <div class="donut-wrap">
-              <svg width="90" height="90" viewBox="0 0 42 42">
-                <g transform="rotate(-90 21 21)">
-                  <circle cx="21" cy="21" r="15.9" fill="none" stroke="rgba(120,120,120,.12)" stroke-width="6" />
-                  <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--safe)" stroke-width="6" stroke-dasharray="50 50" stroke-dashoffset="-50" />
-                  <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--warning)" stroke-width="6" stroke-dasharray="21 79" stroke-dashoffset="-29" />
-                  <circle cx="21" cy="21" r="15.9" pathLength="100" fill="none" stroke="var(--danger)" stroke-width="6" stroke-dasharray="29 71" />
-                </g>
-              </svg>
-              <div class="dlbl">
-                <div class="li">
-                  <span class="k"><i style="background: var(--danger)"></i>{{ $t('risk.levelDist.h') }}</span><b>4</b>
-                </div>
-                <div class="li">
-                  <span class="k"><i style="background: var(--warning)"></i>{{ $t('risk.levelDist.m') }}</span><b>3</b>
-                </div>
-                <div class="li">
-                  <span class="k"><i style="background: var(--safe)"></i>{{ $t('risk.levelDist.l') }}</span><b>7</b>
-                </div>
-              </div>
+      <!-- 残余等级分布（真值：本评估发现按 残余优先/无残余取固有 统计）-->
+      <div class="card" style="margin-bottom:14px" v-if="findings.length">
+        <div class="ch"><h3>{{ $t('risk.report.donut.title') }}</h3><span class="sub">真值 · 残余优先，无残余取固有</span></div>
+        <div class="cb">
+          <div class="exbars" style="max-width:520px">
+            <div v-for="b in drillLevelDist" :key="b.l" class="exbar-row">
+              <span class="exl" style="width:40px">{{ b.l }}</span>
+              <div class="extrack"><i :style="{ width: b.w, background: b.c }"></i></div>
+              <b>{{ b.v }}</b>
             </div>
           </div>
         </div>
@@ -1663,8 +1631,23 @@ async function submitCreate() {
 const LEVEL_KEY = { VERY_HIGH: 'vh', HIGH: 'h', MID: 'm', LOW: 'l', VERY_LOW: 'vl' }
 const riskCls = (lv) => LEVEL_KEY[lv] || 'm'
 const riskLabel = (lv) => 'risk.levelDist.' + (LEVEL_KEY[lv] || 'm')
+// ===== UAT 五轮 #1：任务管理（草稿删 / 非草稿作废，CANCELLED 默认隐藏）=====
+const showCancelled = ref(false)
+const visibleTasks = computed(() => liveTasks.value.filter((r) => showCancelled.value || r.status !== 'CANCELLED'))
+async function deleteTask(r) {
+  if (!window.confirm(`确认删除草稿评估「${r.title}」？将级联清理其填写、发现与范围资产。`)) return
+  try { await api.del('/assessments/' + r.id); liveTasks.value = await api.get('/assessments') }
+  catch (e) { loadError.value = e.message }
+}
+async function cancelTask(r) {
+  const reason = window.prompt(`作废评估「${r.title}」（软删留痕，可在"显示已作废"里查看）。作废原因：`, '')
+  if (reason === null) return
+  try { await api.post('/assessments/' + r.id + '/cancel', { reason: reason || null }); liveTasks.value = await api.get('/assessments') }
+  catch (e) { loadError.value = e.message }
+}
+
 // 评估状态 → 样式类 / i18n 标签键（对齐后端 AssessmentStatus）
-const STATUS_CLS = { DRAFT: 'wait', IN_PROGRESS: 'doing', PENDING_REVIEW: 'wait', COMPLETED: 'ok' }
+const STATUS_CLS = { DRAFT: 'wait', IN_PROGRESS: 'doing', PENDING_REVIEW: 'wait', COMPLETED: 'ok', CANCELLED: 'over' }
 const stCls = (s) => STATUS_CLS[s] || 'wait'
 const stLabel = (s) => 'risk.assessStatus.' + s
 
@@ -1687,12 +1670,22 @@ const funnel = [
   { key: 'live', v: 15, w: '40%', bg: 'var(--success)' }
 ]
 
-// ---- 下钻报告：风险点清单 ----
-const pointRows = [
-  { key: 'acl', lvl: 'h', cls: 'h' },
-  { key: 'tls', lvl: 'h', cls: 'h' },
-  { key: 'log', lvl: 'l', cls: 'l' }
+// ---- 下钻报告 KPI/等级分布（真值：由本评估的风险发现实时计算）----
+const drillHigh = computed(() => findings.value.filter((f) => {
+  const lv = f.residualLevel || f.inherentLevel
+  return lv === 'HIGH' || lv === 'VERY_HIGH'
+}).length)
+const drillOpen = computed(() => findings.value.filter((f) => f.status === 'OPEN' || f.status === 'IN_TREATMENT').length)
+const DRILL_LV = [
+  ['VERY_HIGH', '极高', '#7a1620'], ['HIGH', '高', 'var(--danger)'], ['MID', '中', '#a87d22'],
+  ['LOW', '低', 'var(--safe, #4a8)'], ['VERY_LOW', '极低', 'var(--accent-bright, var(--accent))']
 ]
+const drillLevelDist = computed(() => {
+  const cnt = {}
+  findings.value.forEach((f) => { const lv = f.residualLevel || f.inherentLevel || 'UNSET'; cnt[lv] = (cnt[lv] || 0) + 1 })
+  const max = Math.max(1, ...Object.values(cnt))
+  return DRILL_LV.filter(([k]) => cnt[k]).map(([k, l, c]) => ({ l, v: cnt[k], w: Math.round(cnt[k] * 100 / max) + '%', c }))
+})
 
 </script>
 
@@ -2322,13 +2315,13 @@ td.ops {
 .modal-card.wide { width: 640px; max-height: 88vh; overflow-y: auto; }
 .stepdot { margin-left: 10px; font-size: 11px; font-weight: 600; color: var(--accent-strong); background: var(--accent-weak); border-radius: 999px; padding: 2px 10px; vertical-align: middle; }
 .modal-card .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
-.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; background: var(--bg); user-select: none; transition: border-color .12s, background .12s, color .12s; }
-.chip:hover { border-color: var(--accent); color: var(--accent-strong); }
-.chip input { display: none; }
-.chip::before { content: ''; width: 12px; height: 12px; border: 1px solid var(--surface-border); border-radius: 4px; background: var(--surface); flex-shrink: 0; box-sizing: border-box; transition: all .12s; }
-.chip.on { background: var(--accent-weak); color: var(--accent-strong); border-color: var(--accent); font-weight: 600; }
-.chip.on::before { content: '✓'; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: #fff; background: var(--accent); border-color: var(--accent); }
+/* #2 · 依据标准/方式方法：规整两列复选清单（原生 checkbox，accent 主题色） */
+.opt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px 10px; margin-top: 7px; }
+.opt { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); font-size: 12.5px; color: var(--text-2); cursor: pointer; user-select: none; }
+/* 特异性需压过 .modal-card .fld input 的整宽规则，否则复选框被拉成整行 */
+.opt input, .modal-card .fld .opt input { display: inline-block; width: 14px; height: 14px; margin: 0; padding: 0; accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+.opt span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.opt.on { border-color: var(--accent); background: var(--accent-weak); color: var(--accent-strong); font-weight: 600; }
 .fld-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ctxgrid { padding-top: 6px; }
 .ctxrow { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--border-subtle); font-size: 12.5px; }
@@ -2344,6 +2337,13 @@ td.ops {
 .mini-x:hover { color: var(--danger); background: var(--danger-tint); }
 .mini-a { font-size: 11px; color: var(--accent-strong); text-decoration: none; padding: 2px 8px; border: 1px solid var(--surface-border); border-radius: 6px; }
 .mini-a:hover { border-color: var(--accent); }
+/* 下钻真值等级分布（复用仪表盘 exbars 视觉） */
+.exbars { display: flex; flex-direction: column; gap: 9px; padding: 4px 2px; }
+.exbar-row { display: flex; align-items: center; gap: 8px; font-size: 11.5px; }
+.exbar-row .exl { color: var(--text-2); }
+.exbar-row .extrack { flex: 1; height: 8px; background: var(--bg); border-radius: 5px; overflow: hidden; }
+.exbar-row .extrack i { display: block; height: 100%; border-radius: 5px; }
+.exbar-row b { width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
 /* #3 · 模板完整样式预览 */
 .tpl-preview { max-height: 34vh; overflow-y: auto; background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 10px 14px; }
 .tp-sec { margin-bottom: 10px; }

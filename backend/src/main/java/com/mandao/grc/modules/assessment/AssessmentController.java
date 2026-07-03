@@ -162,6 +162,27 @@ public class AssessmentController {
     public record CreateAssessmentRequest(Long orgId, String title, String assessor, String period, Long templateId) {
     }
 
+    /** 删除草稿评估（UAT 五轮 #1：仅 DRAFT，级联清理+留痕）。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @RequiresPermission("risk")
+    public void deleteDraft(@PathVariable Long id,
+                            @RequestHeader(value = "X-User", required = false) String user) {
+        service.deleteDraft(id, actor(user));
+    }
+
+    /** 作废评估（软删）：IN_PROGRESS/PENDING_REVIEW → CANCELLED。 */
+    @PostMapping("/{id}/cancel")
+    @RequiresPermission("risk")
+    public Assessment cancel(@PathVariable Long id,
+                             @RequestBody(required = false) CancelRequest req,
+                             @RequestHeader(value = "X-User", required = false) String user) {
+        return service.cancel(id, req == null ? null : req.reason(), actor(user));
+    }
+
+    /** 作废请求体。 */
+    public record CancelRequest(String reason) {
+    }
+
     /** 背景建立请求体（V46）。 */
     public record ContextRequest(String scope, String objective, String basis, String methods,
                                  String criteria, String team,

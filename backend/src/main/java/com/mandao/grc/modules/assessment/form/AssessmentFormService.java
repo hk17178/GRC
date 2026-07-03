@@ -39,6 +39,26 @@ public class AssessmentFormService {
     private final ReportPdfService pdfService;
     private final ObjectMapper objectMapper;
 
+    // UAT 五轮 #3 预填数据源（setter 注入，避免构造器继续膨胀）
+    private com.mandao.grc.modules.assessment.AssessmentAssetRepository assessmentAssetRepo;
+    private com.mandao.grc.modules.asset.AssetRepository assetRepo;
+    private com.mandao.grc.modules.atv.RiskScenarioRepository scenarioRepo;
+    private com.mandao.grc.modules.atv.ThreatRepository threatRepo;
+    private com.mandao.grc.modules.atv.VulnerabilityRepository vulnRepo;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wirePrefillSources(com.mandao.grc.modules.assessment.AssessmentAssetRepository assessmentAssetRepo,
+                            com.mandao.grc.modules.asset.AssetRepository assetRepo,
+                            com.mandao.grc.modules.atv.RiskScenarioRepository scenarioRepo,
+                            com.mandao.grc.modules.atv.ThreatRepository threatRepo,
+                            com.mandao.grc.modules.atv.VulnerabilityRepository vulnRepo) {
+        this.assessmentAssetRepo = assessmentAssetRepo;
+        this.assetRepo = assetRepo;
+        this.scenarioRepo = scenarioRepo;
+        this.threatRepo = threatRepo;
+        this.vulnRepo = vulnRepo;
+    }
+
     public AssessmentFormService(DocxFormParser parser, TemplateFormRepository formRepo,
                                  AssessmentAnswerRepository answerRepo,
                                  AssessmentTemplateRepository templateRepo,
@@ -139,10 +159,107 @@ public class AssessmentFormService {
             return AssessmentFormView.none("该评估的模板尚未启用表单");
         }
         TemplateForm form = active.get();
-        // 绑定快照：建一份空填写
-        AssessmentAnswer ans = new AssessmentAnswer(a.getOrgId(), assessmentId, form.getId(), "{}");
+        FormSchema schema = readJson(form.getSchemaJson());
+        // UAT 五轮 #3（方向 A）：首次绑定时用系统结构化数据预填明细表——
+        // 范围资产→资产清单、范围资产关联的 A-T-V 场景→威胁脆弱性清单/风险清单。
+        // 填写=在系统数据快照上修订，报告与登记册天然一致；预填即落库（可再增删改）。
+        Map<String, Object> prefill = buildPrefill(assessmentId, schema);
+        AssessmentAnswer ans = new AssessmentAnswer(a.getOrgId(), assessmentId, form.getId(), writeJson(prefill));
         answerRepo.save(ans);
-        return AssessmentFormView.of(form.getId(), readJson(form.getSchemaJson()), readAnswers("{}"));
+        return AssessmentFormView.of(form.getId(), schema, prefill);
+    }
+
+    /**
+     * 系统数据预填（仅当表单 schema 含对应明细表键时注入，自定义模板不受影响）：
+     *  - 资产清单 ← assessment_asset（列：资产名称/资产类型/重要程度/资产说明）
+     *  - 威胁脆弱性清单 ← 范围资产命中的 risk_scenario（列：威胁/脆弱性/已有措施）
+     *  - 风险清单 ← 同上场景（列：风险描述/可能性/影响/固有等级/处置措施/残余等级）
+     */
+    private Map<String, Object> buildPrefill(Long assessmentId, FormSchema schema) {
+        Map<String, Object> out = new java.util.HashMap<>();
+        java.util.Set<String> listKeys = new java.util.HashSet<>();
+        for (FormSchema.Section sec : schema.sections()) {
+            for (FormSchema.ListBlock l : sec.lists()) {
+                listKeys.add(l.key());
+            }
+        }
+        if (listKeys.isEmpty()) {
+            return out;
+        }
+        var scopeAssets = assessmentAssetRepo.findByAssessmentIdOrderByIdAsc(assessmentId);
+        if (scopeAssets.isEmpty()) {
+            return out;
+        }
+        // 资产清单
+        java.util.List<Map<String, Object>> assetRows = new java.util.ArrayList<>();
+        java.util.Map<Long, String> assetNames = new java.util.HashMap<>();
+        for (var sa : scopeAssets) {
+            var asset = assetRepo.findById(sa.getAssetId()).orElse(null);
+            if (asset == null) {
+                continue;
+            }
+            assetNames.put(asset.getId(), asset.getName());
+            if (listKeys.contains("资产清单")) {
+                Map<String, Object> row = new java.util.HashMap<>();
+                row.put("资产名称", asset.getName());
+                row.put("资产类型", asset.getAssetType() == null ? "" : asset.getAssetType());
+                row.put("重要程度", mapCriticality(asset.getCriticality()));
+                row.put("资产说明", "");
+                assetRows.add(row);
+            }
+        }
+        if (!assetRows.isEmpty()) {
+            out.put("资产清单", assetRows);
+        }
+        // 范围资产命中的 A-T-V 场景 → 威胁脆弱性清单 / 风险清单
+        java.util.List<Map<String, Object>> tvRows = new java.util.ArrayList<>();
+        java.util.List<Map<String, Object>> riskRows = new java.util.ArrayList<>();
+        for (Long assetId : assetNames.keySet()) {
+            for (var sc : scenarioRepo.findByAssetId(assetId)) {
+                String threat = threatRepo.findById(sc.getThreatId())
+                        .map(com.mandao.grc.modules.atv.Threat::getName).orElse("威胁#" + sc.getThreatId());
+                String vuln = vulnRepo.findById(sc.getVulnerabilityId())
+                        .map(com.mandao.grc.modules.atv.Vulnerability::getName).orElse("脆弱性#" + sc.getVulnerabilityId());
+                if (listKeys.contains("威胁脆弱性清单")) {
+                    Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("威胁", threat);
+                    row.put("脆弱性", vuln);
+                    row.put("已有措施", sc.getDescription() == null ? "" : sc.getDescription());
+                    tvRows.add(row);
+                }
+                if (listKeys.contains("风险清单")) {
+                    Map<String, Object> row = new java.util.HashMap<>();
+                    row.put("风险描述", assetNames.get(assetId) + "：" + threat + "（" + vuln + "）");
+                    row.put("可能性", sc.getLikelihood());
+                    row.put("影响", sc.getImpact());
+                    row.put("固有等级", sc.getInherentLevel() == null ? "" : sc.getInherentLevel().name());
+                    row.put("处置措施", "");
+                    row.put("残余等级", "");
+                    riskRows.add(row);
+                }
+            }
+        }
+        if (!tvRows.isEmpty()) {
+            out.put("威胁脆弱性清单", tvRows);
+        }
+        if (!riskRows.isEmpty()) {
+            out.put("风险清单", riskRows);
+        }
+        return out;
+    }
+
+    /** 资产重要程度（LOW/MEDIUM/HIGH/CRITICAL）→ 平台五级枚举名。 */
+    private static String mapCriticality(String c) {
+        if (c == null) {
+            return "";
+        }
+        return switch (c) {
+            case "CRITICAL" -> "VERY_HIGH";
+            case "HIGH" -> "HIGH";
+            case "MEDIUM" -> "MID";
+            case "LOW" -> "LOW";
+            default -> c;
+        };
     }
 
     /**

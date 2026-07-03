@@ -29,12 +29,24 @@ public class AssessmentService {
 
     private com.mandao.grc.modules.asset.AssetService assetService;
     private AssessmentAssetRepository assessmentAssetRepository;
+    private RiskFindingRepository riskFindingRepository;
+    private RiskTreatmentRepository riskTreatmentRepository;
+    private com.mandao.grc.modules.assessment.form.AssessmentAnswerRepository answerRepository;
+    private AssessmentDocRepository assessmentDocRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
     void wireScopeAssets(com.mandao.grc.modules.asset.AssetService assetService,
-                         AssessmentAssetRepository assessmentAssetRepository) {
+                         AssessmentAssetRepository assessmentAssetRepository,
+                         RiskFindingRepository riskFindingRepository,
+                         RiskTreatmentRepository riskTreatmentRepository,
+                         com.mandao.grc.modules.assessment.form.AssessmentAnswerRepository answerRepository,
+                         AssessmentDocRepository assessmentDocRepository) {
         this.assetService = assetService;
         this.assessmentAssetRepository = assessmentAssetRepository;
+        this.riskFindingRepository = riskFindingRepository;
+        this.riskTreatmentRepository = riskTreatmentRepository;
+        this.answerRepository = answerRepository;
+        this.assessmentDocRepository = assessmentDocRepository;
     }
 
     public AssessmentService(AssessmentRepository repository, HashChainService hashChainService) {
@@ -244,6 +256,44 @@ public class AssessmentService {
         } catch (java.security.NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 不可用", e);
         }
+    }
+
+    // ---------- 删除 / 作废（UAT 五轮 #1） ----------
+
+    /**
+     * 删除草稿评估（仅 DRAFT）：级联清理 处置计划→发现→填写→范围资产→过程文档，
+     * 最后删评估本体；哈希链留痕删除动作。非草稿一律走 {@link #cancel}。
+     */
+    @Transactional
+    public void deleteDraft(Long id, String actor) {
+        Assessment a = get(id);
+        if (a.getStatus() != AssessmentStatus.DRAFT) {
+            throw new IllegalStateException("仅草稿(DRAFT)评估可删除；进行中/待复核请用「作废」，已完成为定稿档案不可动");
+        }
+        appendLog(a, "ASSESSMENT_DELETE", actor, "删除草稿评估 title=" + a.getTitle());
+        // 级联清理（软引用/子表先行；treatments 依赖 findings 先删）
+        var findings = riskFindingRepository.findByAssessmentId(id);
+        for (var f : findings) {
+            riskTreatmentRepository.findByFindingId(f.getId()).ifPresent(riskTreatmentRepository::delete);
+        }
+        riskFindingRepository.deleteAll(findings);
+        answerRepository.findByAssessmentId(id).ifPresent(answerRepository::delete);
+        assessmentAssetRepository.deleteAll(assessmentAssetRepository.findByAssessmentIdOrderByIdAsc(id));
+        assessmentDocRepository.deleteAll(assessmentDocRepository.findByAssessmentIdOrderByIdDesc(id));
+        repository.delete(a);
+    }
+
+    /** 作废评估（软删）：IN_PROGRESS / PENDING_REVIEW → CANCELLED（终态；COMPLETED 定稿不可作废）。 */
+    @Transactional
+    public Assessment cancel(Long id, String reason, String actor) {
+        Assessment a = get(id);
+        if (a.getStatus() != AssessmentStatus.IN_PROGRESS && a.getStatus() != AssessmentStatus.PENDING_REVIEW) {
+            throw new IllegalStateException("仅进行中/待复核评估可作废（草稿请直接删除，已完成为定稿档案），当前：" + a.getStatus());
+        }
+        a.setStatus(AssessmentStatus.CANCELLED);
+        Assessment saved = repository.save(a);
+        appendLog(saved, "ASSESSMENT_CANCEL", actor, "作废评估" + (reason == null || reason.isBlank() ? "" : "：" + reason));
+        return saved;
     }
 
     // ---------- 内部辅助 ----------

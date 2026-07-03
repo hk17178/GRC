@@ -8,6 +8,10 @@ package com.mandao.grc.modules.assessment;
  *   IN_PROGRESS --submit--> PENDING_REVIEW
  *   PENDING_REVIEW --complete--> COMPLETED
  *   PENDING_REVIEW --reject--> IN_PROGRESS（退回继续评估）
+ *   IN_PROGRESS / PENDING_REVIEW --cancel--> CANCELLED（作废终态，UAT 五轮 #1）
+ *
+ * 删除口径（UAT 五轮 #1）：DRAFT 可物理删除（无留痕价值，级联清理）；
+ * 进行中/待复核只可作废（软删，审计证据不物理销毁）；COMPLETED 已定稿冻结不可动。
  *
  * 设计依据：D1-2 数据模型（评估生命周期）、D2-5 编码规范。
  */
@@ -23,5 +27,8 @@ public enum AssessmentStatus {
     PENDING_REVIEW,
 
     /** 已完成：终态。 */
-    COMPLETED
+    COMPLETED,
+
+    /** 已作废：终态（软删——审计证据不物理销毁，列表默认隐藏）。 */
+    CANCELLED
 }
