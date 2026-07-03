@@ -423,6 +423,7 @@ export default {
     },
     tab: {
       tasks: 'Assessments',
+      register: 'Risk Register',
       templates: 'Templates',
       controls: 'Control Library',
       kri: 'KRI Monitoring',

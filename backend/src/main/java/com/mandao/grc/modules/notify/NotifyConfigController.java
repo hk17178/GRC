@@ -21,9 +21,19 @@ import java.util.List;
 public class NotifyConfigController {
 
     private final NotifyConfigService service;
+    private final com.mandao.grc.kernel.NotifyRuleEngine ruleEngine;
 
-    public NotifyConfigController(NotifyConfigService service) {
+    public NotifyConfigController(NotifyConfigService service,
+                                  com.mandao.grc.kernel.NotifyRuleEngine ruleEngine) {
         this.service = service;
+        this.ruleEngine = ruleEngine;
+    }
+
+    /** 立即评估一轮全部启用规则（六轮 #7；平时由调度内核每 15 分钟自动跑）。返回本轮新产告警数。 */
+    @PostMapping("/run-engine")
+    @RequiresPermission("notify")
+    public java.util.Map<String, Integer> runEngine() {
+        return java.util.Map.of("produced", ruleEngine.runOnce(java.time.LocalDate.now()));
     }
 
     /** 按 kind（SCENARIO/RULE/CHANNEL）列出配置。 */

@@ -22,10 +22,13 @@ public class ScheduledScanner {
 
     private final ExpiryScanService expiryScanService;
     private final ScheduledCrawlService scheduledCrawlService;
+    private final NotifyRuleEngine notifyRuleEngine;
 
-    public ScheduledScanner(ExpiryScanService expiryScanService, ScheduledCrawlService scheduledCrawlService) {
+    public ScheduledScanner(ExpiryScanService expiryScanService, ScheduledCrawlService scheduledCrawlService,
+                            NotifyRuleEngine notifyRuleEngine) {
         this.expiryScanService = expiryScanService;
         this.scheduledCrawlService = scheduledCrawlService;
+        this.notifyRuleEngine = notifyRuleEngine;
     }
 
     /** 默认每 15 分钟扫描一次（可由 grc.scheduler.fixed-delay-ms 调整）。 */
@@ -34,6 +37,11 @@ public class ScheduledScanner {
         ScanResult result = expiryScanService.scanOnce(LocalDate.now());
         if (!result.skipped() && result.emitted() > 0) {
             log.info("到期扫描产出 {} 条时间事件", result.emitted());
+        }
+        // 通知规则引擎与到期扫描同节拍（六轮 #7）
+        int produced = notifyRuleEngine.runOnce(LocalDate.now());
+        if (produced > 0) {
+            log.info("通知规则引擎产出 {} 条告警", produced);
         }
     }
 

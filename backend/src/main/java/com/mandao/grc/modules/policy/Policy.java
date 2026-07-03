@@ -76,6 +76,20 @@ public class Policy {
     @Column(length = 64)
     private String owner;
 
+    // ---- 制度原件（六轮 #6：docx 上传，POI 提取全文写 content，原件 sha256 固化留档）----
+
+    /** 原件文件名。 */
+    @Column(name = "doc_name", length = 256)
+    private String docName;
+
+    /** 原件 sha256（固化防篡改，与证据库同款做法）。 */
+    @Column(name = "doc_sha256", length = 64)
+    private String docSha256;
+
+    /** 原件字节（docx）。 */
+    @Column(name = "doc_bytes")
+    private byte[] docBytes;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -177,5 +191,20 @@ public class Policy {
     /** 由 Service 在校验合法流转后调用，推进状态机。 */
     void setStatus(PolicyStatus status) {
         this.status = status;
+    }
+
+    public String getDocName() { return docName; }
+    public String getDocSha256() { return docSha256; }
+
+    /** 原件字节不随 JSON 序列化外泄（下载走专用端点）。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public byte[] getDocBytes() { return docBytes; }
+
+    /** 挂载制度原件（由 Service 在提取全文后调用）：换文即换全文。 */
+    void attachDocument(String docName, String docSha256, byte[] docBytes, String extractedText) {
+        this.docName = docName;
+        this.docSha256 = docSha256;
+        this.docBytes = docBytes;
+        this.content = extractedText;
     }
 }

@@ -53,6 +53,42 @@ public class RiskFindingService {
         return findingRepository.findByAssessmentId(assessmentId);
     }
 
+    /** 评估仓库（登记册聚合取评估标题用，setter 注入避免改构造器搅动既有装配）。 */
+    private AssessmentRepository assessmentRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireAssessmentRepository(AssessmentRepository assessmentRepository) {
+        this.assessmentRepository = assessmentRepository;
+    }
+
+    /** 登记册行（六轮 #2/#5：ISO 31000 组织级风险登记册的展示条目）。 */
+    public record RegisterRow(Long id, Long assessmentId, String assessmentTitle, String title,
+                              RiskLevel inherentLevel, RiskLevel residualLevel,
+                              String treatmentDecision, RiskFindingStatus status,
+                              java.time.OffsetDateTime updatedAt) {
+    }
+
+    /**
+     * 组织级风险登记册（六轮 #2/#5）：跨评估聚合当前可见组织范围内的全部风险发现，
+     * 携来源评估标题，支撑顶层「风险登记册」标签的台账视图与处置追踪。RLS 自动裁剪可见范围。
+     */
+    @Transactional(readOnly = true)
+    public List<RegisterRow> registerRows() {
+        List<RiskFinding> findings = findingRepository.findAll();
+        // 批量取评估标题，避免逐条查库
+        java.util.Map<Long, String> titles = new java.util.HashMap<>();
+        assessmentRepository.findAllById(
+                findings.stream().map(RiskFinding::getAssessmentId).distinct().toList())
+                .forEach(a -> titles.put(a.getId(), a.getTitle()));
+        return findings.stream()
+                .sorted(java.util.Comparator.comparing(RiskFinding::getId).reversed())
+                .map(f -> new RegisterRow(f.getId(), f.getAssessmentId(),
+                        titles.getOrDefault(f.getAssessmentId(), "（评估不可见）"),
+                        f.getTitle(), f.getInherentLevel(), f.getResidualLevel(),
+                        f.getTreatmentDecision(), f.getStatus(), f.getUpdatedAt()))
+                .toList();
+    }
+
     /** 按 id 取风险发现（不可见则视为不存在）。 */
     @Transactional(readOnly = true)
     public RiskFinding get(Long id) {

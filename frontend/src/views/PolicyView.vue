@@ -89,6 +89,23 @@
               <button class="btn sm" :disabled="!canWrite('policy') || saving" @click="saveMeta">保存元数据</button>
               <span v-if="metaMsg" class="okmsg">{{ metaMsg }}</span>
 
+              <!-- 六轮 #6：制度全文与原件（上传 .docx → 后端提取全文，AI 符合度评估的数据基础）-->
+              <div class="sec-t" style="margin-top:16px">制度全文与原件</div>
+              <div class="docbox">
+                <div v-if="detail.docName" class="doc-row">
+                  📄 {{ detail.docName }}
+                  <a class="mini-a" style="margin-left:auto" :href="'/api/policies/' + detail.id + '/document'" target="_blank">下载原件</a>
+                </div>
+                <div class="doc-row" :class="detail.content ? 'okc' : 'warnc'">
+                  {{ detail.content ? ('✓ 已有全文（' + detail.content.length + ' 字），可用于 AI 符合度评估') : '⚠ 仅元数据无全文——上传 .docx 后才能做法规符合度评估' }}
+                </div>
+                <div v-if="detail.docSha256" class="doc-row muted">sha256：{{ detail.docSha256.slice(0, 16) }}…（原件固化防篡改）</div>
+                <button class="btn ghost sm" :disabled="!canWrite('policy') || docBusy" @click="pickPolicyDocx">{{ docBusy ? '上传解析中…' : '上传制度 .docx' }}</button>
+                <input id="policy-docx-input" type="file" accept=".docx" style="display:none" @change="onPolicyDocxPicked" />
+                <span v-if="docErr" class="errmsg">{{ docErr }}</span>
+                <span v-if="docMsg" class="okmsg">{{ docMsg }}</span>
+              </div>
+
               <div class="sec-t" style="margin-top:16px">签署确认 <span class="cnt">{{ signoffs.length }}</span></div>
               <div v-if="!signoffs.length" class="muted">暂无签署记录（仅生效制度可签署）</div>
               <div v-for="s in signoffs" :key="s.id" class="sig-row">
@@ -245,6 +262,27 @@ async function openDetail(p) {
     versions.value = v; refs.value = r; signoffs.value = s
   } catch (e) { versions.value = []; refs.value = { outgoing: [], incoming: [] }; signoffs.value = [] }
 }
+// ===== 六轮 #6：制度原件上传（.docx → 后端 POI 提取全文 + sha256 固化）=====
+const docBusy = ref(false)
+const docErr = ref('')
+const docMsg = ref('')
+function pickPolicyDocx() { document.getElementById('policy-docx-input').click() }
+async function onPolicyDocxPicked(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!file || !detail.value) return
+  docBusy.value = true; docErr.value = ''; docMsg.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    const updated = await api.upload('/policies/' + detail.value.id + '/document', fd)
+    detail.value = updated
+    docMsg.value = '已上传并提取全文 ' + (updated.content ? updated.content.length : 0) + ' 字'
+    await load()
+    setTimeout(() => (docMsg.value = ''), 3000)
+  } catch (err) { docErr.value = err.message } finally { docBusy.value = false }
+}
+
 async function saveMeta() {
   saving.value = true; opError.value = ''; metaMsg.value = ''
   try {
@@ -361,6 +399,14 @@ tbody tr.clk:hover { background: var(--accent-tint); }
 @media (max-width: 760px) { .dgrid2 { grid-template-columns: 1fr; } }
 .sec-t { font-size: 12.5px; font-weight: 700; color: var(--text-1); border-left: 3px solid var(--accent-strong); padding-left: 8px; margin: 4px 0 10px; }
 .okmsg { color: var(--success); font-size: 12px; font-weight: 600; margin-left: 8px; }
+.errmsg { color: var(--danger); font-size: 12px; margin-left: 8px; }
+/* 六轮 #6：制度原件区 */
+.docbox { border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 10px 12px; background: var(--bg); }
+.doc-row { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); margin-bottom: 7px; }
+.doc-row.okc { color: var(--success); }
+.doc-row.warnc { color: var(--warning); }
+.mini-a { font-size: 11px; color: var(--accent-strong); text-decoration: none; padding: 2px 8px; border: 1px solid var(--surface-border); border-radius: 6px; }
+.mini-a:hover { border-color: var(--accent); }
 .sig-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; border-bottom: 1px solid var(--border-subtle); }
 .sig-av { width: 22px; height: 22px; border-radius: 50%; background: var(--accent-weak); color: var(--accent-strong); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
 .vline { border-left: 2px solid var(--border); padding-left: 14px; display: flex; flex-direction: column; gap: 10px; }

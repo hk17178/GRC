@@ -100,13 +100,20 @@ public class RegulationService {
         return saved;
     }
 
-    /** 登记一条法规变更动态（PENDING，待影响评估）。 */
+    /** 登记一条法规变更动态（PENDING，待影响评估）。同时把该法规既有映射的符合度评估标记为需重评。 */
     @Transactional
     public RegulationChange recordChange(Long regulationId, ChangeType type, LocalDate changeDate,
                                          String description, String actor) {
         Regulation r = get(regulationId);
         RegulationChange saved = changeRepository.save(
                 new RegulationChange(r.getOrgId(), regulationId, type, changeDate, description));
+        // 六轮 #6：法规一旦变更，之前的符合度结论即不可靠 → 全部映射置"需重评"
+        mapRepository.findByRegulationId(regulationId).stream()
+                .filter(m -> m.getAssessedAt() != null)
+                .forEach(m -> {
+                    m.markStale();
+                    mapRepository.save(m);
+                });
         hashChainService.append(r.getOrgId(), "REGULATION_CHANGE", actor, "REGULATION:" + regulationId,
                 "登记法规变更 type=" + type + " changeId=" + saved.getId());
         return saved;
@@ -148,6 +155,74 @@ public class RegulationService {
         hashChainService.append(reg.getOrgId(), "REG_MAP_ADD", actor, "REGULATION:" + regulationId,
                 "登记法规-制度映射 policy=" + policyId + " 条款=" + clause);
         return saved;
+    }
+
+    /** 治理提示词模板名（六轮 #6）：制度符合度评估。 */
+    static final String TPL_COMPLIANCE_ASSESS = "制度符合度评估";
+
+    /**
+     * AI 制度符合度评估（六轮 #6）：对一条法规-制度映射，把 法规要求（标题/摘要/条款/最新变更）
+     * 与 制度全文（content，通常来自 docx 上传提取）交给大模型，输出 结论+差距+建议修订点。
+     * 结论归类：明确"不符合"/"部分符合"/"符合"三选一；无法归类时记「待复核」（AI 初稿须人工复核红线）。
+     * 结果落库到映射行（assess_*），法规再变更时由 recordChange 置 stale 提示重评。
+     */
+    @Transactional
+    public RegulationPolicyMap assessCompliance(Long mapId, String actor) {
+        RegulationPolicyMap m = mapRepository.findById(mapId)
+                .orElseThrow(() -> new IllegalArgumentException("映射不存在或不可见：id=" + mapId));
+        Regulation reg = get(m.getRegulationId());
+        var policy = policyRepository.findById(m.getPolicyId())
+                .orElseThrow(() -> new IllegalArgumentException("制度不存在或不可见：id=" + m.getPolicyId()));
+        String content = policy.getContent();
+        if (content == null || content.isBlank()) {
+            throw new IllegalStateException("该制度尚无全文（仅元数据），无法做符合度评估——请先在「制度发布」上传制度 .docx 原件");
+        }
+        // 提示词优先取治理里启用的「制度符合度评估」模板，无则回退内置口径
+        String ask = governanceRepo.findByKindAndEnabledTrue(
+                        com.mandao.grc.modules.ai.AiGovernance.KIND_PROMPT_TEMPLATE).stream()
+                .filter(g -> TPL_COMPLIANCE_ASSESS.equals(g.getName()))
+                .map(com.mandao.grc.modules.ai.AiGovernance::getDetail)
+                .filter(d -> d != null && !d.isBlank())
+                .findFirst()
+                .orElse("请以合规官视角，对比下述监管法规要求与企业制度全文，输出：结论（严格三选一：符合/部分符合/不符合）、"
+                        + "差距说明、建议修订点（条款级，中文，简明）。");
+        // 最新变更（若有）一并入题——符合度必须对着最新口径评
+        String latestChange = changeRepository.findByRegulationIdOrderByIdDesc(m.getRegulationId()).stream()
+                .findFirst()
+                .map(c -> "最新变更（" + c.getChangeType() + "）：" + c.getDescription())
+                .orElse("");
+        // 制度全文过长时截断（提示词成本控制；截断处显式标注）
+        String body = content.length() > 6000 ? content.substring(0, 6000) + "\n…（全文过长已截断）" : content;
+        String question = ask + "\n"
+                + "【法规要求】" + reg.getTitle() + "（" + reg.getCode() + "，" + reg.getIssuer() + "）\n"
+                + "适用条款：" + (m.getClause() == null ? "整体" : m.getClause()) + "\n"
+                + "法规摘要：" + (reg.getSummary() == null ? "—" : reg.getSummary()) + "\n"
+                + (latestChange.isEmpty() ? "" : latestChange + "\n")
+                + "【制度全文】" + policy.getTitle() + "（v" + policy.getVersion() + "）\n" + body;
+        String answer = llmProvider.generateFor("POLICY_MAP", question,
+                List.of("法规：" + reg.getTitle(), "制度：" + policy.getTitle()));
+        m.recordAssessment(classifyVerdict(answer), answer);
+        RegulationPolicyMap saved = mapRepository.save(m);
+        hashChainService.append(m.getOrgId(), "REG_MAP_ASSESS", actor, "REGULATION:" + m.getRegulationId(),
+                "AI 符合度评估 mapId=" + mapId + " 结论=" + saved.getAssessVerdict());
+        return saved;
+    }
+
+    /** 从模型输出归类结论：不符合 > 部分符合 > 符合（按包含判定，长词优先防误配），归不了类记待复核。 */
+    private static String classifyVerdict(String answer) {
+        if (answer == null) {
+            return "待复核";
+        }
+        if (answer.contains("部分符合")) {
+            return "部分符合";
+        }
+        if (answer.contains("不符合")) {
+            return "不符合";
+        }
+        if (answer.contains("符合")) {
+            return "符合";
+        }
+        return "待复核";
     }
 
     /** AI 匹配建议结果（V49 · POLICY_MAP 场景）：初稿须人工确认后再手工登记映射。 */

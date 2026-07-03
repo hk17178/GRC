@@ -114,6 +114,14 @@ public class RegulationController {
         return service.addMap(id, req.policyId(), req.clause(), req.note(), actor(user));
     }
 
+    /** AI 制度符合度评估（六轮 #6）：对一条映射比对法规要求与制度全文，结论+差距+建议落库。 */
+    @PostMapping("/policy-maps/{mapId}/assess")
+    @RequiresPermission("law")
+    public RegulationPolicyMap assessCompliance(@PathVariable Long mapId,
+                                                @RequestHeader(value = "X-User", required = false) String user) {
+        return service.assessCompliance(mapId, actor(user));
+    }
+
     /** 生成变更 AI 条款级摘要（本地离线模式诚实标注）。 */
     @PostMapping("/changes/{changeId}/ai-summary")
     @RequiresPermission("law")

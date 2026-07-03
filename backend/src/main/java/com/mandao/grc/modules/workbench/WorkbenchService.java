@@ -161,7 +161,8 @@ public class WorkbenchService {
                 "SELECT id, object_type, object_id, event_type, threshold_key, org_id, "
                         + "CAST(EXTRACT(EPOCH FROM created_at) * 1000 AS bigint) AS created_ms, "
                         + "cnt, read_by, "
-                        + "COALESCE(CAST(EXTRACT(EPOCH FROM read_at) * 1000 AS bigint), 0) AS read_ms "
+                        + "COALESCE(CAST(EXTRACT(EPOCH FROM read_at) * 1000 AS bigint), 0) AS read_ms, "
+                        + "message "
                         + "FROM (SELECT *, "
                         + "row_number() OVER (PARTITION BY object_type, object_id, event_type ORDER BY id DESC) AS rn, "
                         + "count(*) OVER (PARTITION BY object_type, object_id, event_type) AS cnt "
@@ -182,7 +183,8 @@ public class WorkbenchService {
                         ((Number) r[6]).longValue(),
                         ((Number) r[7]).longValue(),
                         (String) r[8],
-                        ((Number) r[9]).longValue()))
+                        ((Number) r[9]).longValue(),
+                        (String) r[10]))
                 .toList();
     }
 

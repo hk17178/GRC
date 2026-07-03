@@ -8,4 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * 这正是"隔离不依赖应用代码记得加 where"的兜底价值。
  */
 public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
+
+    /** 是否存在引用某模板的评估（模板删除口径：被引用即不可物理删除）。 */
+    boolean existsByTemplateId(Long templateId);
 }

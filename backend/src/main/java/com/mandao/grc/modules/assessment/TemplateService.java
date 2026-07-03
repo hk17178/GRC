@@ -124,6 +124,36 @@ public class TemplateService {
         return saved;
     }
 
+    /** 表单版本仓库（form 子包，setter 注入避免与表单服务构成环）。 */
+    private com.mandao.grc.modules.assessment.form.TemplateFormRepository templateFormRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireFormRepository(com.mandao.grc.modules.assessment.form.TemplateFormRepository templateFormRepository) {
+        this.templateFormRepository = templateFormRepository;
+    }
+
+    /**
+     * 删除模板（六轮 UAT #1）。口径与评估任务删除一致：
+     *  - 平台内置模板（owner=platform，集团基线 8 套）不可删除，只可停用；
+     *  - 已被评估任务引用（assessment.template_id）的模板不可删除，防止溯源断链，请改用停用；
+     *  - 其余（自建/克隆）物理删除，级联清理条款项与表单版本。
+     */
+    @Transactional
+    public void delete(Long templateId, String actor) {
+        AssessmentTemplate t = get(templateId);
+        if ("platform".equals(t.getOwner())) {
+            throw new IllegalStateException("平台内置模板为集团基线，不可删除；如不再使用请「停用」");
+        }
+        if (assessmentRepository.existsByTemplateId(templateId)) {
+            throw new IllegalStateException("该模板已被评估任务引用，删除会破坏评估溯源；请改用「停用」下架");
+        }
+        templateItemRepository.deleteAll(templateItemRepository.findByTemplateIdOrderBySeqAsc(templateId));
+        templateFormRepository.deleteAll(templateFormRepository.findByTemplateIdOrderByVersionNoDesc(templateId));
+        templateRepository.delete(t);
+        hashChainService.append(t.getOrgId(), "TEMPLATE_DELETE", actor, "TEMPLATE:" + templateId,
+                "删除模板 code=" + t.getCode() + " name=" + t.getName());
+    }
+
     /** 停用模板：DRAFT/PUBLISHED → RETIRED。 */
     @Transactional
     public AssessmentTemplate retire(Long templateId, String actor) {

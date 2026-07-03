@@ -39,6 +39,24 @@ public class RegulationPolicyMap {
     @Column(length = 256)
     private String note;
 
+    // ---- AI 符合度评估（六轮 #6）----
+
+    /** 评估结论：符合 / 部分符合 / 不符合 / 待复核（模型输出无法归类时）。 */
+    @Column(name = "assess_verdict", length = 16)
+    private String assessVerdict;
+
+    /** 评估详情（差距说明 + 建议修订点，模型原文）。 */
+    @Column(name = "assess_detail", columnDefinition = "TEXT")
+    private String assessDetail;
+
+    /** 评估时间。 */
+    @Column(name = "assessed_at")
+    private OffsetDateTime assessedAt;
+
+    /** 法规再变更后置 true（需重评标记），重评后清除。 */
+    @Column(name = "assess_stale", nullable = false)
+    private boolean assessStale = false;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -67,4 +85,21 @@ public class RegulationPolicyMap {
     public String getClause() { return clause; }
     public String getNote() { return note; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+    public String getAssessVerdict() { return assessVerdict; }
+    public String getAssessDetail() { return assessDetail; }
+    public OffsetDateTime getAssessedAt() { return assessedAt; }
+    public boolean isAssessStale() { return assessStale; }
+
+    /** 写入 AI 符合度评估结果（由 Service 调用），并清除需重评标记。 */
+    void recordAssessment(String verdict, String detail) {
+        this.assessVerdict = verdict;
+        this.assessDetail = detail;
+        this.assessedAt = OffsetDateTime.now();
+        this.assessStale = false;
+    }
+
+    /** 法规变更后标记需重评（由 Service 调用）。 */
+    void markStale() {
+        this.assessStale = true;
+    }
 }

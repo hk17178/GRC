@@ -37,6 +37,12 @@ public class RiskFindingController {
         return service.listByAssessment(assessmentId);
     }
 
+    /** 组织级风险登记册（六轮 #2/#5）：跨评估聚合全部风险发现，携来源评估标题。 */
+    @GetMapping("/register")
+    public List<RiskFindingService.RegisterRow> register() {
+        return service.registerRows();
+    }
+
     /** 取单个风险发现。 */
     @GetMapping("/{id}")
     public RiskFinding get(@PathVariable Long id) {

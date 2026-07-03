@@ -227,6 +227,63 @@ public class PolicyService {
         return versionRepository.findByPolicyIdOrderByVersionNoDesc(policyId);
     }
 
+    /**
+     * 上传制度原件（六轮 #6）：接收 .docx，POI 提取全文写入 content（供 AI 符合度评估等下游使用），
+     * 原件字节 + sha256 固化留档（与证据库同款防篡改口径）。不限制状态——草稿补全文、
+     * 生效制度换文由 revise 走版本管控，此处仅作为"全文来源"挂载。
+     */
+    @Transactional
+    public Policy uploadDocument(Long id, String filename, byte[] bytes, String actor) {
+        Policy policy = get(id);
+        if (filename == null || !filename.toLowerCase().endsWith(".docx")) {
+            throw new IllegalArgumentException("仅支持 .docx 制度文件（Word 2007+ 格式）");
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("上传文件为空");
+        }
+        String text;
+        try (var doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(new java.io.ByteArrayInputStream(bytes));
+             var extractor = new org.apache.poi.xwpf.extractor.XWPFWordExtractor(doc)) {
+            text = extractor.getText();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("docx 解析失败，请确认文件未损坏：" + e.getMessage());
+        }
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("文档未提取到任何文本内容，请确认不是纯图片扫描件");
+        }
+        String sha256 = sha256Hex(bytes);
+        policy.attachDocument(filename, sha256, bytes, text.strip());
+        Policy saved = policyRepository.save(policy);
+        appendLog(saved, "POLICY_DOC_UPLOAD", actor,
+                "上传制度原件 " + filename + "（" + bytes.length + " 字节，sha256=" + sha256.substring(0, 12)
+                        + "…，提取全文 " + text.strip().length() + " 字）");
+        return saved;
+    }
+
+    /** 下载制度原件（六轮 #6）。 */
+    @Transactional(readOnly = true)
+    public Policy getWithDocument(Long id) {
+        Policy policy = get(id);
+        if (policy.getDocBytes() == null) {
+            throw new IllegalArgumentException("该制度未上传原件");
+        }
+        return policy;
+    }
+
+    /** 计算 sha256 十六进制串。 */
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder sb = new StringBuilder(d.length * 2);
+            for (byte b : d) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
+    }
+
     /** 添加引用关系（policy 引用 refPolicy；同组织内可见性由 RLS 保证）。 */
     @Transactional
     public PolicyRef addRef(Long policyId, Long refPolicyId, String note, String actor) {

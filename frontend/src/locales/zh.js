@@ -461,6 +461,7 @@ export default {
     // 顶部 Tab
     tab: {
       tasks: '评估任务',
+      register: '风险登记册',
       templates: '模板库',
       controls: '统一控件库',
       kri: 'KRI 监控',

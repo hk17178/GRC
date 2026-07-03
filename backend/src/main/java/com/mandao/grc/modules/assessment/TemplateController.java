@@ -80,6 +80,14 @@ public class TemplateController {
         return service.retire(id, actor(user));
     }
 
+    /** 删除模板（六轮 #1）：内置/被评估引用的不可删（409 口径由全局异常映射），自建/克隆可物理删除。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+    @RequiresPermission("risk")
+    public void delete(@PathVariable Long id,
+                       @RequestHeader(value = "X-User", required = false) String user) {
+        service.delete(id, actor(user));
+    }
+
     /** 克隆模板到目标组织（R4：内置脚手架克隆起步；新模板为 DRAFT）。 */
     @PostMapping("/{id}/clone")
     @RequiresPermission("risk")

@@ -298,7 +298,12 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { canWrite } from '@/auth.js'
-import { reloadOrgs } from '@/orgs.js'   // 组织增删改后刷新各表单"所属组织"下拉的共享缓存
+// 六轮 #3/#4 修复：登记资产/ROPA 弹窗的「所属组织」下拉此前只 import 了 reloadOrgs，
+// 模板里引用的 orgOptions/orgLabel 未定义导致下拉恒空——补齐共享组织缓存的接入
+import { reloadOrgs, useOrgs, orgLabel } from '@/orgs.js'
+
+// 各表单「所属组织」下拉的数据源（全局共享缓存，首次调用触发加载）
+const orgOptions = useOrgs()
 
 // ---- Tab 切换（顺序照搬原型 tabbar：组织架构 / 资产台账 / ROPA）----
 const tabs = ['org', 'asset', 'ropa']

@@ -135,10 +135,24 @@
             </div>
           </div>
           <div v-if="selectedId" class="cb" style="padding-top:0">
-            <div v-for="m in maps" :key="m.id" class="map-row">
-              <span class="pill">{{ m.clause || '整篇' }}</span>
-              <span class="map-p">→ {{ policyName(m.policyId) }}</span>
-              <span class="muted">{{ m.note }}</span>
+            <div v-for="m in maps" :key="m.id">
+              <div class="map-row">
+                <span class="pill">{{ m.clause || '整篇' }}</span>
+                <span class="map-p">→ {{ policyName(m.policyId) }}</span>
+                <span class="muted">{{ m.note }}</span>
+                <!-- 六轮 #6：AI 符合度评估（结论徽标 + 需重评标记 + 详情展开）-->
+                <span style="margin-left:auto;display:flex;gap:6px;align-items:center">
+                  <span v-if="m.assessVerdict" class="verdict" :class="VD_CLS[m.assessVerdict] || 'vd-p'">{{ m.assessVerdict }}</span>
+                  <span v-if="m.assessStale" class="verdict vd-stale" title="法规已再变更，结论可能过期">需重评</span>
+                  <button v-if="m.assessDetail" class="mini" @click="assessOpen = assessOpen === m.id ? 0 : m.id">{{ assessOpen === m.id ? '收起' : '详情' }}</button>
+                  <button class="mini" :disabled="!canWrite('law') || assessBusy === m.id" @click="assessMap(m)">{{ assessBusy === m.id ? '评估中…' : (m.assessVerdict ? '重新评估' : '⚡ 符合度评估') }}</button>
+                </span>
+              </div>
+              <div v-if="assessErr[m.id]" class="hint" style="color:var(--danger);padding:4px 10px">{{ assessErr[m.id] }}</div>
+              <div v-if="assessOpen === m.id && m.assessDetail" class="suggest-box" style="margin:4px 0 10px">
+                <div class="sg-h">⚡ AI 符合度评估（{{ (m.assessedAt || '').slice(0, 10) }} · 初稿须人工复核）</div>
+                <pre class="sg-body">{{ m.assessDetail }}</pre>
+              </div>
             </div>
             <div v-if="!maps.length" class="hint" style="padding:10px">暂无映射，点「⚡ AI 匹配建议」由 AI 初筛，或「＋ 登记映射」手工关联。</div>
             <div v-if="suggestion" class="suggest-box">
@@ -305,6 +319,20 @@ async function loadPolicies() {
   try { policies.value = await api.get('/policies') } catch (e) { policies.value = [] }
 }
 const policyName = (id) => { const p = policies.value.find((x) => x.id === id); return p ? p.code + ' · ' + p.title : '制度 #' + id }
+
+// ===== 六轮 #6：AI 符合度评估（对单条映射比对法规要求与制度全文，结论+差距+建议落库）=====
+const assessBusy = ref(0)
+const assessOpen = ref(0)
+const assessErr = reactive({})
+const VD_CLS = { 符合: 'vd-ok', 部分符合: 'vd-mid', 不符合: 'vd-bad', 待复核: 'vd-p' }
+async function assessMap(m) {
+  assessBusy.value = m.id; assessErr[m.id] = ''
+  try {
+    await api.post('/regulations/policy-maps/' + m.id + '/assess', {})
+    await loadMaps()
+    assessOpen.value = m.id
+  } catch (e) { assessErr[m.id] = e.message } finally { assessBusy.value = 0 }
+}
 
 // ===== AI 匹配建议（V49 · POLICY_MAP 场景：只出建议不落库，人工确认后登记映射）=====
 const suggestion = ref(null)
@@ -509,4 +537,13 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .suggest-box { margin-top: 10px; border: 1px dashed var(--accent); border-radius: var(--radius-md); overflow: hidden; }
 .suggest-box .sg-h { padding: 8px 12px; font-size: 11.5px; font-weight: 700; color: var(--accent-strong); background: var(--accent-weak); }
 .suggest-box .sg-body { margin: 0; padding: 10px 12px; font-size: 12.5px; font-family: inherit; white-space: pre-wrap; line-height: 1.7; color: var(--text-2); }
+/* 六轮 #6：符合度结论徽标 + 小按钮 */
+.verdict { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.vd-ok { color: var(--success); background: color-mix(in srgb, var(--success) 12%, transparent); }
+.vd-mid { color: #a87d22; background: color-mix(in srgb, #a87d22 12%, transparent); }
+.vd-bad { color: var(--danger); background: var(--danger-tint, color-mix(in srgb, var(--danger) 12%, transparent)); }
+.vd-p { color: var(--text-3); background: var(--surface-2, var(--bg)); border: 1px solid var(--surface-border); }
+.vd-stale { color: var(--warning); border: 1px dashed var(--warning); background: none; }
+.mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; }
+.mini:hover { background: var(--accent-tint, var(--accent-weak)); }
 </style>

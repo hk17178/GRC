@@ -21,5 +21,6 @@ public record NotificationView(
         long createdAtMs,
         long mergedCount,
         String readBy,
-        long readAtMs) {
+        long readAtMs,
+        String message) {
 }

@@ -260,6 +260,57 @@
         </div>
       </div>
 
+      <!-- ========== Tab1.5 · 风险登记册（六轮 #2/#5：ISO 31000 组织级风险台账，跨评估聚合 + 处置追踪）========== -->
+      <div v-show="activeTab === 'register'" class="tabpane">
+        <!-- 登记册 KPI -->
+        <div class="kpibar k5">
+          <div class="kc"><div class="l">风险总数</div><div class="v">{{ regRows.length }}</div></div>
+          <div class="kc"><div class="l">待处置</div><div class="v" style="color: var(--warning)">{{ regCount('OPEN') }}</div></div>
+          <div class="kc"><div class="l">处置中</div><div class="v">{{ regCount('IN_TREATMENT') }}</div></div>
+          <div class="kc"><div class="l">已关闭</div><div class="v" style="color: var(--success)">{{ regClosed }}</div></div>
+          <div class="kc"><div class="l">高/极高残余</div><div class="v" style="color: var(--danger)">{{ regHigh }}</div></div>
+        </div>
+
+        <!-- 风险准则卡（组织级评估准则，ISO 27005 风险准则要求）-->
+        <div class="card" style="margin-bottom: 14px">
+          <div class="ch"><h3>风险准则（组织级）</h3></div>
+          <div class="cb" style="padding-top: 4px">
+            <p style="margin: 0; font-size: 12.5px; line-height: 1.8; color: var(--text-2)">
+              可能性五级 × 影响五级 → 风险矩阵定级（极低/低/中/高/极高）；残余风险为高/极高的发现，
+              须经管理层「风险接受」批准方可关闭（CR-002 红线）；各评估任务的具体准则在其「评估背景」中登记。
+            </p>
+          </div>
+        </div>
+
+        <!-- 台账（筛选 + 表格；行点击进入来源评估下钻）-->
+        <div class="card">
+          <div class="ch"><h3>风险登记册</h3><span class="cnt">{{ regFiltered.length }}</span>
+            <div style="margin-left: auto; display: flex; gap: 8px">
+              <select v-model="regFltLevel" class="selmini"><option value="">全部等级</option><option v-for="l in DRILL_LV" :key="l[0]" :value="l[0]">{{ l[1] }}</option></select>
+              <select v-model="regFltStatus" class="selmini"><option value="">全部状态</option><option value="OPEN">待处置</option><option value="IN_TREATMENT">处置中</option><option value="DONE">已处置</option><option value="VERIFIED">已验证</option></select>
+            </div>
+          </div>
+          <div class="cb" style="padding-top: 0">
+            <table>
+              <thead><tr><th>#</th><th>风险发现</th><th>来源评估</th><th>固有</th><th>残余</th><th>处置方式</th><th>状态</th><th>更新时间</th></tr></thead>
+              <tbody>
+                <tr v-for="r in regFiltered" :key="r.id" style="cursor: pointer" @click="regGoAssessment(r)">
+                  <td class="num">{{ r.id }}</td>
+                  <td><b>{{ r.title }}</b></td>
+                  <td style="color: var(--text-2)">{{ r.assessmentTitle }}</td>
+                  <td><span v-if="r.inherentLevel" class="tag" :class="riskCls(r.inherentLevel)">{{ lvText(r.inherentLevel) }}</span><span v-else>—</span></td>
+                  <td><span v-if="r.residualLevel" class="tag" :class="riskCls(r.residualLevel)">{{ lvText(r.residualLevel) }}</span><span v-else>—</span></td>
+                  <td>{{ TD_LABEL[r.treatmentDecision] || '—' }}</td>
+                  <td><span class="st" :class="REG_ST_CLS[r.status]"><span class="d"></span>{{ REG_ST_TXT[r.status] || r.status }}</span></td>
+                  <td class="num">{{ (r.updatedAt || '').slice(0, 10) }}</td>
+                </tr>
+                <tr v-if="!regFiltered.length"><td colspan="8" style="text-align: center; padding: 18px; color: var(--text-2)">暂无符合条件的风险发现——发起评估并登记风险后，将自动汇入登记册。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
       <!-- ========== Tab2 · 模板库（真实后端 GET /api/assessment-templates）========== -->
       <div v-show="activeTab === 'templates'" class="tabpane">
         <div class="tpls">
@@ -286,6 +337,8 @@
             <div class="fb-actions" style="margin-top:8px">
               <button class="btn ghost sm" @click="openTplDetail(t)">预览详情</button>
               <button class="btn ghost sm" :disabled="!canWriteRisk" @click="openTplClone(t)">克隆</button>
+              <!-- 六轮 #1：内置模板（owner=platform）是集团基线不可删；自建/克隆可删（被评估引用时后端拒绝并提示） -->
+              <button v-if="t.owner !== 'platform'" class="mini danger" :disabled="!canWriteRisk" @click="deleteTpl(t)">删除</button>
             </div>
           </div>
           <!-- 新建体系模板（虚线卡 → 真实创建弹窗） -->
@@ -979,7 +1032,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import AssessmentFormFill from '@/components/AssessmentFormFill.vue'
 import AssessmentSignoff from '@/components/AssessmentSignoff.vue'
@@ -989,7 +1042,7 @@ const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 // ---- Tab 切换 ----
-const tabs = ['tasks', 'templates', 'controls', 'kri', 'atv']
+const tabs = ['tasks', 'register', 'templates', 'controls', 'kri', 'atv']
 const activeTab = ref('tasks')
 
 // ---- 下钻：评估报告视图开关（点击任务行进入，← 返回）----
@@ -1687,6 +1740,48 @@ const drillLevelDist = computed(() => {
   return DRILL_LV.filter(([k]) => cnt[k]).map(([k, l, c]) => ({ l, v: cnt[k], w: Math.round(cnt[k] * 100 / max) + '%', c }))
 })
 
+// ===== 六轮 #2/#5 · 风险登记册（组织级台账，GET /api/risk-findings/register）=====
+const regRows = ref([])
+const regFltLevel = ref('')
+const regFltStatus = ref('')
+const LV_TXT = { VERY_HIGH: '极高', HIGH: '高', MID: '中', LOW: '低', VERY_LOW: '极低' }
+const lvText = (lv) => LV_TXT[lv] || lv
+const REG_ST_TXT = { OPEN: '待处置', IN_TREATMENT: '处置中', DONE: '已处置', VERIFIED: '已验证' }
+const REG_ST_CLS = { OPEN: 'wait', IN_TREATMENT: 'doing', DONE: 'ok', VERIFIED: 'ok' }
+const regFiltered = computed(() => regRows.value.filter((r) => {
+  const lv = r.residualLevel || r.inherentLevel
+  if (regFltLevel.value && lv !== regFltLevel.value) return false
+  if (regFltStatus.value && r.status !== regFltStatus.value) return false
+  return true
+}))
+const regCount = (st) => regRows.value.filter((r) => r.status === st).length
+const regClosed = computed(() => regRows.value.filter((r) => r.status === 'DONE' || r.status === 'VERIFIED').length)
+const regHigh = computed(() => regRows.value.filter((r) => {
+  const lv = r.residualLevel || r.inherentLevel
+  return lv === 'HIGH' || lv === 'VERY_HIGH'
+}).length)
+async function loadRegister() {
+  try { regRows.value = await api.get('/risk-findings/register') } catch (e) { regRows.value = [] }
+}
+// 切到登记册标签即刷新（发现在下钻页流转后回来能看到最新状态）
+watch(activeTab, (t) => { if (t === 'register') loadRegister() })
+// 点行跳到来源评估的下钻详情
+function regGoAssessment(r) {
+  const t = liveTasks.value.find((x) => x.id === r.assessmentId)
+  if (t) drillInto(t)
+}
+
+// ===== 六轮 #1 · 模板删除（内置不可删由 v-if 隐藏；被引用后端拒绝并提示走停用）=====
+async function deleteTpl(t) {
+  if (!window.confirm(`确认删除模板「${t.name}」？被评估任务引用的模板将无法删除（请改用停用）。`)) return
+  try {
+    await api.del('/assessment-templates/' + t.id)
+    templates.value = await api.get('/assessment-templates')
+  } catch (e) {
+    window.alert(e.message)
+  }
+}
+
 </script>
 
 <style scoped>
@@ -2333,6 +2428,10 @@ td.ops {
 .scope-row { display: flex; align-items: center; gap: 9px; padding: 8px 2px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
 .scope-row:last-child { border-bottom: 0; }
 .selmini { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; max-width: 220px; }
+/* 小操作按钮（与通知中心等页同款；danger 悬停变红提示破坏性操作） */
+.mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; margin-right: 4px; }
+.mini:hover { background: var(--accent-tint); }
+.mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 .mini-x { border: 0; background: none; color: var(--text-3); font-size: 11px; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
 .mini-x:hover { color: var(--danger); background: var(--danger-tint); }
 .mini-a { font-size: 11px; color: var(--accent-strong); text-decoration: none; padding: 2px 8px; border: 1px solid var(--surface-border); border-radius: 6px; }

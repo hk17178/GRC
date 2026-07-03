@@ -117,6 +117,30 @@ public class PolicyController {
         return service.versions(id);
     }
 
+    /** 上传制度原件 .docx（六轮 #6）：提取全文写 content，原件 sha256 固化留档。 */
+    @PostMapping("/{id}/document")
+    @RequiresPermission("policy")
+    public Policy uploadDocument(@PathVariable Long id,
+                                 @org.springframework.web.bind.annotation.RequestParam("file")
+                                 org.springframework.web.multipart.MultipartFile file,
+                                 @RequestHeader(value = "X-User", required = false) String user)
+            throws java.io.IOException {
+        return service.uploadDocument(id, file.getOriginalFilename(), file.getBytes(), actor(user));
+    }
+
+    /** 下载制度原件（六轮 #6）。 */
+    @GetMapping("/{id}/document")
+    public org.springframework.http.ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
+        Policy p = service.getWithDocument(id);
+        String fn = java.net.URLEncoder.encode(p.getDocName() == null ? "policy.docx" : p.getDocName(),
+                java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename*=UTF-8''" + fn)
+                .header("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+                .body(p.getDocBytes());
+    }
+
     /** 添加引用关系。 */
     @PostMapping("/{id}/refs")
     @RequiresPermission("policy")

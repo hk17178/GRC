@@ -49,18 +49,25 @@
         </div>
       </div>
 
-      <!-- 通知规则 -->
+      <!-- 通知规则（六轮 #7：可执行规则引擎——数据源+条件+内容模板，内核每 15 分钟自动评估）-->
       <div v-show="tab === 'rule'" class="card">
-        <div class="ch"><h3>通知规则</h3><span class="cnt">{{ rules.length }}</span><span class="sub">触发事件 → 级别 → 通道</span></div>
+        <div class="ch"><h3>通知规则</h3><span class="cnt">{{ rules.length }}</span>
+          <span class="sub">数据源 + 条件 → 渲染内容模板 → 产告警（幂等去重）</span>
+          <button class="btn ghost sm" style="margin-left:12px" :disabled="!canWrite('notify') || engineBusy" @click="runEngine">{{ engineBusy ? '评估中…' : '▶ 立即评估一轮' }}</button>
+          <span v-if="engineMsg" class="ackd" style="margin-left:8px">{{ engineMsg }}</span>
+        </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <table style="min-width:620px">
-            <thead><tr><th>规则</th><th>触发事件</th><th>级别</th><th>通道</th><th>状态</th><th></th></tr></thead>
+          <table style="min-width:760px">
+            <thead><tr><th>规则</th><th>数据源</th><th>条件</th><th>内容模板</th><th>状态</th><th></th></tr></thead>
             <tbody>
               <tr v-for="c in rules" :key="c.id">
                 <td><b>{{ c.name }}</b></td>
-                <td class="muted">{{ d(c).triggerEvent || '—' }}</td>
-                <td><span class="tag" :class="d(c).level === 'URGENT' ? 'h' : ''">{{ LV_LABEL[d(c).level] || '普通' }}</span></td>
-                <td><span class="pill">{{ CH_LABEL[d(c).channel] || d(c).channel || '—' }}</span></td>
+                <td>
+                  <span v-if="SRC[d(c).source]" class="pill">{{ SRC[d(c).source].label }}</span>
+                  <span v-else class="tag h">旧格式（引擎不评估）</span>
+                </td>
+                <td class="muted" style="white-space:nowrap">{{ condText(c) }}</td>
+                <td class="muted" style="max-width:320px">{{ d(c).template || '—' }}</td>
                 <td>{{ statusCell(c) }}</td>
                 <td class="ops"><template v-if="canWrite('notify')">
                   <button class="mini" @click="toggle(c)">{{ c.enabled ? '停用' : '启用' }}</button>
@@ -70,6 +77,9 @@
               <tr v-if="!rules.length"><td colspan="6" class="emptyrow">暂无通知规则，点「＋ 新建通知规则」。</td></tr>
             </tbody>
           </table>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">
+            引擎由调度内核每 15 分钟自动评估一轮；同一对象同一规则只告警一次（幂等台账）。触发结果见「提醒记录」。
+          </div>
         </div>
       </div>
 
@@ -101,13 +111,13 @@
         <div class="ch"><h3>{{ $t('notify.listTitle') }}</h3><span class="cnt">{{ items.length }}</span></div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
           <table style="min-width:820px">
-            <thead><tr><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.threshold') }}</th><th>{{ $t('notify.th.receipt') }}</th></tr></thead>
+            <thead><tr><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>内容</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.receipt') }}</th></tr></thead>
             <tbody>
               <tr v-for="n in items" :key="n.id">
                 <td class="num">{{ fmtTime(n.createdAtMs) }}</td>
                 <td><span class="evt">{{ n.eventType }}</span><span v-if="n.mergedCount > 1" class="merge" :title="$t('notify.mergeTip')">×{{ n.mergedCount }}</span></td>
+                <td class="muted" style="max-width:340px">{{ n.message || '—' }}</td>
                 <td class="code">{{ n.objectType }}:{{ n.objectId }}</td>
-                <td class="num">{{ n.thresholdKey }}</td>
                 <td>
                   <span v-if="n.readBy" class="ackd">✓ {{ n.readBy }} · {{ fmtTime(n.readAtMs) }}</span>
                   <button v-else class="mini" @click="ack(n)">{{ $t('notify.ack') }}</button>
@@ -155,9 +165,17 @@
             <label class="fld">通道<select v-model="f.channel"><option value="WECOM">企微</option><option value="EMAIL">邮件</option><option value="SMS">短信</option></select></label>
           </template>
           <template v-else-if="tab === 'rule'">
-            <label class="fld">触发事件<input v-model="f.triggerEvent" placeholder="如 整改任务超期未闭环" /></label>
-            <label class="fld">级别<select v-model="f.level"><option value="NORMAL">普通</option><option value="URGENT">紧急</option></select></label>
-            <label class="fld">通道<select v-model="f.channel"><option value="EMAIL">邮件</option><option value="SMS">短信</option><option value="WECOM">企微</option></select></label>
+            <label class="fld">数据源（监控对象）
+              <select v-model="f.source"><option v-for="(s, k) in SRC" :key="k" :value="k">{{ s.label }} — {{ s.desc }}</option></select>
+            </label>
+            <label v-if="SRC[f.source] && SRC[f.source].needDays" class="fld">{{ SRC[f.source].condLabel }}
+              <input v-model.number="f.days" type="number" min="1" />
+            </label>
+            <label class="fld">通道<select v-model="f.channel"><option value="INBOX">站内通知</option><option value="EMAIL">邮件</option><option value="WECOM">企微</option></select></label>
+            <label class="fld">内容模板（变量用花括号引用）
+              <textarea v-model="f.template" rows="3" style="display:block;width:100%;margin-top:5px;padding:8px 11px;border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-1);font-size:13px;font-family:inherit;line-height:1.6;outline:none;box-sizing:border-box"></textarea>
+            </label>
+            <div style="font-size:11px;color:var(--text-3);margin:-6px 0 12px">可用变量：{{ SRC[f.source] ? SRC[f.source].vars : '' }}</div>
           </template>
           <template v-else>
             <label class="fld">类型<select v-model="f.type"><option value="EMAIL">邮件</option><option value="SMS">短信</option><option value="WECOM">企微</option></select></label>
@@ -177,7 +195,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
@@ -185,9 +203,27 @@ const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const KIND_LABEL = { scenario: '通知场景', rule: '通知规则', channel: '通道' }
-const CH_LABEL = { EMAIL: '邮件', SMS: '短信', WECOM: '企微' }
-const LV_LABEL = { NORMAL: '普通', URGENT: '紧急' }
+const CH_LABEL = { EMAIL: '邮件', SMS: '短信', WECOM: '企微', INBOX: '站内' }
 const KIND_API = { scenario: 'SCENARIO', rule: 'RULE', channel: 'CHANNEL' }
+
+// 六轮 #7：规则引擎支持的数据源（与后端 NotifyRuleEngine 对齐）
+const SRC = {
+  REMEDIATION_OVERDUE: { label: '整改逾期', desc: '整改单过期未提交', needDays: false, condLabel: '', vars: '{标题} {逾期天数} {责任人}',
+    tpl: '整改单「{标题}」已逾期 {逾期天数} 天（责任人：{责任人}），请尽快处理。' },
+  ASSESSMENT_STALLED: { label: '评估复核滞留', desc: '评估待复核超时', needDays: true, condLabel: '滞留超过（天）', vars: '{标题} {滞留天数}',
+    tpl: '风险评估「{标题}」待复核已滞留 {滞留天数} 天，请复核人尽快处理。' },
+  REG_NEW: { label: '法规新采集', desc: '追踪源新采集条目', needDays: true, condLabel: '采集窗口（近 N 天）', vars: '{标题} {发布机构}',
+    tpl: '追踪源新采集法规「{标题}」（{发布机构}），请评估适用性。' },
+  KRI_BREACH: { label: 'KRI 触阈', desc: '指标触及预警/严重阈值', needDays: false, condLabel: '', vars: '{指标} {数值} {单位} {级别}',
+    tpl: '关键风险指标「{指标}」最新值 {数值}{单位} 触及【{级别}】阈值，请核查。' }
+}
+const condText = (c) => {
+  const dd = d(c)
+  if (!SRC[dd.source]) return '—'
+  if (dd.source === 'ASSESSMENT_STALLED') return '滞留 > ' + (dd.days || 0) + ' 天'
+  if (dd.source === 'REG_NEW') return '近 ' + (dd.days || 1) + ' 天采集'
+  return '命中即报'
+}
 
 const tab = ref('scenario')
 const scenarios = ref([])
@@ -234,15 +270,30 @@ async function del(c) {
 const showAdd = ref(false)
 const addSaving = ref(false)
 const addErr = ref('')
-const f = reactive({ name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: 'WECOM', triggerEvent: '', level: 'NORMAL', type: 'EMAIL', target: '' })
+const f = reactive({ name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: 'WECOM', type: 'EMAIL', target: '', source: 'REMEDIATION_OVERDUE', days: 3, template: SRC.REMEDIATION_OVERDUE.tpl })
 function openAdd() {
-  Object.assign(f, { name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: tab.value === 'rule' ? 'EMAIL' : 'WECOM', triggerEvent: '', level: 'NORMAL', type: 'EMAIL', target: '' })
+  Object.assign(f, { name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: tab.value === 'rule' ? 'INBOX' : 'WECOM', type: 'EMAIL', target: '', source: 'REMEDIATION_OVERDUE', days: 3, template: SRC.REMEDIATION_OVERDUE.tpl })
   addErr.value = ''; showAdd.value = true
 }
+// 切换数据源时带出该源的默认模板（用户可再改）
+watch(() => f.source, (s) => { if (SRC[s]) f.template = SRC[s].tpl })
 function buildDetail() {
   if (tab.value === 'scenario') return JSON.stringify({ trigger: f.trigger, receiver: f.receiver, contentPoints: f.contentPoints, channel: f.channel })
-  if (tab.value === 'rule') return JSON.stringify({ triggerEvent: f.triggerEvent, level: f.level, channel: f.channel })
+  if (tab.value === 'rule') return JSON.stringify({ source: f.source, days: f.days || 0, channel: f.channel, template: f.template })
   return JSON.stringify({ type: f.type, target: f.target })
+}
+
+// ===== 六轮 #7：手动触发一轮规则评估（平时由内核每 15 分钟自动跑）=====
+const engineBusy = ref(false)
+const engineMsg = ref('')
+async function runEngine() {
+  engineBusy.value = true; engineMsg.value = ''
+  try {
+    const r = await api.post('/notify/configs/run-engine', {})
+    engineMsg.value = '本轮新产 ' + r.produced + ' 条告警' + (r.produced ? '（见提醒记录）' : '（无新命中或均已告警过）')
+    await loadLog()
+    setTimeout(() => (engineMsg.value = ''), 5000)
+  } catch (e) { engineMsg.value = e.message } finally { engineBusy.value = false }
 }
 async function submitAdd() {
   addSaving.value = true; addErr.value = ''
@@ -262,6 +313,7 @@ onMounted(() => { loadAll(); loadLog() })
 .phead .sp { flex: 1; }
 .btn { display: inline-flex; align-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #fff; border: 0; border-radius: var(--radius-md); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-1); }
 .btn.ghost { background: var(--bg); color: var(--text-2); border: 1px solid var(--surface-border); }
+.btn.sm { padding: 5px 10px; font-size: 11.5px; box-shadow: none; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
 .tabbar { display: flex; gap: 6px; margin-bottom: 14px; border-bottom: 1px solid var(--surface-border); }
 .tabbar button { border: 0; background: none; color: var(--text-2); font-size: 13px; font-weight: 600; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; font-family: inherit; }
