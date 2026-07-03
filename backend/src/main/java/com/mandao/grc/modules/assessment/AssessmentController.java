@@ -23,9 +23,15 @@ import java.util.List;
 public class AssessmentController {
 
     private final AssessmentService service;
+    private final com.mandao.grc.common.auth.AppUserRepository userRepo;
+    private final org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
 
-    public AssessmentController(AssessmentService service) {
+    public AssessmentController(AssessmentService service,
+                                com.mandao.grc.common.auth.AppUserRepository userRepo,
+                                org.springframework.security.crypto.password.PasswordEncoder passwordEncoder) {
         this.service = service;
+        this.userRepo = userRepo;
+        this.passwordEncoder = passwordEncoder;
     }
 
     /** 列出当前主体可见组织范围内的评估。 */
@@ -81,14 +87,52 @@ public class AssessmentController {
         return service.complete(id, actor(user));
     }
 
-    /** 管理层签批：记录意见 + 是否接受残余风险（放行高/极高残余评估的完成门控）。 */
+    /**
+     * 管理层签批（V55 可信度增强）：
+     *  - 身份再认证：须重输登录密码，后端 BCrypt 校验（防止他人用已登录会话冒签）；
+     *  - 手写签名存证：canvas 签名 PNG（dataURL）落库 + sha256 入哈希链。
+     */
     @PostMapping("/{id}/signoff")
     @RequiresPermission("risk")
     public Assessment signoff(@PathVariable Long id,
                              @RequestBody SignoffRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
-        return service.signOff(id, actor(user), req == null ? null : req.opinion(),
-                req != null && req.accepted());
+        String signer = actor(user);
+        // 身份再认证：签批人重输密码
+        if (req == null || req.password() == null || req.password().isBlank()) {
+            throw new IllegalArgumentException("签批须重新输入登录密码进行身份确认");
+        }
+        var appUser = userRepo.findByUsername(signer)
+                .orElseThrow(() -> new IllegalArgumentException("签批人账号不存在：" + signer));
+        if (!passwordEncoder.matches(req.password(), appUser.getPasswordHash())) {
+            throw new IllegalArgumentException("密码校验失败，签批身份确认未通过");
+        }
+        // 手写签名（可选但强烈建议）：dataURL → PNG 字节
+        byte[] signature = null;
+        if (req.signatureDataUrl() != null && !req.signatureDataUrl().isBlank()) {
+            String b64 = req.signatureDataUrl();
+            int comma = b64.indexOf(',');
+            if (comma >= 0) {
+                b64 = b64.substring(comma + 1);
+            }
+            signature = java.util.Base64.getDecoder().decode(b64);
+            if (signature.length > 512 * 1024) {
+                throw new IllegalArgumentException("签名图过大（>512KB）");
+            }
+        }
+        return service.signOff(id, signer, req.opinion(), req.accepted(), signature);
+    }
+
+    /** 查看签批手写签名图（存证核验）。 */
+    @GetMapping("/{id}/signature")
+    public org.springframework.http.ResponseEntity<byte[]> signature(@PathVariable Long id) {
+        Assessment a = service.get(id);
+        if (a.getMgmtSignature() == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Type", "image/png")
+                .body(a.getMgmtSignature());
     }
 
     /**
@@ -157,7 +201,7 @@ public class AssessmentController {
     public record RejectRequest(String reason) {
     }
 
-    /** 管理层签批请求体。 */
-    public record SignoffRequest(String opinion, boolean accepted) {
+    /** 管理层签批请求体（V55：password 身份再认证必填；signatureDataUrl 手写签名 PNG dataURL 可选）。 */
+    public record SignoffRequest(String opinion, boolean accepted, String password, String signatureDataUrl) {
     }
 }

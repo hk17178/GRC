@@ -635,44 +635,6 @@
           </div>
         </div>
       </div>
-    </section>
-
-    <!-- ============ 下钻视图：评估报告（固有/残余风险 + 管理层接受） ============ -->
-    <section v-show="drill" class="view view-risk">
-      <div class="phead">
-        <div>
-          <span class="bk" @click="drill = false">{{ $t('risk.report.back') }}</span>
-          <div class="kqt">RA-{{ drillId }} · {{ $t('risk.tag') }}</div>
-          <h1>{{ drillTitle || $t('risk.report.title') }}</h1>
-        </div>
-        <div class="sp"></div>
-        <span v-if="exportError" class="cerr" style="margin-right: 10px">{{ exportError }}</span>
-        <!-- 表单引擎 P3：回填上传模板 → 导出 Word/PDF（格式同官方模板，可交审计） -->
-        <button class="btn ghost" @click="exportRtp">导出 RTP</button>
-        <button class="btn ghost" :disabled="!!exporting" @click="exportReport('docx')">
-          {{ exporting === 'docx' ? '导出中…' : '导出 Word' }}
-        </button>
-        <button class="btn" :disabled="!!exporting" @click="exportReport('pdf')">
-          {{ exporting === 'pdf' ? '导出中…' : '导出 PDF' }}
-        </button>
-      </div>
-
-      <!-- R1 · 报告第一节：评估背景（背景建立元数据，终态冻结）-->
-      <div class="card" style="margin-bottom:14px">
-        <div class="ch"><h3>一、评估背景</h3><span class="sub">范围 · 目的 · 依据 · 方法 · 准则（ISO 27005 / GB/T 20984 背景建立）</span>
-          <button v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" class="btn ghost sm" style="margin-left:auto" @click="openCtxEdit">编辑背景</button>
-        </div>
-        <div class="cb ctxgrid" v-if="drillMeta">
-          <div class="ctxrow"><span class="ck">评估范围</span><span class="cv">{{ drillMeta.scope || '—（未填写，编辑背景补齐）' }}</span></div>
-          <div class="ctxrow"><span class="ck">评估目的</span><span class="cv">{{ drillMeta.objective || '—' }}</span></div>
-          <div class="ctxrow"><span class="ck">依据标准</span><span class="cv"><template v-if="drillMeta.basis"><span v-for="b in drillMeta.basis.split(',')" :key="b" class="pill" style="margin-right:5px">{{ basisLabel(b) }}</span></template><template v-else>—</template></span></div>
-          <div class="ctxrow"><span class="ck">方式方法</span><span class="cv"><template v-if="drillMeta.methods"><span v-for="m in drillMeta.methods.split(',')" :key="m" class="pill" style="margin-right:5px">{{ methodLabel(m) }}</span></template><template v-else>—</template></span></div>
-          <div class="ctxrow"><span class="ck">评估准则</span><span class="cv">{{ drillMeta.criteria || '—' }}</span></div>
-          <div class="ctxrow"><span class="ck">评估组</span><span class="cv">{{ drillMeta.team || '—' }}</span></div>
-          <div class="ctxrow"><span class="ck">评估期间</span><span class="cv">{{ (drillMeta.startDate || '?') + ' ~ ' + (drillMeta.endDate || '?') }}</span></div>
-        </div>
-      </div>
-
       <!-- 模板详情抽屉（R4 模板中心：条款预览 + 表单版本 + 两层关系说明）-->
       <div v-if="tplDetail" class="modal-mask" @click.self="tplDetail = null">
         <div class="modal-card wide" style="width:720px">
@@ -747,6 +709,44 @@
             <button class="btn ghost" @click="toFindingTarget = null">{{ $t('common.cancel') }}</button>
             <button class="btn" :disabled="!toFindingAssessmentId || toFindingBusy" @click="submitToFinding">{{ toFindingBusy ? $t('common.submitting') : '生成发现' }}</button>
           </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============ 下钻视图：评估报告（固有/残余风险 + 管理层接受） ============ -->
+    <section v-show="drill" class="view view-risk">
+      <div class="phead">
+        <div>
+          <span class="bk" @click="drill = false">{{ $t('risk.report.back') }}</span>
+          <div class="kqt">RA-{{ drillId }} · {{ $t('risk.tag') }}</div>
+          <h1>{{ drillTitle || $t('risk.report.title') }}</h1>
+        </div>
+        <div class="sp"></div>
+        <span v-if="exportError" class="cerr" style="margin-right: 10px">{{ exportError }}</span>
+        <!-- 表单引擎 P3：回填上传模板 → 导出 Word/PDF（格式同官方模板，可交审计） -->
+        <button class="btn ghost" @click="exportRtp">导出 RTP</button>
+        <button class="btn ghost" :disabled="!!exporting" @click="exportReport('docx')">
+          {{ exporting === 'docx' ? '导出中…' : '导出 Word' }}
+        </button>
+        <button class="btn" :disabled="!!exporting" @click="exportReport('pdf')">
+          {{ exporting === 'pdf' ? '导出中…' : '导出 PDF' }}
+        </button>
+      </div>
+
+      <!-- R1 · 报告第一节：评估背景（背景建立元数据，终态冻结）-->
+      <div class="card" style="margin-bottom:14px">
+        <div class="ch"><h3>一、评估背景</h3><span class="sub">范围 · 目的 · 依据 · 方法 · 准则（ISO 27005 / GB/T 20984 背景建立）</span>
+          <button v-if="canWriteRisk && drillMeta && drillMeta.status !== 'COMPLETED'" class="btn ghost sm" style="margin-left:auto" @click="openCtxEdit">编辑背景</button>
+        </div>
+        <div class="cb ctxgrid" v-if="drillMeta">
+          <div class="ctxrow"><span class="ck">评估范围</span><span class="cv">{{ drillMeta.scope || '—（未填写，编辑背景补齐）' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估目的</span><span class="cv">{{ drillMeta.objective || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">依据标准</span><span class="cv"><template v-if="drillMeta.basis"><span v-for="b in drillMeta.basis.split(',')" :key="b" class="pill" style="margin-right:5px">{{ basisLabel(b) }}</span></template><template v-else>—</template></span></div>
+          <div class="ctxrow"><span class="ck">方式方法</span><span class="cv"><template v-if="drillMeta.methods"><span v-for="m in drillMeta.methods.split(',')" :key="m" class="pill" style="margin-right:5px">{{ methodLabel(m) }}</span></template><template v-else>—</template></span></div>
+          <div class="ctxrow"><span class="ck">评估准则</span><span class="cv">{{ drillMeta.criteria || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估组</span><span class="cv">{{ drillMeta.team || '—' }}</span></div>
+          <div class="ctxrow"><span class="ck">评估期间</span><span class="cv">{{ (drillMeta.startDate || '?') + ' ~ ' + (drillMeta.endDate || '?') }}</span></div>
         </div>
       </div>
 
@@ -2282,10 +2282,13 @@ td.ops {
 .modal-card.wide { width: 640px; max-height: 88vh; overflow-y: auto; }
 .stepdot { margin-left: 10px; font-size: 11px; font-weight: 600; color: var(--accent-strong); background: var(--accent-weak); border-radius: 999px; padding: 2px 10px; vertical-align: middle; }
 .modal-card .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }
-.chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 7px; }
-.chip { display: inline-flex; align-items: center; padding: 4px 12px; border: 1px solid var(--surface-border); border-radius: 999px; font-size: 12px; color: var(--text-2); cursor: pointer; background: var(--bg); user-select: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 7px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); font-size: 12px; font-weight: 500; color: var(--text-2); cursor: pointer; background: var(--bg); user-select: none; transition: border-color .12s, background .12s, color .12s; }
+.chip:hover { border-color: var(--accent); color: var(--accent-strong); }
 .chip input { display: none; }
-.chip.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+.chip::before { content: ''; width: 12px; height: 12px; border: 1px solid var(--surface-border); border-radius: 4px; background: var(--surface); flex-shrink: 0; box-sizing: border-box; transition: all .12s; }
+.chip.on { background: var(--accent-weak); color: var(--accent-strong); border-color: var(--accent); font-weight: 600; }
+.chip.on::before { content: '✓'; display: inline-flex; align-items: center; justify-content: center; font-size: 9px; line-height: 1; color: #fff; background: var(--accent); border-color: var(--accent); }
 .fld-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .ctxgrid { padding-top: 6px; }
 .ctxrow { display: flex; gap: 12px; padding: 7px 0; border-bottom: 1px dashed var(--border-subtle); font-size: 12.5px; }

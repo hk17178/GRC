@@ -28,17 +28,24 @@
           ⚠ 残余风险为{{ detail.riskLevel === 'VERY_HIGH' ? '极高' : '高' }}，需管理层接受签批后方可完成评估。
         </div>
 
-        <!-- 已签批：展示 -->
+        <!-- 已签批：展示（含手写签名图与指纹存证） -->
         <div v-if="detail.mgmtSigner" class="signed">
-          <div class="srow"><span class="k">签批人</span>{{ detail.mgmtSigner }}</div>
+          <div class="srow"><span class="k">签批人</span>{{ detail.mgmtSigner }}<span class="verify">✓ 已重认证身份（密码校验）</span></div>
           <div class="srow"><span class="k">时间</span>{{ fmt(detail.mgmtSignedAt) }}</div>
           <div class="srow"><span class="k">结论</span>
             <span :class="detail.mgmtAccepted ? 'ok' : 'bad'">{{ detail.mgmtAccepted ? '接受残余风险' : '不接受' }}</span>
           </div>
           <div class="srow"><span class="k">意见</span><span class="op">{{ detail.mgmtOpinion || '—' }}</span></div>
+          <div v-if="detail.mgmtSignatureSha256" class="srow" style="align-items:flex-start;display:flex">
+            <span class="k">手写签名</span>
+            <span>
+              <img :src="'/api/assessments/' + assessmentId + '/signature?t=' + sigBust" class="sig-img" alt="手写签名" />
+              <div class="sig-sha" :title="detail.mgmtSignatureSha256">指纹 sha256：{{ detail.mgmtSignatureSha256.slice(0, 16) }}…（已入防篡改哈希链）</div>
+            </span>
+          </div>
         </div>
 
-        <!-- 签批表单 -->
+        <!-- 签批表单（V55：手写签名 + 密码重认证） -->
         <div class="signform">
           <label class="fld">管理层意见
             <textarea v-model="form.opinion" rows="2" :disabled="!writable" placeholder="对整体风险与处置的意见"></textarea>
@@ -46,10 +53,24 @@
           <label class="chk">
             <input type="checkbox" v-model="form.accepted" :disabled="!writable" /> 接受残余风险
           </label>
+
+          <div class="fld">手写签名（在框内签名，作为签批存证）
+            <div class="sig-wrap">
+              <canvas ref="sigCanvas" class="sig-pad" width="420" height="120"
+                      @pointerdown="sigStart" @pointermove="sigMove" @pointerup="sigEnd" @pointerleave="sigEnd"></canvas>
+              <button type="button" class="sig-clear" @click="sigClear">清除重签</button>
+            </div>
+          </div>
+          <label class="fld">登录密码（身份再认证，必填）
+            <input type="password" v-model="form.password" :disabled="!writable" autocomplete="current-password"
+                   placeholder="重新输入你的登录密码以确认签批身份" class="pwd" />
+          </label>
+
           <div class="actions">
-            <button class="btn" :disabled="!writable || saving" @click="submit">
+            <button class="btn" :disabled="!writable || saving || !form.password" @click="submit">
               {{ saving ? '提交中…' : (detail.mgmtSigner ? '重新签批' : '提交签批') }}
             </button>
+            <span class="muted" style="font-size:11px">签批 = 密码重认证 + 手写签名存证（sha256 入哈希链）</span>
             <span v-if="okMsg" class="ok">{{ okMsg }}</span>
             <span v-if="error" class="bad">{{ error }}</span>
           </div>
@@ -79,7 +100,50 @@ const error = ref('')
 const okMsg = ref('')
 const saving = ref(false)
 const detail = ref({})
-const form = reactive({ opinion: '', accepted: false })
+const form = reactive({ opinion: '', accepted: false, password: '' })
+
+// ===== 手写签名板（V55 签批存证）=====
+const sigCanvas = ref(null)
+const sigBust = ref(0)          // 签名图缓存击穿参数（重新签批后刷新 img）
+let sigDrawing = false
+let sigDirty = false
+function sigCtx() {
+  const c = sigCanvas.value
+  if (!c) return null
+  const ctx = c.getContext('2d')
+  ctx.lineWidth = 2.2
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--text-1') || '#222'
+  return ctx
+}
+function sigPos(e) {
+  const r = sigCanvas.value.getBoundingClientRect()
+  return { x: e.clientX - r.left, y: e.clientY - r.top }
+}
+function sigStart(e) {
+  if (!writable) return
+  sigDrawing = true
+  const ctx = sigCtx()
+  const p = sigPos(e)
+  ctx.beginPath()
+  ctx.moveTo(p.x, p.y)
+  e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId)
+}
+function sigMove(e) {
+  if (!sigDrawing) return
+  const ctx = sigCtx()
+  const p = sigPos(e)
+  ctx.lineTo(p.x, p.y)
+  ctx.stroke()
+  sigDirty = true
+}
+function sigEnd() { sigDrawing = false }
+function sigClear() {
+  const c = sigCanvas.value
+  if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height)
+  sigDirty = false
+}
 
 const writable = canWrite('risk')
 const isHigh = computed(() => detail.value.riskLevel === 'HIGH' || detail.value.riskLevel === 'VERY_HIGH')
@@ -106,8 +170,15 @@ async function load() {
 async function submit() {
   saving.value = true; okMsg.value = ''; error.value = ''
   try {
-    await api.post('/assessments/' + props.assessmentId + '/signoff', { opinion: form.opinion, accepted: form.accepted })
-    okMsg.value = '已签批'
+    const signatureDataUrl = sigDirty && sigCanvas.value ? sigCanvas.value.toDataURL('image/png') : null
+    await api.post('/assessments/' + props.assessmentId + '/signoff', {
+      opinion: form.opinion, accepted: form.accepted,
+      password: form.password, signatureDataUrl
+    })
+    okMsg.value = '已签批（身份已重认证）'
+    form.password = ''
+    sigClear()
+    sigBust.value = Date.now()
     await load()
     emit('changed')
     setTimeout(() => (okMsg.value = ''), 2500)
@@ -147,4 +218,13 @@ watch(() => props.assessmentId, load, { immediate: true })
 .actions { display: flex; align-items: center; gap: 10px; }
 .ok { color: var(--success); font-weight: 600; }
 .bad { color: var(--danger); }
+/* V55 签批存证 */
+.verify { margin-left: 10px; font-size: 11px; color: var(--success); font-weight: 600; }
+.sig-wrap { position: relative; display: inline-block; }
+.sig-pad { display: block; border: 1px dashed var(--surface-border); border-radius: 8px; background: var(--surface); cursor: crosshair; touch-action: none; }
+.sig-clear { position: absolute; right: 6px; top: 6px; font-size: 11px; padding: 2px 8px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-3); border-radius: 6px; cursor: pointer; }
+.sig-clear:hover { color: var(--danger); border-color: var(--danger); }
+.pwd { width: 320px; max-width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: 6px; background: var(--surface); color: var(--text-1); font: inherit; box-sizing: border-box; }
+.sig-img { max-height: 72px; background: #fff; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 2px 6px; }
+.sig-sha { font-size: 10.5px; color: var(--text-3); margin-top: 3px; }
 </style>

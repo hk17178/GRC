@@ -134,39 +134,54 @@
         </div>
       </div>
 
-      <!-- 年度计划（V52 · A3：风险导向排项目 → 批准 → 逐项立项）-->
+      <!-- 年度计划（V52 · A3：直显列表——计划表 + 点行展开对象清单）-->
       <div v-show="tab === 'annual'" class="card">
         <div class="ch">
-          <h3>年度审计计划</h3>
-          <select class="sel" v-model.number="annualId" @change="loadAnnualItems">
-            <option :value="0" disabled>— 选择年度计划 —</option>
-            <option v-for="a in annuals" :key="a.id" :value="a.id">{{ a.year }} · {{ a.title }}（{{ a.status === 'APPROVED' ? '已批准' : '草稿' }}）</option>
-          </select>
-          <div style="margin-left:auto;display:flex;gap:8px" v-if="canWrite('extaudit')">
-            <button class="btn ghost sm" @click="showAnnualNew = true">＋ 新建年度计划</button>
-            <template v-if="annualId && currentAnnual">
-              <button v-if="currentAnnual.status==='DRAFT'" class="btn ghost sm" @click="showAnnualItem = true">＋ 纳入对象</button>
-              <button v-if="currentAnnual.status==='DRAFT'" class="btn sm" @click="approveAnnual">批准（冻结清单）</button>
-            </template>
-          </div>
+          <h3>年度审计计划</h3><span class="cnt">{{ annuals.length }}</span>
+          <span class="sub">点行展开对象清单 · 风险排序 → 批准冻结 → 逐项立项</span>
+          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showAnnualNew = true">＋ 新建年度计划</button>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <div v-if="!annualId" class="hint">年度层：按风险排序纳入审计对象 → 批准冻结 → 逐项转单项审计计划（防重复立项）。</div>
-          <table v-else style="min-width:760px">
-            <thead><tr><th>风险序</th><th>审计对象</th><th>排期</th><th>关注要点</th><th>立项</th><th>操作</th></tr></thead>
+          <table style="min-width:760px">
+            <thead><tr><th>年度</th><th>标题</th><th>状态</th><th>批准</th><th>操作</th></tr></thead>
             <tbody>
-              <tr v-for="it in annualItems" :key="it.id">
-                <td><span class="tag" :class="it.riskRank <= 2 ? 'h' : (it.riskRank === 3 ? 'm' : '')">#{{ it.riskRank }}</span></td>
-                <td><b>{{ it.target }}</b></td>
-                <td class="num">{{ it.quarter }}</td>
-                <td class="muted">{{ it.note || '—' }}</td>
-                <td><span v-if="it.planId" class="code">AP-{{ it.planId }}</span><span v-else class="muted">未立项</span></td>
-                <td class="ops">
-                  <button v-if="!it.planId && currentAnnual && currentAnnual.status==='APPROVED' && canWrite('extaudit')"
-                          class="mini" @click="itemToPlan(it)">转审计计划</button>
-                </td>
-              </tr>
-              <tr v-if="!annualItems.length"><td colspan="6" class="emptyrow">暂无审计对象，点「＋ 纳入对象」。</td></tr>
+              <template v-for="a in annuals" :key="a.id">
+                <tr class="clk" :class="{ on: a.id === annualId }" @click="toggleAnnual(a)">
+                  <td class="code">{{ a.year }}</td>
+                  <td><b>{{ a.title }}</b></td>
+                  <td><span class="st" :class="a.status === 'APPROVED' ? 'ok' : 'wait'"><span class="d"></span>{{ a.status === 'APPROVED' ? '已批准' : '草稿' }}</span></td>
+                  <td class="muted">{{ a.approvedBy ? (a.approvedBy + ' · ' + fmtDt(a.approvedAt)) : '—' }}</td>
+                  <td class="ops" @click.stop>
+                    <template v-if="canWrite('extaudit') && a.status === 'DRAFT'">
+                      <button class="mini" @click="annualId = a.id; showAnnualItem = true">＋ 纳入对象</button>
+                      <button class="mini" @click="annualId = a.id; approveAnnual()">批准</button>
+                    </template>
+                    <span class="muted" style="font-size:11px">{{ a.id === annualId ? '▲ 收起' : '▼ 展开' }}</span>
+                  </td>
+                </tr>
+                <tr v-if="a.id === annualId">
+                  <td colspan="5" class="annual-sub">
+                    <table style="width:100%">
+                      <thead><tr><th>风险序</th><th>审计对象</th><th>排期</th><th>关注要点</th><th>立项</th><th>操作</th></tr></thead>
+                      <tbody>
+                        <tr v-for="it in annualItems" :key="it.id">
+                          <td><span class="tag" :class="it.riskRank <= 2 ? 'h' : (it.riskRank === 3 ? 'm' : '')">#{{ it.riskRank }}</span></td>
+                          <td><b>{{ it.target }}</b></td>
+                          <td class="num">{{ it.quarter }}</td>
+                          <td class="muted">{{ it.note || '—' }}</td>
+                          <td><span v-if="it.planId" class="code">AP-{{ it.planId }}</span><span v-else class="muted">未立项</span></td>
+                          <td class="ops">
+                            <button v-if="!it.planId && a.status==='APPROVED' && canWrite('extaudit')"
+                                    class="mini" @click="itemToPlan(it)">转审计计划</button>
+                          </td>
+                        </tr>
+                        <tr v-if="!annualItems.length"><td colspan="6" class="emptyrow">暂无审计对象，点「＋ 纳入对象」。</td></tr>
+                      </tbody>
+                    </table>
+                  </td>
+                </tr>
+              </template>
+              <tr v-if="!annuals.length"><td colspan="5" class="emptyrow">暂无年度计划，点「＋ 新建年度计划」。</td></tr>
             </tbody>
           </table>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
@@ -245,6 +260,39 @@
             </tbody>
           </table>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
+        </div>
+      </div>
+
+      <!-- 报告模板管理弹窗（V54）-->
+      <div v-if="showRptTpl" class="modal-mask" @click.self="showRptTpl = false">
+        <div class="modal-card wide2" style="width:700px">
+          <h3>审计报告模板<span class="cnt" style="margin-left:8px">{{ rptTpls.length }}</span></h3>
+          <p class="muted" style="margin:-8px 0 12px">生成草稿时选用作正文骨架，系统组稿（发现五要素/整改台账）作为附录随后。内置含《个人信息保护合规审计管理办法》（2025-05-01 施行）模板。</p>
+          <div class="rtpl-list">
+            <div v-for="t in rptTpls" :key="t.id" class="rtpl-item">
+              <div class="gov-row">
+                <b>{{ t.name }}</b><span class="pill" v-if="t.category">{{ t.category }}</span>
+                <span class="gap" style="flex:1"></span>
+                <template v-if="canWrite('extaudit')">
+                  <button class="mini" @click="editRptTpl(t)">{{ rptTplEditId === t.id ? '收起' : '编辑' }}</button>
+                  <button class="mini" @click="toggleRptTpl(t)">{{ t.enabled ? '停用' : '启用' }}</button>
+                  <button class="mini danger" @click="delRptTpl(t)">删</button>
+                </template>
+              </div>
+              <div v-if="rptTplEditId === t.id" style="margin:6px 0 10px">
+                <textarea v-model="rptTplEditText" rows="10" class="rpt-ta mono" style="width:100%;box-sizing:border-box"></textarea>
+                <button class="btn sm" style="margin-top:6px" @click="saveRptTpl(t)">保存正文</button>
+              </div>
+              <div v-else class="muted rtpl-clamp">{{ t.content }}</div>
+            </div>
+          </div>
+          <div v-if="canWrite('extaudit')" class="gov-add" style="display:flex;gap:8px;margin-top:10px">
+            <input v-model="rptTplNew.name" placeholder="新模板名称" style="flex:1" />
+            <input v-model="rptTplNew.category" placeholder="分类（如 等保）" style="width:140px" />
+            <button class="btn sm" :disabled="!rptTplNew.name" @click="addRptTpl">新建模板</button>
+          </div>
+          <p v-if="opErr" class="cerr">{{ opErr }}</p>
+          <div class="modal-actions"><button class="btn ghost" @click="showRptTpl = false">关闭</button></div>
         </div>
       </div>
 
@@ -347,7 +395,14 @@
           <template v-if="reportPlanId">
             <span v-if="report" class="st" :class="RPT_CLS[report.status]" style="margin-left:8px"><span class="d"></span>{{ RPT_LABEL[report.status] }}</span>
             <div style="margin-left:auto;display:flex;gap:8px" v-if="canWrite('extaudit')">
-              <button v-if="!report" class="btn sm" @click="createReport">生成报告草稿（自动组稿）</button>
+              <button class="btn ghost sm" @click="openRptTpl">报告模板</button>
+              <template v-if="!report">
+                <select class="sel" v-model.number="rptTplId">
+                  <option :value="0">不使用模板</option>
+                  <option v-for="t in rptTpls.filter(x => x.enabled)" :key="t.id" :value="t.id">{{ t.name }}</option>
+                </select>
+                <button class="btn sm" @click="createReport">生成报告草稿（自动组稿）</button>
+              </template>
               <template v-else>
                 <button v-if="report.status==='DRAFT'||report.status==='COMMENTING'" class="btn ghost sm" :disabled="rptSaving" @click="saveReport">{{ rptSaving ? '保存中…' : '保存' }}</button>
                 <button v-if="report.status==='DRAFT'" class="btn sm" @click="rptAction('comment')">征求意见</button>
@@ -659,6 +714,11 @@ async function loadAnnualItems() {
   if (!annualId.value) return
   try { annualItems.value = await api.get('/audit-annual/' + annualId.value + '/items') } catch (e) { annualItems.value = [] }
 }
+// 点行展开/收起对象清单（直显列表交互）
+function toggleAnnual(a) {
+  if (annualId.value === a.id) { annualId.value = 0; annualItems.value = [] }
+  else { annualId.value = a.id; loadAnnualItems() }
+}
 async function submitAnnual() {
   saving.value = true; opErr.value = ''
   try {
@@ -756,6 +816,7 @@ const rptEdit = reactive({ title: '', opinion: null, summary: '', content: '' })
 const rptFrozen = computed(() => !report.value || (report.value.status !== 'DRAFT' && report.value.status !== 'COMMENTING'))
 async function loadReport() {
   report.value = null
+  if (!rptTpls.value.length) loadRptTpls()
   if (!reportPlanId.value) return
   try {
     const r = await api.get('/audit-reports?planId=' + reportPlanId.value)
@@ -765,8 +826,45 @@ async function loadReport() {
 }
 async function createReport() {
   opErr.value = ''
-  try { await api.post('/audit-reports', { planId: reportPlanId.value }); await loadReport() }
+  try { await api.post('/audit-reports', { planId: reportPlanId.value, templateId: rptTplId.value || null }); await loadReport() }
   catch (e) { opErr.value = e.message }
+}
+
+// ===== 报告模板管理（V54）=====
+const rptTpls = ref([])
+const rptTplId = ref(0)
+const showRptTpl = ref(false)
+const rptTplEditId = ref(null)
+const rptTplEditText = ref('')
+const rptTplNew = reactive({ name: '', category: '' })
+async function loadRptTpls() {
+  try { rptTpls.value = await api.get('/audit-reports/templates') } catch (e) { rptTpls.value = [] }
+}
+function openRptTpl() { showRptTpl.value = true; loadRptTpls() }
+function editRptTpl(t) {
+  if (rptTplEditId.value === t.id) { rptTplEditId.value = null; return }
+  rptTplEditId.value = t.id; rptTplEditText.value = t.content
+}
+async function saveRptTpl(t) {
+  opErr.value = ''
+  try {
+    await api.put('/audit-reports/templates/' + t.id, { name: t.name, category: t.category, content: rptTplEditText.value })
+    rptTplEditId.value = null; await loadRptTpls()
+  } catch (e) { opErr.value = e.message }
+}
+async function toggleRptTpl(t) {
+  try { await api.put('/audit-reports/templates/' + t.id + '/enabled?enabled=' + (!t.enabled)); await loadRptTpls() } catch (e) { opErr.value = e.message }
+}
+async function delRptTpl(t) {
+  if (!window.confirm(`确认删除模板「${t.name}」？`)) return
+  try { await api.del('/audit-reports/templates/' + t.id); await loadRptTpls() } catch (e) { opErr.value = e.message }
+}
+async function addRptTpl() {
+  opErr.value = ''
+  try {
+    await api.post('/audit-reports/templates', { orgId: 12, name: rptTplNew.name, category: rptTplNew.category || null, content: '一、审计概况\n\n二、审计发现与建议\n\n三、审计结论\n' })
+    Object.assign(rptTplNew, { name: '', category: '' }); await loadRptTpls()
+  } catch (e) { opErr.value = e.message }
 }
 async function saveReport() {
   rptSaving.value = true; opErr.value = ''
@@ -884,6 +982,17 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* V54 报告模板管理 */
+.rtpl-list { max-height: 52vh; overflow-y: auto; }
+.rtpl-item { border-bottom: 1px solid var(--border-subtle); padding: 6px 0; }
+.rtpl-item .gov-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.rtpl-clamp { font-size: 11.5px; line-height: 1.6; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 4px 0 4px; }
+.gov-add input { height: 32px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
+.mini.danger:hover { color: var(--danger); border-color: var(--danger); }
+/* V52 年度计划直显列表 */
+.annual-sub { background: var(--bg); padding: 10px 16px 14px !important; }
+.annual-sub thead th { font-size: 10px; padding: 6px 10px 6px; }
+.annual-sub tbody td { background: var(--surface); }
 /* V47 五要素/审计报告 */
 .modal-card.wide2 { width: 620px; max-height: 88vh; overflow-y: auto; }
 .modal-card .fld textarea, .cb .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }

@@ -33,12 +33,55 @@ public class AuditReportController {
         return service.byPlan(planId);
     }
 
-    /** 生成报告草稿（自动组稿：计划+发现五要素+整改台账；幂等）。 */
+    /** 生成报告草稿（自动组稿：计划+发现五要素+整改台账；可选模板作骨架；幂等）。 */
     @PostMapping
     @RequiresPermission("extaudit")
     public AuditReport createDraft(@RequestBody CreateReportRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
-        return service.createDraft(req.planId(), actor(user));
+        return service.createDraft(req.planId(), req.templateId(), actor(user));
+    }
+
+    // ---------- 报告模板管理（V54） ----------
+
+    /** 报告模板清单。 */
+    @GetMapping("/templates")
+    public java.util.List<AuditReportTemplate> listTemplates() {
+        return service.listTemplates();
+    }
+
+    /** 新建报告模板。 */
+    @PostMapping("/templates")
+    @RequiresPermission("extaudit")
+    public AuditReportTemplate createTemplate(@RequestBody TemplateRequest req,
+                                              @RequestHeader(value = "X-User", required = false) String user) {
+        return service.createTemplate(req.orgId(), req.name(), req.category(), req.content(), actor(user));
+    }
+
+    /** 编辑报告模板。 */
+    @PutMapping("/templates/{id}")
+    @RequiresPermission("extaudit")
+    public AuditReportTemplate updateTemplate(@PathVariable Long id, @RequestBody TemplateRequest req,
+                                              @RequestHeader(value = "X-User", required = false) String user) {
+        return service.updateTemplate(id, req.name(), req.category(), req.content(), actor(user));
+    }
+
+    /** 启停报告模板。 */
+    @PutMapping("/templates/{id}/enabled")
+    @RequiresPermission("extaudit")
+    public AuditReportTemplate setTemplateEnabled(@PathVariable Long id, @RequestParam boolean enabled) {
+        return service.setTemplateEnabled(id, enabled);
+    }
+
+    /** 删除报告模板。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/templates/{id}")
+    @RequiresPermission("extaudit")
+    public void deleteTemplate(@PathVariable Long id,
+                               @RequestHeader(value = "X-User", required = false) String user) {
+        service.deleteTemplate(id, actor(user));
+    }
+
+    /** 报告模板请求体（V54）。 */
+    public record TemplateRequest(Long orgId, String name, String category, String content) {
     }
 
     /** 编辑报告（标题/意见/总体评价/正文；定稿后冻结）。 */
@@ -92,8 +135,8 @@ public class AuditReportController {
         return (user == null || user.isBlank()) ? "anonymous" : user;
     }
 
-    /** 生成草稿请求体。 */
-    public record CreateReportRequest(Long planId) {
+    /** 生成草稿请求体（templateId 可空=不使用模板）。 */
+    public record CreateReportRequest(Long planId, Long templateId) {
     }
 
     /** 编辑报告请求体。 */

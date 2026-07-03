@@ -212,12 +212,38 @@ public class AssessmentService {
      */
     @Transactional
     public Assessment signOff(Long id, String signer, String opinion, boolean accepted) {
+        return signOff(id, signer, opinion, accepted, null);
+    }
+
+    /**
+     * 管理层签批（V55 存证增强）：可附手写签名 PNG——原图落库、sha256 指纹写入哈希链，
+     * 事后可校验签名图未被篡改；身份再认证（重输密码）由控制器在调用前完成。
+     */
+    @Transactional
+    public Assessment signOff(Long id, String signer, String opinion, boolean accepted, byte[] signature) {
         Assessment a = get(id);
         a.signOff(signer, opinion, accepted);
+        String sigSha = null;
+        if (signature != null && signature.length > 0) {
+            sigSha = sha256Hex(signature);
+            a.attachSignature(signature, sigSha);
+        }
         Assessment saved = repository.save(a);
         appendLog(saved, "ASSESSMENT_SIGNOFF", signer,
-                "管理层签批，" + (accepted ? "接受残余风险" : "不接受") + "：" + (opinion == null ? "" : opinion));
+                "管理层签批（已重认证身份），" + (accepted ? "接受残余风险" : "不接受")
+                        + "：" + (opinion == null ? "" : opinion)
+                        + (sigSha == null ? "" : "；手写签名 sha256=" + sigSha));
         return saved;
+    }
+
+    /** SHA-256 十六进制（签名存证指纹）。 */
+    private static String sha256Hex(byte[] data) {
+        try {
+            return java.util.HexFormat.of().formatHex(
+                    java.security.MessageDigest.getInstance("SHA-256").digest(data));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 
     // ---------- 内部辅助 ----------

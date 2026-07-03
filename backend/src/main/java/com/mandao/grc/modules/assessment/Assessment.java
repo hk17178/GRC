@@ -79,6 +79,15 @@ public class Assessment {
     @Column(name = "mgmt_accepted", nullable = false)
     private boolean mgmtAccepted = false;
 
+    /** 手写签名 PNG（V55 签批存证；不随 JSON 外发，查看走专用端点）。 */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(name = "mgmt_signature")
+    private byte[] mgmtSignature;
+
+    /** 签名指纹 sha256（随签批写入哈希链，事后可验签名图未被篡改）。 */
+    @Column(name = "mgmt_signature_sha256", length = 64)
+    private String mgmtSignatureSha256;
+
     // ===== 背景建立（V46 · ISO 27005/GB/T 20984 ①阶段元数据）=====
 
     /** 评估范围与边界（系统/业务/部门/场所）。 */
@@ -199,6 +208,15 @@ public class Assessment {
         this.mgmtAccepted = accepted;
         this.mgmtSignedAt = OffsetDateTime.now();
     }
+
+    /** 附加签批存证（V55：手写签名 PNG + 指纹）。 */
+    public void attachSignature(byte[] signature, String sha256) {
+        this.mgmtSignature = signature;
+        this.mgmtSignatureSha256 = sha256;
+    }
+
+    public byte[] getMgmtSignature() { return mgmtSignature; }
+    public String getMgmtSignatureSha256() { return mgmtSignatureSha256; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 

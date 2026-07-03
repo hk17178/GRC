@@ -32,15 +32,18 @@ public class AuditReportService {
     private final AuditPlanRepository planRepo;
     private final AuditFindingRepository findingRepo;
     private final RemediationOrderRepository remediationRepo;
+    private final AuditReportTemplateRepository templateRepo;
     private final HashChainService hashChainService;
 
     public AuditReportService(AuditReportRepository reportRepo, AuditPlanRepository planRepo,
                               AuditFindingRepository findingRepo, RemediationOrderRepository remediationRepo,
+                              AuditReportTemplateRepository templateRepo,
                               HashChainService hashChainService) {
         this.reportRepo = reportRepo;
         this.planRepo = planRepo;
         this.findingRepo = findingRepo;
         this.remediationRepo = remediationRepo;
+        this.templateRepo = templateRepo;
         this.hashChainService = hashChainService;
     }
 
@@ -51,9 +54,11 @@ public class AuditReportService {
 
     /**
      * 生成报告草稿（自动组稿）。幂等：该计划已有报告则直接返回既有。
+     *
+     * @param templateId 报告模板（V54，可空）：选模板则以模板正文为骨架，系统组稿作为附录随后。
      */
     @Transactional
-    public AuditReport createDraft(Long planId, String actor) {
+    public AuditReport createDraft(Long planId, Long templateId, String actor) {
         AuditReport existing = reportRepo.findByPlanId(planId).orElse(null);
         if (existing != null) {
             return existing;
@@ -65,11 +70,74 @@ public class AuditReportService {
         List<RemediationOrder> remediations = remediationRepo.findAll().stream()
                 .filter(r -> findings.stream().anyMatch(f -> f.getId().equals(r.getFindingId()))).toList();
 
+        String content = compose(plan, findings, remediations);
+        if (templateId != null) {
+            AuditReportTemplate tpl = templateRepo.findById(templateId)
+                    .orElseThrow(() -> new IllegalArgumentException("报告模板不存在或不可见：id=" + templateId));
+            if (!tpl.isEnabled()) {
+                throw new IllegalStateException("报告模板已停用：" + tpl.getName());
+            }
+            content = tpl.getContent()
+                    + "\n\n===== 系统组稿附录（计划 / 发现五要素 / 整改台账，供整理并入正文）=====\n\n"
+                    + content;
+        }
         AuditReport saved = reportRepo.save(new AuditReport(plan.getOrgId(), planId,
-                plan.getTitle() + " 审计报告", null, compose(plan, findings, remediations), actor));
+                plan.getTitle() + " 审计报告", null, content, actor));
         hashChainService.append(plan.getOrgId(), "AUDIT_REPORT_DRAFT", actor,
-                "AUDIT_REPORT:" + saved.getId(), "生成审计报告草稿（自动组稿）plan=" + planId);
+                "AUDIT_REPORT:" + saved.getId(), "生成审计报告草稿（自动组稿"
+                        + (templateId == null ? "" : "，模板#" + templateId) + "）plan=" + planId);
         return saved;
+    }
+
+    /** 兼容旧签名：不使用模板。 */
+    @Transactional
+    public AuditReport createDraft(Long planId, String actor) {
+        return createDraft(planId, null, actor);
+    }
+
+    // ---------- 报告模板管理（V54） ----------
+
+    @Transactional(readOnly = true)
+    public List<AuditReportTemplate> listTemplates() {
+        return templateRepo.findAllByOrderByIdAsc();
+    }
+
+    @Transactional
+    public AuditReportTemplate createTemplate(Long orgId, String name, String category, String content, String actor) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("模板正文不能为空");
+        }
+        AuditReportTemplate saved = templateRepo.save(new AuditReportTemplate(orgId, name, category, content, actor));
+        hashChainService.append(orgId, "AUDIT_RPT_TPL_CREATE", actor, "AUDIT_RPT_TPL:" + saved.getId(),
+                "新建审计报告模板「" + name + "」");
+        return saved;
+    }
+
+    @Transactional
+    public AuditReportTemplate updateTemplate(Long id, String name, String category, String content, String actor) {
+        AuditReportTemplate t = templateRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("报告模板不存在或不可见：id=" + id));
+        t.applyEdit(name, category, content);
+        AuditReportTemplate saved = templateRepo.save(t);
+        hashChainService.append(t.getOrgId(), "AUDIT_RPT_TPL_EDIT", actor, "AUDIT_RPT_TPL:" + id, "编辑报告模板");
+        return saved;
+    }
+
+    @Transactional
+    public AuditReportTemplate setTemplateEnabled(Long id, boolean enabled) {
+        AuditReportTemplate t = templateRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("报告模板不存在或不可见：id=" + id));
+        t.setEnabled(enabled);
+        return templateRepo.save(t);
+    }
+
+    @Transactional
+    public void deleteTemplate(Long id, String actor) {
+        AuditReportTemplate t = templateRepo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("报告模板不存在或不可见：id=" + id));
+        templateRepo.delete(t);
+        hashChainService.append(t.getOrgId(), "AUDIT_RPT_TPL_DELETE", actor, "AUDIT_RPT_TPL:" + id,
+                "删除报告模板「" + t.getName() + "」");
     }
 
     /** 编辑报告（DRAFT/COMMENTING 可改；定稿后冻结）。 */
