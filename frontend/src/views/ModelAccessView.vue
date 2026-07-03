@@ -31,28 +31,25 @@
         <div class="card">
           <div class="ch"><h3>大模型接入配置</h3><span class="sub">集团统一 · 密钥加密存储</span></div>
           <div class="cb">
-            <label class="fld">提供方
-              <select v-model="cfg.provider" :disabled="!writable">
+            <!-- #8 接入方式只分两种：本地离线 / 通用大模型（不推荐具体厂商，协议自选）-->
+            <label class="fld">接入方式
+              <select v-model="accessMode" :disabled="!writable" @change="onModeChange">
                 <option value="LOCAL">本地离线（不接外部大模型）</option>
-                <option value="OPENAI">通用大模型（OpenAI 兼容 · 接 qwen/deepseek/moonshot/GLM/Ollama 等）</option>
+                <option value="REMOTE">通用大模型</option>
               </select>
             </label>
             <template v-if="cfg.provider !== 'LOCAL'">
-              <label class="fld">服务商接口地址 Base URL
-                <input v-model="cfg.baseUrl" :disabled="!writable" placeholder="如 https://dashscope.aliyuncs.com/compatible-mode/v1" />
+              <label class="fld">接口协议
+                <select v-model="cfg.provider" :disabled="!writable">
+                  <option value="OPENAI">OpenAI 兼容协议</option>
+                  <option value="CLAUDE">Anthropic 协议</option>
+                </select>
               </label>
-              <!-- 模型版本：同一服务商常有多个模型版本；选预设或自填该服务商的具体模型 id -->
+              <label class="fld">服务商接口地址 Base URL
+                <input v-model="cfg.baseUrl" :disabled="!writable" placeholder="模型服务商提供的 API 地址" />
+              </label>
               <label class="fld">模型版本
-                <input v-model="cfg.model" :disabled="!writable" list="model-presets" placeholder="选预设或填具体模型 id，如 qwen-plus" />
-                <datalist id="model-presets">
-                  <option value="qwen-plus">通义千问 · qwen-plus</option>
-                  <option value="qwen-max">通义千问 · qwen-max</option>
-                  <option value="deepseek-chat">DeepSeek · deepseek-chat</option>
-                  <option value="deepseek-reasoner">DeepSeek · deepseek-reasoner</option>
-                  <option value="moonshot-v1-8k">Kimi · moonshot-v1-8k</option>
-                  <option value="glm-4-plus">智谱 · glm-4-plus</option>
-                  <option value="gpt-4o-mini">OpenAI · gpt-4o-mini</option>
-                </datalist>
+                <input v-model="cfg.model" :disabled="!writable" placeholder="服务商提供的模型 id" />
               </label>
               <label class="fld">API Key
                 <input v-model="cfg.apiKey" type="password" :disabled="!writable"
@@ -70,6 +67,7 @@
               <span v-if="saveMsg" class="ok-msg">{{ saveMsg }}</span>
               <span v-if="saveErr" class="err-msg">{{ saveErr }}</span>
             </div>
+            <p class="note">支持范围：任意提供 OpenAI 兼容接口的模型服务商（含公有云大模型与本地私有化部署推理服务），以及 Anthropic 协议服务商——按贵司选型填入对应 Base URL / 模型 id / 密钥即可，平台不绑定、不推荐特定厂商。</p>
             <p class="warn">🔒 密钥经 AES 加密落库、接口不回显明文；上线须配置环境变量 <b>GRC_CONFIG_SECRET</b>（加密主密钥）。我（助手）不会代你输入真实密钥。</p>
           </div>
         </div>
@@ -85,7 +83,7 @@
                   <td><b>{{ SCEN_LABEL[r.scenario] || r.scenario }}</b></td>
                   <td>
                     <select v-model="r.provider" :disabled="!writable">
-                      <option value="LOCAL">本地离线</option><option value="OPENAI">OpenAI 兼容</option><option value="CLAUDE">Claude</option>
+                      <option value="LOCAL">本地离线</option><option value="OPENAI">通用 · OpenAI 兼容协议</option><option value="CLAUDE">通用 · Anthropic 协议</option>
                     </select>
                   </td>
                   <td><input v-model="r.baseUrl" :disabled="!writable || r.provider==='LOCAL'" placeholder="https://…" /></td>
@@ -173,6 +171,11 @@ async function loadStatus() { try { Object.assign(status, await api.get('/ai/sta
 const writable = canWrite('ai')
 const view = reactive({ provider: 'LOCAL', keyConfigured: false, keyHint: '' })
 const cfg = reactive({ provider: 'LOCAL', baseUrl: '', model: '', maxTokens: 1024, apiKey: '', enabled: true })
+// #8 接入方式两分法：LOCAL=本地离线；REMOTE=通用大模型（协议再选 OPENAI/CLAUDE）
+const accessMode = ref('LOCAL')
+function onModeChange() {
+  cfg.provider = accessMode.value === 'LOCAL' ? 'LOCAL' : (cfg.provider === 'LOCAL' ? 'OPENAI' : cfg.provider)
+}
 const saving = ref(false)
 const saveMsg = ref('')
 const saveErr = ref('')
@@ -181,6 +184,7 @@ async function loadConfig() {
     const v = await api.get('/ai/config')
     Object.assign(view, v)
     cfg.provider = v.provider || 'LOCAL'
+    accessMode.value = cfg.provider === 'LOCAL' ? 'LOCAL' : 'REMOTE'
     cfg.baseUrl = v.baseUrl || ''
     cfg.model = v.model || ''
     cfg.maxTokens = v.maxTokens || 1024
@@ -274,7 +278,10 @@ onMounted(() => { loadStatus(); loadConfig(); loadGov(); loadRoutes() })
 .btn { display: inline-flex; align-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #fff; border: 0; border-radius: var(--radius-md); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; box-shadow: var(--shadow-1); }
 .btn.ghost { background: var(--bg); color: var(--text-2); border: 1px solid var(--surface-border); }
 .btn.sm { padding: 4px 10px; font-size: 11.5px; }
-.g { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+/* #9 两卡等高：stretch + 卡内 flex，右卡变高时左卡随之拉伸，说明区自动填充 */
+.g { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: stretch; }
+.g > .card { display: flex; flex-direction: column; }
+.g > .card > .cb { flex: 1; }
 @media (max-width: 980px) { .g { grid-template-columns: 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-1); }
 .ch { display: flex; align-items: center; gap: 10px; padding: 14px 18px 4px; }

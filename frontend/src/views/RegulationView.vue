@@ -41,23 +41,29 @@
             <div v-if="crawlMsg" class="ok-msg">{{ crawlMsg }}</div>
           </div>
         </div>
-        <!-- 采集法规流 -->
+        <!-- 采集法规流（#7 信息流样式：按追踪源自动分区）-->
         <div class="card">
-          <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawled.length }}</span></div>
-          <div class="cb" style="overflow-x: auto; padding-top: 0">
-            <table style="min-width: 560px">
-              <thead><tr><th>标题</th><th>发布机关</th><th>文号</th><th>发布日期</th><th>分类</th></tr></thead>
-              <tbody>
-                <tr v-for="c in crawled" :key="c.id" class="clk" @click="openLaw(c)">
-                  <td><a class="lawlink">{{ c.title }}</a></td>
-                  <td>{{ c.issuer || '—' }}</td>
-                  <td class="code">{{ c.docNo || '—' }}</td>
-                  <td class="num">{{ c.publishDate || '—' }}</td>
-                  <td><span class="pill">{{ c.category || '—' }}</span></td>
-                </tr>
-                <tr v-if="!crawled.length"><td colspan="5" class="emptyrow">暂无采集法规，先新增源并「立即抓取」。</td></tr>
-              </tbody>
-            </table>
+          <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawled.length }}</span><span class="sub">按追踪源自动分区 · 点条目看详情</span></div>
+          <div class="cb" style="padding-top:0">
+            <div v-for="grp in crawledGroups" :key="grp.sourceId" class="feed-group">
+              <div class="feed-head">
+                <span class="feed-src">{{ grp.sourceName }}</span>
+                <span class="pill" v-if="grp.category">{{ grp.category }}</span>
+                <span class="cnt">{{ grp.items.length }}</span>
+              </div>
+              <div class="feed-list">
+                <div v-for="c in grp.items" :key="c.id" class="feed-item clk" @click="openLaw(c)">
+                  <span class="feed-dot"></span>
+                  <span class="feed-title">{{ c.title }}</span>
+                  <span class="feed-meta">
+                    <span v-if="c.docNo" class="code">{{ c.docNo }}</span>
+                    <span v-if="c.publishDate" class="num">{{ c.publishDate }}</span>
+                    <span class="muted">{{ fmtFeedTime(c.fetchedAt) }}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div v-if="!crawled.length" class="emptyrow">暂无采集法规，先新增源并「立即抓取」（人行两源已内置）。</div>
           </div>
         </div>
       </div>
@@ -264,7 +270,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
@@ -381,6 +387,25 @@ async function loadSources() {
 async function loadCrawled() {
   try { crawled.value = await api.get('/crawled-regulations') } catch (e) { crawled.value = [] }
 }
+// #7 信息流分组：按 sourceId 分区，区头显示追踪源名称与分类；无源信息（历史数据）归"其他来源"
+const crawledGroups = computed(() => {
+  const bySrc = new Map()
+  for (const c of crawled.value) {
+    const key = c.sourceId || 0
+    if (!bySrc.has(key)) bySrc.set(key, [])
+    bySrc.get(key).push(c)
+  }
+  const groups = []
+  for (const [sourceId, items] of bySrc) {
+    const src = sources.value.find((s) => s.id === sourceId)
+    let category = null
+    try { category = src && src.config ? JSON.parse(src.config).category : null } catch (e) { /* 忽略 */ }
+    groups.push({ sourceId, sourceName: src ? src.name : '其他来源', category, items })
+  }
+  groups.sort((a, b) => (a.sourceName > b.sourceName ? 1 : -1))
+  return groups
+})
+function fmtFeedTime(t) { return t ? new Date(t).toLocaleString() : '' }
 async function crawlNow(s) {
   crawling.value = s.id; crawlMsg.value = ''
   try {
@@ -470,6 +495,16 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .aisum { background: var(--accent-tint); color: var(--text-2); font-size: 12px; line-height: 1.7; border-left: 3px solid var(--accent); }
 .map-row { display: flex; align-items: center; gap: 10px; padding: 7px 4px; border-bottom: 1px solid var(--border-subtle); font-size: 12.5px; }
 .map-row .map-p { font-weight: 600; }
+/* #7 采集信息流分组 */
+.feed-group { margin-bottom: 14px; }
+.feed-head { display: flex; align-items: center; gap: 8px; padding: 8px 2px 6px; border-bottom: 2px solid var(--accent-weak); }
+.feed-src { font-size: 13px; font-weight: 720; color: var(--accent-strong); font-family: var(--font-display); }
+.feed-list { padding: 2px 0; }
+.feed-item { display: flex; align-items: center; gap: 9px; padding: 7px 4px; border-bottom: 1px dashed var(--border-subtle); font-size: 12.5px; }
+.feed-item:hover { background: var(--accent-weak); border-radius: 6px; }
+.feed-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); flex-shrink: 0; }
+.feed-title { color: var(--text-1); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-meta { margin-left: auto; display: flex; gap: 10px; flex-shrink: 0; font-size: 11px; color: var(--text-3); }
 /* V49 AI 匹配建议 */
 .suggest-box { margin-top: 10px; border: 1px dashed var(--accent); border-radius: var(--radius-md); overflow: hidden; }
 .suggest-box .sg-h { padding: 8px 12px; font-size: 11.5px; font-weight: 700; color: var(--accent-strong); background: var(--accent-weak); }

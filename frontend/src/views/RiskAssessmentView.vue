@@ -264,33 +264,14 @@
               <span class="st" :class="TPL_STATUS_CLS[t.status]"><span class="d"></span>{{ $t('risk.templates.tstatus.' + t.status) }}</span>
             </div>
 
-            <!-- 表单引擎 P1：.docx 报告模板（上传 → 解析 → 启用）-->
+            <!-- 报告表单状态（只读；内置模板由系统预装标准表单，开箱即用；换表单到「预览详情」里管理）-->
             <div class="formbox">
               <div class="fb-row">
                 <span class="fb-l">报告表单：</span>
                 <span v-if="tplFormState(t.id).active" class="fb-active">
-                  ✓ 已启用 {{ tplFormState(t.id).active.name }}（v{{ tplFormState(t.id).active.versionNo }}）
+                  ✓ 可用 · {{ tplFormState(t.id).active.name }}（v{{ tplFormState(t.id).active.versionNo }}）
                 </span>
-                <span v-else class="fb-none">未配置</span>
-              </div>
-              <input
-                type="file" accept=".docx" style="display:none"
-                :id="'docx-' + t.id"
-                @change="onDocxPicked(t.id, $event)"
-              />
-              <div class="fb-actions">
-                <button class="btn ghost sm" :disabled="!canWriteRisk || tplFormState(t.id).busy" @click="pickDocx(t.id)">
-                  {{ tplFormState(t.id).busy ? '处理中…' : '上传 .docx 模板' }}
-                </button>
-                <!-- 上传出的最新草稿可一键启用 -->
-                <button
-                  v-if="tplFormState(t.id).parsed && (!tplFormState(t.id).active || tplFormState(t.id).active.id !== tplFormState(t.id).parsed.id)"
-                  class="btn sm" :disabled="!canWriteRisk || tplFormState(t.id).busy"
-                  @click="activateTplForm(t.id, tplFormState(t.id).parsed.id)"
-                >启用 v{{ tplFormState(t.id).parsed.versionNo }}</button>
-              </div>
-              <div v-if="tplFormState(t.id).parsed" class="fb-parsed">
-                解析：{{ tplFormState(t.id).parsed.sections }} 章节 · {{ tplFormState(t.id).parsed.fields }} 字段 · {{ tplFormState(t.id).parsed.lists }} 明细表
+                <span v-else class="fb-none">未配置（到「预览详情」上传）</span>
               </div>
               <div v-if="tplFormState(t.id).error" class="fb-err">{{ tplFormState(t.id).error }}</div>
             </div>
@@ -640,14 +621,47 @@
         <div class="modal-card wide" style="width:720px">
           <h3>{{ tplDetail.name }}<span class="pill" style="margin-left:8px">{{ tplDetail.code }}</span></h3>
           <p class="muted" style="margin:-8px 0 12px">{{ tplDetail.description || '—' }}</p>
-          <div class="tpl-note">
-            两层关系：<b>①条款清单</b>（本模板的体系检查项，定义评什么）→ <b>②报告表单</b>（挂在模板下的 .docx，
-            定义怎么填/报告长什么样）。内置模板未挂表单时，上传贵司官方 .docx（占位符约定）即可启用规范填写与报告导出。
+          <!-- ① 完整模板样式预览（启用中的报告表单按章节/字段/明细表渲染）-->
+          <div class="ch" style="padding:4px 0 4px"><h3 style="font-size:13px">模板样式预览</h3>
+            <span class="sub">评估将按此结构填写；报告导出格式与此一致</span>
           </div>
-          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">条款清单</h3><span class="cnt">{{ tplItems.length }}</span></div>
-          <div class="tpl-items">
+          <div class="tpl-preview">
             <div v-if="tplItemsBusy" class="hint">加载中…</div>
-            <table v-else-if="tplItems.length" style="width:100%">
+            <template v-else-if="tplPreviewSchema">
+              <div v-for="(sec, si) in tplPreviewSchema.sections" :key="si" class="tp-sec">
+                <div class="tp-sec-title">{{ sec.title || ('章节 ' + (si + 1)) }}</div>
+                <div v-for="f in sec.fields" :key="f.key" class="tp-field">
+                  <span class="tp-label">{{ f.key }}</span>
+                  <span class="tp-input" :class="f.type">{{ TP_TYPE[f.type] || f.type }}</span>
+                </div>
+                <div v-for="l in (sec.lists || [])" :key="l.key" class="tp-list">
+                  <div class="tp-list-name">明细表 · {{ l.key }}</div>
+                  <div class="tp-cols"><span v-for="c in l.columns" :key="c.key" class="tp-col">{{ c.key }}<i>{{ TP_TYPE[c.type] || c.type }}</i></span></div>
+                </div>
+              </div>
+            </template>
+            <div v-else class="hint">该模板尚无启用的报告表单——在下方「表单版本」上传 .docx 后启用。</div>
+          </div>
+
+          <!-- ② 表单版本管理（上传新版本/启用/下载）-->
+          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">表单版本</h3><span class="cnt">{{ tplDetailForms.length }}</span>
+            <input type="file" accept=".docx" style="display:none" id="tpl-detail-docx" @change="onDetailDocxPicked" />
+            <button v-if="canWriteRisk" class="btn ghost sm" style="margin-left:auto" :disabled="tplDetailBusy" @click="pickDetailDocx">{{ tplDetailBusy ? '处理中…' : '上传新版本 .docx' }}</button>
+          </div>
+          <div class="tpl-forms">
+            <div v-for="f in tplDetailForms" :key="f.id" class="scope-row">
+              <span class="code">v{{ f.versionNo }}</span><b>{{ f.name }}</b>
+              <span class="st" :class="f.status === 'ACTIVE' ? 'ok' : 'wait'" style="margin-left:6px"><span class="d"></span>{{ f.status === 'ACTIVE' ? '已启用' : '草稿' }}</span>
+              <button v-if="canWriteRisk && f.status !== 'ACTIVE'" class="mini-a" style="margin-left:auto;border-color:var(--accent)" @click="activateDetailForm(f)">启用</button>
+              <a class="mini-a" :style="f.status === 'ACTIVE' ? 'margin-left:auto' : ''" :href="'/api/assessment-templates/forms/' + f.id + '/docx'" target="_blank">下载 .docx</a>
+            </div>
+            <div v-if="!tplDetailForms.length" class="hint">未挂报告表单——点右上「上传新版本 .docx」（占位符约定）。</div>
+          </div>
+
+          <!-- ③ 体系条款清单 -->
+          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">体系条款清单</h3><span class="cnt">{{ tplItems.length }}</span><span class="sub">定义评什么（评估范围对照）</span></div>
+          <div class="tpl-items">
+            <table v-if="tplItems.length" style="width:100%">
               <thead><tr><th style="width:40px">#</th><th style="width:110px">条款</th><th>要求</th></tr></thead>
               <tbody>
                 <tr v-for="it in tplItems" :key="it.id">
@@ -659,15 +673,7 @@
             </table>
             <div v-else class="hint">该模板暂无条款项。</div>
           </div>
-          <div class="ch" style="padding:10px 0 4px"><h3 style="font-size:13px">报告表单版本</h3><span class="cnt">{{ tplDetailForms.length }}</span></div>
-          <div class="tpl-forms">
-            <div v-for="f in tplDetailForms" :key="f.id" class="scope-row">
-              <span class="code">v{{ f.versionNo }}</span><b>{{ f.name }}</b>
-              <span class="st" :class="f.status === 'ACTIVE' ? 'ok' : 'wait'" style="margin-left:6px"><span class="d"></span>{{ f.status === 'ACTIVE' ? '已启用' : '草稿' }}</span>
-              <a class="mini-a" style="margin-left:auto" :href="'/api/assessment-templates/forms/' + f.id + '/docx'" target="_blank">下载 .docx</a>
-            </div>
-            <div v-if="!tplDetailForms.length" class="hint">未挂报告表单——在模板卡上「上传 .docx 模板」。</div>
-          </div>
+          <p v-if="tplDetailErr" class="cerr">{{ tplDetailErr }}</p>
           <div class="modal-actions"><button class="btn ghost" @click="tplDetail = null">关闭</button></div>
         </div>
       </div>
@@ -1105,21 +1111,55 @@ async function removeScopeAsset(s) {
   catch (e) { opError.value = e.message }
 }
 
-// ---- R4 · 模板中心：详情预览 + 克隆 ----
+// ---- R4 · 模板中心：完整样式预览 + 版本管理 + 克隆 ----
+const TP_TYPE = { text: '单行文本', textarea: '多行文本', date: '日期', number: '数值', score: '打分 1-5', level: '五级等级', select: '下拉选择' }
 const tplDetail = ref(null)
 const tplItems = ref([])
 const tplItemsBusy = ref(false)
 const tplDetailForms = ref([])
+const tplPreviewSchema = ref(null)
+const tplDetailBusy = ref(false)
+const tplDetailErr = ref('')
 async function openTplDetail(t) {
   tplDetail.value = t
-  tplItems.value = []; tplDetailForms.value = []; tplItemsBusy.value = true
+  tplItems.value = []; tplDetailForms.value = []; tplPreviewSchema.value = null
+  tplDetailErr.value = ''; tplItemsBusy.value = true
   try {
     const [items, forms] = await Promise.all([
       api.get('/assessment-templates/' + t.id + '/items').catch(() => []),
       api.get('/assessment-templates/' + t.id + '/forms').catch(() => [])
     ])
     tplItems.value = items; tplDetailForms.value = forms
+    // 完整样式预览：取启用中的表单 schema 渲染
+    const active = forms.find((f) => f.status === 'ACTIVE')
+    if (active) {
+      const v = await api.get('/assessment-templates/forms/' + active.id + '/schema').catch(() => null)
+      tplPreviewSchema.value = v && v.schema ? v.schema : null
+    }
   } finally { tplItemsBusy.value = false }
+}
+// 版本管理：上传新版本 / 启用（原模板卡上的上传能力移到这里）
+function pickDetailDocx() { document.getElementById('tpl-detail-docx').click() }
+async function onDetailDocxPicked(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  if (!file || !tplDetail.value) return
+  tplDetailBusy.value = true; tplDetailErr.value = ''
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    await api.upload('/assessment-templates/' + tplDetail.value.id + '/form', fd)
+    await openTplDetail(tplDetail.value)
+    await loadTplForms(tplDetail.value.id)
+  } catch (err) { tplDetailErr.value = err.message } finally { tplDetailBusy.value = false }
+}
+async function activateDetailForm(f) {
+  tplDetailErr.value = ''
+  try {
+    await api.post('/assessment-templates/forms/' + f.id + '/activate', {})
+    await openTplDetail(tplDetail.value)
+    await loadTplForms(tplDetail.value.id)
+  } catch (e) { tplDetailErr.value = e.message }
 }
 const tplCloneTarget = ref(null)
 const tplCloneForm = reactive({ code: '', name: '', orgId: 12 })
@@ -2304,6 +2344,19 @@ td.ops {
 .mini-x:hover { color: var(--danger); background: var(--danger-tint); }
 .mini-a { font-size: 11px; color: var(--accent-strong); text-decoration: none; padding: 2px 8px; border: 1px solid var(--surface-border); border-radius: 6px; }
 .mini-a:hover { border-color: var(--accent); }
+/* #3 · 模板完整样式预览 */
+.tpl-preview { max-height: 34vh; overflow-y: auto; background: var(--bg); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 10px 14px; }
+.tp-sec { margin-bottom: 10px; }
+.tp-sec-title { font-size: 13px; font-weight: 720; color: var(--text-1); font-family: var(--font-display); padding: 6px 0 4px; border-bottom: 1px solid var(--border-subtle); margin-bottom: 6px; }
+.tp-field { display: flex; align-items: center; gap: 10px; padding: 3px 0; font-size: 12px; }
+.tp-label { color: var(--text-2); min-width: 120px; }
+.tp-input { flex: 0 0 auto; padding: 2px 10px; border: 1px dashed var(--surface-border); border-radius: 6px; color: var(--text-3); font-size: 11px; background: var(--surface); }
+.tp-input.level, .tp-input.score { border-color: var(--accent); color: var(--accent-strong); }
+.tp-list { margin: 6px 0; }
+.tp-list-name { font-size: 11.5px; font-weight: 700; color: var(--accent-strong); margin-bottom: 4px; }
+.tp-cols { display: flex; flex-wrap: wrap; gap: 6px; }
+.tp-col { font-size: 11px; padding: 3px 9px; background: var(--surface); border: 1px solid var(--border-subtle); border-radius: 6px; color: var(--text-2); }
+.tp-col i { font-style: normal; color: var(--text-3); margin-left: 4px; font-size: 10px; }
 /* R4 · 模板中心 */
 .tpl-note { font-size: 12px; color: var(--text-2); background: var(--accent-weak); border-left: 3px solid var(--accent); border-radius: var(--radius-md); padding: 9px 12px; line-height: 1.7; margin-bottom: 6px; }
 .tpl-items { max-height: 32vh; overflow-y: auto; }

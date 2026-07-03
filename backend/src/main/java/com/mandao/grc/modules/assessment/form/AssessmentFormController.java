@@ -55,6 +55,13 @@ public class AssessmentFormController {
                 .toList();
     }
 
+    /** 取某表单版本的解析 schema（模板中心完整样式预览用）。 */
+    @GetMapping("/assessment-templates/forms/{formId}/schema")
+    public FormVersionView formSchema(@PathVariable Long formId) {
+        TemplateForm form = service.getForm(formId);
+        return FormVersionView.of(form, service.schemaOf(form));
+    }
+
     /** 下载某表单版本的 .docx 原件（R4 模板中心：模板预览/取回官方模板）。 */
     @GetMapping("/assessment-templates/forms/{formId}/docx")
     public ResponseEntity<byte[]> downloadFormDocx(@PathVariable Long formId) {

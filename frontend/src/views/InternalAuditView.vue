@@ -46,19 +46,23 @@
                 <td class="num">{{ p.planStartDate || '—' }}</td>
                 <td><span class="st" :class="PLAN_CLS[p.status]"><span class="d"></span>{{ PLAN_LABEL[p.status] }}</span></td>
                 <td class="ops" @click.stop>
-                  <template v-if="canWrite('extaudit')">
-                    <button v-if="p.status==='PLANNED'" class="mini" @click="planAction(p,'start')">开始</button>
-                    <button v-if="p.status==='IN_PROGRESS'" class="mini" @click="planAction(p,'report')">出具报告</button>
-                    <button v-if="p.status==='REPORTING'" class="mini" @click="planAction(p,'close')">关闭</button>
-                    <button v-if="p.status==='PLANNED'||p.status==='IN_PROGRESS'" class="mini danger" @click="planAction(p,'cancel')">取消</button>
-                    <button v-if="!p.checklistTemplateId && !p.checklistAssessmentId" class="mini" @click="openBind(p)">绑定检查表</button>
-                    <button v-else-if="!p.checklistAssessmentId" class="mini" @click="startChecklist(p)">执行检查表</button>
-                    <button v-else class="mini" @click="gotoChecklist(p)">检查表 #{{ p.checklistAssessmentId }}</button>
-                  </template>
-                  <button class="mini" @click="openNotice(p)">通知书{{ p.noticeIssuedAt ? ' ✓' : '' }}</button>
-                  <button v-if="p.status==='CLOSED' && canWrite('extaudit')" class="mini" @click="followUp(p)">后续审计</button>
+                  <!-- #2 操作列改下拉：按状态动态出可用操作，选中即执行 -->
+                  <select class="opsel" :value="''" @change="dispatchPlanOp(p, $event)">
+                    <option value="" disabled>操作…</option>
+                    <template v-if="canWrite('extaudit')">
+                      <option v-if="p.status==='PLANNED'" value="start">开始审计</option>
+                      <option v-if="p.status==='IN_PROGRESS'" value="report">出具报告</option>
+                      <option v-if="p.status==='REPORTING'" value="close">关闭计划</option>
+                      <option v-if="p.status==='PLANNED'||p.status==='IN_PROGRESS'" value="cancel">取消计划</option>
+                      <option v-if="!p.checklistTemplateId && !p.checklistAssessmentId" value="bind">绑定检查表</option>
+                      <option v-else-if="!p.checklistAssessmentId" value="checklist">执行检查表</option>
+                      <option v-if="p.status==='CLOSED'" value="followup">发起后续审计</option>
+                    </template>
+                    <option v-if="p.checklistAssessmentId" value="gotoChecklist">检查表 #{{ p.checklistAssessmentId }}</option>
+                    <option value="notice">通知书{{ p.noticeIssuedAt ? '（已签发）' : '' }}</option>
+                    <option value="dossier">卷宗导出</option>
+                  </select>
                   <span v-if="p.followUpOf" class="pill" title="后续审计：验证原计划整改有效性">↩ AP-{{ p.followUpOf }}</span>
-                  <button class="mini" @click="exportDossier(p)">卷宗导出</button>
                 </td>
               </tr>
               <tr v-if="!plans.length"><td colspan="6" class="emptyrow">暂无内审计划，点「＋ 新建审计计划」。</td></tr>
@@ -156,7 +160,8 @@
                       <button class="mini" @click="annualId = a.id; showAnnualItem = true">＋ 纳入对象</button>
                       <button class="mini" @click="annualId = a.id; approveAnnual()">批准</button>
                     </template>
-                    <span class="muted" style="font-size:11px">{{ a.id === annualId ? '▲ 收起' : '▼ 展开' }}</span>
+                    <!-- 修复：td 上 @click.stop 会吞掉行点击，展开按钮须自带处理 -->
+                    <button class="mini" @click="toggleAnnual(a)">{{ a.id === annualId ? '▲ 收起' : '▼ 展开' }}</button>
                   </td>
                 </tr>
                 <tr v-if="a.id === annualId">
@@ -596,6 +601,20 @@ async function loadRemed() {
 function pickPlan(p) { planId.value = p.id; tab.value = 'finding'; loadFindings() }
 function pickFinding(f) { findingId.value = f.id; tab.value = 'remed'; loadRemed() }
 
+// #2 操作下拉分发：选中即执行，选完复位（value 恒绑 ''）
+function dispatchPlanOp(p, e) {
+  const op = e.target.value
+  e.target.value = ''
+  if (!op) return
+  if (op === 'bind') return openBind(p)
+  if (op === 'checklist') return startChecklist(p)
+  if (op === 'gotoChecklist') return gotoChecklist(p)
+  if (op === 'notice') return openNotice(p)
+  if (op === 'followup') return followUp(p)
+  if (op === 'dossier') return exportDossier(p)
+  return planAction(p, op)   // start / report / close / cancel
+}
+
 async function planAction(p, action) {
   opMsg.value = ''; opErr.value = ''
   try { await api.post('/audit-plans/' + p.id + '/' + action, {}); opMsg.value = '已' + ({ start: '开始', report: '出具报告', close: '关闭', cancel: '取消' }[action]); await loadPlans(); setTimeout(() => (opMsg.value = ''), 2000) }
@@ -982,6 +1001,9 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
+/* #2 操作下拉 */
+.opsel { height: 28px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-2); font-size: 11.5px; font-family: inherit; outline: none; cursor: pointer; }
+.opsel:hover { border-color: var(--accent); color: var(--accent-strong); }
 /* V54 报告模板管理 */
 .rtpl-list { max-height: 52vh; overflow-y: auto; }
 .rtpl-item { border-bottom: 1px solid var(--border-subtle); padding: 6px 0; }

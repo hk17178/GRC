@@ -43,6 +43,13 @@ const routes = [
     meta: { title: '登录' }
   },
   {
+    // V57 手机手写签名页：免登录轻页面（token 即凭证，5 分钟一次性），不走 AppShell
+    path: '/sign/:token',
+    name: 'signpad',
+    component: () => import('@/views/SignPadView.vue'),
+    meta: { title: '手写签名' }
+  },
+  {
     path: '/dashboard',
     name: 'dashboard',
     component: DashboardView,
@@ -197,7 +204,7 @@ const router = createRouter({
 // 除登录页外，所有路由要求已登录；首次进入时探测会话(/auth/me)，未登录跳登录页。
 import { authState, refreshAuth, canSee } from '@/auth.js'
 router.beforeEach(async (to) => {
-  if (to.name === 'login') return true
+  if (to.name === 'login' || to.name === 'signpad') return true // signpad：手机免登录签名页（token 即凭证）
   if (!authState.ready) await refreshAuth()
   if (!authState.user) return { name: 'login' }
   // 菜单可见性门控（增强③ R4）：访问隐藏菜单 → 回态势页

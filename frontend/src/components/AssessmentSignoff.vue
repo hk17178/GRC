@@ -54,11 +54,29 @@
             <input type="checkbox" v-model="form.accepted" :disabled="!writable" /> 接受残余风险
           </label>
 
-          <div class="fld">手写签名（在框内签名，作为签批存证）
+          <div class="fld">手写签名（框内鼠标签名，或
+            <a class="qr-link" @click.prevent="openMobileSign">📱 手机扫码签名</a>）
             <div class="sig-wrap">
               <canvas ref="sigCanvas" class="sig-pad" width="420" height="120"
                       @pointerdown="sigStart" @pointermove="sigMove" @pointerup="sigEnd" @pointerleave="sigEnd"></canvas>
               <button type="button" class="sig-clear" @click="sigClear">清除重签</button>
+              <img v-if="mobileSignature" :src="mobileSignature" class="sig-mobile-preview" title="手机签名已取回" />
+            </div>
+          </div>
+
+          <!-- 手机扫码签名弹层（V57）：二维码 + 轮询取回 -->
+          <div v-if="qrVisible" class="qr-mask" @click.self="closeMobileSign">
+            <div class="qr-card">
+              <h4>手机扫码签名</h4>
+              <img v-if="qrDataUrl" :src="qrDataUrl" class="qr-img" alt="签名二维码" />
+              <div class="qr-hint">
+                用手机（与本机同网络）扫码打开签名页，手写后提交——本页会自动取回。<br/>
+                令牌 5 分钟有效、一次性；地址：<span class="qr-url">{{ qrUrl }}</span>
+              </div>
+              <div class="qr-status" :class="{ ok: mobileSignature }">
+                {{ mobileSignature ? '✓ 已取回手机签名，可提交签批' : '等待手机签名中…' }}
+              </div>
+              <button class="btn ghost" style="margin-top:10px" @click="closeMobileSign">{{ mobileSignature ? '完成' : '取消' }}</button>
             </div>
           </div>
           <label class="fld">登录密码（身份再认证，必填）
@@ -143,6 +161,41 @@ function sigClear() {
   const c = sigCanvas.value
   if (c) c.getContext('2d').clearRect(0, 0, c.width, c.height)
   sigDirty = false
+  mobileSignature.value = null
+}
+
+// ===== 手机扫码签名（V57）：创建令牌 → 二维码 → 轮询取回 =====
+const qrVisible = ref(false)
+const qrDataUrl = ref('')
+const qrUrl = ref('')
+const mobileSignature = ref(null)
+let pollTimer = null
+let pollToken = null
+async function openMobileSign() {
+  try {
+    const t = await api.post('/assessments/' + props.assessmentId + '/sign-ticket', {})
+    pollToken = t.token
+    qrUrl.value = window.location.origin + '/#/sign/' + t.token
+    const QRCode = (await import('qrcode')).default
+    qrDataUrl.value = await QRCode.toDataURL(qrUrl.value, { width: 220, margin: 1 })
+    qrVisible.value = true
+    pollTimer = setInterval(pollMobile, 2500)
+  } catch (e) { error.value = e.message }
+}
+async function pollMobile() {
+  try {
+    const r = await api.get('/assessments/' + props.assessmentId + '/sign-ticket/' + pollToken)
+    if (r.status === 'SIGNED' && r.signatureDataUrl) {
+      mobileSignature.value = r.signatureDataUrl
+      clearInterval(pollTimer); pollTimer = null
+    } else if (r.status === 'EXPIRED' || r.status === 'USED') {
+      clearInterval(pollTimer); pollTimer = null
+    }
+  } catch (e) { /* 轮询容错 */ }
+}
+function closeMobileSign() {
+  qrVisible.value = false
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
 }
 
 const writable = canWrite('risk')
@@ -170,7 +223,9 @@ async function load() {
 async function submit() {
   saving.value = true; okMsg.value = ''; error.value = ''
   try {
-    const signatureDataUrl = sigDirty && sigCanvas.value ? sigCanvas.value.toDataURL('image/png') : null
+    // 手机取回的签名优先；否则用本地手写板
+    const signatureDataUrl = mobileSignature.value
+        || (sigDirty && sigCanvas.value ? sigCanvas.value.toDataURL('image/png') : null)
     await api.post('/assessments/' + props.assessmentId + '/signoff', {
       opinion: form.opinion, accepted: form.accepted,
       password: form.password, signatureDataUrl
@@ -227,4 +282,15 @@ watch(() => props.assessmentId, load, { immediate: true })
 .pwd { width: 320px; max-width: 100%; height: 34px; padding: 0 10px; border: 1px solid var(--surface-border); border-radius: 6px; background: var(--surface); color: var(--text-1); font: inherit; box-sizing: border-box; }
 .sig-img { max-height: 72px; background: #fff; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 2px 6px; }
 .sig-sha { font-size: 10.5px; color: var(--text-3); margin-top: 3px; }
+/* V57 手机扫码签名 */
+.qr-link { color: var(--accent-strong); cursor: pointer; font-weight: 600; text-decoration: underline; }
+.sig-mobile-preview { position: absolute; left: 8px; top: 8px; max-height: 100px; max-width: 400px; pointer-events: none; }
+.qr-mask { position: fixed; inset: 0; background: rgba(0,0,0,.35); display: flex; align-items: center; justify-content: center; z-index: 60; }
+.qr-card { width: 320px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 12px; box-shadow: var(--shadow-2, 0 10px 40px rgba(0,0,0,.2)); padding: 20px 22px; text-align: center; }
+.qr-card h4 { margin: 0 0 12px; font-size: 15px; }
+.qr-img { width: 200px; height: 200px; background: #fff; border-radius: 8px; }
+.qr-hint { font-size: 11px; color: var(--text-3); line-height: 1.7; margin-top: 8px; text-align: left; }
+.qr-url { word-break: break-all; color: var(--text-2); }
+.qr-status { margin-top: 10px; font-size: 12.5px; font-weight: 600; color: #a87d22; }
+.qr-status.ok { color: var(--success); }
 </style>
