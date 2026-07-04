@@ -38,6 +38,26 @@ public class AiMaterialService {
     private final ObjectMapper objectMapper;
     private final AiGovernanceRepository governanceRepo;
 
+    /** 留痕链（八轮 8-2：AI 生成访问日志，setter 注入）。 */
+    private com.mandao.grc.modules.audit.HashChainService hashChainService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireHashChain(com.mandao.grc.modules.audit.HashChainService hashChainService) {
+        this.hashChainService = hashChainService;
+    }
+
+    /** AI 生成留痕（八轮 8-2）：类型与模型入链；失败不阻断生成。 */
+    private void appendAccessLog(String action) {
+        try {
+            var orgs = com.mandao.grc.common.isolation.IsolationContext.get();
+            long orgId = orgs == null || orgs.isEmpty() ? 1L : orgs.get(0);
+            hashChainService.append(orgId, action, com.mandao.grc.common.auth.ActorResolver.resolve(null),
+                    "AI:" + llm.name(), "生成材料初稿，模型=" + llm.model() + "（AI 初稿须人工复核）");
+        } catch (RuntimeException e) {
+            // 留痕失败不阻断生成
+        }
+    }
+
     public AiMaterialService(LlmProvider llm, DashboardService dashboardService, ObjectMapper objectMapper,
                              AiGovernanceRepository governanceRepo) {
         this.llm = llm;
@@ -51,8 +71,8 @@ public class AiMaterialService {
      *
      * @param type FILING_DRAFT 监管报送稿 / MGMT_BRIEF 管理层合规简报
      */
-    @Transactional(readOnly = true)
     public Material generate(String type) {
+        // 八轮：本方法不再整段事务——统计聚合走 DashboardService 自己的事务，LLM 外呼裸跑（7-7 口径），留痕单独短事务
         String statsJson;
         try {
             statsJson = objectMapper.writeValueAsString(dashboardService.summary());
@@ -64,6 +84,7 @@ public class AiMaterialService {
                 brief ? FALLBACK_MGMT_BRIEF : FALLBACK_FILING_DRAFT);
         String question = ask + "\n【统计数据(JSON)】" + statsJson;
         String draft = llm.generateFor("MATERIAL", question, List.of("当前合规统计：" + statsJson));
+        appendAccessLog(brief ? "AI_GENERATE_BRIEF" : "AI_GENERATE_FILING");
         return new Material(type, draft, OffsetDateTime.now().toString(), true, llm.name());
     }
 

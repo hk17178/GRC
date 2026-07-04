@@ -124,7 +124,9 @@ public class AssessmentFormService {
                 .ifPresent(old -> {
                     if (!old.getId().equals(form.getId())) {
                         old.setStatus(TemplateForm.RETIRED);
-                        formRepo.save(old);
+                        // 八轮修复：强制先落盘旧版停用——Hibernate 刷新顺序按实体入托管序，
+                        // 新版先入托管时会先执行 ACTIVE 更新，撞 uk_template_form_active 部分唯一索引
+                        formRepo.saveAndFlush(old);
                     }
                 });
         form.setStatus(TemplateForm.ACTIVE);

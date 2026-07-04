@@ -72,3 +72,15 @@ grc:
     # 嵌入提供方：local（本地确定性·默认）| voyage（待接入）。维度须与 kb_chunk.embedding=vector(1024) 一致
     embedding:
       provider: ${GRC_AI_EMBEDDING_PROVIDER:local}
+
+# ---------- 八轮 8-5（B10）：运维健康端点 ----------
+# /actuator/health 供部署脚本/compose healthcheck 判活；metrics 供 AI 调用量/时延观测起步。
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

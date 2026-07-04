@@ -216,9 +216,9 @@ class PolicyLifecycleTest {
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "流转留痕后链应校验通过");
-        // CREATE + SUBMIT + WORKFLOW_SUBMIT + WORKFLOW_DECIDE + APPROVE = 5 条
-        //（审批走 Flowable 后，提交多出 WORKFLOW_SUBMIT、审批多出 WORKFLOW_DECIDE）
-        assertEquals(5, r.count(), "应有 5 条操作留痕（含工作流提交/处置）");
+        // CREATE + SUBMIT + WORKFLOW_SUBMIT + WORKFLOW_DECIDE + APPROVE + KB_INGEST = 6 条
+        //（审批走 Flowable 多出 WORKFLOW_*；八轮 8-4：生效制度自动入知识库再多 1 条 POLICY_KB_INGEST）
+        assertEquals(6, r.count(), "应有 6 条操作留痕（含工作流提交/处置与知识库入索引）");
     }
 
     @Test

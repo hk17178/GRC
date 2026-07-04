@@ -9,6 +9,9 @@ import java.util.List;
  */
 public interface KbDocumentRepository extends JpaRepository<KbDocument, Long> {
 
+    /** 幂等复摄入定位（八轮 8-4：同源文档删旧重建）。 */
+    java.util.Optional<KbDocument> findFirstBySourceTypeAndSourceRef(KbSourceType type, String sourceRef);
+
     /** 列出可见范围内的文档，按 id 倒序（最新在前）。 */
     List<KbDocument> findAllByOrderByIdDesc();
 }

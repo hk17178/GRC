@@ -81,6 +81,11 @@ public class AssessmentPlan {
         this.status = STARTED;
     }
 
+    /** 解除评估引用（八轮 8-11/A31：被引用评估删除/作废时调用，避免悬挂）。 */
+    public void detachAssessment() {
+        this.assessmentId = null;
+    }
+
     public void markDone() {
         this.status = DONE;
     }

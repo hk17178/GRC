@@ -95,7 +95,7 @@
           <div class="kd-v">当前值：<b :style="kpiDrill.vColor ? { color: kpiDrill.vColor } : null">{{ kpiDrill.v }}</b></div>
           <div class="kd-row"><span class="kd-k">口径</span>{{ (KPI_DOC[kpiDrill.key] || {}).formula || '—' }}</div>
           <div class="kd-row"><span class="kd-k">数据来源</span>{{ (KPI_DOC[kpiDrill.key] || {}).source || '—' }}</div>
-          <div class="kd-row"><span class="kd-k">更新方式</span>实时（后端按可见组织汇总，RLS 裁剪）</div>
+          <div class="kd-row"><span class="kd-k">更新方式</span>实时（后端按您的可见组织范围汇总）</div>
           <div class="modal-actions">
             <button v-if="(KPI_DOC[kpiDrill.key] || {}).route" class="btn ghost" @click="goKpi(kpiDrill)">查看明细 →</button>
             <button class="btn" @click="kpiDrill = null">关闭</button>

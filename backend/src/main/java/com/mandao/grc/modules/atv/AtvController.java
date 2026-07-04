@@ -43,6 +43,22 @@ public class AtvController {
 
     // ---------- 脆弱性库 ----------
 
+    /** 更新威胁（八轮 8-10）。 */
+    @org.springframework.web.bind.annotation.PutMapping("/threats/{id}")
+    @RequiresPermission("risk")
+    public Threat updateThreat(@PathVariable Long id, @RequestBody UpdateRefRequest req,
+                               @RequestHeader(value = "X-User", required = false) String user) {
+        return service.updateThreat(id, req.name(), req.category(), req.description(), actor(user));
+    }
+
+    /** 删除威胁（被场景引用则 409）。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/threats/{id}")
+    @RequiresPermission("risk")
+    public void deleteThreat(@PathVariable Long id,
+                             @RequestHeader(value = "X-User", required = false) String user) {
+        service.deleteThreat(id, actor(user));
+    }
+
     @GetMapping("/vulnerabilities")
     public List<Vulnerability> listVulnerabilities() {
         return service.listVulnerabilities();
@@ -58,6 +74,34 @@ public class AtvController {
     // ---------- A-T-V 风险场景 ----------
 
     /** 列出风险场景；可按 assetId 过滤。 */
+    /** 更新脆弱性（八轮 8-10）。 */
+    @org.springframework.web.bind.annotation.PutMapping("/vulnerabilities/{id}")
+    @RequiresPermission("risk")
+    public Vulnerability updateVulnerability(@PathVariable Long id, @RequestBody UpdateRefRequest req,
+                                             @RequestHeader(value = "X-User", required = false) String user) {
+        return service.updateVulnerability(id, req.name(), req.category(), req.description(), actor(user));
+    }
+
+    /** 删除脆弱性（被场景引用则 409）。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/vulnerabilities/{id}")
+    @RequiresPermission("risk")
+    public void deleteVulnerability(@PathVariable Long id,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        service.deleteVulnerability(id, actor(user));
+    }
+
+    /** 删除场景（已派生发现则 409）。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/risk-scenarios/{id}")
+    @RequiresPermission("risk")
+    public void deleteScenario(@PathVariable Long id,
+                               @RequestHeader(value = "X-User", required = false) String user) {
+        service.deleteScenario(id, actor(user));
+    }
+
+    /** 三库更新请求体（编码不可改）。 */
+    public record UpdateRefRequest(String name, String category, String description) {
+    }
+
     @GetMapping("/risk-scenarios")
     public List<RiskScenario> listScenarios(@RequestParam(required = false) Long assetId) {
         return assetId == null ? service.listScenarios() : service.listScenariosByAsset(assetId);

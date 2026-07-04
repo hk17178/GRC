@@ -113,8 +113,9 @@ public class AiController {
 
     // ---------- 场景模型路由（V49 模型分配）----------
 
-    /** 全部场景路由（QA/MATERIAL/REG_SUMMARY/POLICY_MAP，未配置的给默认停用行）。 */
+    /** 全部场景路由。八轮 8-12：读门控同 config。 */
     @GetMapping("/routes")
+    @RequiresPermission("aimodel")
     public List<AiConfigService.RouteView> listRoutes() {
         return configService.listRoutes();
     }
@@ -147,8 +148,9 @@ public class AiController {
         return new AiStatus(qa.provider(), qa.model(), embedding.dim(), "local".equals(qa.provider()));
     }
 
-    /** 取大模型接入配置（掩码，不回显密钥），供「模型接入」页编辑。 */
+    /** 取大模型接入配置（掩码，不回显密钥）。八轮 8-12/A32：读也门控——接入地址/模型/掩码属敏感配置。 */
     @GetMapping("/config")
+    @RequiresPermission("aimodel")
     public AiConfigService.ConfigView getConfig() {
         return configService.view();
     }

@@ -22,18 +22,31 @@ public class NotifyConfigController {
 
     private final NotifyConfigService service;
     private final com.mandao.grc.kernel.NotifyRuleEngine ruleEngine;
+    private final com.mandao.grc.kernel.AlertPushService alertPushService;
 
     public NotifyConfigController(NotifyConfigService service,
-                                  com.mandao.grc.kernel.NotifyRuleEngine ruleEngine) {
+                                  com.mandao.grc.kernel.NotifyRuleEngine ruleEngine,
+                                  com.mandao.grc.kernel.AlertPushService alertPushService) {
         this.service = service;
         this.ruleEngine = ruleEngine;
+        this.alertPushService = alertPushService;
     }
 
-    /** 立即评估一轮全部启用规则（六轮 #7；平时由调度内核每 15 分钟自动跑）。返回本轮新产告警数。 */
+    /** 立即评估一轮全部启用规则（六轮 #7；平时由调度内核每 15 分钟自动跑）。返回本轮新产告警数与外推数。 */
     @PostMapping("/run-engine")
     @RequiresPermission("notify")
     public java.util.Map<String, Integer> runEngine() {
-        return java.util.Map.of("produced", ruleEngine.runOnce(java.time.LocalDate.now()));
+        java.util.List<com.mandao.grc.kernel.AlertPushService.Alert> fresh = new java.util.ArrayList<>();
+        int produced = ruleEngine.runOnce(java.time.LocalDate.now(), fresh);
+        int pushed = alertPushService.pushAll(fresh); // 八轮 8-1：新告警企微外推（HTTP 在事务外）
+        return java.util.Map.of("produced", produced, "pushed", pushed);
+    }
+
+    /** 通道外推发送留痕（八轮 8-1：最近 N 条成功/失败记录）。 */
+    @GetMapping("/send-logs")
+    public java.util.List<java.util.Map<String, Object>> sendLogs(
+            @RequestParam(required = false, defaultValue = "100") int limit) {
+        return alertPushService.recentLogs(limit);
     }
 
     /** 按 kind（SCENARIO/RULE/CHANNEL）列出配置。 */

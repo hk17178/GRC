@@ -30,9 +30,82 @@ public class ObligationService {
         this.hashChainService = hashChainService;
     }
 
+    /** 举证链仓储（八轮 8-3，setter 注入）。 */
+    private ObligationLinkRepository linkRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireLinkRepository(ObligationLinkRepository linkRepository) {
+        this.linkRepository = linkRepository;
+    }
+
     @Transactional(readOnly = true)
     public List<Obligation> list() {
         return repository.findAll();
+    }
+
+    // ===== 八轮 8-3（B8）：举证链 + 派生满足状态 =====
+
+    /** 列表行：义务 + 举证链摘要 + 派生状态（derivedStatus 只读，人工 status 保留为登记口径）。 */
+    public record ObligationRow(Obligation obligation, long linkCount, long evidenceCount,
+                                String derivedStatus) {
+    }
+
+    /**
+     * 带派生状态的义务列表。派生规则（举证链口径，人工填报不再决定满足结论）：
+     *  - MET：挂有 制度/控制/评估/审计 任一依据 且 挂有证据（EVIDENCE 链或 fulfill 留证）；
+     *  - PARTIAL：有依据但无证据，或有证据但无依据；
+     *  - GAP：链上空空如也。
+     */
+    @Transactional(readOnly = true)
+    public List<ObligationRow> listWithDerived() {
+        List<Obligation> all = repository.findAll();
+        if (all.isEmpty()) {
+            return List.of();
+        }
+        var links = linkRepository.findByObligationIdIn(all.stream().map(Obligation::getId).toList());
+        var byOb = new java.util.HashMap<Long, List<ObligationLink>>();
+        for (ObligationLink l : links) {
+            byOb.computeIfAbsent(l.getObligationId(), k -> new java.util.ArrayList<>()).add(l);
+        }
+        return all.stream().map(o -> {
+            List<ObligationLink> ls = byOb.getOrDefault(o.getId(), List.of());
+            long evid = ls.stream().filter(l -> "EVIDENCE".equals(l.getRefType())).count()
+                    + (o.getEvidence() == null || o.getEvidence().isBlank() ? 0 : 1);
+            long basis = ls.stream().filter(l -> !"EVIDENCE".equals(l.getRefType())).count();
+            String derived = (basis > 0 && evid > 0) ? "MET" : (basis + evid > 0 ? "PARTIAL" : "GAP");
+            return new ObligationRow(o, ls.size(), evid, derived);
+        }).toList();
+    }
+
+    /** 义务的举证链明细（依据弹层用）。 */
+    @Transactional(readOnly = true)
+    public List<ObligationLink> links(Long obligationId) {
+        get(obligationId); // 可见性校验
+        return linkRepository.findByObligationIdOrderByIdAsc(obligationId);
+    }
+
+    /** 挂接依据对象（同对象防重）。 */
+    @Transactional
+    public ObligationLink addLink(Long obligationId, String refType, Long refId, String note, String actor) {
+        Obligation o = get(obligationId);
+        if (linkRepository.existsByObligationIdAndRefTypeAndRefId(obligationId, refType, refId)) {
+            throw new IllegalStateException("该依据对象已挂接过此义务");
+        }
+        ObligationLink saved = linkRepository.save(
+                new ObligationLink(o.getOrgId(), obligationId, refType, refId, note));
+        hashChainService.append(o.getOrgId(), "OBLIGATION_LINK_ADD", actor, "OBLIGATION:" + obligationId,
+                "挂接举证依据 " + refType + ":" + refId + (note == null ? "" : "（" + note + "）"));
+        return saved;
+    }
+
+    /** 摘除依据对象。 */
+    @Transactional
+    public void removeLink(Long linkId, String actor) {
+        ObligationLink l = linkRepository.findById(linkId)
+                .orElseThrow(() -> new IllegalArgumentException("举证关联不存在或不可见：id=" + linkId));
+        linkRepository.delete(l);
+        hashChainService.append(l.getOrgId(), "OBLIGATION_LINK_REMOVE", actor,
+                "OBLIGATION:" + l.getObligationId(), "摘除举证依据 " + l.getRefType() + ":" + l.getRefId());
     }
 
     @Transactional(readOnly = true)

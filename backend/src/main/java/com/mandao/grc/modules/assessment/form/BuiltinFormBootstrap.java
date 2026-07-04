@@ -45,22 +45,37 @@ public class BuiltinFormBootstrap {
                     .filter(t -> "platform".equals(t.getOwner()))
                     .toList();
             int created = 0;
+            int upgraded = 0;
             for (AssessmentTemplate t : templates) {
                 try {
-                    boolean hasActive = formService.listForms(t.getId()).stream()
-                            .anyMatch(f -> "ACTIVE".equals(f.getStatus()));
-                    if (hasActive) {
+                    String label = t.getName().replace("模板", "").trim() + " ";
+                    boolean differentiated = "TPL-MLPS".equals(t.getCode()) || "TPL-PBOC".equals(t.getCode());
+                    String formName = differentiated
+                            ? "内置标准表单·" + ("TPL-MLPS".equals(t.getCode()) ? "等保2.0" : "人行支付") + " v2"
+                            : "内置标准表单";
+                    var active = formService.listForms(t.getId()).stream()
+                            .filter(f -> "ACTIVE".equals(f.getStatus()))
+                            .findFirst();
+                    if (active.isPresent()) {
+                        // 八轮 8-8：等保/PBOC 从 v1 通用骨架升级为差异化表单（新版本入库并启用，旧版留档）
+                        if (differentiated && "内置标准表单".equals(active.get().getName())) {
+                            byte[] docx = generator.generateFor(t.getCode(), label);
+                            TemplateForm form = formService.uploadForm(t.getId(), formName, docx);
+                            formService.activate(form.getId());
+                            upgraded++;
+                        }
                         continue;
                     }
-                    byte[] docx = generator.generate(t.getName().replace("模板", "").trim() + " ");
-                    TemplateForm form = formService.uploadForm(t.getId(), "内置标准表单", docx);
+                    byte[] docx = generator.generateFor(t.getCode(), label);
+                    TemplateForm form = formService.uploadForm(t.getId(), formName, docx);
                     formService.activate(form.getId());
                     created++;
                 } catch (RuntimeException e) {
                     log.warn("builtin-form bootstrap failed for {}: {}", t.getCode(), e.getMessage());
                 }
             }
-            log.info("builtin-form bootstrap done: templates={}, installed={}", templates.size(), created);
+            log.info("builtin-form bootstrap done: templates={}, installed={}, upgraded={}",
+                    templates.size(), created, upgraded);
         } finally {
             IsolationContext.clear();
         }

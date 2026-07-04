@@ -103,6 +103,33 @@
               <tr v-if="!channels.length"><td colspan="5" class="emptyrow">暂无通道，点「＋ 新建通道」。</td></tr>
             </tbody>
           </table>
+          <div style="font-size:11px;color:var(--text-3);margin-top:10px">
+            第一批外推仅支持 企微群机器人（类型=企微，目标=webhook 地址）；规则引擎产出的新告警会自动推送并留痕。邮件/短信通道后续批次接入。
+          </div>
+        </div>
+      </div>
+
+      <!-- 发送留痕（八轮 8-1：通道外推的成功/失败记录，失败不重试、留痕即达标）-->
+      <div v-show="tab === 'channel'" class="card" style="margin-top: 14px">
+        <div class="ch"><h3>发送留痕</h3><span class="cnt">{{ sendLogs.length }}</span>
+          <button class="btn ghost sm" style="margin-left:auto" @click="loadSendLogs">刷新</button></div>
+        <div class="cb" style="overflow-x:auto;padding-top:0">
+          <table style="min-width:720px">
+            <thead><tr><th>时间</th><th>通道</th><th>目标</th><th>内容</th><th>结果</th></tr></thead>
+            <tbody>
+              <tr v-for="s in sendLogs" :key="s.id">
+                <td class="num">{{ fmtTime(s.createdAtMs) }}</td>
+                <td><span class="pill">{{ CH_LABEL[s.channelType] || s.channelType }}</span></td>
+                <td class="muted">{{ s.target }}</td>
+                <td class="muted" style="max-width:280px">{{ s.message }}</td>
+                <td>
+                  <span v-if="s.success" class="ackd">✓ 已送达</span>
+                  <span v-else class="tag h" :title="s.error">失败：{{ (s.error || '').slice(0, 40) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!sendLogs.length"><td colspan="5" class="emptyrow">暂无外推记录——配置企微通道并触发规则告警后在此留痕。</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -291,6 +318,8 @@ async function runEngine() {
   try {
     const r = await api.post('/notify/configs/run-engine', {})
     engineMsg.value = '本轮新产 ' + r.produced + ' 条告警' + (r.produced ? '（见提醒记录）' : '（无新命中或均已告警过）')
+      + (r.pushed ? '，企微外推成功 ' + r.pushed + ' 条' : '')
+    loadSendLogs()
     await loadLog()
     setTimeout(() => (engineMsg.value = ''), 5000)
   } catch (e) { engineMsg.value = e.message } finally { engineBusy.value = false }
@@ -303,7 +332,13 @@ async function submitAdd() {
   } catch (e) { addErr.value = e.message } finally { addSaving.value = false }
 }
 
-onMounted(() => { loadAll(); loadLog() })
+// ===== 八轮 8-1：发送留痕 =====
+const sendLogs = ref([])
+async function loadSendLogs() {
+  try { sendLogs.value = await api.get('/notify/configs/send-logs') } catch (e) { sendLogs.value = [] }
+}
+
+onMounted(() => { loadAll(); loadLog(); loadSendLogs() })
 </script>
 
 <style scoped>

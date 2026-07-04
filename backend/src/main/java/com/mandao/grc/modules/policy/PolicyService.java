@@ -156,7 +156,9 @@ public class PolicyService {
         workflowService.decide(task.getId(), decision, approver, comment);
         if (decision == ApprovalDecision.APPROVED) {
             transition(policy, PolicyStatus.REVIEW, PolicyStatus.EFFECTIVE);
-            appendLog(policy, "POLICY_APPROVE", approver, "审批通过并生效");
+            appendLog(policy, "POLICY_APPROVE", approver, "审批通过并生效"
+                    + (comment == null || comment.isBlank() ? "" : "，意见：" + comment));
+            ingestToKnowledgeBase(policy); // 八轮 8-4（B9/M1-9）：生效制度自动入知识库索引
         } else {
             transition(policy, PolicyStatus.REVIEW, PolicyStatus.DRAFT);
             appendLog(policy, "POLICY_REJECT", approver, "审批驳回，原因：" + (comment == null ? "" : comment));
@@ -280,6 +282,33 @@ public class PolicyService {
             throw new IllegalArgumentException("该制度未上传原件");
         }
         return policy;
+    }
+
+    /** 知识库（八轮 8-4：生效制度自动入索引，setter 注入避免模块环）。 */
+    private com.mandao.grc.modules.ai.KnowledgeBaseService knowledgeBaseService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireKnowledgeBase(com.mandao.grc.modules.ai.KnowledgeBaseService knowledgeBaseService) {
+        this.knowledgeBaseService = knowledgeBaseService;
+    }
+
+    /**
+     * 制度自动入知识库（八轮 8-4/B9）：生效即索引（sourceRef=POLICY:{id} 幂等复摄入，
+     * 修订再生效自动替换旧版切块）；无全文的仅元数据制度跳过；失败不阻断审批主流程。
+     */
+    private void ingestToKnowledgeBase(Policy policy) {
+        try {
+            if (policy.getContent() == null || policy.getContent().isBlank()) {
+                return;
+            }
+            knowledgeBaseService.upsertBySource(policy.getOrgId(),
+                    "制度：" + policy.getTitle() + "（v" + policy.getVersion() + "）",
+                    com.mandao.grc.modules.ai.KbSourceType.POLICY,
+                    "POLICY:" + policy.getId(), policy.getContent());
+            appendLog(policy, "POLICY_KB_INGEST", "system", "制度全文已入知识库索引（条款切块）");
+        } catch (RuntimeException e) {
+            // 入索引失败不影响制度生效（知识库可后补，审批主链路优先）
+        }
     }
 
     /** 计算 sha256 十六进制串。 */

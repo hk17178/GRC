@@ -43,6 +43,18 @@ public class RiskFindingController {
         return service.registerRows();
     }
 
+    /** 日常风险直登（八轮 8-11/C11）：事件/漏洞/审计来源的风险不挂评估，直接入登记册。 */
+    @PostMapping("/direct")
+    @RequiresPermission("risk")
+    public RiskFinding createDirect(@RequestBody DirectRequest req,
+                                    @RequestHeader(value = "X-User", required = false) String user) {
+        return service.createDirect(req.orgId(), req.title(), req.inherentLevel(), req.source(), actor(user));
+    }
+
+    /** 直登请求体。 */
+    public record DirectRequest(Long orgId, String title, RiskLevel inherentLevel, String source) {
+    }
+
     /** 取单个风险发现。 */
     @GetMapping("/{id}")
     public RiskFinding get(@PathVariable Long id) {

@@ -44,6 +44,10 @@ public class AuthController {
                 || !passwordEncoder.matches(req.password(), user.getPasswordHash())) {
             return ResponseEntity.status(401).body(Map.of("code", "AUTH_FAILED", "message", "用户名或口令错误"));
         }
+        // CR-003（八轮 8-6）：平台侧独立禁用位——源目录有效但平台停用的账号一律拒绝
+        if (user.isPlatformDisabled()) {
+            return ResponseEntity.status(401).body(Map.of("code", "PLATFORM_DISABLED", "message", "账号已被平台停用，请联系管理员"));
+        }
         String token = jwtService.issue(user.getId(), user.getUsername());
         ResponseCookie cookie = ResponseCookie.from(COOKIE, token)
                 .httpOnly(true).path("/").sameSite("Lax")

@@ -61,11 +61,26 @@ public class RiskFindingService {
         this.assessmentRepository = assessmentRepository;
     }
 
-    /** 登记册行（六轮 #2/#5：ISO 31000 组织级风险登记册的展示条目）。 */
+    /** 登记册行（六轮 #2/#5：ISO 31000 组织级风险登记册的展示条目；八轮 8-11 携来源）。 */
     public record RegisterRow(Long id, Long assessmentId, String assessmentTitle, String title,
                               RiskLevel inherentLevel, RiskLevel residualLevel,
                               String treatmentDecision, RiskFindingStatus status,
-                              java.time.OffsetDateTime updatedAt) {
+                              java.time.OffsetDateTime updatedAt, String source) {
+    }
+
+    /**
+     * 日常风险直登（八轮 8-11/C11）：事件/漏洞/审计发现的风险不必先造评估，
+     * 直接入组织级登记册（assessment_id 为空，source 标注来源）；处置/接受/关闭走既有闭环。
+     */
+    @Transactional
+    public RiskFinding createDirect(Long orgId, String title, RiskLevel inherentLevel,
+                                    String source, String actor) {
+        RiskFinding f = new RiskFinding(orgId, null, title, inherentLevel);
+        f.setSource(source == null || source.isBlank() ? "MANUAL" : source);
+        RiskFinding saved = findingRepository.save(f);
+        appendLog(saved, "FINDING_DIRECT_CREATE", actor,
+                "日常直登风险 title=" + title + " 来源=" + saved.getSource() + " inherent=" + inherentLevel);
+        return saved;
     }
 
     /**
@@ -84,9 +99,10 @@ public class RiskFindingService {
                 .forEach(a -> titles.put(a.getId(), a.getTitle()));
         return findings.stream()
                 .map(f -> new RegisterRow(f.getId(), f.getAssessmentId(),
-                        titles.getOrDefault(f.getAssessmentId(), "（评估不可见）"),
+                        f.getAssessmentId() == null ? "日常登记"
+                                : titles.getOrDefault(f.getAssessmentId(), "（评估不可见）"),
                         f.getTitle(), f.getInherentLevel(), f.getResidualLevel(),
-                        f.getTreatmentDecision(), f.getStatus(), f.getUpdatedAt()))
+                        f.getTreatmentDecision(), f.getStatus(), f.getUpdatedAt(), f.getSource()))
                 .toList();
     }
 

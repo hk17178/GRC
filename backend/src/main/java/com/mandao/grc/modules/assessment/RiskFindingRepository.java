@@ -15,6 +15,9 @@ public interface RiskFindingRepository extends JpaRepository<RiskFinding, Long> 
     /** 列出某评估下的全部风险发现（仍受 RLS 裁剪）。 */
     List<RiskFinding> findByAssessmentId(Long assessmentId);
 
+    /** 场景引用检查（八轮 8-10：被风险发现引用的场景不可删）。 */
+    boolean existsByScenarioId(Long scenarioId);
+
     /** 登记册分页护栏（七轮 7-8：跨评估聚合是增长最快的全量查询之一）。 */
     List<RiskFinding> findAllByOrderByIdDesc(org.springframework.data.domain.Pageable pageable);
 

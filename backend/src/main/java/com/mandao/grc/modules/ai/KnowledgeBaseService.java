@@ -76,10 +76,28 @@ public class KnowledgeBaseService {
     }
 
     /**
-     * 简易切块：先按空行分段，过长段再按 {@link #MAX_CHARS} 定长切。
-     * 足以驱动 RAG；后续可换更讲究的语义切块（保留中文句界等）。
+     * 复摄入（八轮 8-4：制度生效/修订自动入索引的幂等入口）：
+     * 同 (type, sourceRef) 已有文档则删旧重建（内容/切块/向量全量替换），否则新摄入。
      */
-    static List<String> chunk(String content) {
+    @Transactional
+    public KbDocument upsertBySource(Long orgId, String title, KbSourceType type, String sourceRef, String content) {
+        docRepo.findFirstBySourceTypeAndSourceRef(type, sourceRef).ifPresent(old -> {
+            chunkRepo.deleteAll(chunkRepo.findByDocumentIdOrderBySeqAsc(old.getId()));
+            docRepo.delete(old);
+        });
+        return ingest(orgId, title, type, sourceRef, content);
+    }
+
+    /**
+     * 条款边界切块（八轮 8-4 / 评估报告 B9，M1-9 红线级）：
+     * 制度/法规文本按「第X章 / 第X条 / 数字标题」等条款边界切，切块首行保留条款号——
+     * RAG 召回后引用能落到条款粒度，而不是无语义的定长碎片。
+     * 规则：
+     *  1) 先按条款边界正则切出「条」级片段（第X条 优先，兼容 一、二、… 与 1. 2. 编号）；
+     *  2) 无条款结构的文本回退到 空行分段 + 定长兜底；
+     *  3) 过长条款仍按 MAX_CHARS 续切，但每段都携带条款号前缀（保住出处）。
+     */
+    public static List<String> chunk(String content) {
         List<String> out = new ArrayList<>();
         if (content == null) {
             return out;
@@ -88,6 +106,34 @@ public class KnowledgeBaseService {
         if (text.isEmpty()) {
             return out;
         }
+        // 条款边界：行首的 第X条/第X章/第X节，或 一、/（一）/1. 式编号
+        java.util.regex.Pattern boundary = java.util.regex.Pattern.compile(
+                "(?m)^(?=\\s*(第[一二三四五六七八九十百零\\d]+[条章节]|[一二三四五六七八九十]+、|（[一二三四五六七八九十]+）|\\d{1,2}[.、]\\s))");
+        String[] clauses = boundary.split(text);
+        boolean hasClauseStructure = clauses.length >= 3; // 至少切出两个条款边界才算有结构
+        if (hasClauseStructure) {
+            for (String clause : clauses) {
+                String c = clause.strip();
+                if (c.isEmpty()) {
+                    continue;
+                }
+                if (c.length() <= MAX_CHARS) {
+                    out.add(c);
+                } else {
+                    // 条款过长续切：每段带条款号前缀（取首行前 24 字）保出处
+                    String head = c.lines().findFirst().orElse("");
+                    String prefix = (head.length() > 24 ? head.substring(0, 24) : head) + "（续）";
+                    out.add(c.substring(0, MAX_CHARS));
+                    for (int i = MAX_CHARS; i < c.length(); i += MAX_CHARS - prefix.length()) {
+                        out.add(prefix + c.substring(i, Math.min(c.length(), i + MAX_CHARS - prefix.length())));
+                    }
+                }
+            }
+            if (!out.isEmpty()) {
+                return out;
+            }
+        }
+        // 回退：空行分段 + 定长兜底（无条款结构的说明性文本）
         for (String para : text.split("\\n\\s*\\n")) {
             String p = para.strip();
             if (p.isEmpty()) {

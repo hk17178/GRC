@@ -48,10 +48,11 @@
                 <td><span class="st" :class="ST_CLS[p.status]"><span class="d"></span>{{ $t('policy.status.' + p.status) }}</span></td>
                 <td class="ops" @click.stop>
                   <button v-if="p.status === 'DRAFT'" class="btn sm" :disabled="busyId === p.id" @click="act(p, 'submit')">{{ $t('policy.op.submit') }}</button>
-                  <template v-else-if="p.status === 'REVIEW'">
-                    <button class="btn sm" :disabled="busyId === p.id" @click="act(p, 'approve')">{{ $t('policy.op.approve') }}</button>
-                    <button class="btn ghost sm danger" :disabled="busyId === p.id" @click="openReject(p)">{{ $t('policy.op.reject') }}</button>
-                  </template>
+                  <!-- 八轮 8-7（C2）：撤掉列表一键直批——审批须到「我的待办·待审批」领取任务、
+                       填写审批意见后处置（职责与留痕都归审批人），列表页只提示去向 -->
+                  <span v-else-if="p.status === 'REVIEW'" class="muted" style="font-size: 11px">
+                    评审中 · 请审批人到「我的待办」处置
+                  </span>
                   <template v-else-if="p.status === 'EFFECTIVE'">
                     <button class="btn ghost sm" :disabled="busyId === p.id" @click="act(p, 'signoff')">{{ $t('policy.op.signoff') }}</button>
                     <button class="btn ghost sm danger" :disabled="busyId === p.id" @click="act(p, 'archive')">{{ $t('policy.op.archive') }}</button>

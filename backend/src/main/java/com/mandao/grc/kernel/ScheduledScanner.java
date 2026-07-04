@@ -23,12 +23,14 @@ public class ScheduledScanner {
     private final ExpiryScanService expiryScanService;
     private final ScheduledCrawlService scheduledCrawlService;
     private final NotifyRuleEngine notifyRuleEngine;
+    private final AlertPushService alertPushService;
 
     public ScheduledScanner(ExpiryScanService expiryScanService, ScheduledCrawlService scheduledCrawlService,
-                            NotifyRuleEngine notifyRuleEngine) {
+                            NotifyRuleEngine notifyRuleEngine, AlertPushService alertPushService) {
         this.expiryScanService = expiryScanService;
         this.scheduledCrawlService = scheduledCrawlService;
         this.notifyRuleEngine = notifyRuleEngine;
+        this.alertPushService = alertPushService;
     }
 
     /** 默认每 15 分钟扫描一次（可由 grc.scheduler.fixed-delay-ms 调整）。 */
@@ -38,11 +40,13 @@ public class ScheduledScanner {
         if (!result.skipped() && result.emitted() > 0) {
             log.info("到期扫描产出 {} 条时间事件", result.emitted());
         }
-        // 通知规则引擎与到期扫描同节拍（六轮 #7）
-        int produced = notifyRuleEngine.runOnce(LocalDate.now());
+        // 通知规则引擎与到期扫描同节拍（六轮 #7）；新告警在事务外做企微外推（八轮 8-1）
+        java.util.List<AlertPushService.Alert> fresh = new java.util.ArrayList<>();
+        int produced = notifyRuleEngine.runOnce(LocalDate.now(), fresh);
         if (produced > 0) {
             log.info("通知规则引擎产出 {} 条告警", produced);
         }
+        alertPushService.pushAll(fresh);
     }
 
     /** 法规爬虫定时抓取：默认每 30 分钟选一次到期源（可由 grc.crawler.fixed-delay-ms 调整）。 */

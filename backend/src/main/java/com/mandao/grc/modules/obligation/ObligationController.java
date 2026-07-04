@@ -32,9 +32,41 @@ public class ObligationController {
         return service.list();
     }
 
+    /** 带派生满足状态的列表（八轮 8-3：状态由举证链派生只读）。 */
+    @GetMapping("/derived")
+    public List<ObligationService.ObligationRow> listDerived() {
+        return service.listWithDerived();
+    }
+
     @GetMapping("/{id}")
     public Obligation get(@PathVariable Long id) {
         return service.get(id);
+    }
+
+    /** 义务举证链明细（依据弹层）。 */
+    @GetMapping("/{id}/links")
+    public List<ObligationLink> links(@PathVariable Long id) {
+        return service.links(id);
+    }
+
+    /** 挂接举证依据（制度/控制/评估/审计/证据）。 */
+    @PostMapping("/{id}/links")
+    @RequiresPermission("obligation")
+    public ObligationLink addLink(@PathVariable Long id, @RequestBody LinkRequest req,
+                                  @RequestHeader(value = "X-User", required = false) String user) {
+        return service.addLink(id, req.refType(), req.refId(), req.note(), actor(user));
+    }
+
+    /** 摘除举证依据。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/links/{linkId}")
+    @RequiresPermission("obligation")
+    public void removeLink(@PathVariable Long linkId,
+                           @RequestHeader(value = "X-User", required = false) String user) {
+        service.removeLink(linkId, actor(user));
+    }
+
+    /** 举证关联请求体。 */
+    public record LinkRequest(String refType, Long refId, String note) {
     }
 
     @PostMapping

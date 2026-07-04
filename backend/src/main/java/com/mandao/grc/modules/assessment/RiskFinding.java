@@ -36,7 +36,7 @@ public class RiskFinding {
     private Long orgId;
 
     /** 所属评估。 */
-    @Column(name = "assessment_id", nullable = false, updatable = false)
+    @Column(name = "assessment_id", updatable = false)
     private Long assessmentId;
 
     /** 风险描述。 */
@@ -55,6 +55,10 @@ public class RiskFinding {
     /** 处置决策（需求 4.5.3 四选一）：MITIGATE 降低 / ACCEPT 接受 / TRANSFER 转移 / AVOID 规避。 */
     @Column(name = "treatment_decision", length = 16)
     private String treatmentDecision;
+
+    /** 来源标注（八轮 8-11：EVENT 事件 / VULN 漏洞 / AUDIT 审计 / MANUAL 手工；评估内生成为空）。 */
+    @Column(length = 24)
+    private String source;
 
     /** 残余风险等级（五级，关闭门控判定依据）。 */
     @Enumerated(EnumType.STRING)
@@ -116,6 +120,8 @@ public class RiskFinding {
     public Long getId() { return id; }
     public Long getOrgId() { return orgId; }
     public Long getAssessmentId() { return assessmentId; }
+    public String getSource() { return source; }
+    void setSource(String source) { this.source = source; }
     public String getTitle() { return title; }
     public RiskLevel getInherentLevel() { return inherentLevel; }
     public String getTreatmentPlan() { return treatmentPlan; }

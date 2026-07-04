@@ -140,7 +140,7 @@ export default {
 
   // ---- 外部审计（M3-EXT，严格对齐驾驶舱版原型 #view-extaudit）----
   extaudit: {
-    tag: 'M3-EXT · 外部审计',
+    tag: '外部审计',
     title: '外部审计',
     register: '＋ 登记外审任务',
     // 子公司分段
@@ -432,7 +432,7 @@ export default {
 
   // ---- 风险评估（M2，严格对齐驾驶舱版原型 #view-risk 及其下钻视图）----
   risk: {
-    tag: 'M2 · 风险评估',
+    tag: '风险评估',
     title: '风险评估闭环',
     newAssess: '＋ 发起评估',
     // 发起评估弹窗
@@ -440,7 +440,7 @@ export default {
     // 风险发现 · 关闭门控（CR-002 红线）
     gate: {
       title: '风险发现 · 关闭门控',
-      badge: 'CR-002 红线',
+      badge: '关闭门控 · 高残余须管理层接受',
       scaffoldNote: '上方综合指数 / 等级分布 / 风险点清单为原型视觉示意；下方「风险发现 · 关闭门控」为真实后端数据与 CR-002 红线。',
       th: { finding: '风险发现', inherent: '固有', residual: '残余', acceptance: '风险接受', status: '状态', ops: '操作' },
       missing: '缺接受·门控',
@@ -693,7 +693,7 @@ export default {
   // 对应原型 #view-org：组织架构 / 资产台账 / 个人信息处理活动(ROPA) 三 Tab
   // ========================================================
   orgasset: {
-    tag: 'M6 · 资产与组织',
+    tag: '资产与组织',
     title: '组织架构与资产台账',
     adSync: 'AD 同步',
     register: '＋ 登记资产',
@@ -1093,7 +1093,7 @@ export default {
 
   // ---- 模型接入（ModelAccessView）----
   aimodel: {
-    tag: 'MODEL · 模型接入',
+    tag: '模型接入',
     title: '模型接入',
     refresh: '刷新状态',
     current: '当前 AI 配置',

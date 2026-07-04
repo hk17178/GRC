@@ -60,6 +60,77 @@ public class AtvService {
 
     // ---------- 脆弱性库 ----------
 
+    // ===== 八轮 8-10（B44）：三库编辑/删除（此前只增不改删，录错只能带病运行）=====
+
+    /** 更新威胁（编码不可改）。 */
+    @Transactional
+    public Threat updateThreat(Long id, String name, String category, String description, String actor) {
+        Threat t = threatRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("威胁不存在或不可见：id=" + id));
+        t.update(name, category, description);
+        Threat saved = threatRepository.save(t);
+        hashChainService.append(t.getOrgId(), "THREAT_UPDATE", actor, "THREAT:" + id, "更新威胁 " + t.getCode());
+        return saved;
+    }
+
+    /** 删除威胁：被场景引用则拒绝（保 A-T-V 溯源链）。 */
+    @Transactional
+    public void deleteThreat(Long id, String actor) {
+        Threat t = threatRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("威胁不存在或不可见：id=" + id));
+        if (scenarioRepository.existsByThreatId(id)) {
+            throw new IllegalStateException("该威胁已被风险场景引用，不可删除；请先处理相关场景");
+        }
+        threatRepository.delete(t);
+        hashChainService.append(t.getOrgId(), "THREAT_DELETE", actor, "THREAT:" + id, "删除威胁 " + t.getCode());
+    }
+
+    /** 更新脆弱性（编码不可改）。 */
+    @Transactional
+    public Vulnerability updateVulnerability(Long id, String name, String category, String description, String actor) {
+        Vulnerability v = vulnerabilityRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("脆弱性不存在或不可见：id=" + id));
+        v.update(name, category, description);
+        Vulnerability saved = vulnerabilityRepository.save(v);
+        hashChainService.append(v.getOrgId(), "VULN_UPDATE", actor, "VULN:" + id, "更新脆弱性 " + v.getCode());
+        return saved;
+    }
+
+    /** 删除脆弱性：被场景引用则拒绝。 */
+    @Transactional
+    public void deleteVulnerability(Long id, String actor) {
+        Vulnerability v = vulnerabilityRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("脆弱性不存在或不可见：id=" + id));
+        if (scenarioRepository.existsByVulnerabilityId(id)) {
+            throw new IllegalStateException("该脆弱性已被风险场景引用，不可删除；请先处理相关场景");
+        }
+        vulnerabilityRepository.delete(v);
+        hashChainService.append(v.getOrgId(), "VULN_DELETE", actor, "VULN:" + id, "删除脆弱性 " + v.getCode());
+    }
+
+    /** 删除场景：已派生风险发现的场景不可删（发现溯源 scenario_id 不能断）。 */
+    @Transactional
+    public void deleteScenario(Long id, String actor) {
+        RiskScenario sc = getScenario(id);
+        if (riskFindingRepositoryExists(id)) {
+            throw new IllegalStateException("该场景已派生风险发现，不可删除（保留溯源）；如场景失效请复评降级");
+        }
+        scenarioRepository.delete(sc);
+        hashChainService.append(sc.getOrgId(), "SCENARIO_DELETE", actor, "SCENARIO:" + id, "删除风险场景");
+    }
+
+    /** 发现引用检查（setter 注入仓库，避免与 RiskFindingService 的既有依赖成环）。 */
+    private com.mandao.grc.modules.assessment.RiskFindingRepository riskFindingRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireRiskFindingRepository(com.mandao.grc.modules.assessment.RiskFindingRepository riskFindingRepository) {
+        this.riskFindingRepository = riskFindingRepository;
+    }
+
+    private boolean riskFindingRepositoryExists(Long scenarioId) {
+        return riskFindingRepository.existsByScenarioId(scenarioId);
+    }
+
     @Transactional(readOnly = true)
     public List<Vulnerability> listVulnerabilities() {
         return vulnerabilityRepository.findAll();

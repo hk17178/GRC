@@ -73,4 +73,11 @@ public class Threat {
     public String getCategory() { return category; }
     public String getDescription() { return description; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
+
+    /** 更新条目（八轮 8-10：三库可维护——名称/分类/说明可改，编码不可改保引用稳定）。 */
+    void update(String name, String category, String description) {
+        this.name = name;
+        this.category = category;
+        this.description = description;
+    }
 }

@@ -94,7 +94,7 @@
       <!-- 登记资产弹窗（真实 POST /api/assets，含合规属性 CR-002）-->
       <div v-if="showAsset" class="modal-mask" @click.self="showAsset = false">
         <div class="modal-card">
-          <h3>登记资产</h3>
+          <h3>{{ editingAssetId ? '编辑资产' : '登记资产' }}</h3>
           <label class="fld">资产名称<input v-model="af.name" placeholder="如 核心支付网关" /></label>
           <label class="fld">类型
             <select v-model="af.assetType"><option value="SYSTEM">系统</option><option value="DATABASE">数据库</option><option value="APP">应用</option><option value="PROCESS">流程</option><option value="VENDOR_SVC">供应商服务</option></select>
@@ -215,6 +215,7 @@
                     <th>{{ $t('orgasset.asset.th.mlps') }}</th>
                     <th>{{ $t('orgasset.asset.th.chd') }}</th>
                     <th>{{ $t('orgasset.asset.th.criticality') }}</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -228,8 +229,15 @@
                     <td><span v-if="r.mlpsFiled" class="pill blue">已备案</span><template v-else>—</template></td>
                     <td>{{ r.containsChd ? '是' : '否' }}</td>
                     <td><span class="tag" :class="CRIT_TAG[r.criticality]">{{ CRIT_LABEL[r.criticality] || r.criticality || '—' }}</span></td>
+                    <!-- 八轮 8-10（B42）：资产可编辑/退役——录错不再只能带病运行 -->
+                    <td style="white-space:nowrap">
+                      <template v-if="canWrite('org')">
+                        <button class="mini" @click="openAssetEdit(r)">编辑</button>
+                        <button class="mini danger" @click="retireAsset(r)">退役</button>
+                      </template>
+                    </td>
                   </tr>
-                  <tr v-if="!assets.length"><td colspan="9" style="text-align:center;color:var(--text-3);padding:18px">暂无资产，点「登记资产」。</td></tr>
+                  <tr v-if="!assets.length"><td colspan="10" style="text-align:center;color:var(--text-3);padding:18px">暂无资产，点「登记资产」。</td></tr>
                 </tbody>
               </table>
             </div>
@@ -396,15 +404,32 @@ const assetSaving = ref(false)
 const assetErr = ref('')
 const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
 function openAsset() {
+  editingAssetId.value = null // 登记模式（八轮 8-10：与编辑复用同一弹窗）
   Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
   assetErr.value = ''; showAsset.value = true
 }
 async function submitAsset() {
   assetSaving.value = true; assetErr.value = ''
+  const body = { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality }
   try {
-    await api.post('/assets', { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality })
-    showAsset.value = false; await loadAssets()
+    // 八轮 8-10（B42）：editingAssetId 非空即编辑（PUT），否则登记（POST）
+    if (editingAssetId.value) await api.put('/assets/' + editingAssetId.value, body)
+    else await api.post('/assets', body)
+    showAsset.value = false; editingAssetId.value = null; await loadAssets()
   } catch (e) { assetErr.value = e.message } finally { assetSaving.value = false }
+}
+
+// ===== 八轮 8-10（B42）：资产编辑/退役 =====
+const editingAssetId = ref(null)
+function openAssetEdit(r) {
+  editingAssetId.value = r.id
+  Object.assign(af, { name: r.name, assetType: r.assetType, owner: r.owner || '', classification: r.classification, criticality: r.criticality || 'MID', containsPi: !!r.containsPi, crossBorder: !!r.crossBorder, mlpsFiled: !!r.mlpsFiled, containsChd: !!r.containsChd, orgId: r.orgId })
+  assetErr.value = ''; showAsset.value = true
+}
+async function retireAsset(r) {
+  if (!window.confirm(`确认退役资产「${r.name}」？退役后不再参与新评估的范围选择（留痕保档）。`)) return
+  try { await api.post('/assets/' + r.id + '/retire', {}); await loadAssets() }
+  catch (e) { window.alert(e.message) }
 }
 
 // ===== Tab3：个人信息处理活动 ROPA（真实后端 /api/ropa）=====

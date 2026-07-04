@@ -30,7 +30,9 @@
           <h1>{{ $t('risk.title') }}</h1>
         </div>
         <div class="sp"></div>
-        <button class="btn" :disabled="!canWrite('risk.create')" :title="canWrite('risk.create') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('risk.newAssess') }}</button>
+        <!-- 八轮 8-11（A21）：主操作随标签切换——登记册页签是「登记风险」而不是「发起评估」 -->
+        <button v-if="activeTab === 'register'" class="btn" :disabled="!canWrite('risk')" @click="openDirectRisk">＋ 登记风险</button>
+        <button v-else class="btn" :disabled="!canWrite('risk.create')" :title="canWrite('risk.create') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('risk.newAssess') }}</button>
       </div>
 
       <!-- 发起评估向导（R1）：① 基本信息 → ② 背景建立（ISO 27005/GB/T 20984 第一阶段）-->
@@ -282,7 +284,7 @@
           <div class="cb" style="padding-top: 4px">
             <p style="margin: 0; font-size: 12.5px; line-height: 1.8; color: var(--text-2)">
               可能性五级 × 影响五级 → 风险矩阵定级（极低/低/中/高/极高）；残余风险为高/极高的发现，
-              须经管理层「风险接受」批准方可关闭（CR-002 红线）；各评估任务的具体准则在其「评估背景」中登记。
+              须经管理层「风险接受」批准方可关闭；各评估任务的具体准则在其「评估背景」中登记。
             </p>
           </div>
         </div>
@@ -302,7 +304,7 @@
                 <tr v-for="r in regFiltered" :key="r.id" style="cursor: pointer" @click="regGoAssessment(r)">
                   <td class="num">{{ r.id }}</td>
                   <td><b>{{ r.title }}</b></td>
-                  <td style="color: var(--text-2)">{{ r.assessmentTitle }}</td>
+                  <td style="color: var(--text-2)">{{ r.assessmentTitle }}<span v-if="r.source" class="pill" style="margin-left:6px">{{ SRC_TXT[r.source] || r.source }}</span></td>
                   <td><span v-if="r.inherentLevel" class="tag" :class="riskCls(r.inherentLevel)">{{ lvText(r.inherentLevel) }}</span><span v-else>—</span></td>
                   <td><span v-if="r.residualLevel" class="tag" :class="riskCls(r.residualLevel)">{{ lvText(r.residualLevel) }}</span><span v-else>—</span></td>
                   <td>{{ TD_LABEL[r.treatmentDecision] || '—' }}</td>
@@ -312,6 +314,32 @@
                 <tr v-if="!regFiltered.length"><td colspan="8" style="text-align: center; padding: 18px; color: var(--text-2)">暂无符合条件的风险发现——发起评估并登记风险后，将自动汇入登记册。</td></tr>
               </tbody>
             </table>
+          </div>
+        </div>
+
+        <!-- 登记风险弹窗（八轮 8-11/C11：事件/漏洞驱动的日常风险直登，不必先造评估）-->
+        <div v-if="showDirect" class="modal-mask" @click.self="showDirect = false">
+          <div class="modal-card">
+            <h3>登记风险（日常直登）</h3>
+            <label class="fld">风险描述<input v-model="df2.title" placeholder="如 生产库高危漏洞 CVE-2026-xxxx 未修复" /></label>
+            <label class="fld">固有等级
+              <select v-model="df2.inherentLevel">
+                <option value="VERY_HIGH">极高</option><option value="HIGH">高</option>
+                <option value="MID">中</option><option value="LOW">低</option><option value="VERY_LOW">极低</option>
+              </select>
+            </label>
+            <label class="fld">来源
+              <select v-model="df2.source">
+                <option value="EVENT">安全事件</option><option value="VULN">漏洞扫描</option>
+                <option value="AUDIT">审计发现</option><option value="MANUAL">手工识别</option>
+              </select>
+            </label>
+            <label class="fld">所属组织<select v-model.number="df2.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+            <p v-if="directErr" class="cerr">{{ directErr }}</p>
+            <div class="modal-actions">
+              <button class="btn ghost" @click="showDirect = false">取消</button>
+              <button class="btn" :disabled="!df2.title || directBusy" @click="submitDirect">{{ directBusy ? '提交中…' : '确认登记' }}</button>
+            </div>
           </div>
         </div>
       </div>
@@ -334,6 +362,9 @@
                 <span class="fb-l">报告表单：</span>
                 <span v-if="tplFormState(t.id).active" class="fb-active">
                   ✓ 可用 · {{ tplFormState(t.id).active.name }}（v{{ tplFormState(t.id).active.versionNo }}）
+                  <!-- 八轮 8-8（C5 止血）：v1 通用骨架如实标注；等保/PBOC 已差异化（名称带「·」标识） -->
+                  <span v-if="t.owner === 'platform' && tplFormState(t.id).active.name === '内置标准表单'"
+                        class="pill" style="margin-left:6px; color:#a87d22" title="该体系的差异化表单分批推进中；正式使用可在预览详情上传行业表单">通用骨架</span>
                 </span>
                 <span v-else class="fb-none">未配置（到「预览详情」上传）</span>
               </div>
@@ -461,20 +492,39 @@
                 <th>{{ $t('risk.kri.th.current') }}</th>
                 <th>{{ $t('risk.kri.th.threshold') }}</th>
                 <th>{{ $t('risk.kri.th.status') }}</th>
+                <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="k in kris" :key="k.id">
-                <td>{{ k.name }} <span class="code">{{ k.code }}</span></td>
-                <td><span class="pill">{{ k.owner || '—' }}</span></td>
-                <td class="num">{{ k.currentValue == null ? '—' : k.currentValue }}<span v-if="k.unit" class="muted"> {{ k.unit }}</span></td>
-                <td class="num">{{ k.thresholdWarning }} / {{ k.thresholdCritical }}</td>
-                <td>
-                  <span class="st" :class="kriStCls(k.currentStatus)"><span class="d"></span>{{ $t('risk.kri.cstatus.' + k.currentStatus) }}</span>
-                </td>
-              </tr>
+              <template v-for="k in kris" :key="k.id">
+                <tr>
+                  <td>{{ k.name }} <span class="code">{{ k.code }}</span></td>
+                  <td><span class="pill">{{ k.owner || '—' }}</span></td>
+                  <td class="num">{{ k.currentValue == null ? '—' : k.currentValue }}<span v-if="k.unit" class="muted"> {{ k.unit }}</span></td>
+                  <td class="num">{{ k.thresholdWarning }} / {{ k.thresholdCritical }}</td>
+                  <td>
+                    <span class="st" :class="kriStCls(k.currentStatus)"><span class="d"></span>{{ $t('risk.kri.cstatus.' + k.currentStatus) }}</span>
+                  </td>
+                  <!-- 八轮 8-10（B41）：测量值终于有了录入通道；趋势=近 N 次测量展开 -->
+                  <td style="white-space:nowrap">
+                    <template v-if="canWrite('risk')">
+                      <button class="mini" @click="recordKri(k)">录入测量值</button>
+                      <button class="mini" @click="toggleKriHistory(k)">{{ kriHistoryId === k.id ? '收起' : '趋势' }}</button>
+                    </template>
+                  </td>
+                </tr>
+                <tr v-if="kriHistoryId === k.id">
+                  <td colspan="6" style="background: var(--bg); padding: 8px 14px">
+                    <span v-if="!kriHistory.length" class="muted">暂无历史测量</span>
+                    <span v-for="m in kriHistory" :key="m.id" class="pill" style="margin-right: 8px"
+                          :style="{ color: m.status === 'CRITICAL' ? 'var(--danger)' : (m.status === 'WARNING' ? '#a87d22' : 'var(--success)') }">
+                      {{ (m.measuredAt || '').slice(5, 10) }}：{{ m.value }}{{ k.unit || '' }}
+                    </span>
+                  </td>
+                </tr>
+              </template>
               <tr v-if="!kris.length">
-                <td colspan="5" class="emptyrow">{{ $t('risk.kri.empty') }}</td>
+                <td colspan="6" class="emptyrow">{{ $t('risk.kri.empty') }}</td>
               </tr>
             </tbody>
           </table>
@@ -500,7 +550,11 @@
                     <td class="num">{{ s.likelihood }} × {{ s.impact }} = {{ s.likelihood * s.impact }}</td>
                     <td><span class="tag" :class="riskCls(s.inherentLevel)">{{ $t(riskLabel(s.inherentLevel)) }}</span></td>
                     <td class="muted">{{ s.description || '—' }}</td>
-                    <td><button v-if="canWrite('risk')" class="btn ghost sm" @click="openToFinding(s)">生成发现</button></td>
+                    <td style="white-space:nowrap">
+                      <button v-if="canWrite('risk')" class="btn ghost sm" @click="openToFinding(s)">生成发现</button>
+                      <!-- 八轮 8-10（B44）：场景可删（已派生发现的后端拒绝，保溯源） -->
+                      <button v-if="canWrite('risk')" class="mini danger" @click="deleteScenario(s)">删</button>
+                    </td>
                   </tr>
                   <tr v-if="!scenarios.length"><td colspan="7" class="emptyrow">暂无风险场景，点「＋ 建模场景」。</td></tr>
                 </tbody>
@@ -515,7 +569,13 @@
                 <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openAtvRef('threat')">＋</button>
               </div>
               <div class="cb" style="padding-top:0">
-                <div v-for="t2 in threats" :key="t2.id" class="atv-row"><span class="code">{{ t2.code }}</span>{{ t2.name }}<span class="pill" style="margin-left:auto">{{ t2.category || '—' }}</span></div>
+                <!-- 八轮 8-10（B44）：三库可编辑/删除（被场景引用的删除会被后端 409 拦截） -->
+                <div v-for="t2 in threats" :key="t2.id" class="atv-row"><span class="code">{{ t2.code }}</span>{{ t2.name }}<span class="pill" style="margin-left:auto">{{ t2.category || '—' }}</span>
+                  <template v-if="canWrite('risk')">
+                    <button class="mini-x" title="编辑" @click="editAtvRef('threats', t2)">✎</button>
+                    <button class="mini-x" title="删除" @click="deleteAtvRef('threats', t2)">✕</button>
+                  </template>
+                </div>
                 <div v-if="!threats.length" class="hint">暂无威胁条目</div>
               </div>
             </div>
@@ -524,7 +584,12 @@
                 <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openAtvRef('vuln')">＋</button>
               </div>
               <div class="cb" style="padding-top:0">
-                <div v-for="v2 in vulns" :key="v2.id" class="atv-row"><span class="code">{{ v2.code }}</span>{{ v2.name }}<span class="pill" style="margin-left:auto">{{ v2.category || '—' }}</span></div>
+                <div v-for="v2 in vulns" :key="v2.id" class="atv-row"><span class="code">{{ v2.code }}</span>{{ v2.name }}<span class="pill" style="margin-left:auto">{{ v2.category || '—' }}</span>
+                  <template v-if="canWrite('risk')">
+                    <button class="mini-x" title="编辑" @click="editAtvRef('vulnerabilities', v2)">✎</button>
+                    <button class="mini-x" title="删除" @click="deleteAtvRef('vulnerabilities', v2)">✕</button>
+                  </template>
+                </div>
                 <div v-if="!vulns.length" class="hint">暂无脆弱性条目</div>
               </div>
             </div>
@@ -1648,7 +1713,7 @@ const METHOD_OPTS = [
   { v: 'INTERVIEW', l: '人员访谈' }, { v: 'DOC_REVIEW', l: '文档核查' }, { v: 'TOOL_SCAN', l: '工具扫描' },
   { v: 'PENTEST', l: '渗透测试' }, { v: 'CONFIG_CHECK', l: '配置核查' }
 ]
-const DEFAULT_CRITERIA = '可能性五级 × 影响五级 → 风险矩阵定级（极低/低/中/高/极高）；残余风险为高/极高须经管理层接受签批方可关闭（CR-002）。'
+const DEFAULT_CRITERIA = '可能性五级 × 影响五级 → 风险矩阵定级（极低/低/中/高/极高）；残余风险为高/极高须经管理层接受签批方可关闭。'
 const ctx = reactive({ scope: '', objective: '', basis: [], methods: [], criteria: DEFAULT_CRITERIA, team: '', startDate: '', endDate: '' })
 function openCreate() {
   form.title = ''
@@ -1837,6 +1902,63 @@ watch(activeTab, (t) => { if (t === 'register') loadRegister() })
 function regGoAssessment(r) {
   const t = liveTasks.value.find((x) => x.id === r.assessmentId)
   if (t) drillInto(t)
+}
+
+// ===== 八轮 8-11（C11）：日常风险直登 =====
+const SRC_TXT = { EVENT: '事件', VULN: '漏洞', AUDIT: '审计', MANUAL: '手工' }
+const showDirect = ref(false)
+const directBusy = ref(false)
+const directErr = ref('')
+const df2 = reactive({ title: '', inherentLevel: 'HIGH', source: 'EVENT', orgId: 12 })
+function openDirectRisk() {
+  Object.assign(df2, { title: '', inherentLevel: 'HIGH', source: 'EVENT', orgId: 12 })
+  directErr.value = ''; showDirect.value = true
+}
+async function submitDirect() {
+  directBusy.value = true; directErr.value = ''
+  try {
+    await api.post('/risk-findings/direct', { orgId: df2.orgId, title: df2.title, inherentLevel: df2.inherentLevel, source: df2.source })
+    showDirect.value = false; await loadRegister()
+  } catch (e) { directErr.value = e.message } finally { directBusy.value = false }
+}
+
+// ===== 八轮 8-10（B41）：KRI 测量录入与趋势 =====
+const kriHistoryId = ref(0)
+const kriHistory = ref([])
+async function recordKri(k) {
+  const v = window.prompt(`录入「${k.name}」最新测量值（${k.unit || '数值'}，阈值 预警${k.thresholdWarning}/严重${k.thresholdCritical}）：`, '')
+  if (v === null || v.trim() === '' || isNaN(Number(v))) return
+  try {
+    await api.post('/kris/' + k.id + '/measurements', { value: Number(v), note: null })
+    await loadKris()
+    if (kriHistoryId.value === k.id) await loadKriHistory(k.id)
+  } catch (e) { window.alert(e.message) }
+}
+async function toggleKriHistory(k) {
+  if (kriHistoryId.value === k.id) { kriHistoryId.value = 0; return }
+  kriHistoryId.value = k.id
+  await loadKriHistory(k.id)
+}
+async function loadKriHistory(id) {
+  try { kriHistory.value = (await api.get('/kris/' + id + '/measurements')).slice(0, 12) } catch (e) { kriHistory.value = [] }
+}
+
+// ===== 八轮 8-10（B44）：ATV 三库编辑/删除、场景删除 =====
+async function editAtvRef(base, item) {
+  const name = window.prompt('名称：', item.name); if (name === null || !name.trim()) return
+  const category = window.prompt('分类：', item.category || ''); if (category === null) return
+  try {
+    await api.put('/' + base + '/' + item.id, { name: name.trim(), category: category || null, description: item.description || null })
+    await loadAtv()
+  } catch (e) { window.alert(e.message) }
+}
+async function deleteAtvRef(base, item) {
+  if (!window.confirm(`删除「${item.code} ${item.name}」？被风险场景引用的条目会被拒绝。`)) return
+  try { await api.del('/' + base + '/' + item.id); await loadAtv() } catch (e) { window.alert(e.message) }
+}
+async function deleteScenario(s) {
+  if (!window.confirm('删除该风险场景？已派生风险发现的场景会被拒绝（保留溯源）。')) return
+  try { await api.del('/risk-scenarios/' + s.id); await loadAtv() } catch (e) { window.alert(e.message) }
 }
 
 // ===== 六轮 #1 · 模板删除（内置不可删由 v-if 隐藏；被引用后端拒绝并提示走停用）=====

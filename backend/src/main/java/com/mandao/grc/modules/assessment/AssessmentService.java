@@ -284,7 +284,23 @@ public class AssessmentService {
         answerRepository.findByAssessmentId(id).ifPresent(answerRepository::delete);
         assessmentAssetRepository.deleteAll(assessmentAssetRepository.findByAssessmentIdOrderByIdAsc(id));
         assessmentDocRepository.deleteAll(assessmentDocRepository.findByAssessmentIdOrderByIdDesc(id));
+        detachPlans(id); // 八轮 8-11/A31：清悬挂计划引用
         repository.delete(a);
+    }
+
+    /** 悬挂引用清理（八轮 8-11/A31）：评估删除/作废时，排期计划解除对它的引用（setter 注入仓库）。 */
+    private AssessmentPlanRepository assessmentPlanRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wirePlanRepository(AssessmentPlanRepository assessmentPlanRepository) {
+        this.assessmentPlanRepository = assessmentPlanRepository;
+    }
+
+    private void detachPlans(Long assessmentId) {
+        for (AssessmentPlan p : assessmentPlanRepository.findByAssessmentId(assessmentId)) {
+            p.detachAssessment();
+            assessmentPlanRepository.save(p);
+        }
     }
 
     /** 作废评估（软删）：IN_PROGRESS / PENDING_REVIEW → CANCELLED（终态；COMPLETED 定稿不可作废）。 */
@@ -296,6 +312,7 @@ public class AssessmentService {
         }
         a.setStatus(AssessmentStatus.CANCELLED);
         Assessment saved = repository.save(a);
+        detachPlans(id); // 八轮 8-11/A31：清悬挂计划引用
         appendLog(saved, "ASSESSMENT_CANCEL", actor, "作废评估" + (reason == null || reason.isBlank() ? "" : "：" + reason));
         return saved;
     }

@@ -21,17 +21,25 @@
           <table style="min-width: 680px">
             <thead><tr>
               <th>{{ $t('todo.ath.biz') }}</th><th>{{ $t('todo.ath.node') }}</th>
-              <th>{{ $t('todo.ath.role') }}</th><th>{{ $t('todo.ath.time') }}</th>
+              <th>{{ $t('todo.ath.role') }}</th><th>{{ $t('todo.ath.time') }}</th><th>操作</th>
             </tr></thead>
             <tbody>
               <tr v-for="(a, i) in myApprovals" :key="i">
-                <td><span class="tpill APPROVAL">{{ a.bizType }}</span> <span class="code">#{{ a.bizId }}</span></td>
+                <td><span class="tpill APPROVAL">{{ BIZ_TXT[a.bizType] || a.bizType }}</span> <span class="code">#{{ a.bizId }}</span></td>
                 <td>{{ a.nodeName }}</td>
                 <td><span class="rolepill">{{ a.roleGroup }}</span></td>
                 <td class="num">{{ fmtTime(a.createdMs) }}</td>
+                <!-- 八轮 8-7（C2）：审批在待办处置——带意见 通过/驳回（制度类先行，其余类型给入口指引） -->
+                <td class="ops">
+                  <template v-if="a.bizType === 'POLICY'">
+                    <button class="mini" style="color:var(--success);border-color:var(--success)" @click="decidePolicy(a, true)">通过</button>
+                    <button class="mini danger" @click="decidePolicy(a, false)">驳回</button>
+                  </template>
+                  <span v-else class="muted" style="font-size:11px">到对应模块页处置</span>
+                </td>
               </tr>
               <tr v-if="!myApprovals.length">
-                <td colspan="4" class="emptyrow">{{ $t('todo.myEmpty') }}</td>
+                <td colspan="5" class="emptyrow">{{ $t('todo.myEmpty') }}</td>
               </tr>
             </tbody>
           </table>
@@ -116,6 +124,20 @@ const { t } = useI18n()
 
 const todos = ref([])
 const myApprovals = ref([])
+
+// ===== 八轮 8-7（C2）：待办内处置审批（制度类先行；意见必填驳回、可选通过）=====
+const BIZ_TXT = { POLICY: '制度审批', RISK_ACCEPTANCE: '风险接受', FEEDBACK_OUTBOUND: '出站审批', REG_FILING: '报送复核' }
+async function decidePolicy(a, approved) {
+  const tip = approved ? '审批意见（可空）：' : '驳回原因（必填）：'
+  const comment = window.prompt(`制度 #${a.bizId} ${approved ? '审批通过' : '驳回退回'}。${tip}`, '')
+  if (comment === null) return
+  if (!approved && !comment.trim()) { window.alert('驳回必须填写原因'); return }
+  try {
+    if (approved) await api.post('/policies/' + a.bizId + '/approve', {})
+    else await api.post('/policies/' + a.bizId + '/reject', { reason: comment })
+    await load()
+  } catch (e) { window.alert(e.message) }
+}
 const loadError = ref('')
 function fmtTime(ms) {
   if (!ms) return '—'
@@ -214,4 +236,9 @@ tbody td { padding: 10px 14px; border-top: 1px solid var(--border-subtle); font-
 .duetag { display: inline-block; padding: 2px 9px; border-radius: 6px; font-size: 10.5px; font-weight: 700; background: rgba(120,120,120,0.1); color: var(--text-2); white-space: nowrap; }
 .duetag.warn { background: var(--warning-tint); color: #a87d22; }
 .duetag.over { background: var(--danger-tint); color: var(--danger); }
+/* 八轮 8-7：待办内审批操作 */
+.ops { white-space: nowrap; }
+.mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; margin-right: 4px; }
+.mini:hover { background: var(--accent-weak); }
+.mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 </style>

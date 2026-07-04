@@ -139,7 +139,7 @@ export default {
 
   // ---- External Audit (M3-EXT, mirrors prototype #view-extaudit) ----
   extaudit: {
-    tag: 'M3-EXT · External Audit',
+    tag: 'External Audit',
     title: 'External Audit',
     register: '＋ Register Audit',
     seg: { all: 'Group', pay: 'PaySvc', consumer: 'Consumer Fin.', tech: 'DataTech' },
@@ -395,7 +395,7 @@ export default {
 
   // ---- Risk Assessment (M2, mirrors cockpit prototype #view-risk and drill-downs) ----
   risk: {
-    tag: 'M2 · Risk Assessment',
+    tag: 'Risk Assessment',
     title: 'Risk Assessment Loop',
     newAssess: '＋ New Assessment',
     // new-assessment dialog
@@ -403,7 +403,7 @@ export default {
     // Risk findings · close-gate (CR-002 red-line)
     gate: {
       title: 'Risk Findings · Close-Gate',
-      badge: 'CR-002 Red-line',
+      badge: 'Close gate · mgmt acceptance required',
       scaffoldNote: 'The index / level distribution / risk-point list above are prototype visual scaffolding; the “Risk Findings · Close-Gate” below is live backend data with the CR-002 red-line.',
       th: { finding: 'Finding', inherent: 'Inherent', residual: 'Residual', acceptance: 'Acceptance', status: 'Status', ops: 'Actions' },
       missing: 'No acceptance · gated',
@@ -648,7 +648,7 @@ export default {
   // Prototype #view-org: Org Structure / Asset Register / ROPA — 3 tabs
   // ========================================================
   orgasset: {
-    tag: 'M6 · Org & Assets',
+    tag: 'Org & Assets',
     title: 'Org & Asset Register',
     adSync: 'AD sync',
     register: '＋ Register Asset',
@@ -1029,7 +1029,7 @@ export default {
 
   // ---- Model Access (ModelAccessView) ----
   aimodel: {
-    tag: 'MODEL · Access',
+    tag: 'Model Access',
     title: 'Model Access',
     refresh: 'Refresh',
     current: 'Current AI Config',
