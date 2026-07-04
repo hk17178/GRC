@@ -34,10 +34,15 @@ public class EvidenceController {
 
     /** 证据列表（可按 planId/findingId/remediationId 过滤）。 */
     @GetMapping("/evidence")
-    public List<Evidence> list(@RequestParam(required = false) Long planId,
+    public List<EvidenceSummary> list(@RequestParam(required = false) Long planId,
                                @RequestParam(required = false) Long findingId,
-                               @RequestParam(required = false) Long remediationId) {
-        return service.list(planId, findingId, remediationId);
+                               @RequestParam(required = false) Long remediationId,
+                               @RequestParam(required = false) Long filingId,
+                               @RequestParam(required = false) Long incidentId,
+                               @RequestParam(required = false) Integer page,
+                               @RequestParam(required = false) Integer size) {
+        // 七轮 7-8：投影不带文件字节 + 分页护栏
+        return service.listSummaries(planId, findingId, remediationId, filingId, incidentId, page, size);
     }
 
     /** 上传证据（multipart；至少关联 计划/发现/整改单 之一）。 */
@@ -49,11 +54,14 @@ public class EvidenceController {
                            @RequestParam(required = false) Long planId,
                            @RequestParam(required = false) Long findingId,
                            @RequestParam(required = false) Long remediationId,
+                           @RequestParam(required = false) Long filingId,
+                           @RequestParam(required = false) Long incidentId,
                            @RequestHeader(value = "X-User", required = false) String user) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("未收到证据文件");
         }
-        return service.upload(orgId, planId, findingId, remediationId,
+        // 七轮 7-2：支持报送回执/重大事件材料入证据库
+        return service.upload(orgId, planId, findingId, remediationId, filingId, incidentId,
                 name, file.getOriginalFilename(), file.getContentType(), file.getBytes(), actorOf(user));
     }
 

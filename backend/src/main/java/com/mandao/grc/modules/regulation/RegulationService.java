@@ -39,6 +39,14 @@ public class RegulationService {
         this.policyRepository = policyRepository;
     }
 
+    /** AI 链路事务半区（七轮 7-7：LLM 外呼移出事务）。 */
+    private RegulationAiTxSupport aiTxSupport;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireAiTxSupport(RegulationAiTxSupport aiTxSupport) {
+        this.aiTxSupport = aiTxSupport;
+    }
+
     public RegulationService(RegulationRepository regulationRepository,
                              RegulationChangeRepository changeRepository,
                              RegulationPolicyMapRepository mapRepository,
@@ -166,46 +174,11 @@ public class RegulationService {
      * 结论归类：明确"不符合"/"部分符合"/"符合"三选一；无法归类时记「待复核」（AI 初稿须人工复核红线）。
      * 结果落库到映射行（assess_*），法规再变更时由 recordChange 置 stale 提示重评。
      */
-    @Transactional
     public RegulationPolicyMap assessCompliance(Long mapId, String actor) {
-        RegulationPolicyMap m = mapRepository.findById(mapId)
-                .orElseThrow(() -> new IllegalArgumentException("映射不存在或不可见：id=" + mapId));
-        Regulation reg = get(m.getRegulationId());
-        var policy = policyRepository.findById(m.getPolicyId())
-                .orElseThrow(() -> new IllegalArgumentException("制度不存在或不可见：id=" + m.getPolicyId()));
-        String content = policy.getContent();
-        if (content == null || content.isBlank()) {
-            throw new IllegalStateException("该制度尚无全文（仅元数据），无法做符合度评估——请先在「制度发布」上传制度 .docx 原件");
-        }
-        // 提示词优先取治理里启用的「制度符合度评估」模板，无则回退内置口径
-        String ask = governanceRepo.findByKindAndEnabledTrue(
-                        com.mandao.grc.modules.ai.AiGovernance.KIND_PROMPT_TEMPLATE).stream()
-                .filter(g -> TPL_COMPLIANCE_ASSESS.equals(g.getName()))
-                .map(com.mandao.grc.modules.ai.AiGovernance::getDetail)
-                .filter(d -> d != null && !d.isBlank())
-                .findFirst()
-                .orElse("请以合规官视角，对比下述监管法规要求与企业制度全文，输出：结论（严格三选一：符合/部分符合/不符合）、"
-                        + "差距说明、建议修订点（条款级，中文，简明）。");
-        // 最新变更（若有）一并入题——符合度必须对着最新口径评
-        String latestChange = changeRepository.findByRegulationIdOrderByIdDesc(m.getRegulationId()).stream()
-                .findFirst()
-                .map(c -> "最新变更（" + c.getChangeType() + "）：" + c.getDescription())
-                .orElse("");
-        // 制度全文过长时截断（提示词成本控制；截断处显式标注）
-        String body = content.length() > 6000 ? content.substring(0, 6000) + "\n…（全文过长已截断）" : content;
-        String question = ask + "\n"
-                + "【法规要求】" + reg.getTitle() + "（" + reg.getCode() + "，" + reg.getIssuer() + "）\n"
-                + "适用条款：" + (m.getClause() == null ? "整体" : m.getClause()) + "\n"
-                + "法规摘要：" + (reg.getSummary() == null ? "—" : reg.getSummary()) + "\n"
-                + (latestChange.isEmpty() ? "" : latestChange + "\n")
-                + "【制度全文】" + policy.getTitle() + "（v" + policy.getVersion() + "）\n" + body;
-        String answer = llmProvider.generateFor("POLICY_MAP", question,
-                List.of("法规：" + reg.getTitle(), "制度：" + policy.getTitle()));
-        m.recordAssessment(classifyVerdict(answer), answer);
-        RegulationPolicyMap saved = mapRepository.save(m);
-        hashChainService.append(m.getOrgId(), "REG_MAP_ASSESS", actor, "REGULATION:" + m.getRegulationId(),
-                "AI 符合度评估 mapId=" + mapId + " 结论=" + saved.getAssessVerdict());
-        return saved;
+        // 七轮 7-7（A5）：LLM 外呼不占数据库事务——读半区组提示词 → 裸跑外呼 → 写半区落结果
+        RegulationAiTxSupport.ComplianceInput in = aiTxSupport.loadComplianceInput(mapId);
+        String answer = llmProvider.generateFor("POLICY_MAP", in.question(), in.snippets());
+        return aiTxSupport.saveComplianceResult(mapId, classifyVerdict(answer), answer, actor);
     }
 
     /** 从模型输出归类结论：不符合 > 部分符合 > 符合（按包含判定，长词优先防误配），归不了类记待复核。 */
@@ -234,26 +207,14 @@ public class RegulationService {
      * 把 法规信息+现有制度清单 交给 LlmProvider，产出"哪些制度可能受该法规约束/需建映射"的建议初稿。
      * 只出建议不落库——运营确认后再手工「登记映射」（AI 初稿须人工复核红线）。
      */
-    @Transactional(readOnly = true)
     public MapSuggestion suggestPolicyMap(Long regulationId) {
-        Regulation reg = get(regulationId);
-        List<com.mandao.grc.modules.policy.Policy> policies = policyRepository.findAll();
-        if (policies.isEmpty()) {
-            return new MapSuggestion(regulationId, "当前可见范围内暂无制度，无法给出匹配建议——请先在「制度发布」登记制度。",
-                    true, llmProvider.name());
+        // 七轮 7-7（A5）+ 7-8（A6）：读半区只取制度轻量三元组（不触 bytea），LLM 外呼在事务外
+        MapSuggestion prep = aiTxSupport.loadSuggestInputOrEmpty(regulationId);
+        if (!"PENDING_LLM".equals(prep.provider())) {
+            return new MapSuggestion(regulationId, prep.suggestion(), true, llmProvider.name());
         }
-        StringBuilder plist = new StringBuilder();
-        for (var p : policies) {
-            plist.append("- [").append(p.getId()).append("] ").append(p.getTitle())
-                    .append("（").append(p.getStatus()).append("）\n");
-        }
-        String question = "以下法规需要建立与内部制度的映射关系。请从制度清单中找出可能受该法规约束、"
-                + "应建立条款映射或需要修订的制度，逐条给出制度编号与理由（中文，仅从清单中选择，不得编造）。\n"
-                + "法规：" + reg.getTitle() + "（" + reg.getCode() + "，" + reg.getIssuer() + "）\n"
-                + "法规摘要：" + (reg.getSummary() == null ? "—" : reg.getSummary()) + "\n"
-                + "【制度清单】\n" + plist;
-        String suggestion = llmProvider.generateFor("POLICY_MAP", question,
-                List.of("制度清单：\n" + plist));
+        String question = prep.suggestion(); // 读半区暂存的完整提示词
+        String suggestion = llmProvider.generateFor("POLICY_MAP", question, List.of(question));
         return new MapSuggestion(regulationId, suggestion, true, llmProvider.name());
     }
 
@@ -261,29 +222,10 @@ public class RegulationService {
      * 生成变更的 AI 条款级摘要（需求 6.5.1）：把 变更描述+法规上下文 交给 LlmProvider，
      * 结果落库到 regulation_change.ai_summary。本地离线 Provider 会返回检索式说明并诚实标注。
      */
-    @Transactional
     public RegulationChange aiSummarize(Long changeId, String actor) {
-        RegulationChange c = changeRepository.findById(changeId)
-                .orElseThrow(() -> new IllegalArgumentException("法规变更不存在或不可见：id=" + changeId));
-        Regulation reg = get(c.getRegulationId());
-        // 提示词优先取治理里启用的「变更摘要」模板（V42），无则回退内置口径
-        String ask = governanceRepo.findByKindAndEnabledTrue(
-                        com.mandao.grc.modules.ai.AiGovernance.KIND_PROMPT_TEMPLATE).stream()
-                .filter(g -> TPL_CHANGE_SUMMARY.equals(g.getName()))
-                .map(com.mandao.grc.modules.ai.AiGovernance::getDetail)
-                .filter(d -> d != null && !d.isBlank())
-                .findFirst()
-                .orElse("请对以下法规变更做条款级要点摘要（合规影响导向，中文，3 条以内）：");
-        String question = ask + "\n"
-                + "法规：" + reg.getTitle() + "（" + reg.getCode() + "）\n"
-                + "变更类型：" + c.getChangeType() + "，变更描述：" + c.getDescription();
-        String summary = llmProvider.generateFor("REG_SUMMARY", question, List.of(
-                "法规标题：" + reg.getTitle(),
-                "变更描述：" + c.getDescription()));
-        c.setAiSummary(summary);
-        RegulationChange saved = changeRepository.save(c);
-        hashChainService.append(reg.getOrgId(), "REG_AI_SUMMARY", actor, "REGULATION:" + reg.getId(),
-                "生成变更 AI 摘要 changeId=" + changeId);
-        return saved;
+        // 七轮 7-7（A5）：LLM 外呼不占数据库事务
+        RegulationAiTxSupport.SummarizeInput in = aiTxSupport.loadSummarizeInput(changeId);
+        String summary = llmProvider.generateFor("REG_SUMMARY", in.question(), in.snippets());
+        return aiTxSupport.saveSummary(changeId, summary, actor);
     }
 }

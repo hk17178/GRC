@@ -67,6 +67,18 @@ public class PolicyService {
         return policyRepository.findAll();
     }
 
+    /**
+     * 列表投影（七轮 7-8/A6）：不加载 docx 原件字节 + 分页护栏（单页上限 500，缺省 200）。
+     * 列表页数据量在护栏内时前端无感；超限说明该上真分页 UI 了。
+     */
+    @Transactional(readOnly = true)
+    public List<PolicySummary> listSummaries(Integer page, Integer size) {
+        int p = page == null || page < 0 ? 0 : page;
+        int s = size == null || size <= 0 ? 200 : Math.min(size, 500);
+        return policyRepository.findAllProjectedByOrderByIdDesc(
+                org.springframework.data.domain.PageRequest.of(p, s));
+    }
+
     /** 按 id 取制度（仅能取到可见组织内的；不可见则视为不存在）。 */
     @Transactional(readOnly = true)
     public Policy get(Long id) {

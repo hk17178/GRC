@@ -48,6 +48,14 @@ public class MajorIncidentReport {
     @Column(name = "reported_at")
     private OffsetDateTime reportedAt;
 
+    /** 法定报送时限（七轮 7-2/B3：支付机构重大事件有法定时限，纳入到期扫描预警）。 */
+    @Column(name = "report_deadline")
+    private java.time.LocalDate reportDeadline;
+
+    /** 监管确认收到时刻（ACKNOWLEDGED 段，acknowledge 流转时记录）。 */
+    @Column(name = "acknowledged_at")
+    private OffsetDateTime acknowledgedAt;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     private MajorIncidentStatus status = MajorIncidentStatus.DRAFT;
@@ -94,6 +102,11 @@ public class MajorIncidentReport {
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
 
+    public java.time.LocalDate getReportDeadline() { return reportDeadline; }
+    public OffsetDateTime getAcknowledgedAt() { return acknowledgedAt; }
+
     void setStatus(MajorIncidentStatus status) { this.status = status; }
     void setReportedAt(OffsetDateTime reportedAt) { this.reportedAt = reportedAt; }
+    void setReportDeadline(java.time.LocalDate reportDeadline) { this.reportDeadline = reportDeadline; }
+    void setAcknowledgedAt(OffsetDateTime acknowledgedAt) { this.acknowledgedAt = acknowledgedAt; }
 }

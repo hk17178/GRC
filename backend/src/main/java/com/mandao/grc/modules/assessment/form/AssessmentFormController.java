@@ -89,6 +89,14 @@ public class AssessmentFormController {
         return service.getAssessmentForm(id);
     }
 
+    /** 从系统数据重新预填三张明细表（七轮 7-13：范围资产/场景变化后同步，覆盖三张系统清单）。 */
+    @PostMapping("/assessments/{id}/form/reprefill")
+    @RequiresPermission("risk")
+    public AssessmentFormService.AssessmentFormView reprefill(@PathVariable Long id,
+            @org.springframework.web.bind.annotation.RequestHeader(value = "X-User", required = false) String user) {
+        return service.reprefill(id, com.mandao.grc.common.auth.ActorResolver.resolve(user));
+    }
+
     /** 保存某评估的填写值，返回聚合出的整体残余等级（驱动看板/任务列表 + 完成门控）。 */
     @PutMapping("/assessments/{id}/answers")
     @RequiresPermission("risk")

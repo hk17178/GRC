@@ -242,7 +242,7 @@ class AuditManagementTest {
     // ---------- 内部处置状态机 ----------
 
     @Test
-    void 内部处置_分析整改关闭全程通过() {
+    void 内部处置_分析整改关闭全程通过() throws Exception {
         Long pid = asOrg(ORG_PAY, () ->
                 planService.create(ORG_PAY, "内审计划", AuditType.INTERNAL, TODAY.plusDays(30), "c").getId());
         Long fid = asOrg(ORG_PAY, () ->
@@ -255,6 +255,12 @@ class AuditManagementTest {
         Long oid = asOrg(ORG_PAY, () ->
                 remediationService.create(fid, "owner", TODAY.plusDays(7), "整改措施", "lead").getId());
         asOrg(ORG_PAY, () -> remediationService.start(oid, "owner"));
+        // 七轮 7-1：提交门控要求证据库有挂件（owner 直插）
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement st = owner.createStatement()) {
+            st.executeUpdate("INSERT INTO evidence(org_id, remediation_id, name, data, sha256, uploaded_by) "
+                    + "VALUES (12, " + oid + ", '整改证据', '\\x01', 'seed-sha', 'o')");
+        }
         asOrg(ORG_PAY, () -> remediationService.submit(oid, "已整改", "owner"));
         asOrg(ORG_PAY, () -> remediationService.verify(oid, "a"));
 

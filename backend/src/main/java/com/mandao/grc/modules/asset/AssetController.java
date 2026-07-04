@@ -83,7 +83,7 @@ public class AssetController {
     }
 
     private String actor(String user) {
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 资产登记/更新请求体（含资产合规属性 CR-002）。 */

@@ -25,17 +25,20 @@ public class ClaudeLlmProvider implements LlmProvider {
     private final String apiKey;
     private final String model;
     private final int maxTokens;
-    private final RestClient http;
+    private final String baseUrl;
+    private final AiEgressGuard egressGuard;
 
     public ClaudeLlmProvider(
             @Value("${grc.ai.claude.api-key:}") String apiKey,
             @Value("${grc.ai.claude.model:claude-opus-4-8}") String model,
             @Value("${grc.ai.claude.base-url:https://api.anthropic.com}") String baseUrl,
-            @Value("${grc.ai.claude.max-tokens:1024}") int maxTokens) {
+            @Value("${grc.ai.claude.max-tokens:1024}") int maxTokens,
+            AiEgressGuard egressGuard) {
         this.apiKey = apiKey;
         this.model = model;
         this.maxTokens = maxTokens;
-        this.http = RestClient.builder().baseUrl(baseUrl).build();
+        this.baseUrl = baseUrl;
+        this.egressGuard = egressGuard; // 七轮 7-7/7-10：出站守卫统一供给带超时客户端并做白名单/SSRF 校验
     }
 
     @Override
@@ -69,6 +72,7 @@ public class ClaudeLlmProvider implements LlmProvider {
                 "system", system,
                 "messages", List.of(Map.of("role", "user", "content", user)));
         try {
+            RestClient http = egressGuard.clientFor(baseUrl); // 出站三层校验 + 连接/读超时
             ClaudeResponse resp = http.post()
                     .uri("/v1/messages")
                     .header("x-api-key", apiKey)

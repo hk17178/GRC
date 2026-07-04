@@ -234,6 +234,10 @@ public class AssessmentService {
     @Transactional
     public Assessment signOff(Long id, String signer, String opinion, boolean accepted, byte[] signature) {
         Assessment a = get(id);
+        // 七轮 7-12（A29）：职责分离硬阻断——评估发起人/评估人不得自行签批接受自己评出的残余风险
+        if (signer != null && signer.equals(a.getAssessor())) {
+            throw new IllegalStateException("职责分离：评估人（" + signer + "）不得自行完成管理层签批，请由管理层/独立审批人签批");
+        }
         a.signOff(signer, opinion, accepted);
         String sigSha = null;
         if (signature != null && signature.length > 0) {

@@ -25,11 +25,14 @@ public class ConfiguredLlmProvider implements LlmProvider {
 
     private final AiConfigService configService;
     private final ObjectProvider<List<LlmProvider>> allProviders;
+    private final AiEgressGuard egressGuard;
 
     public ConfiguredLlmProvider(AiConfigService configService,
-                                 ObjectProvider<List<LlmProvider>> allProviders) {
+                                 ObjectProvider<List<LlmProvider>> allProviders,
+                                 AiEgressGuard egressGuard) {
         this.configService = configService;
         this.allProviders = allProviders;
+        this.egressGuard = egressGuard; // 七轮 7-7/7-10：DB 配置的 baseUrl 同样过出站守卫
     }
 
     /**
@@ -112,7 +115,7 @@ public class ConfiguredLlmProvider implements LlmProvider {
 
     private String callOpenAi(AiConfigService.Snapshot s, String question, List<String> snippets) {
         String base = s.baseUrl() == null || s.baseUrl().isBlank() ? "https://api.openai.com/v1" : s.baseUrl();
-        RestClient http = RestClient.builder().baseUrl(base).build();
+        RestClient http = egressGuard.clientFor(base); // 出站三层校验 + 超时（DB 可配地址尤须防 SSRF）
         Map<String, Object> body = Map.of(
                 "model", s.model() == null ? "gpt-4o-mini" : s.model(),
                 "max_tokens", s.maxTokens(),
@@ -136,7 +139,7 @@ public class ConfiguredLlmProvider implements LlmProvider {
 
     private String callClaude(AiConfigService.Snapshot s, String question, List<String> snippets) {
         String base = s.baseUrl() == null || s.baseUrl().isBlank() ? "https://api.anthropic.com" : s.baseUrl();
-        RestClient http = RestClient.builder().baseUrl(base).build();
+        RestClient http = egressGuard.clientFor(base); // 出站三层校验 + 超时（DB 可配地址尤须防 SSRF）
         Map<String, Object> body = Map.of(
                 "model", s.model() == null ? "claude-opus-4-8" : s.model(),
                 "max_tokens", s.maxTokens(),

@@ -36,6 +36,14 @@ public class RegFilingService {
     private final HashChainService hashChainService;
     private final WorkflowService workflowService;
 
+    /** 证据仓库（七轮 7-2：了结须核验回执证据，setter 注入跨模块仓储）。 */
+    private com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireEvidenceRepository(com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
+
     public RegFilingService(RegFilingRepository repository, HashChainService hashChainService,
                             WorkflowService workflowService) {
         this.repository = repository;
@@ -125,10 +133,17 @@ public class RegFilingService {
         }
     }
 
-    /** 了结：SUBMITTED → CLOSED（终态）。 */
+    /**
+     * 了结：SUBMITTED → CLOSED（终态）。
+     * 七轮 7-2（B2 红线，D1-4:188）：必须先在证据库挂有本报送的回执证据（监管受理回执/送达凭证，
+     * sha256 固化）方可了结——没有回执的"一键办结"是监管举证链的断点。
+     */
     @Transactional
     public RegFiling close(Long id, String actor) {
         RegFiling f = get(id);
+        if (evidenceRepository.countByFilingId(id) == 0) {
+            throw new IllegalStateException("报送了结前须上传监管回执证据（证据库关联本报送，原件 sha256 固化留档）");
+        }
         transition(f, RegFilingStatus.SUBMITTED, RegFilingStatus.CLOSED);
         RegFiling saved = repository.save(f);
         appendLog(saved, "REG_FILING_CLOSE", actor, "报送了结");

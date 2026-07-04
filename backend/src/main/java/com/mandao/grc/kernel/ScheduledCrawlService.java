@@ -35,7 +35,7 @@ public class ScheduledCrawlService {
     private static final Logger log = LoggerFactory.getLogger(ScheduledCrawlService.class);
 
     /** 单实例选源锁的 advisory key（本用途专用，与到期扫描 770001 区分）。 */
-    private static final long CRAWL_LOCK_KEY = 770002L;
+    private static final long CRAWL_LOCK_KEY = LockKeys.CRAWL;
 
     @PersistenceContext
     private EntityManager em;

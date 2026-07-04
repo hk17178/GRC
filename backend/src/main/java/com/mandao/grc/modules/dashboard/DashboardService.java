@@ -99,10 +99,10 @@ public class DashboardService {
     }
 
     private DashboardSummary.Policy policy() {
-        var policies = policyRepository.findAll();
-        long effective = policies.stream().filter(p -> p.getStatus() == PolicyStatus.EFFECTIVE).count();
-        long inReview = policies.stream().filter(p -> p.getStatus() == PolicyStatus.REVIEW).count();
-        long draft = policies.stream().filter(p -> p.getStatus() == PolicyStatus.DRAFT).count();
+        // 七轮 7-8（A6）：只要状态计数——此前 findAll() 把全部制度实体（含 docx 原件 bytea）拉进堆
+        long effective = policyRepository.countByStatus(PolicyStatus.EFFECTIVE);
+        long inReview = policyRepository.countByStatus(PolicyStatus.REVIEW);
+        long draft = policyRepository.countByStatus(PolicyStatus.DRAFT);
         return new DashboardSummary.Policy(effective, inReview, draft);
     }
 

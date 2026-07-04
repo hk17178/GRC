@@ -74,14 +74,15 @@ public class RiskFindingService {
      */
     @Transactional(readOnly = true)
     public List<RegisterRow> registerRows() {
-        List<RiskFinding> findings = findingRepository.findAll();
+        // 七轮 7-8：分页护栏——最多取最近 500 条（超限说明该上真分页 UI 了），DB 侧排序不再全量捞
+        List<RiskFinding> findings = findingRepository.findAllByOrderByIdDesc(
+                org.springframework.data.domain.PageRequest.of(0, 500));
         // 批量取评估标题，避免逐条查库
         java.util.Map<Long, String> titles = new java.util.HashMap<>();
         assessmentRepository.findAllById(
                 findings.stream().map(RiskFinding::getAssessmentId).distinct().toList())
                 .forEach(a -> titles.put(a.getId(), a.getTitle()));
         return findings.stream()
-                .sorted(java.util.Comparator.comparing(RiskFinding::getId).reversed())
                 .map(f -> new RegisterRow(f.getId(), f.getAssessmentId(),
                         titles.getOrDefault(f.getAssessmentId(), "（评估不可见）"),
                         f.getTitle(), f.getInherentLevel(), f.getResidualLevel(),

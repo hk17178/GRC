@@ -55,18 +55,46 @@ public class EvidenceService {
     @Transactional
     public Evidence upload(Long orgId, Long planId, Long findingId, Long remediationId,
                            String name, String fileName, String contentType, byte[] data, String actor) {
-        if (planId == null && findingId == null && remediationId == null) {
-            throw new IllegalArgumentException("证据须至少关联 审计计划/审计发现/整改单 之一");
+        return upload(orgId, planId, findingId, remediationId, null, null, name, fileName, contentType, data, actor);
+    }
+
+    /**
+     * 上传证据（七轮 7-2 扩展）：关联对象扩到 报送事项/重大事件——监管回执入证据库，
+     * 与审计证据同一套 sha256 固化与留痕，形成完整举证链。
+     */
+    @Transactional
+    public Evidence upload(Long orgId, Long planId, Long findingId, Long remediationId,
+                           Long filingId, Long incidentId,
+                           String name, String fileName, String contentType, byte[] data, String actor) {
+        if (planId == null && findingId == null && remediationId == null && filingId == null && incidentId == null) {
+            throw new IllegalArgumentException("证据须至少关联 审计计划/审计发现/整改单/监管报送/重大事件 之一");
         }
         if (data == null || data.length == 0) {
             throw new IllegalArgumentException("证据文件为空");
         }
-        Evidence saved = evidenceRepo.save(new Evidence(orgId, planId, findingId, remediationId,
-                name, fileName, contentType, data, sha256(data), actor));
+        Evidence e = new Evidence(orgId, planId, findingId, remediationId,
+                name, fileName, contentType, data, sha256(data), actor);
+        e.attachRegulatory(filingId, incidentId);
+        Evidence saved = evidenceRepo.save(e);
         hashChainService.append(orgId, "EVIDENCE_UPLOAD", actor, "EVIDENCE:" + saved.getId(),
                 "上传证据「" + name + "」sha256=" + saved.getSha256()
-                        + refText(planId, findingId, remediationId));
+                        + refText(planId, findingId, remediationId)
+                        + (filingId == null ? "" : " filing=" + filingId)
+                        + (incidentId == null ? "" : " incident=" + incidentId));
         return saved;
+    }
+
+    /**
+     * 证据列表（七轮 7-2 五维过滤 + 7-8 投影分页）：返回不含文件字节的投影，
+     * 单页护栏 500 上限缺省 200；原件字节仅下载/取证按 id 单取。
+     */
+    @Transactional(readOnly = true)
+    public List<EvidenceSummary> listSummaries(Long planId, Long findingId, Long remediationId,
+                                               Long filingId, Long incidentId, Integer page, Integer size) {
+        int p = page == null || page < 0 ? 0 : page;
+        int s = size == null || size <= 0 ? 200 : Math.min(size, 500);
+        return evidenceRepo.findSummaries(planId, findingId, remediationId, filingId, incidentId,
+                org.springframework.data.domain.PageRequest.of(p, s));
     }
 
     /** 证据列表：按关联对象过滤（全空=可见范围内全部）。 */

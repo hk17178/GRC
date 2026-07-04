@@ -24,6 +24,14 @@ public class RemediationService {
     private final AuditFindingService findingService;
     private final HashChainService hashChainService;
 
+    /** 证据仓库（七轮 7-1：提交门控需核验证据库挂件，setter 注入避免搅动既有构造装配）。 */
+    private EvidenceRepository evidenceRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireEvidenceRepository(EvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
+
     public RemediationService(RemediationOrderRepository orderRepository,
                               AuditFindingService findingService,
                               HashChainService hashChainService) {
@@ -72,20 +80,36 @@ public class RemediationService {
         return saveAndLog(o, "REMEDIATION_START", actor, "开始整改");
     }
 
-    /** 提交整改：IN_PROGRESS → SUBMITTED（填写证据）。 */
+    /**
+     * 提交整改：IN_PROGRESS → SUBMITTED。
+     * 七轮 7-1（B1 红线）：整改闭环必须携证明材料——证据说明必填，且须在证据库挂有
+     * 关联本工单的证据文件（sha256 固化），两者缺一不可提交。
+     */
     @Transactional
     public RemediationOrder submit(Long id, String evidence, String actor) {
         RemediationOrder o = get(id);
         requireStatus(o, RemediationStatus.IN_PROGRESS, "提交整改");
+        if (evidence == null || evidence.isBlank()) {
+            throw new IllegalStateException("整改提交必须填写证据说明（UAT§6 红线：整改闭环须携证明材料）");
+        }
+        if (evidenceRepository.countByRemediationId(id) == 0) {
+            throw new IllegalStateException("整改提交前须在证据库上传至少一份关联本工单的证明材料（原件 sha256 固化留档）");
+        }
         o.submit(evidence);
         return saveAndLog(o, "REMEDIATION_SUBMIT", actor, "提交整改证据");
     }
 
-    /** 验证通过：SUBMITTED → VERIFIED（闭环凭据）。 */
+    /**
+     * 验证通过：SUBMITTED → VERIFIED。
+     * 七轮 7-1（B1 红线）：职责分离——整改责任人不得自行验证自己的整改。
+     */
     @Transactional
     public RemediationOrder verify(Long id, String actor) {
         RemediationOrder o = get(id);
         requireStatus(o, RemediationStatus.SUBMITTED, "验证");
+        if (actor != null && actor.equals(o.getAssignee())) {
+            throw new IllegalStateException("职责分离：整改责任人（" + actor + "）不得自行验证自己的整改，请由下达人或独立验证人执行");
+        }
         o.verify(actor);
         return saveAndLog(o, "REMEDIATION_VERIFY", actor, "验证通过");
     }

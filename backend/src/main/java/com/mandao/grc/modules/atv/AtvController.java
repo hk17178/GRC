@@ -99,7 +99,7 @@ public class AtvController {
     }
 
     private String actor(String user) {
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 威胁登记请求体。 */

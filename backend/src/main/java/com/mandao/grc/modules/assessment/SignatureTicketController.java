@@ -57,7 +57,7 @@ public class SignatureTicketController {
         if (current != null && !current.isBlank()) {
             return current;
         }
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 手机签名提交体。 */

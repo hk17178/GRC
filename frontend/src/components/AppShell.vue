@@ -200,25 +200,36 @@ const activeKey = computed(() => {
   return hit || 'dashboard'
 })
 
-// 菜单信息架构（对齐驾驶舱版原型 nav 分组与顺序）
-const menu = [
+// 菜单信息架构（对齐驾驶舱版原型 nav 分组与顺序）。
+// 七轮 7-5（A3）：原写死的徽标示意数（风险248/制度312/待办8…）全部移除——
+// 假数字比没有数字更糟；「我的待办」徽标接工作台真值，其余徽标待各模块 count 接口再上。
+const todoCnt = ref(0)
+async function loadTodoCnt() {
+  try {
+    const t = await api.get('/workbench/todos')
+    todoCnt.value = Array.isArray(t) ? t.length : 0
+  } catch (e) { todoCnt.value = 0 }
+}
+loadTodoCnt()
+
+const menu = computed(() => [
   {
     group: 'overview',
     items: [
       { key: 'dashboard' },
-      { key: 'todo', cnt: 8 }
+      { key: 'todo', cnt: todoCnt.value || null }
     ]
   },
   {
     group: 'business',
     items: [
       { key: 'extaudit' },
-      { key: 'audit', cnt: 23 },
-      { key: 'risk', cnt: 248 },
+      { key: 'audit' },
+      { key: 'risk' },
       { key: 'law' },
-      { key: 'regaffairs', cnt: 5 },
-      { key: 'obligation', cnt: 13 },
-      { key: 'policy', cnt: 312 },
+      { key: 'regaffairs' },
+      { key: 'obligation' },
+      { key: 'policy' },
       { key: 'ai' },
       { key: 'vendor' }
     ]
@@ -235,18 +246,18 @@ const menu = [
       { key: 'perm' },
       { key: 'approvalflow' },
       { key: 'board' },
-      { key: 'feedback', cnt: 6 },
+      { key: 'feedback' },
       { key: 'settings' }
     ]
   }
-]
+])
 
 // 按权限过滤菜单（增强③ R4）：仅显示对该菜单非 HIDDEN（RW/RO）的项；空分组隐藏。
 // 权限未就绪时(authState.perms 为空)显示全部，避免登录瞬时空菜单闪烁。
 const visibleMenu = computed(() => {
   const hasPerms = Object.keys(authState.perms).length > 0
-  if (!hasPerms) return menu
-  return menu
+  if (!hasPerms) return menu.value
+  return menu.value
     .map((grp) => ({ group: grp.group, items: grp.items.filter((it) => canSee(it.key)) }))
     .filter((grp) => grp.items.length > 0)
 })

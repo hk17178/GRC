@@ -28,17 +28,20 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
     private final String apiKey;
     private final String modelName;
     private final int maxTokens;
-    private final RestClient http;
+    private final String baseUrl;
+    private final AiEgressGuard egressGuard;
 
     public OpenAiCompatibleLlmProvider(
             @Value("${grc.ai.openai.api-key:}") String apiKey,
             @Value("${grc.ai.openai.base-url:https://api.openai.com/v1}") String baseUrl,
             @Value("${grc.ai.openai.model:gpt-4o-mini}") String model,
-            @Value("${grc.ai.openai.max-tokens:1024}") int maxTokens) {
+            @Value("${grc.ai.openai.max-tokens:1024}") int maxTokens,
+            AiEgressGuard egressGuard) {
         this.apiKey = apiKey;
         this.modelName = model;
         this.maxTokens = maxTokens;
-        this.http = RestClient.builder().baseUrl(baseUrl).build();
+        this.baseUrl = baseUrl;
+        this.egressGuard = egressGuard; // 七轮 7-7/7-10：出站守卫统一供给带超时客户端并做白名单/SSRF 校验
     }
 
     @Override
@@ -70,6 +73,7 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
                         Map.of("role", "system", "content", system),
                         Map.of("role", "user", "content", user)));
         try {
+            RestClient http = egressGuard.clientFor(baseUrl); // 出站三层校验 + 连接/读超时
             OpenAiResponse resp = http.post()
                     .uri("/chat/completions")
                     .header("Authorization", apiKey == null || apiKey.isBlank() ? "" : "Bearer " + apiKey)

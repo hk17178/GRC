@@ -146,7 +146,7 @@ export default {
     tab: { tasks: 'Audit Tasks', findings: 'Audit Findings', remed: 'Remediation' },
     kpi: {
       active: 'Active Audits',
-      bodies: 'Audit Bodies',
+      bodies: 'Auditees',
       openFindings: 'Open Findings',
       toRemed: 'To Remediate',
       certPassed: 'Certs Passed (Yr)'
@@ -315,7 +315,7 @@ export default {
     inquiry: {
       title: 'Inquiries',
       add: '＋ Add Inquiry',
-      th: { id: 'ID', regulator: 'Regulator', subject: 'Subject', received: 'Received', replyDue: 'Reply Due', replyLog: 'Reply Record', status: 'Status' },
+      th: { id: 'ID', regulator: 'Regulator', subject: 'Subject', received: 'Received', replyDue: 'Reply Due', replyLog: 'Actions', status: 'Status' },
       regPboc: 'PBOC',
       regCac: 'CAC',
       regNafr: 'NAFR',
@@ -330,7 +330,7 @@ export default {
     penalty: {
       title: 'Penalty & Talk Register',
       add: '＋ Register',
-      th: { id: 'ID', type: 'Type', regulator: 'Regulator', reason: 'Reason', date: 'Date', remediation: 'Remediation Req.', replyStatus: 'Reply Status' },
+      th: { id: 'ID', type: 'Type', regulator: 'Regulator', reason: 'Reason', date: 'Date', remediation: 'Actions', replyStatus: 'Reply Status' },
       typeTalk: 'Talk',
       typePenalty: 'Penalty',
       regPboc: 'PBOC',
@@ -558,14 +558,14 @@ export default {
   dash: {
     overviewTag: 'Group Overview · 2026 Q2',
     title: 'Compliance Posture',
-    subtitle: 'Group-wide · as of 06-22 09:00 · near real-time',
+    subtitle: 'Group-wide · as of {t} · near real-time',
     editLayout: 'Edit Layout',
     addWidget: 'Add Widget',
     overdue: 'Overdue {n}',
     seg: { all: 'Group', pay: 'Payment', consumer: 'Consumer Fin.', tech: 'Tech' },
     due: { pending: 'Pending {v}', overdue: 'Overdue {v}' },
 
-    scaffoldNote: 'KPI cards / heat matrix / remediation rates are live backend aggregates (per visible org); KRI sparklines and framework attainment remain prototype scaffolding.',
+    scaffoldNote: 'KPI cards / heat matrix / remediation rates / KRI monitor / my approvals / event feed are all live backend data (per visible org); framework attainment awaits control-coverage computation.',
     // KPI cards (l=label, s=hint) — bound to /api/dashboard/summary live counts
     kpi: {
       openRisk: { l: 'Open Risk Findings', s: 'Risk assessment · in treatment' },

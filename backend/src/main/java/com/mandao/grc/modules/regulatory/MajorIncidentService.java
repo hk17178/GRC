@@ -25,6 +25,14 @@ public class MajorIncidentService {
     private final MajorIncidentRepository repository;
     private final HashChainService hashChainService;
 
+    /** 证据仓库（七轮 7-2：了结须核验回执证据，setter 注入跨模块仓储）。 */
+    private com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireEvidenceRepository(com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
+
     public MajorIncidentService(MajorIncidentRepository repository, HashChainService hashChainService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
@@ -41,11 +49,12 @@ public class MajorIncidentService {
                 .orElseThrow(() -> new IllegalArgumentException("重大事件报送不存在或不可见：id=" + id));
     }
 
-    /** 新建重大事件报送（DRAFT 态）。 */
+    /** 新建重大事件报送（DRAFT 态）。七轮 7-2：可携法定报送时限（到期扫描按 3/1/0 天预警）。 */
     @Transactional
     public MajorIncidentReport create(Long orgId, String title, MajorIncidentSeverity severity,
-                                      OffsetDateTime occurredAt, String actor) {
+                                      OffsetDateTime occurredAt, java.time.LocalDate reportDeadline, String actor) {
         MajorIncidentReport m = new MajorIncidentReport(orgId, title, severity, occurredAt);
+        m.setReportDeadline(reportDeadline);
         MajorIncidentReport saved = repository.save(m);
         appendLog(saved, "MAJOR_INCIDENT_CREATE", actor,
                 "新建重大事件报送 title=" + title + " severity=" + severity + " occurred=" + occurredAt);
@@ -63,11 +72,28 @@ public class MajorIncidentService {
         return saved;
     }
 
-    /** 了结：REPORTED → CLOSED（终态）。 */
+    /** 监管确认收到：REPORTED → ACKNOWLEDGED（七轮 7-2/B3，记录 acknowledged_at）。 */
+    @Transactional
+    public MajorIncidentReport acknowledge(Long id, String actor) {
+        MajorIncidentReport m = get(id);
+        transition(m, MajorIncidentStatus.REPORTED, MajorIncidentStatus.ACKNOWLEDGED);
+        m.setAcknowledgedAt(OffsetDateTime.now());
+        MajorIncidentReport saved = repository.save(m);
+        appendLog(saved, "MAJOR_INCIDENT_ACK", actor, "监管机构确认收到报送");
+        return saved;
+    }
+
+    /**
+     * 了结：ACKNOWLEDGED → CLOSED（终态）。
+     * 七轮 7-2（B3 红线）：须先经监管确认（ACKNOWLEDGED）且证据库挂有本事件的报送回执/确认材料。
+     */
     @Transactional
     public MajorIncidentReport close(Long id, String actor) {
         MajorIncidentReport m = get(id);
-        transition(m, MajorIncidentStatus.REPORTED, MajorIncidentStatus.CLOSED);
+        if (evidenceRepository.countByIncidentId(id) == 0) {
+            throw new IllegalStateException("重大事件了结前须上传报送回执/监管确认材料（证据库关联本事件，sha256 固化）");
+        }
+        transition(m, MajorIncidentStatus.ACKNOWLEDGED, MajorIncidentStatus.CLOSED);
         MajorIncidentReport saved = repository.save(m);
         appendLog(saved, "MAJOR_INCIDENT_CLOSE", actor, "了结重大事件报送");
         return saved;

@@ -93,7 +93,7 @@ public class AssessmentController {
      *  - 手写签名存证：canvas 签名 PNG（dataURL）落库 + sha256 入哈希链。
      */
     @PostMapping("/{id}/signoff")
-    @RequiresPermission("risk")
+    @RequiresPermission("risk.signoff") // 七轮 7-12：签批细粒度资源——普通安全员(risk RW)不再可签，须管理层/审批角色
     public Assessment signoff(@PathVariable Long id,
                              @RequestBody SignoffRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
@@ -145,7 +145,7 @@ public class AssessmentController {
         if (current != null && !current.isBlank()) {
             return current;
         }
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 背景建立（V46）：写入/更新评估元数据（范围/目的/依据/方法/准则/评估组/起止）。终态冻结。 */

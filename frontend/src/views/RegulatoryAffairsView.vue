@@ -161,7 +161,11 @@
                       <button class="btn sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'approve-submit')">{{ $t('regaffairs.filingOp.approve') }}</button>
                       <button class="btn ghost sm danger" :disabled="filingBusy === r.id" @click="filingAct(r, 'reject-submit')">{{ $t('regaffairs.filingOp.reject') }}</button>
                     </template>
-                    <button v-else-if="r.status === 'SUBMITTED'" class="btn ghost sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'close')">{{ $t('regaffairs.filingOp.close') }}</button>
+                    <!-- 七轮 7-2（B2 红线）：了结前须上传监管回执证据（后端硬门控 409） -->
+                    <template v-else-if="r.status === 'SUBMITTED'">
+                      <button class="btn ghost sm" :disabled="filingBusy === r.id" @click="pickReceipt('filing', r)">上传回执</button>
+                      <button class="btn ghost sm" :disabled="filingBusy === r.id" @click="filingAct(r, 'close')" title="须先上传回执证据">{{ $t('regaffairs.filingOp.close') }}</button>
+                    </template>
                     <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
                   </td>
                 </tr>
@@ -321,8 +325,13 @@
                 <td>{{ r.title || $t('regaffairs.dash') }}</td>
                 <td class="num">{{ r.receivedDate || $t('regaffairs.dash') }}</td>
                 <td class="num">{{ r.dueDate || $t('regaffairs.dash') }}</td>
-                <!-- 答复留痕后端暂无 → 「—」 -->
-                <td>{{ $t('regaffairs.dash') }}</td>
+                <!-- 七轮 7-6（B4）：生命周期操作接线（此前端点齐备 UI 只读） -->
+                <td class="ops">
+                  <button v-if="r.status === 'DRAFTING'" class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'reply', '标记已答复')">答复</button>
+                  <button v-else-if="r.status === 'REPLIED'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'await-feedback', '转入等待监管反馈')">待反馈</button>
+                  <button v-else-if="r.status === 'AWAIT_FEEDBACK'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'close', '关闭问询')">关闭</button>
+                  <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
+                </td>
                 <td>
                   <span class="st" :class="inquiryStCls(r.status)"><span class="d"></span>{{ inquiryStLabel(r.status) }}</span>
                 </td>
@@ -365,8 +374,12 @@
                 <td>{{ r.regulator || $t('regaffairs.dash') }}</td>
                 <td>{{ r.title || $t('regaffairs.dash') }}</td>
                 <td class="num">{{ r.occurredDate || $t('regaffairs.dash') }}</td>
-                <!-- 整改要求后端暂无 → 「—」 -->
-                <td>{{ $t('regaffairs.dash') }}</td>
+                <!-- 七轮 7-6（B4）：整改/关闭操作接线 -->
+                <td class="ops">
+                  <button v-if="r.status === 'OPEN'" class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-penalties', r.id, 'rectify', '启动整改')">启动整改</button>
+                  <button v-else-if="r.status === 'RECTIFYING'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-penalties', r.id, 'close', '整改完成关闭')">关闭</button>
+                  <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
+                </td>
                 <td>
                   <span class="st" :class="penaltyStCls(r.status)"><span class="d"></span>{{ penaltyStLabel(r.status) }}</span>
                 </td>
@@ -388,6 +401,9 @@
           {{ $t('regaffairs.major.info') }}
         </div>
         <div class="card">
+          <div class="ch"><h3>重大事件台账</h3>
+            <button class="btn sm" style="margin-left:auto" :disabled="!canWrite('regaffairs')" @click="openIncident">＋ 登记重大事件</button>
+          </div>
           <table>
             <thead>
               <tr>
@@ -395,8 +411,10 @@
                 <th>{{ $t('regaffairs.calendar.th.item') }}</th>
                 <th>{{ $t('regaffairs.major.thSeverity') }}</th>
                 <th>{{ $t('regaffairs.major.thOccurred') }}</th>
+                <th>法定时限</th>
                 <th>{{ $t('regaffairs.major.thReported') }}</th>
                 <th>{{ $t('regaffairs.calendar.th.status') }}</th>
+                <th>{{ $t('regaffairs.calendar.th.op') }}</th>
               </tr>
             </thead>
             <tbody>
@@ -404,18 +422,54 @@
                 <td class="code">{{ r.id }}</td>
                 <td>{{ r.title || $t('regaffairs.dash') }}</td>
                 <td>{{ r.severity ? $t('regaffairs.severity.' + r.severity) : $t('regaffairs.dash') }}</td>
-                <td class="num">{{ r.occurredAt || $t('regaffairs.dash') }}</td>
-                <td class="num">{{ r.reportedAt || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ (r.occurredAt || '').slice(0, 10) || $t('regaffairs.dash') }}</td>
+                <td class="num" :style="r.reportDeadline && r.status === 'DRAFT' ? 'color:var(--danger);font-weight:700' : ''">{{ r.reportDeadline || $t('regaffairs.dash') }}</td>
+                <td class="num">{{ (r.reportedAt || '').slice(0, 10) || $t('regaffairs.dash') }}</td>
                 <td>
                   <span class="st" :class="incidentStCls(r.status)"><span class="d"></span>{{ incidentStLabel(r.status) }}</span>
                 </td>
+                <!-- 七轮 7-2/7-6（B3/B4）：上报→监管确认→挂回执→了结 全链操作 -->
+                <td class="ops">
+                  <button v-if="r.status === 'DRAFT'" class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('major-incidents', r.id, 'report', '上报监管机构')">上报</button>
+                  <button v-else-if="r.status === 'REPORTED'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('major-incidents', r.id, 'acknowledge', '登记监管已确认收到')">监管确认</button>
+                  <template v-else-if="r.status === 'ACKNOWLEDGED'">
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="pickReceipt('incident', r)">上传回执</button>
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('major-incidents', r.id, 'close', '了结重大事件')" title="须先上传回执证据">了结</button>
+                  </template>
+                  <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
+                </td>
               </tr>
               <tr v-if="!majors.length">
-                <td colspan="6" class="emptyrow">{{ majorsError || $t('regaffairs.emptyRow') }}</td>
+                <td colspan="8" class="emptyrow">{{ majorsError || $t('regaffairs.emptyRow') }}</td>
               </tr>
             </tbody>
           </table>
         </div>
+
+        <!-- 登记重大事件弹窗（七轮 7-6；含法定报送时限，到期扫描按 3/1/0 天预警红线） -->
+        <div v-if="showIncident" class="modal-mask" @click.self="showIncident = false">
+          <div class="modal-card">
+            <h3>登记重大事件</h3>
+            <label class="fld">事件标题<input v-model="incForm.title" placeholder="如 支付通道大面积故障" /></label>
+            <label class="fld">严重度
+              <select v-model="incForm.severity">
+                <option value="VERY_HIGH">极高</option><option value="HIGH">高</option>
+                <option value="MID">中</option><option value="LOW">低</option><option value="VERY_LOW">极低</option>
+              </select>
+            </label>
+            <label class="fld">发生时间<input v-model="incForm.occurredAt" type="datetime-local" /></label>
+            <label class="fld">法定报送时限（日）<input v-model="incForm.reportDeadline" type="date" /></label>
+            <label class="fld">所属组织<select v-model.number="incForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+            <p v-if="incErr" class="cerr">{{ incErr }}</p>
+            <div class="modal-actions">
+              <button class="btn ghost" @click="showIncident = false">取消</button>
+              <button class="btn" :disabled="!incForm.title || incSaving" @click="submitIncident">{{ incSaving ? '提交中…' : '确认登记' }}</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 回执上传共享文件输入（报送/重大事件共用） -->
+        <input id="receipt-file-input" type="file" style="display:none" @change="onReceiptPicked" />
       </div>
     </section>
   </AppShell>
@@ -459,12 +513,68 @@ const penaltiesError = ref('')
 const majors = ref([])
 const majorsError = ref('')
 
-onMounted(() => {
+function reloadLedgers() {
   api.get('/reg-filings').then((d) => { filings.value = d || [] }).catch((e) => { filingsError.value = e.message })
   api.get('/reg-inquiries').then((d) => { inquiries.value = d || [] }).catch((e) => { inquiriesError.value = e.message })
   api.get('/reg-penalties').then((d) => { penalties.value = d || [] }).catch((e) => { penaltiesError.value = e.message })
   api.get('/major-incidents').then((d) => { majors.value = d || [] }).catch((e) => { majorsError.value = e.message })
-})
+}
+onMounted(reloadLedgers)
+
+// ===== 七轮 7-6（B4）：三台账生命周期操作（问询答复/处罚整改/重大事件上报确认了结）=====
+async function ledgerAct(base, id, action, label) {
+  if (!window.confirm(`确认执行「${label}」？`)) return
+  try {
+    await api.post('/' + base + '/' + id + '/' + action, {})
+    reloadLedgers()
+  } catch (e) { window.alert(e.message) }
+}
+
+// ===== 七轮 7-2（B2/B3）：回执证据上传（报送/重大事件共用，入证据库 sha256 固化）=====
+const receiptTarget = ref(null) // { kind: 'filing'|'incident', row }
+function pickReceipt(kind, row) {
+  receiptTarget.value = { kind, row }
+  document.getElementById('receipt-file-input').click()
+}
+async function onReceiptPicked(e) {
+  const file = e.target.files && e.target.files[0]
+  e.target.value = ''
+  const tgt = receiptTarget.value
+  receiptTarget.value = null
+  if (!file || !tgt) return
+  try {
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('name', (tgt.kind === 'filing' ? '监管回执 · 报送#' : '监管回执 · 重大事件#') + tgt.row.id)
+    fd.append('orgId', tgt.row.orgId)
+    fd.append(tgt.kind === 'filing' ? 'filingId' : 'incidentId', tgt.row.id)
+    await api.upload('/evidence', fd)
+    window.alert('回执已入证据库（sha256 固化留档），现在可以执行「了结」。')
+  } catch (err) { window.alert(err.message) }
+}
+
+// ===== 七轮 7-6：登记重大事件（含法定报送时限，B3）=====
+const showIncident = ref(false)
+const incSaving = ref(false)
+const incErr = ref('')
+const incForm = reactive({ title: '', severity: 'HIGH', occurredAt: '', reportDeadline: '', orgId: 12 })
+function openIncident() {
+  Object.assign(incForm, { title: '', severity: 'HIGH', occurredAt: '', reportDeadline: '', orgId: 12 })
+  incErr.value = ''
+  showIncident.value = true
+}
+async function submitIncident() {
+  incSaving.value = true; incErr.value = ''
+  try {
+    await api.post('/major-incidents', {
+      orgId: incForm.orgId, title: incForm.title, severity: incForm.severity,
+      occurredAt: incForm.occurredAt ? new Date(incForm.occurredAt).toISOString() : null,
+      reportDeadline: incForm.reportDeadline || null
+    })
+    showIncident.value = false
+    reloadLedgers()
+  } catch (e) { incErr.value = e.message } finally { incSaving.value = false }
+}
 
 // ---- 登记监管报送：弹窗 → POST /api/reg-filings → 刷新报送日历（端到端写）----
 const showCreate = ref(false)

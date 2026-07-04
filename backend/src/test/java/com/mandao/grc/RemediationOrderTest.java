@@ -102,7 +102,7 @@ class RemediationOrderTest {
     }
 
     @Test
-    void 验证闭环_无已验证工单不可整改_验证后可整改关闭() {
+    void 验证闭环_无已验证工单不可整改_验证后可整改关闭() throws Exception {
         Long fid = asOrg(ORG_PAY, this::openFinding);
 
         // 红线：无已验证工单 → 不能标记已整改
@@ -112,6 +112,7 @@ class RemediationOrderTest {
         // 派单 → 开始 → 提交 → 验证
         Long oid = asOrg(ORG_PAY, () -> remediationService.create(fid, "owner1", TODAY.plusDays(7), "收敛权限", "lead").getId());
         asOrg(ORG_PAY, () -> remediationService.start(oid, "owner1"));
+        seedRemediationEvidence(oid); // 七轮 7-1：提交门控要求证据库有挂件
         asOrg(ORG_PAY, () -> remediationService.submit(oid, "已按最小权限重配", "owner1"));
         assertEquals(RemediationStatus.VERIFIED,
                 asOrg(ORG_PAY, () -> remediationService.verify(oid, "auditor").getStatus()));
@@ -140,10 +141,11 @@ class RemediationOrderTest {
     }
 
     @Test
-    void 工单退回返工_可再次提交验证() {
+    void 工单退回返工_可再次提交验证() throws Exception {
         Long fid = asOrg(ORG_PAY, this::openFinding);
         Long oid = asOrg(ORG_PAY, () -> remediationService.create(fid, "o", TODAY.plusDays(3), "x", "lead").getId());
         asOrg(ORG_PAY, () -> remediationService.start(oid, "o"));
+        seedRemediationEvidence(oid); // 七轮 7-1：提交门控
         asOrg(ORG_PAY, () -> remediationService.submit(oid, "v1", "o"));
         // 验证不通过 → 退回 IN_PROGRESS
         assertEquals(RemediationStatus.IN_PROGRESS,
@@ -164,6 +166,15 @@ class RemediationOrderTest {
     }
 
     // ---------- 测试辅助 ----------
+
+    /** 七轮 7-1：整改提交前置——owner 直插一条挂本工单的证据（提交门控要求证据库有挂件）。 */
+    private void seedRemediationEvidence(Long oid) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO evidence(org_id, remediation_id, name, data, sha256, uploaded_by) "
+                    + "VALUES (12, " + oid + ", '整改证据', '\\x01', 'seed-sha', 'o')");
+        }
+    }
 
     private <T> T asOrg(long orgId, Supplier<T> action) {
         IsolationContext.set(List.of(orgId));

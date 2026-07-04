@@ -42,7 +42,7 @@ public class MajorIncidentController {
     @RequiresPermission("regaffairs")
     public MajorIncidentReport create(@RequestBody CreateIncidentRequest req,
                                       @RequestHeader(value = "X-User", required = false) String user) {
-        return service.create(req.orgId(), req.title(), req.severity(), req.occurredAt(), actor(user));
+        return service.create(req.orgId(), req.title(), req.severity(), req.occurredAt(), req.reportDeadline(), actor(user));
     }
 
     @PostMapping("/{id}/report")
@@ -50,6 +50,14 @@ public class MajorIncidentController {
     public MajorIncidentReport report(@PathVariable Long id,
                                       @RequestHeader(value = "X-User", required = false) String user) {
         return service.report(id, actor(user));
+    }
+
+    /** 监管确认收到（七轮 7-2/B3：REPORTED → ACKNOWLEDGED）。 */
+    @PostMapping("/{id}/acknowledge")
+    @RequiresPermission("regaffairs")
+    public MajorIncidentReport acknowledge(@PathVariable Long id,
+                                           @RequestHeader(value = "X-User", required = false) String user) {
+        return service.acknowledge(id, actor(user));
     }
 
     @PostMapping("/{id}/close")
@@ -60,10 +68,11 @@ public class MajorIncidentController {
     }
 
     private String actor(String user) {
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 新建重大事件报送请求体。 */
-    public record CreateIncidentRequest(Long orgId, String title, MajorIncidentSeverity severity, OffsetDateTime occurredAt) {
+    public record CreateIncidentRequest(Long orgId, String title, MajorIncidentSeverity severity, OffsetDateTime occurredAt,
+                                        java.time.LocalDate reportDeadline) {
     }
 }

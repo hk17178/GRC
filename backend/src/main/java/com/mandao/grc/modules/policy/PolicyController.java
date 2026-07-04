@@ -31,10 +31,11 @@ public class PolicyController {
         this.service = service;
     }
 
-    /** 列出当前主体可见组织范围内的制度。 */
+    /** 列出当前主体可见组织范围内的制度（七轮 7-8：投影不带原件字节 + 分页护栏，保持数组响应形状）。 */
     @GetMapping
-    public List<Policy> list() {
-        return service.list();
+    public List<PolicySummary> list(@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
+                                    @org.springframework.web.bind.annotation.RequestParam(required = false) Integer size) {
+        return service.listSummaries(page, size);
     }
 
     /** 取单个制度（不可见则视为不存在）。 */
@@ -167,7 +168,7 @@ public class PolicyController {
         if (current != null && !current.isBlank()) {
             return current;
         }
-        return (user == null || user.isBlank()) ? "anonymous" : user;
+        return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
     /** 新建制度请求体。 */

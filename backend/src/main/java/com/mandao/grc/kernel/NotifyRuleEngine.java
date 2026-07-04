@@ -33,8 +33,8 @@ public class NotifyRuleEngine {
 
     private static final Logger log = LoggerFactory.getLogger(NotifyRuleEngine.class);
 
-    /** 单实例锁 advisory key（与到期扫描 770001 区分）。 */
-    private static final long ENGINE_LOCK_KEY = 770002L;
+    /** 单实例锁 advisory key（集中登记于 LockKeys，七轮修复与定时抓取的撞号）。 */
+    private static final long ENGINE_LOCK_KEY = LockKeys.NOTIFY_RULES;
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 

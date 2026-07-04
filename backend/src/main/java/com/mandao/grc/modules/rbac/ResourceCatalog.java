@@ -47,6 +47,7 @@ public final class ResourceCatalog {
             new Def("risk.closeFinding", "关闭/验证风险发现", "ACTION", "risk", 2),
             new Def("risk.requestAccept", "申请风险接受", "ACTION", "risk", 3),
             new Def("risk.approveAccept", "审批风险接受", "ACTION", "risk", 4),
+            new Def("risk.signoff", "管理层签批", "ACTION", "risk", 5), // 七轮 7-12：签批细粒度门控
             new Def("policy.create", "新建制度", "ACTION", "policy", 1),
             new Def("policy.submit", "提交评审", "ACTION", "policy", 2),
             new Def("policy.decide", "审批/驳回制度", "ACTION", "policy", 3),

@@ -24,7 +24,7 @@
           <div class="kqt">{{ $t('dash.overviewTag') }}</div>
           <h1>
             {{ $t('dash.title') }}
-            <small>{{ $t('dash.subtitle') }}</small>
+            <small>{{ $t('dash.subtitle', { t: nowText }) }}</small>
           </h1>
         </div>
         <div class="sp"></div>
@@ -180,21 +180,22 @@
             <h3>{{ $t('dash.kri.title') }}</h3>
             <span class="sub">{{ $t('dash.kri.sub') }}</span>
           </div>
+          <!-- 七轮 7-5：接真值——KRI 指标与最新测量来自 /api/kris，不再展示写死的示意折线 -->
           <div class="cb">
             <div class="kri">
-              <div class="ki" v-for="(k, i) in kris" :key="i">
-                <span class="dt" :style="{ background: k.dot }"></span>
+              <div class="ki" v-for="k in kris" :key="k.id">
+                <span class="dt" :style="{ background: kriDot(k.currentStatus) }"></span>
                 <span class="nm">
-                  <div class="t">{{ $t('dash.kri.item.' + k.key + '.t') }}</div>
-                  <div class="src">{{ $t('dash.kri.item.' + k.key + '.src') }}</div>
+                  <div class="t">{{ k.name }}</div>
+                  <div class="src">{{ k.code }}</div>
                 </span>
-                <svg class="kspark" viewBox="0 0 54 18" preserveAspectRatio="none">
-                  <polyline :points="k.spark" fill="none" :stroke="k.line" stroke-width="1.5" />
-                </svg>
-                <span class="val" :style="k.valColor ? { color: k.valColor } : null">
-                  {{ k.val }}
-                  <div class="th">{{ $t('dash.kri.item.' + k.key + '.th') }}</div>
+                <span class="val" :style="{ color: kriDot(k.currentStatus) }">
+                  {{ k.currentValue == null ? '—' : k.currentValue + (k.unit || '') }}
+                  <div class="th">预警 {{ k.thresholdWarning }} / 严重 {{ k.thresholdCritical }}</div>
                 </span>
+              </div>
+              <div v-if="!kris.length" class="ki" style="color: var(--text-3); font-size: 12px">
+                暂无 KRI 指标——到 风险评估 · KRI 监控 定义指标并录入测量值。
               </div>
             </div>
           </div>
@@ -211,17 +212,11 @@
             <h3>{{ $t('dash.frame.title') }}</h3>
             <span class="sub">{{ $t('dash.frame.sub') }}</span>
           </div>
-          <div class="cb">
-            <div class="bars">
-              <div class="bar-row" v-for="f in frameworks" :key="f.name">
-                <div class="hd">
-                  <span class="nm">{{ f.name }}</span>
-                  <b>{{ f.pct }}%</b>
-                </div>
-                <div class="track">
-                  <div class="seg2" :class="f.tone" :style="{ width: f.pct + '%' }"></div>
-                </div>
-              </div>
+          <!-- 七轮 7-5：原各体系百分比为写死示意——控制点覆盖率计算尚未实现，诚实置灰待接入 -->
+          <div class="cb" style="opacity: .75">
+            <div style="font-size: 12px; color: var(--text-3); line-height: 1.8; padding: 6px 0">
+              体系达成度需要「控制点覆盖率」真值计算（模板条款 × 评估结果聚合），该能力尚未实现，
+              暂不展示示意百分比。八大体系模板与统一控件库已就绪，覆盖率计算随后续批次交付。
             </div>
           </div>
         </div>
@@ -237,17 +232,19 @@
             <h3>{{ $t('dash.approve.title') }}</h3>
             <span class="more">{{ $t('dash.approve.all', { n: approvals.length }) }}</span>
           </div>
+          <!-- 七轮 7-5（A30）：接真值——Flowable 我的审批任务（/api/workbench/my-approvals） -->
           <div class="cb">
             <div class="wl">
-              <div class="wi" v-for="(a, i) in approvals" :key="i">
-                <span class="tp2">{{ $t('dash.approve.type.' + a.type) }}</span>
+              <div class="wi" v-for="a in approvals" :key="a.taskId">
+                <span class="tp2">{{ BIZ_LABEL[a.bizType] || a.bizType }}</span>
                 <div class="ti">
-                  <div class="t">{{ $t('dash.approve.item.' + a.key + '.t') }}</div>
-                  <div class="m">{{ $t('dash.approve.item.' + a.key + '.m') }}</div>
+                  <div class="t">{{ (BIZ_LABEL[a.bizType] || a.bizType) + ' #' + a.bizId }}</div>
+                  <div class="m">{{ a.nodeName || '待审批' }} · {{ a.roleGroup || '' }}</div>
                 </div>
-                <span class="due" :class="{ ov: a.overdue }">
-                  {{ a.overdue ? $t('dash.due.overdue', { v: a.dueVal }) : $t('dash.due.pending', { v: a.dueVal }) }}
-                </span>
+                <span class="due">{{ agoText(a.createdMs) }}</span>
+              </div>
+              <div v-if="!approvals.length" style="font-size: 12px; color: var(--text-3); padding: 8px 0">
+                暂无待我审批的任务。
               </div>
             </div>
           </div>
@@ -263,12 +260,14 @@
           <div class="ch" style="padding: 14px 18px 8px">
             <h3>{{ $t('dash.feed.title') }}</h3>
           </div>
+          <!-- 七轮 7-5（A30）：接真值——最近调度提醒/规则告警（/api/workbench/notifications） -->
           <div class="feed">
-            <div class="it" v-for="(f, i) in feed" :key="i">
-              <span class="tm">{{ f.tmIsTime ? f.tm : $t('dash.feed.' + f.tm) }}</span>
-              <span class="bd" :class="f.badge">{{ $t('dash.feed.badge.' + f.badge) }}</span>
-              <span class="tx">{{ $t('dash.feed.item.' + f.key) }}</span>
+            <div class="it" v-for="f in feed" :key="f.id">
+              <span class="tm">{{ new Date(f.createdAtMs).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) }}</span>
+              <span class="bd" :class="feedBadge(f.eventType)">{{ feedBadgeText(f.eventType) }}</span>
+              <span class="tx">{{ f.message || (f.eventType + ' · ' + f.objectType + ':' + f.objectId) }}</span>
             </div>
+            <div v-if="!feed.length" class="it" style="color: var(--text-3)">暂无事件——调度内核与规则引擎产出的提醒会实时汇入。</div>
           </div>
         </div>
 
@@ -617,41 +616,38 @@ const remediation = computed(() => orgSummary.value
     tone: r.remedPct >= 85 ? 'g' : (r.remedPct >= 70 ? 'm' : 'h')
   })))
 
-// ---- KRI 持续监控（含迷你折线 points 与状态色）----
-const kris = [
-  { key: 'vulnFix', dot: 'var(--danger)', line: 'var(--danger)', valColor: 'var(--danger)', val: '23.4', spark: '0,14 11,12 22,13 33,8 44,6 54,3' },
-  { key: 'privAcct', dot: 'var(--danger)', line: 'var(--danger)', valColor: 'var(--danger)', val: '7', spark: '0,15 11,13 22,14 33,10 44,7 54,5' },
-  { key: 'logRetain', dot: 'var(--success)', line: 'var(--success)', val: '162', spark: '0,9 11,10 22,8 33,9 44,8 54,8' },
-  { key: 'apiErr', dot: 'var(--warning)', line: 'var(--warning)', valColor: 'var(--warning)', val: '0.71%', spark: '0,12 11,9 22,13 33,8 44,11 54,7' },
-  { key: 'exportApprove', dot: 'var(--success)', line: 'var(--success)', val: '99.6%', spark: '0,5 11,6 22,4 33,5 44,4 54,3' }
-]
+// ===== 七轮 7-5（A3/A30）：四个曾写死示意数的组件接真值 =====
 
-// ---- 体系合规达成度（控制点覆盖率，标准名不翻译）----
-const frameworks = [
-  { name: 'ISO 27001', pct: 92, tone: 'g' },
-  { name: '等保三级', pct: 86, tone: 'a' },
-  { name: 'PBOC 支付监管', pct: 78, tone: 'm' },
-  { name: 'PIPL 个人信息', pct: 81, tone: 'm' },
-  { name: 'PCI DSS', pct: 74, tone: 'h' }
-]
+// 数据截至：页面加载时刻（准实时口径——各卡数据即时拉取）
+const nowText = new Date().toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
-// ---- 待我审批 ----
-const approvals = [
-  { key: 'mlps', type: 'report', dueVal: '2h' },
-  { key: 'consumerForm', type: 'assess', dueVal: '6h' },
-  { key: 'dataExit', type: 'policy', dueVal: '1d', overdue: true },
-  { key: 'reassess', type: 'reassess', dueVal: '3h' }
-]
+// KRI 持续监控 ← /api/kris（指标定义+最新测量值+触阈状态）
+const kris = ref([])
+const kriDot = (st) => st === 'CRITICAL' ? 'var(--danger)' : (st === 'WARNING' ? 'var(--warning)'
+  : (st === 'NORMAL' ? 'var(--success)' : 'var(--text-3)'))
 
-// ---- 重点关注 · 实时事件流 ----
-// tmIsTime=true 时直接显示时间字符串，否则按 i18n（昨日）翻译
-const feed = [
-  { tm: '08:52', tmIsTime: true, badge: 'over', key: 'overdue' },
-  { tm: '08:31', tmIsTime: true, badge: 'kri', key: 'kri' },
-  { tm: '07:40', tmIsTime: true, badge: 'law', key: 'law' },
-  { tm: 'yesterday', tmIsTime: false, badge: 'aud', key: 'audit' },
-  { tm: 'yesterday', tmIsTime: false, badge: 'rev', key: 'review' }
-]
+// 待我审批 ← /api/workbench/my-approvals（Flowable 真任务）
+const approvals = ref([])
+const BIZ_LABEL = { POLICY: '制度审批', RISK_ACCEPTANCE: '风险接受', FEEDBACK_OUTBOUND: '出站审批', REG_FILING: '报送复核' }
+const agoText = (ms) => {
+  if (!ms) return ''
+  const h = Math.floor((Date.now() - ms) / 3600000)
+  return h < 1 ? '刚刚' : (h < 24 ? h + ' 小时前' : Math.floor(h / 24) + ' 天前')
+}
+
+// 实时事件流 ← /api/workbench/notifications（调度提醒/规则告警，取最新 6 条）
+const feed = ref([])
+const feedBadge = (et) => et && et.startsWith('RULE_KRI') ? 'kri'
+  : (et && et.startsWith('RULE_REG') ? 'law' : (et && et.includes('AUDIT') ? 'aud' : 'over'))
+const feedBadgeText = (et) => et && et.startsWith('RULE_KRI') ? 'KRI'
+  : (et && et.startsWith('RULE_REG') ? '法规' : (et && et.includes('AUDIT') ? '审计' : '提醒'))
+
+async function loadLiveWidgets() {
+  try { kris.value = await api.get('/kris') } catch (e) { kris.value = [] }
+  try { approvals.value = await api.get('/workbench/my-approvals') } catch (e) { approvals.value = [] }
+  try { feed.value = (await api.get('/workbench/notifications')).slice(0, 6) } catch (e) { feed.value = [] }
+}
+loadLiveWidgets()
 </script>
 
 <style scoped>

@@ -29,6 +29,14 @@ import java.util.Optional;
 @Service
 public class AssessmentFormService {
 
+    /** 留痕链（七轮 7-13 reprefill 留痕用，setter 注入）。 */
+    private com.mandao.grc.modules.audit.HashChainService hashChainService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireHashChain(com.mandao.grc.modules.audit.HashChainService hashChainService) {
+        this.hashChainService = hashChainService;
+    }
+
     private final DocxFormParser parser;
     private final TemplateFormRepository formRepo;
     private final AssessmentAnswerRepository answerRepo;
@@ -167,6 +175,34 @@ public class AssessmentFormService {
         AssessmentAnswer ans = new AssessmentAnswer(a.getOrgId(), assessmentId, form.getId(), writeJson(prefill));
         answerRepo.save(ans);
         return AssessmentFormView.of(form.getId(), schema, prefill);
+    }
+
+    /**
+     * 从系统数据重新预填（七轮 7-13 / 评估报告 A28）：
+     * 方向A预填只在首次绑定时执行，而真实操作顺序往往是「先打开详情（此刻绑死空快照）→再纳入范围资产」，
+     * 三张明细表因此恒空。本方法按当前范围资产/ATV 场景重建三张系统明细表并覆盖回已绑定的答案
+     * （仅覆盖 资产清单/威胁脆弱性清单/风险清单 三个键，用户手填的其它字段原样保留；
+     * 覆盖是显式操作——前端按钮带确认提示）。
+     */
+    @Transactional
+    public AssessmentFormView reprefill(Long assessmentId, String actor) {
+        Assessment a = assessmentRepo.findById(assessmentId)
+                .orElseThrow(() -> new IllegalArgumentException("评估不存在或不可见：id=" + assessmentId));
+        AssessmentAnswer ans = answerRepo.findByAssessmentId(assessmentId)
+                .orElseThrow(() -> new IllegalStateException("该评估尚未绑定表单——先打开评估表单再执行重新预填"));
+        TemplateForm form = formRepo.findById(ans.getFormVersionId())
+                .orElseThrow(() -> new IllegalStateException("绑定的表单版本不可用"));
+        FormSchema schema = readJson(form.getSchemaJson());
+        Map<String, Object> prefill = buildPrefill(assessmentId, schema);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> current = (Map<String, Object>) readAnswers(ans.getAnswersJson());
+        Map<String, Object> merged = current == null ? new java.util.HashMap<>() : new java.util.HashMap<>(current);
+        merged.putAll(prefill); // 只有系统明细表键会被 buildPrefill 产出 → 只覆盖这三张表
+        ans.setAnswersJson(writeJson(merged));
+        answerRepo.save(ans);
+        hashChainService.append(a.getOrgId(), "ASSESSMENT_REPREFILL", actor, "ASSESSMENT:" + assessmentId,
+                "从系统数据重新预填明细表（范围资产/ATV 场景 → 三张清单）");
+        return AssessmentFormView.of(form.getId(), schema, merged);
     }
 
     /**

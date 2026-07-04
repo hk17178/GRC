@@ -30,7 +30,7 @@ import java.util.List;
 public class ExpiryScanService {
 
     /** 单实例扫描锁的 advisory key（本用途专用）。 */
-    private static final long SCAN_LOCK_KEY = 770001L;
+    private static final long SCAN_LOCK_KEY = LockKeys.EXPIRY_SCAN;
 
     @PersistenceContext
     private EntityManager em;
@@ -130,6 +130,48 @@ public class ExpiryScanService {
                 em.createNativeQuery(
                                 "INSERT INTO domain_event(event_type, org_id, payload) "
                                         + "VALUES ('REG_FILING_DUE', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", orgId)
+                        .setParameter("payload", payload)
+                        .executeUpdate();
+                emitted++;
+            }
+        }
+
+        // 7) 七轮 7-2/B3：重大事件法定报送时限段——未上报（DRAFT）且距 report_deadline
+        // 恰余 3/1/0 天时产 MAJOR_INCIDENT_REPORT_DUE（支付机构法定时限预警红线）。
+        @SuppressWarnings("unchecked")
+        List<Object[]> incidentHits = em.createNativeQuery(
+                        "SELECT mi.id, mi.org_id, mi.title, rd "
+                                + "FROM major_incident_report mi, unnest(ARRAY[3,1,0]) AS rd "
+                                + "WHERE mi.status = 'DRAFT' AND mi.report_deadline IS NOT NULL "
+                                + "AND (mi.report_deadline - CAST(:today AS date)) = rd")
+                .setParameter("today", today.toString())
+                .getResultList();
+
+        for (Object[] r : incidentHits) {
+            long incidentId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String title = (String) r[2];
+            int reminderDay = ((Number) r[3]).intValue();
+
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('MAJOR_INCIDENT', :iid, 'MAJOR_INCIDENT_REPORT_DUE', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("iid", incidentId)
+                    .setParameter("tk", String.valueOf(reminderDay))
+                    .setParameter("org", orgId)
+                    .setParameter("msg", "重大事件「" + title + "」距法定报送时限仅剩 " + reminderDay
+                            + " 天仍未上报监管，请立即处理（法定时限红线）")
+                    .executeUpdate();
+
+            if (inserted == 1) {
+                String payload = "{\"incidentId\":" + incidentId
+                        + ",\"reminderDay\":" + reminderDay
+                        + ",\"title\":\"" + jsonEscape(title) + "\"}";
+                em.createNativeQuery(
+                                "INSERT INTO domain_event(event_type, org_id, payload) "
+                                        + "VALUES ('MAJOR_INCIDENT_REPORT_DUE', :org, CAST(:payload AS jsonb))")
                         .setParameter("org", orgId)
                         .setParameter("payload", payload)
                         .executeUpdate();

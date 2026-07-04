@@ -114,27 +114,27 @@
 
       <!-- ========== Tab1 · 评估任务 ========== -->
       <div v-show="activeTab === 'tasks'" class="tabpane">
-        <!-- KPI 五卡 -->
+        <!-- KPI 五卡（七轮 7-5：接真值——由评估任务实时聚合，不再写死示意数）-->
         <div class="kpibar k5">
           <div class="kc">
             <div class="l">{{ $t('risk.kpi.active') }}</div>
-            <div class="v">14</div>
+            <div class="v">{{ kpiCount('IN_PROGRESS') }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('risk.kpi.pending') }}</div>
-            <div class="v" style="color: var(--warning)">5</div>
+            <div class="v" style="color: var(--warning)">{{ kpiCount('PENDING_REVIEW') }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('risk.kpi.highRisk') }}</div>
-            <div class="v" style="color: var(--danger)">6</div>
+            <div class="v" style="color: var(--danger)">{{ kpiHighRisk }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('risk.kpi.overdue') }}</div>
-            <div class="v" style="color: var(--danger)">3</div>
+            <div class="v" style="color: var(--danger)">{{ kpiOverdue }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('risk.kpi.doneQuarter') }}</div>
-            <div class="v" style="color: var(--success)">31</div>
+            <div class="v" style="color: var(--success)">{{ kpiCount('COMPLETED') }}</div>
           </div>
         </div>
 
@@ -205,9 +205,14 @@
                   </td>
                   <td class="ops" @click.stop>
                     <template v-if="canWrite('risk')">
+                      <!-- 七轮 7-11（B40 P0）：生命周期流转按钮——后端状态机早已齐备，此前 UI 无任何入口 -->
+                      <button v-if="r.status === 'DRAFT'" class="mini" @click="flowAction(r, 'start', '启动评估')">启动</button>
+                      <button v-if="r.status === 'IN_PROGRESS'" class="mini" @click="flowAction(r, 'submit', '提交复核')">提交复核</button>
+                      <button v-if="r.status === 'PENDING_REVIEW'" class="mini" style="color:var(--success);border-color:var(--success)" @click="flowAction(r, 'complete', '复核通过并完成')">通过</button>
+                      <button v-if="r.status === 'PENDING_REVIEW'" class="mini" @click="rejectTask(r)">驳回</button>
                       <button v-if="r.status === 'DRAFT'" class="mini danger" @click="deleteTask(r)">删除</button>
                       <button v-else-if="r.status === 'IN_PROGRESS' || r.status === 'PENDING_REVIEW'" class="mini danger" @click="cancelTask(r)">作废</button>
-                      <span v-else class="muted" style="font-size:11px">{{ r.status === 'CANCELLED' ? '已作废' : '定稿' }}</span>
+                      <span v-else-if="r.status === 'CANCELLED' || r.status === 'COMPLETED'" class="muted" style="font-size:11px">{{ r.status === 'CANCELLED' ? '已作废' : '定稿' }}</span>
                     </template>
                   </td>
                 </tr>
@@ -891,7 +896,11 @@
       </div>
 
       <!-- 表单引擎 P1：按模板 .docx 解析出的规范评估表单（真实后端，可填写保存） -->
-      <AssessmentFormFill :assessment-id="drillId" @saved="onFormSaved" />
+      <!-- 七轮 7-13（A28）：范围资产/场景变化后可从系统数据重新预填三张明细表（覆盖三张系统清单，其余手填保留） -->
+      <div v-if="canWriteRisk" style="display:flex; justify-content:flex-end; margin: 6px 0 -6px">
+        <button class="mini" :disabled="reprefillBusy" @click="doReprefill">{{ reprefillBusy ? '同步中…' : '⟳ 从系统数据重新预填明细表' }}</button>
+      </div>
+      <AssessmentFormFill :key="formRefreshKey" :assessment-id="drillId" @saved="onFormSaved" />
 
       <!-- 表单引擎 P2：整体残余等级 + 管理层接受签批（CR-002 完成门控） -->
       <AssessmentSignoff :assessment-id="drillId" ref="signoffRef" />
@@ -1542,8 +1551,8 @@ onMounted(async () => {
   } catch (e) {
     loadError.value = e.message
   }
-  // 并行拉取三个参考库 + 评估计划 + A-T-V
-  loadTemplates(); loadControls(); loadKris(); loadPlans(); loadAtv()
+  // 并行拉取三个参考库 + 评估计划 + A-T-V + 登记册（七轮 7-5：等级分布真值数据源）
+  loadTemplates(); loadControls(); loadKris(); loadPlans(); loadAtv(); loadRegister()
 })
 
 // ---- 合规框架 枚举 → 短标/底色/语义类（统一控件库 + 模板库共用）----
@@ -1699,29 +1708,88 @@ async function cancelTask(r) {
   catch (e) { loadError.value = e.message }
 }
 
+// ===== 七轮 7-11（B40 P0）：评估生命周期流转（启动/提交复核/通过/驳回）=====
+async function flowAction(r, action, label) {
+  if (!window.confirm(`确认对「${r.title}」执行「${label}」？`)) return
+  try {
+    await api.post('/assessments/' + r.id + '/' + action, {})
+    liveTasks.value = await api.get('/assessments')
+    if (drillId.value === r.id) drillMeta.value = liveTasks.value.find((x) => x.id === r.id) || drillMeta.value
+  } catch (e) { window.alert(e.message) }
+}
+async function rejectTask(r) {
+  const reason = window.prompt(`驳回评估「${r.title}」（退回进行中继续修改）。驳回原因：`, '')
+  if (reason === null) return
+  try {
+    await api.post('/assessments/' + r.id + '/reject', { reason: reason || null })
+    liveTasks.value = await api.get('/assessments')
+  } catch (e) { window.alert(e.message) }
+}
+
+// ===== 七轮 7-13（A28）：从系统数据重新预填三张明细表 =====
+const reprefillBusy = ref(false)
+const formRefreshKey = ref(0)
+async function doReprefill() {
+  if (!window.confirm('将按当前范围资产与 A-T-V 场景重建 资产清单/威胁脆弱性清单/风险清单 三张系统明细表'
+      + '（覆盖这三张表的现有内容，其余手填字段保留）。继续？')) return
+  reprefillBusy.value = true
+  try {
+    await api.post('/assessments/' + drillId.value + '/form/reprefill', {})
+    formRefreshKey.value++ // 强制重挂表单组件拉取最新答案
+  } catch (e) { window.alert(e.message) } finally { reprefillBusy.value = false }
+}
+
 // 评估状态 → 样式类 / i18n 标签键（对齐后端 AssessmentStatus）
 const STATUS_CLS = { DRAFT: 'wait', IN_PROGRESS: 'doing', PENDING_REVIEW: 'wait', COMPLETED: 'ok', CANCELLED: 'over' }
 const stCls = (s) => STATUS_CLS[s] || 'wait'
 const stLabel = (s) => 'risk.assessStatus.' + s
 
-// ---- 风险等级分布（五级）bars ----
+// ---- 风险等级分布（五级）bars（七轮 7-5：由登记册真实发现聚合，残余优先无残余取固有）----
 // 极高/极低保留原型内联底色；高/中/低复用 seg2.h/m/l 语义色
-const levelBars = [
-  { label: 'risk.levelDist.vh', v: 4, cls: '', style: { width: '8%', background: '#7a1620' } },
-  { label: 'risk.levelDist.h', v: 12, cls: 'h', style: { width: '22%' } },
-  { label: 'risk.levelDist.m', v: 64, cls: 'm', style: { width: '58%' } },
-  { label: 'risk.levelDist.l', v: 120, cls: 'l', style: { width: '92%' } },
-  { label: 'risk.levelDist.vl', v: 48, cls: '', style: { width: '42%', background: '#8aa0b3' } }
+const LV_BAR_META = [
+  ['VERY_HIGH', 'risk.levelDist.vh', '', '#7a1620'],
+  ['HIGH', 'risk.levelDist.h', 'h', null],
+  ['MID', 'risk.levelDist.m', 'm', null],
+  ['LOW', 'risk.levelDist.l', 'l', null],
+  ['VERY_LOW', 'risk.levelDist.vl', '', '#8aa0b3']
 ]
+const levelBars = computed(() => {
+  const cnt = {}
+  regRows.value.forEach((r) => { const lv = r.residualLevel || r.inherentLevel; if (lv) cnt[lv] = (cnt[lv] || 0) + 1 })
+  const max = Math.max(1, ...Object.values(cnt))
+  return LV_BAR_META.map(([k, label, cls, bg]) => ({
+    label, v: cnt[k] || 0, cls,
+    style: { width: Math.round((cnt[k] || 0) * 100 / max) + '%', ...(bg ? { background: bg } : {}) }
+  }))
+})
+
+// ---- KPI 五卡真值（七轮 7-5）----
+const kpiCount = (st) => liveTasks.value.filter((t) => t.status === st).length
+const kpiHighRisk = computed(() => liveTasks.value.filter((t) =>
+  t.status !== 'CANCELLED' && (t.riskLevel === 'HIGH' || t.riskLevel === 'VERY_HIGH')).length)
+const kpiOverdue = computed(() => {
+  const today = new Date().toISOString().slice(0, 10)
+  return liveTasks.value.filter((t) =>
+    t.endDate && t.endDate < today && t.status !== 'COMPLETED' && t.status !== 'CANCELLED').length
+})
 
 // ---- 评估进度漏斗（4 段）----
 // width / background 完全照搬原型内联值
-const funnel = [
-  { key: 'started', v: 38, w: '100%', bg: 'var(--accent)' },
-  { key: 'filling', v: 31, w: '82%', bg: 'var(--accent-bright)' },
-  { key: 'pending', v: 22, w: '58%', bg: 'var(--warning)' },
-  { key: 'live', v: 15, w: '40%', bg: 'var(--success)' }
-]
+// 评估进度漏斗（七轮 7-5：真值——已发起=全部非作废，填写中/待审批/已生效按状态实时计数）
+const funnel = computed(() => {
+  const all = liveTasks.value.filter((t) => t.status !== 'CANCELLED').length
+  const filling = kpiCount('IN_PROGRESS')
+  const pending = kpiCount('PENDING_REVIEW')
+  const live = kpiCount('COMPLETED')
+  const max = Math.max(1, all)
+  const w = (v, floor) => Math.max(floor, Math.round(v * 100 / max)) + '%'
+  return [
+    { key: 'started', v: all, w: w(all, 100), bg: 'var(--accent)' },
+    { key: 'filling', v: filling, w: w(filling, 40), bg: 'var(--accent-bright)' },
+    { key: 'pending', v: pending, w: w(pending, 30), bg: 'var(--warning)' },
+    { key: 'live', v: live, w: w(live, 20), bg: 'var(--success)' }
+  ]
+})
 
 // ---- 下钻报告 KPI/等级分布（真值：由本评估的风险发现实时计算）----
 const drillHigh = computed(() => findings.value.filter((f) => {

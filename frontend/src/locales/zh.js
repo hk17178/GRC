@@ -150,7 +150,7 @@ export default {
     // KPI
     kpi: {
       active: '进行中外审',
-      bodies: '外部审计机构',
+      bodies: '被审计对象',
       openFindings: '外部发现(未闭环)',
       toRemed: '待整改',
       certPassed: '本年通过认证'
@@ -341,7 +341,7 @@ export default {
     inquiry: {
       title: '监管问询',
       add: '＋ 登记问询',
-      th: { id: '编号', regulator: '监管机构', subject: '事项', received: '收文日', replyDue: '答复期限', replyLog: '答复留痕', status: '状态' },
+      th: { id: '编号', regulator: '监管机构', subject: '事项', received: '收文日', replyDue: '答复期限', replyLog: '操作', status: '状态' },
       regPboc: '人民银行',
       regCac: '网信办',
       regNafr: '金融监管总局',
@@ -357,7 +357,7 @@ export default {
     penalty: {
       title: '处罚与约谈台账',
       add: '＋ 登记',
-      th: { id: '编号', type: '类型', regulator: '监管机构', reason: '事由', date: '日期', remediation: '整改要求', replyStatus: '回函状态' },
+      th: { id: '编号', type: '类型', regulator: '监管机构', reason: '事由', date: '日期', remediation: '操作', replyStatus: '回函状态' },
       typeTalk: '约谈',
       typePenalty: '行政处罚',
       regPboc: '人民银行',
@@ -603,14 +603,14 @@ export default {
   dash: {
     overviewTag: 'Group Overview · 2026 Q2',
     title: '合规态势',
-    subtitle: '全集团 · 数据截至 06-22 09:00 · 准实时',
+    subtitle: '全集团 · 数据截至 {t} · 准实时',
     editLayout: '编辑布局',
     addWidget: '添加组件',
     overdue: '逾期{n}',
     seg: { all: '全集团', pay: '支付科技', consumer: '消费金融', tech: '数科' },
     due: { pending: '待处理 {v}', overdue: '逾期 {v}' },
 
-    scaffoldNote: 'KPI 指标卡 / 热力矩阵 / 整改完成率为真实后端聚合（按可见组织）；KRI 折线与体系达成度为原型视觉示意。',
+    scaffoldNote: '本页 KPI 卡 / 热力矩阵 / 整改完成率 / KRI 监控 / 待我审批 / 事件流均为真实后端数据（按可见组织)；体系达成度待控制点覆盖率能力交付后接入。',
     // KPI 指标卡（l=标题, s=辅助说明）——接 /api/dashboard/summary 真实计数
     kpi: {
       openRisk: { l: '未关闭风险发现', s: '风险评估·处置中' },

@@ -106,27 +106,28 @@
 
       <!-- ========== Tab1 · 外审任务 ========== -->
       <div v-show="activeTab === 'tasks'" class="tabpane">
-        <!-- KPI 五卡 -->
+        <!-- KPI 五卡（七轮 7-5：接真值——由本页三个真实数据源实时聚合，不再写死示意数）-->
         <div class="kpibar k5">
           <div class="kc">
             <div class="l">{{ $t('extaudit.kpi.active') }}</div>
-            <div class="v" style="color: var(--accent)">4</div>
+            <div class="v" style="color: var(--accent)">{{ plans.filter(p => p.externalStatus !== 'DONE').length }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('extaudit.kpi.bodies') }}</div>
-            <div class="v">6</div>
+            <!-- 审计机构未单独建模，以被审计对象数为真值口径（诚实优先于示意数） -->
+            <div class="v">{{ new Set(plans.map(p => p.auditee).filter(Boolean)).size }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('extaudit.kpi.openFindings') }}</div>
-            <div class="v" style="color: var(--danger)">11</div>
+            <div class="v" style="color: var(--danger)">{{ findings.filter(f => f.status === 'OPEN').length }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('extaudit.kpi.toRemed') }}</div>
-            <div class="v" style="color: var(--warning)">7</div>
+            <div class="v" style="color: var(--warning)">{{ remeds.filter(r => r.status === 'PENDING' || r.status === 'IN_PROGRESS').length }}</div>
           </div>
           <div class="kc">
             <div class="l">{{ $t('extaudit.kpi.certPassed') }}</div>
-            <div class="v" style="color: var(--success)">5</div>
+            <div class="v" style="color: var(--success)">{{ remeds.filter(r => r.status === 'VERIFIED').length }}</div>
           </div>
         </div>
 
@@ -183,21 +184,14 @@
               </div>
             </div>
 
-            <!-- 认证有效期临近 -->
-            <div class="card">
-              <div class="ch"><h3>{{ $t('extaudit.expiry.title') }}</h3></div>
+            <!-- 认证有效期临近（七轮 7-5：原「剩 28 天」等为写死示意——证书台账尚未建模，
+                 诚实置灰待接入，真值来源随后续批次「证书有效期台账」交付） -->
+            <div class="card" style="opacity: .75">
+              <div class="ch"><h3>{{ $t('extaudit.expiry.title') }}</h3><span class="sub">待接入</span></div>
               <div class="cb">
-                <div class="srow">
-                  <span>{{ $t('extaudit.expiry.pci') }}</span>
-                  <b style="color: var(--danger)">{{ $t('extaudit.expiry.pciLeft') }}</b>
-                </div>
-                <div class="srow">
-                  <span>{{ $t('extaudit.expiry.iso') }}</span>
-                  <b style="color: var(--warning)">{{ $t('extaudit.expiry.isoLeft') }}</b>
-                </div>
-                <div class="srow">
-                  <span>{{ $t('extaudit.expiry.mlps') }}</span>
-                  <b>{{ $t('extaudit.expiry.mlpsLeft') }}</b>
+                <div style="font-size: 12px; color: var(--text-3); line-height: 1.8; padding: 4px 0">
+                  证书有效期台账尚未建立，暂无法展示各认证的到期倒计时。
+                  外审计划的开始日临近提醒已由调度内核真实产出（见通知中心·提醒记录）。
                 </div>
               </div>
             </div>

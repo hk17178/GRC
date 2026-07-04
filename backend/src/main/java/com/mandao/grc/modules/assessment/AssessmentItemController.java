@@ -46,7 +46,7 @@ public class AssessmentItemController {
                                  @RequestBody AssessRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {
         return service.assess(id, req.result(), req.conclusion(),
-                (user == null || user.isBlank()) ? "anonymous" : user);
+                com.mandao.grc.common.auth.ActorResolver.resolve(user)); // 七轮 7-4：登录态优先
     }
 
     /** 评估请求体。 */

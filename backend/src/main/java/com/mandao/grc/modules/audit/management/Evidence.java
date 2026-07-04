@@ -37,6 +37,14 @@ public class Evidence {
     @Column(name = "remediation_id")
     private Long remediationId;
 
+    /** 关联监管报送（七轮 7-2：回执证据挂报送事项）。 */
+    @Column(name = "filing_id")
+    private Long filingId;
+
+    /** 关联重大事件（七轮 7-2：报送回执/监管确认材料挂重大事件）。 */
+    @Column(name = "incident_id")
+    private Long incidentId;
+
     @Column(nullable = false, length = 256)
     private String name;
 
@@ -88,6 +96,14 @@ public class Evidence {
     public Long getPlanId() { return planId; }
     public Long getFindingId() { return findingId; }
     public Long getRemediationId() { return remediationId; }
+    public Long getFilingId() { return filingId; }
+    public Long getIncidentId() { return incidentId; }
+
+    /** 挂接报送/重大事件（七轮 7-2，由 Service 在上传时按参数调用）。 */
+    void attachRegulatory(Long filingId, Long incidentId) {
+        this.filingId = filingId;
+        this.incidentId = incidentId;
+    }
     public String getName() { return name; }
     public String getFileName() { return fileName; }
     public String getContentType() { return contentType; }

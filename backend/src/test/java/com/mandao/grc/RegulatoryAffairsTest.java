@@ -114,6 +114,9 @@ class RegulatoryAffairsTest {
     void clean() throws Exception {
         execAsOwner("TRUNCATE reg_filing, reg_inquiry, reg_penalty, major_incident_report, "
                 + "operation_log, reminder_dispatch_log, domain_event RESTART IDENTITY CASCADE");
+        // 七轮 7-2：回执证据挂 filing_id/incident_id——RESTART IDENTITY 会让 id 跨用例复用，
+        // 残留回执会误放行了结门控，必须一并清掉
+        execAsOwner("DELETE FROM evidence WHERE filing_id IS NOT NULL OR incident_id IS NOT NULL");
         // 清理 Flowable 运行态/历史：reg_filing id 因 RESTART IDENTITY 跨用例复用，会使
         // 报送复核 businessKey(REG_FILING:{id}) 跨用例碰撞，须净化（生产 id 全局唯一无此问题）。
         runtimeService.createProcessInstanceQuery().list()
@@ -130,7 +133,7 @@ class RegulatoryAffairsTest {
     // ---------- 报送日历生命周期 ----------
 
     @Test
-    void 报送生命周期_待起草到了结全程通过() {
+    void 报送生命周期_待起草到了结全程通过() throws Exception {
         Long id = asOrg(ORG_PAY, () ->
                 filingService.create(ORG_PAY, "反洗钱报表", "央行", TODAY.plusDays(30), "creator").getId());
 
@@ -142,8 +145,22 @@ class RegulatoryAffairsTest {
         // 复核通过 → 正式报送
         assertEquals(RegFilingStatus.SUBMITTED,
                 asOrg(ORG_PAY, () -> filingService.decideSubmit(id, ApprovalDecision.APPROVED, "lead", "材料合规").getStatus()));
+        // 七轮 7-2（B2 红线）：无回执证据不可了结 → 挂回执后放行
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> filingService.close(id, "officer")));
+        seedReceiptEvidence(id, null);
         assertEquals(RegFilingStatus.CLOSED,
                 asOrg(ORG_PAY, () -> filingService.close(id, "officer").getStatus()));
+    }
+
+    /** 七轮 7-2：owner 直插一条回执证据（filing/incident 二选一挂接）。 */
+    private void seedReceiptEvidence(Long filingId, Long incidentId) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO evidence(org_id, filing_id, incident_id, name, data, sha256, uploaded_by) "
+                    + "VALUES (12, " + (filingId == null ? "NULL" : filingId) + ", "
+                    + (incidentId == null ? "NULL" : incidentId) + ", '监管回执', '\\x01', 'seed-sha', 'officer')");
+        }
     }
 
     @Test
@@ -233,14 +250,22 @@ class RegulatoryAffairsTest {
     // ---------- 重大事件报送生命周期 ----------
 
     @Test
-    void 重大事件_草稿上报了结全程通过() {
+    void 重大事件_草稿上报确认挂回执了结全程通过() throws Exception {
+        // 七轮 7-2（B3）：状态机扩 ACKNOWLEDGED 段 + 了结须回执证据
         Long id = asOrg(ORG_PAY, () ->
-                incidentService.create(ORG_PAY, "系统中断", MajorIncidentSeverity.HIGH, OffsetDateTime.now(), "officer").getId());
+                incidentService.create(ORG_PAY, "系统中断", MajorIncidentSeverity.HIGH, OffsetDateTime.now(),
+                        null, "officer").getId());
 
         MajorIncidentReport reported = asOrg(ORG_PAY, () -> incidentService.report(id, "officer"));
         assertEquals(MajorIncidentStatus.REPORTED, reported.getStatus());
         assertEquals(MajorIncidentSeverity.HIGH, reported.getSeverity(), "严重度应为平台五级 HIGH");
         assertTrue(reported.getReportedAt() != null, "上报后应记录 reported_at");
+        assertEquals(MajorIncidentStatus.ACKNOWLEDGED,
+                asOrg(ORG_PAY, () -> incidentService.acknowledge(id, "officer").getStatus()));
+        // 无回执不可了结 → 挂回执后放行
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> incidentService.close(id, "officer")));
+        seedReceiptEvidence(null, id);
         assertEquals(MajorIncidentStatus.CLOSED,
                 asOrg(ORG_PAY, () -> incidentService.close(id, "officer").getStatus()));
     }
@@ -262,13 +287,14 @@ class RegulatoryAffairsTest {
     // ---------- 留痕 ----------
 
     @Test
-    void 留痕_报送流转后哈希链校验通过且有记录() {
+    void 留痕_报送流转后哈希链校验通过且有记录() throws Exception {
         Long id = asOrg(ORG_PAY, () ->
                 filingService.create(ORG_PAY, "留痕报送", "央行", TODAY.plusDays(30), "c").getId()); // CREATE=1
         asOrg(ORG_PAY, () -> filingService.prepare(id, "o"));   // PREPARE=2
         // 提交复核(SUBMIT_REVIEW + WORKFLOW_SUBMIT)=3,4；复核通过(WORKFLOW_DECIDE + SUBMIT)=5,6
         asOrg(ORG_PAY, () -> filingService.submitForReview(id, "o"));
         asOrg(ORG_PAY, () -> filingService.decideSubmit(id, ApprovalDecision.APPROVED, "lead", "ok"));
+        seedReceiptEvidence(id, null); // 七轮 7-2：了结前置回执（owner 直插不走留痕链，不影响计数）
         asOrg(ORG_PAY, () -> filingService.close(id, "o"));     // CLOSE=7
 
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
