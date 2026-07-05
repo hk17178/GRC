@@ -275,16 +275,18 @@ const pane = ref('sso')
 const ssoPwdShow = ref(false)
 const localPwdShow = ref(false)
 
-// 两套表单数据（预填可直接登录的种子账号，便于演示；上线改回域账号占位）
+// 两套表单数据。安全加固包 A33：默认不预填种子账号/口令（上线红线——避免生产泄露演示凭据）；
+// 本地开发想快速登录可设 VITE_DEMO_LOGIN=1 走演示预填。
+const demoLogin = import.meta.env.VITE_DEMO_LOGIN === '1'
 const sso = ref({
-  account: 'group_admin',
-  pwd: 'demo1234',
+  account: demoLogin ? 'group_admin' : '',
+  pwd: demoLogin ? 'demo1234' : '',
   captcha: '',
   remember: true
 })
 const local = ref({
-  account: 'pay_user',
-  pwd: 'demo1234',
+  account: demoLogin ? 'pay_user' : '',
+  pwd: demoLogin ? 'demo1234' : '',
   captcha: '',
   remember: false
 })
@@ -305,6 +307,11 @@ function refreshCaptcha() {
 const brand = ref({})
 onMounted(async () => {
   refreshCaptcha()   // 进入登录页即随机一组验证码（原先固定 7K9Q）
+  // 安全加固包 A33：已有有效会话直接放行，不再要求重登（误触路由被踢回登录时体验顺滑）
+  try {
+    const me = await api.get('/auth/me')
+    if (me && me.username) { await setUser(me); router.push('/dashboard'); return }
+  } catch (e) { /* 未登录，正常展示登录页 */ }
   try { brand.value = await api.get('/branding') || {} } catch (e) { brand.value = {} }
 })
 
@@ -356,15 +363,27 @@ const forgotUrl = computed(() => brand.value.forgotUrl || localStorage.getItem('
 async function onSubmit() {
   if (submitting.value) return
   loginError.value = ''
-  submitting.value = true
   const acct = pane.value === 'sso' ? sso.value.account : local.value.account
   const pwd = pane.value === 'sso' ? sso.value.pwd : local.value.pwd
+  const cap = pane.value === 'sso' ? sso.value.captcha : local.value.captcha
+  // A33：验证码本地校验并给明确提示（此前输错无任何反馈）
+  if ((cap || '').trim().toUpperCase() !== captcha.value.toUpperCase()) {
+    loginError.value = t('login.badCaptcha')
+    refreshCaptcha()
+    return
+  }
+  submitting.value = true
   try {
     const u = await api.post('/auth/login', { username: acct, password: pwd })
     await setUser(u)
-    router.push('/dashboard')
+    // B17：首登强制改密——后端标记 mustChangePassword 则先去改密页
+    router.push(u && u.mustChangePassword ? '/change-password' : '/dashboard')
   } catch (e) {
-    loginError.value = e.status === 401 ? t('login.badCred') : t('login.loginFail') + e.message
+    // A33：按后端 code 给差异化提示（锁定/平台停用/口令错误各不同），不再一律"用户名或口令错误"
+    loginError.value = e.body && e.body.message
+      ? e.body.message
+      : (e.status === 401 ? t('login.badCred') : t('login.loginFail') + e.message)
+    refreshCaptcha()
   } finally {
     submitting.value = false
   }

@@ -46,6 +46,20 @@ public class AppUser {
     @Column(name = "platform_disabled", nullable = false)
     private boolean platformDisabled = false;
 
+    // ---- 安全加固包（B15 失败锁定 / B17 首登改密）----
+
+    /** 连续登录失败次数（成功登录清零）。 */
+    @Column(name = "failed_attempts", nullable = false)
+    private int failedAttempts = 0;
+
+    /** 锁定截止时刻（连续失败 5 次锁 15 分钟；为空=未锁定）。 */
+    @Column(name = "locked_until")
+    private java.time.OffsetDateTime lockedUntil;
+
+    /** 首登强制改密位（生产初始化应对种子账号置 true）。 */
+    @Column(name = "must_change_password", nullable = false)
+    private boolean mustChangePassword = false;
+
     protected AppUser() {
     }
 
@@ -58,4 +72,26 @@ public class AppUser {
     public String getIdentitySource() { return identitySource; }
     public Long getDomainId() { return domainId; }
     public boolean isPlatformDisabled() { return platformDisabled; }
+    public int getFailedAttempts() { return failedAttempts; }
+    public java.time.OffsetDateTime getLockedUntil() { return lockedUntil; }
+    public boolean isMustChangePassword() { return mustChangePassword; }
+
+    // ---- 安全加固包：登录服务专用变更（包内可见）----
+    void recordLoginFailure(int lockThreshold, int lockMinutes) {
+        this.failedAttempts++;
+        if (this.failedAttempts >= lockThreshold) {
+            this.lockedUntil = java.time.OffsetDateTime.now().plusMinutes(lockMinutes);
+            this.failedAttempts = 0; // 锁定后计数归零，解锁后重新累计
+        }
+    }
+
+    void recordLoginSuccess() {
+        this.failedAttempts = 0;
+        this.lockedUntil = null;
+    }
+
+    void changePassword(String newHash) {
+        this.passwordHash = newHash;
+        this.mustChangePassword = false;
+    }
 }

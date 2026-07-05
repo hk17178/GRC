@@ -75,6 +75,11 @@ public class SignatureTicket {
         this.status = "SIGNED";
     }
 
+    /** 清除签名字节（安全加固包 A18：取回后票据不留明文双份）。 */
+    void clearSignature() {
+        this.signature = null;
+    }
+
     void setStatus(String status) {
         this.status = status;
     }

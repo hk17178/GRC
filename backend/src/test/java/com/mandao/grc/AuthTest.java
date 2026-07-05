@@ -103,4 +103,64 @@ class AuthTest {
         assertEquals(200, me.statusCode());
         assertTrue(me.body().contains("pay_user"), "X-User 回退应取到用户：" + me.body());
     }
+
+    // ===== 安全加固包 =====
+
+    @Test
+    void 连续失败5次_账号锁定_正确口令也被拒() throws Exception {
+        // 用 cf_user（避免污染其它用例常用的 group_admin/pay_user）
+        for (int i = 0; i < 5; i++) {
+            HttpResponse<String> bad = post("/api/auth/login",
+                    "{\"username\":\"cf_user\",\"password\":\"wrong" + i + "\"}");
+            assertEquals(401, bad.statusCode());
+        }
+        // 第 6 次即便口令正确也应被锁定拒绝，且 code=LOCKED
+        HttpResponse<String> locked = post("/api/auth/login",
+                "{\"username\":\"cf_user\",\"password\":\"demo1234\"}");
+        assertEquals(401, locked.statusCode());
+        assertTrue(locked.body().contains("LOCKED"), "连续失败后应锁定：" + locked.body());
+    }
+
+    @Test
+    void 登录审计_成功与失败均落台账() throws Exception {
+        post("/api/auth/login", "{\"username\":\"group_admin\",\"password\":\"demo1234\"}");
+        post("/api/auth/login", "{\"username\":\"group_admin\",\"password\":\"nope\"}");
+        try (java.sql.Connection owner = java.sql.DriverManager.getConnection(
+                PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             java.sql.Statement s = owner.createStatement();
+             java.sql.ResultSet rs = s.executeQuery(
+                     "SELECT count(*) FILTER (WHERE success), count(*) FILTER (WHERE NOT success) "
+                             + "FROM login_audit WHERE username = 'group_admin'")) {
+            rs.next();
+            assertTrue(rs.getInt(1) >= 1, "应有成功登录审计");
+            assertTrue(rs.getInt(2) >= 1, "应有失败登录审计");
+        }
+    }
+
+    @Test
+    void 改密_弱口令被拒_正常改密后新口令可登录() throws Exception {
+        // 用登录 Cookie 走改密（pay_user）
+        HttpResponse<String> login = post("/api/auth/login",
+                "{\"username\":\"pay_user\",\"password\":\"demo1234\"}");
+        assertEquals(200, login.statusCode());
+        String cookie = login.headers().firstValue("set-cookie").orElse("").split(";", 2)[0];
+
+        // 弱口令（<8 位）→ 400
+        HttpResponse<String> weak = postWithCookie("/api/auth/change-password", cookie,
+                "{\"oldPassword\":\"demo1234\",\"newPassword\":\"short\"}");
+        assertEquals(400, weak.statusCode());
+
+        // 正常改密 → 200；旧口令再登录失败、新口令登录成功
+        HttpResponse<String> ok = postWithCookie("/api/auth/change-password", cookie,
+                "{\"oldPassword\":\"demo1234\",\"newPassword\":\"NewPass2026\"}");
+        assertEquals(200, ok.statusCode());
+        assertEquals(401, post("/api/auth/login",
+                "{\"username\":\"pay_user\",\"password\":\"demo1234\"}").statusCode());
+        assertEquals(200, post("/api/auth/login",
+                "{\"username\":\"pay_user\",\"password\":\"NewPass2026\"}").statusCode());
+    }
+
+    private HttpResponse<String> postWithCookie(String path, String cookie, String json) throws Exception {
+        return post(path, json, "Cookie", cookie);
+    }
 }

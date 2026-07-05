@@ -190,8 +190,15 @@ const routes = [
     component: PlaceholderView,
     meta: { navKey: p.navKey }
   })),
-  // 兜底：未匹配路由回到登录页
-  { path: '/:pathMatch(.*)*', redirect: '/login' }
+  // 安全加固包 B17：首登强制改密页
+  {
+    path: '/change-password',
+    name: 'change-password',
+    component: () => import('@/views/ChangePasswordView.vue'),
+    meta: { title: '修改口令' }
+  },
+  // 安全加固包 A33：兜底改指向仪表盘（已登录时误触路由不再被踢回登录页；未登录会被守卫拦到登录）
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard' }
 ]
 
 const router = createRouter({
@@ -207,6 +214,10 @@ router.beforeEach(async (to) => {
   if (to.name === 'login' || to.name === 'signpad') return true // signpad：手机免登录签名页（token 即凭证）
   if (!authState.ready) await refreshAuth()
   if (!authState.user) return { name: 'login' }
+  // B17：首登强制改密——未改密前只能停在改密页
+  if (authState.user.mustChangePassword && to.name !== 'change-password') {
+    return { name: 'change-password' }
+  }
   // 菜单可见性门控（增强③ R4）：访问隐藏菜单 → 回态势页
   const navKey = to.meta?.navKey
   if (navKey && Object.keys(authState.perms).length > 0 && !canSee(navKey) && navKey !== 'dashboard') {

@@ -6,10 +6,11 @@ spring:
     name: grc-platform
 
   # 运行期以【非 owner / NOBYPASSRLS 角色 grc_app】连接 → RLS 对其强制生效
+  # 安全加固包 A19：凭证一律可被环境变量覆盖（与 GRC_JWT_SECRET 同范式），默认值仅供本地开发
   datasource:
-    url: jdbc:postgresql://localhost:5432/grc
-    username: grc_app
-    password: grc_app_pw
+    url: ${GRC_DB_URL:jdbc:postgresql://localhost:5432/grc}
+    username: ${GRC_DB_USER:grc_app}
+    password: ${GRC_DB_PASSWORD:grc_app_pw}
 
   jpa:
     hibernate:
@@ -22,9 +23,9 @@ spring:
   # 迁移以 owner/超级用户执行（owner 不受 RLS，可建表/灌种子）
   flyway:
     enabled: true
-    url: jdbc:postgresql://localhost:5432/grc
-    user: postgres
-    password: postgres
+    url: ${GRC_FLYWAY_URL:jdbc:postgresql://localhost:5432/grc}
+    user: ${GRC_FLYWAY_USER:postgres}
+    password: ${GRC_FLYWAY_PASSWORD:postgres}
     locations: classpath:db/migration
 
 # Flowable 工作流引擎（Phase A 横向审批能力）

@@ -95,6 +95,8 @@ public class SignatureTicketService {
         if ("SIGNED".equals(t.getStatus())) {
             String dataUrl = "data:image/png;base64," + Base64.getEncoder().encodeToString(t.getSignature());
             t.setStatus("USED");
+            // 安全加固包 A18：一次性取回后立即清除票据内签名字节（正本已入评估存证，票据无须留双份明文）
+            t.clearSignature();
             ticketRepo.save(t);
             return new FetchResult("SIGNED", dataUrl);
         }

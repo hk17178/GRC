@@ -56,6 +56,7 @@ export default {
     foot1: '© 2026 Mandao GRC · Authorized access only',
     foot2: 'All access is audit-logged · MLPS L3 · Org-isolated',
     badCred: 'Invalid username or password',
+    badCaptcha: 'Incorrect captcha',
     loginFail: 'Login failed: '
   },
 

@@ -98,14 +98,14 @@ public class AssessmentController {
                              @RequestBody SignoffRequest req,
                              @RequestHeader(value = "X-User", required = false) String user) {
         String signer = actor(user);
-        // 身份再认证：签批人重输密码
+        // 身份再认证：签批人重输密码（A34：失败走 401 语义，不再误报 404）
         if (req == null || req.password() == null || req.password().isBlank()) {
-            throw new IllegalArgumentException("签批须重新输入登录密码进行身份确认");
+            throw new com.mandao.grc.common.auth.ReauthFailedException("签批须重新输入登录密码进行身份确认");
         }
         var appUser = userRepo.findByUsername(signer)
-                .orElseThrow(() -> new IllegalArgumentException("签批人账号不存在：" + signer));
+                .orElseThrow(() -> new com.mandao.grc.common.auth.ReauthFailedException("签批人账号不存在：" + signer));
         if (!passwordEncoder.matches(req.password(), appUser.getPasswordHash())) {
-            throw new IllegalArgumentException("密码校验失败，签批身份确认未通过");
+            throw new com.mandao.grc.common.auth.ReauthFailedException("密码校验失败，签批身份确认未通过");
         }
         // 手写签名（可选但强烈建议）：dataURL → PNG 字节
         byte[] signature = null;

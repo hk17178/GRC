@@ -56,6 +56,7 @@ export default {
     foot1: '© 2026 Mandao GRC 集团合规管理平台 · 仅供授权用户访问',
     foot2: '访问行为将被审计留痕 · 等保三级 · 数据按组织隔离',
     badCred: '用户名或口令错误',
+    badCaptcha: '验证码错误',
     loginFail: '登录失败：'
   },
 

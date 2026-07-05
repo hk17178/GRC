@@ -179,6 +179,11 @@ public class ExpiryScanService {
             }
         }
 
+        // 8) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
+        // 连行删除，防过期票据里的签名字节长期滞留。
+        em.createNativeQuery("DELETE FROM signature_ticket WHERE created_at < now() - INTERVAL '24 hours'")
+                .executeUpdate();
+
         return new ScanResult(emitted, false);
     }
 

@@ -80,7 +80,8 @@
             </div>
           </div>
           <label class="fld">登录密码（身份再认证，必填）
-            <input type="password" v-model="form.password" :disabled="!writable" autocomplete="current-password"
+            <!-- 安全加固包 A17：重认证密码框严禁浏览器自动填充（否则路过者一键即可冒签） -->
+            <input type="password" v-model="form.password" :disabled="!writable" autocomplete="new-password" :readonly="pwdReadonly" @focus="pwdReadonly = false"
                    placeholder="重新输入你的登录密码以确认签批身份" class="pwd" />
           </label>
 
@@ -119,6 +120,7 @@ const okMsg = ref('')
 const saving = ref(false)
 const detail = ref({})
 const form = reactive({ opinion: '', accepted: false, password: '' })
+const pwdReadonly = ref(true) // A17：readonly-onfocus 技巧阻断浏览器自动填充
 
 // ===== 手写签名板（V55 签批存证）=====
 const sigCanvas = ref(null)

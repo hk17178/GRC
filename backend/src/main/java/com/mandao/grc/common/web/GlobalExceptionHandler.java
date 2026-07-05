@@ -82,6 +82,16 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 身份再认证失败（安全加固包 A34：签批重输密码校验不通过）→ 401 UNAUTHORIZED。
+     * 此前误借道 IllegalArgumentException 返回 404，状态码语义错误且易被误判为资源缺失。
+     */
+    @ExceptionHandler(com.mandao.grc.common.auth.ReauthFailedException.class)
+    public ResponseEntity<ApiError> handleReauthFailed(com.mandao.grc.common.auth.ReauthFailedException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(new ApiError("REAUTH_FAILED", ex.getMessage()));
+    }
+
+    /**
      * M8 SoD 职责分离红线拦截（授权时命中互斥角色且无有效豁免）→ 409 CONFLICT。
      *
      * 与 CR-002 关闭门控同级——单列为可精确识别的红线（code=SOD_VIOLATION）：若不显式映射，
