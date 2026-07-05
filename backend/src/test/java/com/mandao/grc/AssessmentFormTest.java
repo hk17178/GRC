@@ -182,10 +182,11 @@ class AssessmentFormTest {
 
     @Test
     void 打分_可能性乘影响映射五级() {
+        // M2 深度包 C3：统一走 RiskMatrix 单一档位（≤4/≤8/≤12/≤16/极高），与 ATV 台账口径一致
         assertEquals(RiskLevel.VERY_LOW, scoringService.levelOf(1, 1));   // 1
         assertEquals(RiskLevel.LOW, scoringService.levelOf(2, 3));        // 6
         assertEquals(RiskLevel.MID, scoringService.levelOf(3, 3));        // 9
-        assertEquals(RiskLevel.HIGH, scoringService.levelOf(4, 5));       // 20
+        assertEquals(RiskLevel.VERY_HIGH, scoringService.levelOf(4, 5));  // 20（旧口径 HIGH——两处不一致已收敛）
         assertEquals(RiskLevel.VERY_HIGH, scoringService.levelOf(5, 5));  // 25
     }
 

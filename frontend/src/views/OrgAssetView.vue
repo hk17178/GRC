@@ -112,6 +112,15 @@
             <label class="chk"><input type="checkbox" v-model="af.mlpsFiled" /> 等保已备案</label>
             <label class="chk"><input type="checkbox" v-model="af.containsChd" /> 含持卡人数据</label>
           </div>
+          <!-- M2 深度包 B47：合规属性深化 -->
+          <label class="fld">等保定级
+            <select v-model="af.mlpsLevel"><option :value="null">未定级</option><option :value="1">一级</option><option :value="2">二级</option><option :value="3">三级</option><option :value="4">四级</option></select>
+          </label>
+          <label class="fld">等保测评到期日<input v-model="af.mlpsReviewDue" type="date" /></label>
+          <label class="fld">CIA 三性评级<input v-model="af.ciaRating" placeholder="如 3-3-2（机密-完整-可用 各1~3）" /></label>
+          <label class="fld">网络区域
+            <select v-model="af.networkZone"><option :value="null">—</option><option value="生产核心区">生产核心区</option><option value="DMZ">DMZ</option><option value="办公网">办公网</option><option value="托管机房">托管机房</option><option value="云上VPC">云上VPC</option></select>
+          </label>
           <label class="fld">所属组织<select v-model.number="af.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="assetErr" class="cerr">{{ assetErr }}</p>
           <div class="modal-actions">
@@ -201,9 +210,11 @@
             <div class="ch">
               <h3>{{ $t('orgasset.asset.title') }}</h3>
               <span class="sub">{{ $t('orgasset.asset.sub') }}</span>
+              <!-- B46：资产台账 CSV 导出（当前列表态） -->
+              <button class="mini" style="margin-left:auto" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
             </div>
             <div class="cb" style="overflow-x: auto; padding-bottom: 6px">
-              <table style="min-width: 760px">
+              <table style="min-width: 1020px">
                 <thead>
                   <tr>
                     <th>{{ $t('orgasset.asset.th.id') }}</th>
@@ -213,6 +224,9 @@
                     <th>{{ $t('orgasset.asset.th.pi') }}</th>
                     <th>{{ $t('orgasset.asset.th.crossBorder') }}</th>
                     <th>{{ $t('orgasset.asset.th.mlps') }}</th>
+                    <th>等保定级</th>
+                    <th>测评到期</th>
+                    <th>网络区域</th>
                     <th>{{ $t('orgasset.asset.th.chd') }}</th>
                     <th>{{ $t('orgasset.asset.th.criticality') }}</th>
                     <th>操作</th>
@@ -227,6 +241,10 @@
                     <td>{{ r.containsPi ? '是' : '否' }}</td>
                     <td><span v-if="r.crossBorder" class="tag m">是</span><template v-else>否</template></td>
                     <td><span v-if="r.mlpsFiled" class="pill blue">已备案</span><template v-else>—</template></td>
+                    <!-- B47：等保定级/测评到期/网络区域（到期 30 天内标红提醒） -->
+                    <td>{{ r.mlpsLevel ? r.mlpsLevel + '级' : '—' }}</td>
+                    <td :style="mlpsDueSoon(r) ? 'color:var(--danger);font-weight:600' : ''">{{ r.mlpsReviewDue || '—' }}</td>
+                    <td>{{ r.networkZone || '—' }}</td>
                     <td>{{ r.containsChd ? '是' : '否' }}</td>
                     <td><span class="tag" :class="CRIT_TAG[r.criticality]">{{ CRIT_LABEL[r.criticality] || r.criticality || '—' }}</span></td>
                     <!-- 八轮 8-10（B42）：资产可编辑/退役——录错不再只能带病运行 -->
@@ -237,7 +255,7 @@
                       </template>
                     </td>
                   </tr>
-                  <tr v-if="!assets.length"><td colspan="10" style="text-align:center;color:var(--text-3);padding:18px">暂无资产，点「登记资产」。</td></tr>
+                  <tr v-if="!assets.length"><td colspan="13" style="text-align:center;color:var(--text-3);padding:18px">暂无资产，点「登记资产」。</td></tr>
                 </tbody>
               </table>
             </div>
@@ -306,6 +324,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { canWrite } from '@/auth.js'
+import { exportCsv } from '@/utils/csv.js'
 // 六轮 #3/#4 修复：登记资产/ROPA 弹窗的「所属组织」下拉此前只 import 了 reloadOrgs，
 // 模板里引用的 orgOptions/orgLabel 未定义导致下拉恒空——补齐共享组织缓存的接入
 import { reloadOrgs, useOrgs, orgLabel } from '@/orgs.js'
@@ -402,15 +421,16 @@ const distBars = computed(() => {
 const showAsset = ref(false)
 const assetSaving = ref(false)
 const assetErr = ref('')
-const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
+const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12 })
 function openAsset() {
   editingAssetId.value = null // 登记模式（八轮 8-10：与编辑复用同一弹窗）
-  Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, orgId: 12 })
+  Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12 })
   assetErr.value = ''; showAsset.value = true
 }
 async function submitAsset() {
   assetSaving.value = true; assetErr.value = ''
-  const body = { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality }
+  // B47：深化合规属性随表单一并提交（空值传 null）
+  const body = { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality, mlpsLevel: af.mlpsLevel, mlpsReviewDue: af.mlpsReviewDue || null, ciaRating: af.ciaRating || null, networkZone: af.networkZone }
   try {
     // 八轮 8-10（B42）：editingAssetId 非空即编辑（PUT），否则登记（POST）
     if (editingAssetId.value) await api.put('/assets/' + editingAssetId.value, body)
@@ -423,8 +443,27 @@ async function submitAsset() {
 const editingAssetId = ref(null)
 function openAssetEdit(r) {
   editingAssetId.value = r.id
-  Object.assign(af, { name: r.name, assetType: r.assetType, owner: r.owner || '', classification: r.classification, criticality: r.criticality || 'MID', containsPi: !!r.containsPi, crossBorder: !!r.crossBorder, mlpsFiled: !!r.mlpsFiled, containsChd: !!r.containsChd, orgId: r.orgId })
+  Object.assign(af, { name: r.name, assetType: r.assetType, owner: r.owner || '', classification: r.classification, criticality: r.criticality || 'MID', containsPi: !!r.containsPi, crossBorder: !!r.crossBorder, mlpsFiled: !!r.mlpsFiled, containsChd: !!r.containsChd, mlpsLevel: r.mlpsLevel ?? null, mlpsReviewDue: r.mlpsReviewDue || '', ciaRating: r.ciaRating || '', networkZone: r.networkZone ?? null, orgId: r.orgId })
   assetErr.value = ''; showAsset.value = true
+}
+/** B46：资产台账导出（当前列表态，含深化合规属性）。 */
+function exportAssets() {
+  const headers = ['ID', '资产名称', '类型', '责任人', '数据分级', '含个人信息', '跨境', '等保备案',
+    '含持卡人数据', '重要性', '等保定级', '测评到期', 'CIA评级', '网络区域', '状态']
+  const rows = assets.value.map((r) => [
+    'AST-' + r.id, r.name, ASSET_TYPE[r.assetType] || r.assetType, r.owner || '',
+    CLS_LABEL[r.classification] || r.classification, r.containsPi ? '是' : '否', r.crossBorder ? '是' : '否',
+    r.mlpsFiled ? '已备案' : '', r.containsChd ? '是' : '否', CRIT_LABEL[r.criticality] || r.criticality || '',
+    r.mlpsLevel ? r.mlpsLevel + '级' : '', r.mlpsReviewDue || '', r.ciaRating || '', r.networkZone || '', r.status
+  ])
+  exportCsv('资产台账_' + new Date().toISOString().slice(0, 10) + '.csv', headers, rows)
+}
+
+/** B47：等保测评到期 30 天内（或已逾期）标红。 */
+function mlpsDueSoon(r) {
+  if (!r.mlpsReviewDue) return false
+  const diff = (new Date(r.mlpsReviewDue) - new Date()) / 86400000
+  return diff <= 30
 }
 async function retireAsset(r) {
   if (!window.confirm(`确认退役资产「${r.name}」？退役后不再参与新评估的范围选择（留痕保档）。`)) return

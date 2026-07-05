@@ -104,6 +104,7 @@ class TemplateLibraryTest {
         asOrg(ORG_PAY, () -> templateService.addItem(tplId, ctlId, "A.9.2.3", "最小授权", "c"));
         asOrg(ORG_PAY, () -> templateService.addItem(tplId, null, "A.12.4.1", "日志留存", "c"));
 
+        seedActiveForm(ORG_PAY, tplId);   // B21：发布前提——已启用评估表单
         assertEquals(TemplateStatus.PUBLISHED, asOrg(ORG_PAY, () -> templateService.publish(tplId, "c").getStatus()));
 
         // 实例化 → 评估 + 2 个评估项（第 1 项复用控件 ctlId）
@@ -143,6 +144,7 @@ class TemplateLibraryTest {
         Long tplId = asOrg(ORG_PAY, () -> templateService.create(ORG_PAY, "TPL-H", "H",
                 ControlFramework.ISO27001, null, null, "c").getId());     // TEMPLATE_CREATE
         asOrg(ORG_PAY, () -> templateService.addItem(tplId, null, "A.1", "x", "c"));    // TEMPLATE_ADD_ITEM
+        seedActiveForm(ORG_PAY, tplId);   // B21：发布前提
         asOrg(ORG_PAY, () -> templateService.publish(tplId, "c"));                      // TEMPLATE_PUBLISH
         asOrg(ORG_PAY, () -> templateService.instantiate(tplId, "t", "a", "2026Q2", "c")); // TEMPLATE_INSTANTIATE
 
@@ -152,6 +154,23 @@ class TemplateLibraryTest {
     }
 
     // ---------- 测试辅助 ----------
+
+    /**
+     * M2 深度包 B21：发布须已启用表单——测试用 owner 连接直插一条 ACTIVE 表单（绕 RLS）。
+     * 先清该模板既有表单：clean() 不 TRUNCATE template_form，而 RESTART IDENTITY 会让新模板复用 id=1，
+     * 与启动时 BuiltinFormBootstrap 为平台模板 #1 装的 ACTIVE 表单撞 uk_template_form_active。
+     */
+    private void seedActiveForm(long orgId, long tplId) {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("DELETE FROM template_form WHERE template_id = " + tplId);
+            s.executeUpdate("INSERT INTO template_form(org_id, template_id, version_no, name, schema_json, status) "
+                    + "VALUES (" + orgId + ", " + tplId + ", 1, '测试表单', "
+                    + "'{\"sections\":[{\"title\":\"t\",\"fields\":[],\"lists\":[]}]}', 'ACTIVE')");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     private <T> T asOrg(long orgId, Supplier<T> action) {
         IsolationContext.set(List.of(orgId));

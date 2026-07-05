@@ -17,10 +17,13 @@ public class AssessmentPlanService {
 
     private final AssessmentPlanRepository repo;
     private final AssessmentService assessmentService;
+    private final AssessmentRepository assessmentRepository;
 
-    public AssessmentPlanService(AssessmentPlanRepository repo, AssessmentService assessmentService) {
+    public AssessmentPlanService(AssessmentPlanRepository repo, AssessmentService assessmentService,
+                                 AssessmentRepository assessmentRepository) {
         this.repo = repo;
         this.assessmentService = assessmentService;
+        this.assessmentRepository = assessmentRepository;
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +47,17 @@ public class AssessmentPlanService {
         var a = assessmentService.create(plan.getOrgId(), plan.getTitle(), null,
                 String.valueOf(plan.getPlannedDate() == null ? "" : plan.getPlannedDate().getYear()),
                 plan.getTemplateId(), actor);
+        // M2 深度包 B45：周期复评——同模板上一轮定稿评估的背景（范围/目的/依据/方法/准则/评估组）
+        // 自动带入本轮草稿，评估人只需增量修订；起止日期属本轮周期，不复制。
+        if (plan.getTemplateId() != null) {
+            assessmentRepository.findFirstByTemplateIdAndStatusOrderByIdDesc(
+                            plan.getTemplateId(), AssessmentStatus.COMPLETED)
+                    .filter(prev -> !prev.getId().equals(a.getId()))
+                    .ifPresent(prev -> assessmentService.setContext(a.getId(),
+                            prev.getScope(), prev.getObjective(), prev.getBasis(), prev.getMethods(),
+                            prev.getCriteria(), prev.getTeam(), null, null,
+                            actor + "(复评带入上一轮背景)"));
+        }
         plan.start(a.getId());
         return repo.save(plan);
     }

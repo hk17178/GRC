@@ -159,12 +159,23 @@ public class DocxFormParser {
         return columns.isEmpty() ? null : new FormSchema.ListBlock(key, label, columns);
     }
 
-    /** 由占位符名 + 类型串构造字段定义。 */
+    /**
+     * 由占位符名 + 修饰符串构造字段定义。
+     *
+     * M2 深度包 B19：修饰符串以 {@code |} 分段，第一段为类型，其后可跟：
+     *   - {@code required}      必填（保存时空值被前端拦截）
+     *   - {@code showIf:字段=值} 条件显隐（跳题：所引字段等于该值才显示）
+     * 例：{@code ${整改计划|textarea|required|showIf:是否符合=否}}。
+     * select 选项与修饰符共存时写作 {@code select:a;b;c|required}。
+     */
     private FormSchema.Field toField(String key, String label, String typeSpec) {
         String type = "text";
         List<String> options = null;
+        boolean required = false;
+        String showIf = null;
         if (typeSpec != null && !typeSpec.isBlank()) {
-            String spec = typeSpec.trim();
+            String[] parts = typeSpec.trim().split("\\|");
+            String spec = parts[0].trim();
             if (spec.startsWith("select")) {
                 type = "select";
                 int idx = spec.indexOf(':');
@@ -176,11 +187,19 @@ public class DocxFormParser {
                         }
                     }
                 }
-            } else {
+            } else if (!spec.isBlank()) {
                 type = spec.toLowerCase();
             }
+            for (int i = 1; i < parts.length; i++) {
+                String mod = parts[i].trim();
+                if ("required".equalsIgnoreCase(mod)) {
+                    required = true;
+                } else if (mod.toLowerCase().startsWith("showif:")) {
+                    showIf = mod.substring(mod.indexOf(':') + 1).trim();
+                }
+            }
         }
-        return new FormSchema.Field(key, label, type, options);
+        return new FormSchema.Field(key, label, type, options, required, showIf);
     }
 
     /** 标题判定：样式 ID 含 heading/标题，或为大纲数字（1~9）。 */

@@ -59,7 +59,8 @@
             <label class="fld">评估模板（选模板则用其报告表单填写，可不选）
               <select v-model="form.templateId">
                 <option :value="null">— 不使用模板表单 —</option>
-                <option v-for="t in templates" :key="t.id" :value="t.id">{{ t.name }}（{{ t.code }}）</option>
+                <!-- A12：仅已发布模板可实例化（M2-9/15），并滤掉测试残渣 -->
+                <option v-for="t in templates.filter(x => x.status === 'PUBLISHED')" :key="t.id" :value="t.id">{{ t.name }}（{{ t.code }}）</option>
               </select>
             </label>
           </template>
@@ -195,13 +196,14 @@
                 >
                   <td class="code">{{ r.id }}</td>
                   <td>{{ r.title }}</td>
-                  <td>—</td>
-                  <td>—</td>
+                  <!-- A13：体系模板/进度/截止三列接真值（原为硬编码占位 —） -->
+                  <td>{{ tplName(r.templateId) }}</td>
+                  <td class="num">{{ taskProgress(r.status) }}</td>
                   <td>
-                    <span v-if="r.riskLevel" class="tag" :class="riskCls(r.riskLevel)">{{ $t(riskLabel(r.riskLevel)) }}</span>
+                    <span v-if="r.riskLevel && r.status !== 'DRAFT'" class="tag" :class="riskCls(r.riskLevel)">{{ $t(riskLabel(r.riskLevel)) }}</span>
                     <span v-else>—</span>
                   </td>
-                  <td class="num">—</td>
+                  <td class="num">{{ r.endDate || '—' }}</td>
                   <td>
                     <span class="st" :class="stCls(r.status)"><span class="d"></span>{{ $t(stLabel(r.status)) }}</span>
                   </td>
@@ -295,6 +297,8 @@
             <div style="margin-left: auto; display: flex; gap: 8px">
               <select v-model="regFltLevel" class="selmini"><option value="">全部等级</option><option v-for="l in DRILL_LV" :key="l[0]" :value="l[0]">{{ l[1] }}</option></select>
               <select v-model="regFltStatus" class="selmini"><option value="">全部状态</option><option value="OPEN">待处置</option><option value="IN_TREATMENT">处置中</option><option value="DONE">已处置</option><option value="VERIFIED">已验证</option></select>
+              <!-- B46：风险登记册导出（当前筛选态） -->
+              <button class="mini" :disabled="!regFiltered.length" @click="exportRegister">导出 CSV</button>
             </div>
           </div>
           <div class="cb" style="padding-top: 0">
@@ -482,6 +486,7 @@
         <div class="card">
           <div class="ch">
             <h3>{{ $t('risk.kri.title') }}</h3>
+            <button class="mini" style="margin-left:auto" :disabled="!kris.length" @click="exportKris">导出 CSV</button>
             <span class="more" @click="openRefModal('kri')">{{ $t('risk.kri.newKri') }}</span>
           </div>
           <table>
@@ -537,7 +542,8 @@
           <!-- 左：风险场景表 -->
           <div class="card">
             <div class="ch"><h3>风险场景（资产 × 威胁 × 脆弱性）</h3><span class="cnt">{{ scenarios.length }}</span>
-              <button class="btn sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openScenario">＋ 建模场景</button>
+              <button class="mini" style="margin-left:auto" :disabled="!scenarios.length" @click="exportScenarios">导出 CSV</button>
+              <button class="btn sm" :disabled="!canWrite('risk')" @click="openScenario">＋ 建模场景</button>
             </div>
             <div class="cb" style="overflow-x:auto;padding-top:0">
               <table style="min-width:720px">
@@ -607,7 +613,7 @@
           </label>
           <label class="fld">计划开始日期<input type="date" v-model="plf.plannedDate" /></label>
           <label class="fld">评估模板（可空；带模板启动即进表单引擎）
-            <select v-model.number="plf.templateId"><option :value="null">— 不使用模板 —</option><option v-for="t2 in templates" :key="t2.id" :value="t2.id">{{ t2.name }}</option></select>
+            <select v-model.number="plf.templateId"><option :value="null">— 不使用模板 —</option><option v-for="t2 in templates.filter(x => x.status === 'PUBLISHED')" :key="t2.id" :value="t2.id">{{ t2.name }}</option></select>
           </label>
           <label class="fld">所属组织<select v-model.number="plf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
@@ -1115,6 +1121,7 @@ import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
+import { exportCsv } from '@/utils/csv.js'
 
 // ---- Tab 切换 ----
 const tabs = ['tasks', 'register', 'templates', 'controls', 'kri', 'atv']
@@ -1484,6 +1491,18 @@ async function loadTemplates() {
     // 并行拉取每个模板的表单版本（表单引擎 P1：展示「已配置/未配置表单」+ 启用态）
     templates.value.forEach((t) => loadTplForms(t.id))
   } catch (e) { templates.value = [] }
+}
+
+// ---- A13：评估任务列表三列真值辅助 ----
+/** 按模板 id 反查名称（任务行「体系模板」列）。 */
+function tplName(id) {
+  if (!id) return '—'
+  const t = templates.value.find((x) => x.id === id)
+  return t ? t.name : '#' + id
+}
+/** 按生命周期状态给出粗粒度进度（无逐题统计接口，以状态机阶段映射）。 */
+function taskProgress(status) {
+  return { DRAFT: '0%', IN_PROGRESS: '40%', PENDING_REVIEW: '80%', COMPLETED: '100%', CANCELLED: '—' }[status] || '—'
 }
 
 // ---- 表单引擎 P1：每个模板的 .docx 表单版本（上传/启用）----
@@ -1936,6 +1955,33 @@ watch(activeTab, (t) => { if (t === 'register') loadRegister() })
 function regGoAssessment(r) {
   const t = liveTasks.value.find((x) => x.id === r.assessmentId)
   if (t) drillInto(t)
+}
+
+// ===== M2 深度包 B46：三台账 CSV 导出（登记册/风险场景/KRI，均导当前列表态）=====
+function exportRegister() {
+  const headers = ['#', '风险发现', '来源评估', '来源', '固有等级', '残余等级', '处置方式', '状态', '更新时间']
+  const rows = regFiltered.value.map((r) => [
+    r.id, r.title, r.assessmentTitle || '', SRC_TXT[r.source] || r.source || '',
+    lvText(r.inherentLevel) || '', lvText(r.residualLevel) || '', TD_LABEL[r.treatmentDecision] || '',
+    REG_ST_TXT[r.status] || r.status, r.updatedAt ? String(r.updatedAt).slice(0, 19).replace('T', ' ') : ''
+  ])
+  exportCsv('风险登记册_' + new Date().toISOString().slice(0, 10) + '.csv', headers, rows)
+}
+function exportScenarios() {
+  const headers = ['#', '资产', '威胁', '脆弱性', '可能性', '影响', '风险值', '固有等级', '说明']
+  const rows = scenarios.value.map((s) => [
+    s.id, assetNameOf(s.assetId), threatNameOf(s.threatId), vulnNameOf(s.vulnerabilityId),
+    s.likelihood, s.impact, s.likelihood * s.impact, lvText(s.inherentLevel) || '', s.description || ''
+  ])
+  exportCsv('风险场景ATV_' + new Date().toISOString().slice(0, 10) + '.csv', headers, rows)
+}
+function exportKris() {
+  const headers = ['#', '指标编码', '指标名称', '责任人', '当前值', '单位', '预警阈值', '严重阈值', '状态']
+  const rows = kris.value.map((k) => [
+    k.id, k.code, k.name, k.owner || '', k.currentValue == null ? '' : k.currentValue, k.unit || '',
+    k.thresholdWarning, k.thresholdCritical, k.currentStatus
+  ])
+  exportCsv('KRI监控_' + new Date().toISOString().slice(0, 10) + '.csv', headers, rows)
 }
 
 // ===== 八轮 8-11（C11）：日常风险直登 =====

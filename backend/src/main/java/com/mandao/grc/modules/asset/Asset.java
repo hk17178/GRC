@@ -77,6 +77,24 @@ public class Asset {
     @Column(length = 12)
     private String criticality;
 
+    // ---------- 合规属性深化（M2 深度包 B47） ----------
+
+    /** 等保定级（1~4 级；未定级为 null）。 */
+    @Column(name = "mlps_level")
+    private Integer mlpsLevel;
+
+    /** 等保测评到期日（三级及以上须每年测评；到期扫描 30/7/0 天提醒）。 */
+    @Column(name = "mlps_review_due")
+    private java.time.LocalDate mlpsReviewDue;
+
+    /** CIA 三性评级（如 3-3-2：机密性-完整性-可用性 各 1~3）。 */
+    @Column(name = "cia_rating", length = 16)
+    private String ciaRating;
+
+    /** 网络区域（如 生产核心区/DMZ/办公网/托管机房）。 */
+    @Column(name = "network_zone", length = 64)
+    private String networkZone;
+
     /** 资产生命周期状态机当前态。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -134,6 +152,10 @@ public class Asset {
     public boolean isMlpsFiled() { return mlpsFiled; }
     public boolean isContainsChd() { return containsChd; }
     public String getCriticality() { return criticality; }
+    public Integer getMlpsLevel() { return mlpsLevel; }
+    public java.time.LocalDate getMlpsReviewDue() { return mlpsReviewDue; }
+    public String getCiaRating() { return ciaRating; }
+    public String getNetworkZone() { return networkZone; }
     public AssetStatus getStatus() { return status; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
@@ -148,5 +170,9 @@ public class Asset {
     void setMlpsFiled(boolean mlpsFiled) { this.mlpsFiled = mlpsFiled; }
     void setContainsChd(boolean containsChd) { this.containsChd = containsChd; }
     void setCriticality(String criticality) { this.criticality = criticality; }
+    void setMlpsLevel(Integer mlpsLevel) { this.mlpsLevel = mlpsLevel; }
+    void setMlpsReviewDue(java.time.LocalDate mlpsReviewDue) { this.mlpsReviewDue = mlpsReviewDue; }
+    void setCiaRating(String ciaRating) { this.ciaRating = ciaRating; }
+    void setNetworkZone(String networkZone) { this.networkZone = networkZone; }
     void setStatus(AssetStatus status) { this.status = status; }
 }

@@ -74,8 +74,8 @@
         <div class="card">
           <div class="ch"><h3>{{ $t('todo.grp.remed') }}</h3><span class="cnt">{{ toRemed.length }}</span><span class="sub">{{ $t('todo.grp.remedSub') }}</span></div>
           <div class="cb" style="padding-top:0">
-            <div v-for="r in toRemed" :key="r.id" class="td-row clk" @click="go('/internal-audit')">
-              <span class="code">RO-{{ r.id }}</span><span class="td-t">{{ r.measure || r.assignee || $t('todo.grp.remedDefault') }}</span>
+            <div v-for="r in toRemed" :key="r.id" class="td-row clk" @click="go(r._risk ? '/risk' : '/internal-audit')">
+              <span class="code">{{ r._risk ? 'RF-' + String(r.id).slice(1) : 'RO-' + r.id }}</span><span class="td-t">{{ r.measure || r.assignee || $t('todo.grp.remedDefault') }}</span>
               <span class="duetag" :class="dueCls(r.dueDate)" style="margin-left:auto">{{ dueText(r.dueDate) }}</span>
             </div>
             <div v-if="!toRemed.length" class="emptyrow">{{ $t('todo.grp.remedEmpty') }}</div>
@@ -163,15 +163,20 @@ function dueText(d) {
 }
 async function loadGroups() {
   try {
-    const [assessments, policies, remIn, remEx] = await Promise.all([
+    const [assessments, policies, remIn, remEx, findings] = await Promise.all([
       api.get('/assessments'), api.get('/policies'),
       api.get('/remediation-orders?type=INTERNAL').catch(() => []),
-      api.get('/remediation-orders?type=EXTERNAL').catch(() => [])
+      api.get('/remediation-orders?type=EXTERNAL').catch(() => []),
+      api.get('/risk-findings/register').catch(() => [])   // M2 深度包 C12：处置中的风险发现也属"待整改"
     ])
     toFill.value = assessments.filter((a) => a.status === 'DRAFT' || a.status === 'IN_PROGRESS')
     toSign.value = policies.filter((p) => p.status === 'EFFECTIVE')
+    // C12：整改单 + 处置中风险发现合并展示（风险发现无到期日，靠 measure 文案与 RF- 前缀区分，点击跳风险登记册）
+    const riskRows = findings.filter((f) => f.status === 'IN_TREATMENT')
+      .map((f) => ({ id: 'F' + f.id, measure: '【风险处置】' + f.title, dueDate: null, _risk: true }))
     toRemed.value = [...remIn, ...remEx].filter((r) => r.status === 'PENDING' || r.status === 'IN_PROGRESS')
       .sort((a, b) => (a.dueDate || '9999') < (b.dueDate || '9999') ? -1 : 1)
+      .concat(riskRows)
   } catch (e) { /* 各组独立容错 */ }
 }
 

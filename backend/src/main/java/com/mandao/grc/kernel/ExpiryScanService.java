@@ -177,7 +177,51 @@ public class ExpiryScanService {
             }
         }
 
-        // 8) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
+        // 8) M2 深度包 B47：等保测评到期段——在用资产 mlps_review_due 距今恰余 30/7/0 天时
+        // 产 MLPS_REVIEW_DUE（三级及以上系统须每年测评，逾期属监管红线）。
+        @SuppressWarnings("unchecked")
+        List<Object[]> mlpsHits = em.createNativeQuery(
+                        "SELECT a.id, a.org_id, a.name, a.mlps_level, rd "
+                                + "FROM asset a, unnest(ARRAY[30,7,0]) AS rd "
+                                + "WHERE a.status = 'ACTIVE' AND a.mlps_review_due IS NOT NULL "
+                                + "AND (a.mlps_review_due - CAST(:today AS date)) = rd")
+                .setParameter("today", today.toString())
+                .getResultList();
+
+        for (Object[] r : mlpsHits) {
+            long assetId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String name = (String) r[2];
+            Integer level = r[3] == null ? null : ((Number) r[3]).intValue();
+            int reminderDay = ((Number) r[4]).intValue();
+
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('ASSET', :aid, 'MLPS_REVIEW_DUE', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("aid", assetId)
+                    .setParameter("tk", String.valueOf(reminderDay))
+                    .setParameter("org", orgId)
+                    .setParameter("msg", "资产「" + name + "」" + (level == null ? "" : "（等保" + level + "级）")
+                            + "等保测评" + (reminderDay == 0 ? "今日到期" : "将于 " + reminderDay + " 天后到期")
+                            + "，请安排年度测评并更新到期日")
+                    .executeUpdate();
+
+            if (inserted == 1) {
+                String payload = "{\"assetId\":" + assetId
+                        + ",\"reminderDay\":" + reminderDay
+                        + ",\"name\":\"" + jsonEscape(name) + "\"}";
+                em.createNativeQuery(
+                                "INSERT INTO domain_event(event_type, org_id, payload) "
+                                        + "VALUES ('MLPS_REVIEW_DUE', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", orgId)
+                        .setParameter("payload", payload)
+                        .executeUpdate();
+                emitted++;
+            }
+        }
+
+        // 9) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
         // 连行删除，防过期票据里的签名字节长期滞留。
         em.createNativeQuery("DELETE FROM signature_ticket WHERE created_at < now() - INTERVAL '24 hours'")
                 .executeUpdate();

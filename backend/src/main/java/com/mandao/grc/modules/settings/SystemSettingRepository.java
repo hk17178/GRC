@@ -9,4 +9,7 @@ public interface SystemSettingRepository extends JpaRepository<SystemSetting, Lo
 
     /** 按分组列出配置项。 */
     List<SystemSetting> findByCategory(String category);
+
+    /** 按键取首条（RLS 可见范围内；集团级配置须在 org=1 上下文读取）。 */
+    java.util.Optional<SystemSetting> findFirstBySettingKey(String settingKey);
 }

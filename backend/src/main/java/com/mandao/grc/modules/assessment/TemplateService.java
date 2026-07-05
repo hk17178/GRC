@@ -86,6 +86,17 @@ public class TemplateService {
             templateItemRepository.save(new AssessmentTemplateItem(
                     orgId, saved.getId(), it.getSeq(), it.getControlId(), it.getClause(), it.getRequirement()));
         }
+        // M2 深度包 A15：连带复制源模板启用中的 .docx 表单版本（副本上直接启用，克隆即可用）
+        templateFormRepository.findFirstByTemplateIdAndStatus(templateId,
+                        com.mandao.grc.modules.assessment.form.TemplateForm.ACTIVE)
+                .ifPresent(af -> {
+                    com.mandao.grc.modules.assessment.form.TemplateForm cf =
+                            new com.mandao.grc.modules.assessment.form.TemplateForm(
+                                    orgId, saved.getId(), 1, af.getName() + "（随模板克隆）",
+                                    af.getDocx(), af.getSchemaJson());
+                    cf.setStatus(com.mandao.grc.modules.assessment.form.TemplateForm.ACTIVE);
+                    templateFormRepository.save(cf);
+                });
         hashChainService.append(orgId, "TEMPLATE_CLONE", actor, "TEMPLATE:" + saved.getId(),
                 "克隆模板自 #" + templateId + "（" + src.getCode() + "）→ " + code);
         return saved;
@@ -117,6 +128,11 @@ public class TemplateService {
         }
         if (templateItemRepository.findByTemplateIdOrderBySeqAsc(templateId).isEmpty()) {
             throw new IllegalStateException("模板无检查项，不可发布");
+        }
+        // M2 深度包 B21：发布前须已配置并启用 .docx 评估表单，否则实例化后无表可填
+        if (templateFormRepository.findFirstByTemplateIdAndStatus(templateId,
+                com.mandao.grc.modules.assessment.form.TemplateForm.ACTIVE).isEmpty()) {
+            throw new IllegalStateException("模板尚未配置启用中的评估表单（.docx），不可发布；请先在模板卡上传并启用表单");
         }
         t.setStatus(TemplateStatus.PUBLISHED);
         AssessmentTemplate saved = templateRepository.save(t);

@@ -11,4 +11,7 @@ public interface AssessmentRepository extends JpaRepository<Assessment, Long> {
 
     /** 是否存在引用某模板的评估（模板删除口径：被引用即不可物理删除）。 */
     boolean existsByTemplateId(Long templateId);
+
+    /** 同模板最近一次定稿评估（M2 深度包 B45：复评时复制上一轮背景/范围）。 */
+    java.util.Optional<Assessment> findFirstByTemplateIdAndStatusOrderByIdDesc(Long templateId, AssessmentStatus status);
 }

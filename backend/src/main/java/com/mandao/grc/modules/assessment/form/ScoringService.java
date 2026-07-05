@@ -18,32 +18,13 @@ import java.util.Map;
 @Service
 public class ScoringService {
 
-    /** 默认五级区间（D1-6 示例）：风险值上界 → 等级。 */
-    private record Band(int max, RiskLevel level) {
-    }
-
-    private static final List<Band> LEVEL_MATRIX = List.of(
-            new Band(3, RiskLevel.VERY_LOW),
-            new Band(6, RiskLevel.LOW),
-            new Band(12, RiskLevel.MID),
-            new Band(20, RiskLevel.HIGH),
-            new Band(25, RiskLevel.VERY_HIGH));
-
-    /** 可能性 × 影响 → 五级。入参越界自动夹到 [1,5]。 */
+    /**
+     * 可能性 × 影响 → 五级。
+     * M2 深度包 C3：委托 {@link com.mandao.grc.modules.assessment.RiskMatrix} 统一定级——
+     * 此前本类（3/6/12/20/25）与 ATV 台账（4/8/12/16）阈值不一致，同一 20 分两处定级不同。
+     */
     public RiskLevel levelOf(int likelihood, int impact) {
-        int l = clamp(likelihood);
-        int i = clamp(impact);
-        int score = l * i;
-        for (Band b : LEVEL_MATRIX) {
-            if (score <= b.max()) {
-                return b.level();
-            }
-        }
-        return RiskLevel.VERY_HIGH;
-    }
-
-    private int clamp(int v) {
-        return Math.max(1, Math.min(5, v));
+        return com.mandao.grc.modules.assessment.RiskMatrix.levelOf(likelihood, impact);
     }
 
     /**

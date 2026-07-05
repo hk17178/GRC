@@ -100,21 +100,11 @@ public class RiskScenario {
 
     /**
      * 风险矩阵：可能性(1–5) × 影响(1–5) 的乘积(1–25) 分档映射到平台五级。
-     * ≤4 极低；≤8 低；≤12 中；≤16 高；其余(20/25) 极高。
+     * M2 深度包 C3：阈值上收 {@link com.mandao.grc.modules.assessment.RiskMatrix}
+     * （system_setting risk.matrix.bands 单一事实源），不再在此硬编码。
      */
     public static RiskLevel deriveLevel(int likelihood, int impact) {
-        int score = likelihood * impact;
-        if (score <= 4) {
-            return RiskLevel.VERY_LOW;
-        } else if (score <= 8) {
-            return RiskLevel.LOW;
-        } else if (score <= 12) {
-            return RiskLevel.MID;
-        } else if (score <= 16) {
-            return RiskLevel.HIGH;
-        } else {
-            return RiskLevel.VERY_HIGH;
-        }
+        return com.mandao.grc.modules.assessment.RiskMatrix.levelOf(likelihood, impact);
     }
 
     /** 由 Service 在重评后回写可能性/影响并重算固有等级。 */

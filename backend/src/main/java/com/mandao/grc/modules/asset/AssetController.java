@@ -63,7 +63,8 @@ public class AssetController {
                           @RequestHeader(value = "X-User", required = false) String user) {
         return service.register(req.orgId(), req.name(), req.assetType(), req.owner(),
                 req.classification(), req.containsPi(), req.crossBorder(), req.mlpsFiled(),
-                req.containsChd(), req.criticality(), actor(user));
+                req.containsChd(), req.criticality(),
+                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), actor(user));
     }
 
     @PutMapping("/{id}")
@@ -72,7 +73,8 @@ public class AssetController {
                         @RequestHeader(value = "X-User", required = false) String user) {
         return service.update(id, req.name(), req.assetType(), req.owner(),
                 req.classification(), req.containsPi(), req.crossBorder(), req.mlpsFiled(),
-                req.containsChd(), req.criticality(), actor(user));
+                req.containsChd(), req.criticality(),
+                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), actor(user));
     }
 
     @PostMapping("/{id}/retire")
@@ -86,9 +88,11 @@ public class AssetController {
         return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
-    /** 资产登记/更新请求体（含资产合规属性 CR-002）。 */
+    /** 资产登记/更新请求体（含资产合规属性 CR-002；B47 深化：等保定级/测评到期/CIA/网络区域）。 */
     public record AssetRequest(Long orgId, String name, String assetType, String owner,
                                AssetClassification classification, boolean containsPi, boolean crossBorder,
-                               boolean mlpsFiled, boolean containsChd, String criticality) {
+                               boolean mlpsFiled, boolean containsChd, String criticality,
+                               Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
+                               String ciaRating, String networkZone) {
     }
 }

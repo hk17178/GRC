@@ -22,12 +22,20 @@ public record FormSchema(List<Section> sections) {
     /**
      * 标量字段。
      *
-     * @param key     字段键（= 占位符名，answers 以此为键）
-     * @param label   显示标签（默认同 key）
-     * @param type    控件类型：text/textarea/date/number/select/score/level
-     * @param options 当 type=select 时的选项；其余为 null
+     * @param key      字段键（= 占位符名，answers 以此为键）
+     * @param label    显示标签（默认同 key）
+     * @param type     控件类型：text/textarea/date/number/select/score/level
+     * @param options  当 type=select 时的选项；其余为 null
+     * @param required 必填（M2 深度包 B19：占位符修饰符 {@code |required}；空值时前端拦截保存）
+     * @param showIf   条件显隐（B19 跳题：{@code |showIf:字段=值}——所引字段等于该值才显示/要求填写）
      */
-    public record Field(String key, String label, String type, List<String> options) {
+    public record Field(String key, String label, String type, List<String> options,
+                        boolean required, String showIf) {
+
+        /** 兼容构造器：旧四参调用与库内旧 schema JSON（缺省 非必填/无条件显示）。 */
+        public Field(String key, String label, String type, List<String> options) {
+            this(key, label, type, options, false, null);
+        }
     }
 
     /**

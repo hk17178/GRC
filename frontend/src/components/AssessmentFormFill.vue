@@ -39,10 +39,11 @@
         <section v-for="(sec, si) in view.schema.sections" :key="si" class="sec">
           <h4 class="sec-t">{{ sec.title }}</h4>
 
-          <!-- 标量字段 -->
+          <!-- 标量字段（M2 深度包 B19：required 必填标记 + showIf 条件显隐/跳题） -->
           <div class="fields">
-            <div v-for="f in sec.fields" :key="f.key" class="field">
-              <label>{{ f.label }}</label>
+            <div v-for="f in sec.fields" v-show="fieldVisible(f)" :key="f.key" class="field"
+                 :class="{ 'field-miss': f.required && missingKeys.includes(f.key) }">
+              <label>{{ f.label }}<i v-if="f.required" class="req" title="必填">*</i></label>
               <component :is="'span'">
                 <textarea v-if="f.type === 'textarea'" v-model="model[f.key]" :disabled="!writable" rows="3"></textarea>
                 <select v-else-if="f.type === 'select'" v-model="model[f.key]" :disabled="!writable">
@@ -186,10 +187,44 @@ async function load() {
   }
 }
 
+// ===== M2 深度包 B19：必填校验 + showIf 条件显隐（跳题） =====
+const missingKeys = ref([])
+
+/** showIf "字段=值"：所引字段等于该值才显示；被隐藏的字段不参与必填校验。 */
+function fieldVisible(f) {
+  if (!f.showIf) return true
+  const idx = f.showIf.indexOf('=')
+  if (idx <= 0) return true
+  const dep = f.showIf.slice(0, idx).trim()
+  const val = f.showIf.slice(idx + 1).trim()
+  return String(model[dep] ?? '') === val
+}
+
+/** 保存前必填校验：可见且 required 的标量字段为空 → 拦截并高亮。 */
+function validateRequired() {
+  const miss = []
+  for (const sec of (view.value?.schema?.sections || [])) {
+    for (const f of (sec.fields || [])) {
+      if (f.required && fieldVisible(f)) {
+        const v = model[f.key]
+        if (v === undefined || v === null || String(v).trim() === '') miss.push(f.key)
+      }
+    }
+  }
+  missingKeys.value = miss
+  return miss
+}
+
 async function save() {
   saving.value = true
   okMsg.value = ''
   error.value = ''
+  const miss = validateRequired()
+  if (miss.length) {
+    error.value = '有 ' + miss.length + ' 个必填项未填写（已标红）：' + miss.slice(0, 5).join('、') + (miss.length > 5 ? ' 等' : '')
+    saving.value = false
+    return
+  }
   try {
     // 直接提交模型（标量 + 明细表数组），后端按 key 存 JSON
     const res = await api.put('/assessments/' + props.assessmentId + '/answers', JSON.parse(JSON.stringify(model)))
@@ -216,6 +251,9 @@ watch(() => props.assessmentId, load, { immediate: true })
 .ok { color: var(--success); margin-bottom: 8px; font-weight: 600; }
 .empty .hint { color: var(--text-3); font-size: 12px; margin-top: 4px; }
 .sec { margin-bottom: 18px; }
+/* M2 深度包 B19：必填标记与缺失高亮 */
+.req { color: var(--danger); font-style: normal; margin-left: 3px; font-weight: 700; }
+.field-miss input, .field-miss select, .field-miss textarea { border-color: var(--danger) !important; }
 .sec-t { margin: 0 0 10px; padding-left: 8px; border-left: 3px solid var(--accent-strong); font-size: 14px; }
 .fields { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 4px; }

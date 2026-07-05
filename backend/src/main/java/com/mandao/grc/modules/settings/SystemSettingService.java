@@ -39,6 +39,12 @@ public class SystemSettingService {
         return repository.findByCategory(category);
     }
 
+    /** 按键读取（可见范围内首条；集团级键须在 org=1 上下文调用）。 */
+    @Transactional(readOnly = true)
+    public java.util.Optional<SystemSetting> findByKey(String key) {
+        return repository.findFirstBySettingKey(key);
+    }
+
     @Transactional(readOnly = true)
     public SystemSetting get(Long id) {
         return repository.findById(id)
