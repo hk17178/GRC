@@ -133,7 +133,10 @@ class EvidenceTest {
         asOrg(ORG_PAY, () -> evidenceService.upload(ORG_PAY, plan.getId(), null, null,
                 "原件", "policy.txt", "text/plain", "内容".getBytes(StandardCharsets.UTF_8), "c"));
 
-        byte[] zipBytes = asOrg(ORG_PAY, () -> evidenceService.buildDossierZip(plan.getId()));
+        // 架构治理包 B31：流式打包——写进 ByteArrayOutputStream 后解 zip 校验条目
+        java.io.ByteArrayOutputStream sink = new java.io.ByteArrayOutputStream();
+        asOrg(ORG_PAY, () -> { evidenceService.streamDossierZip(plan.getId(), sink); return null; });
+        byte[] zipBytes = sink.toByteArray();
         java.util.List<String> entries = new java.util.ArrayList<>();
         try (java.util.zip.ZipInputStream zin = new java.util.zip.ZipInputStream(
                 new java.io.ByteArrayInputStream(zipBytes), StandardCharsets.UTF_8)) {

@@ -51,10 +51,8 @@ public class ExpiryScanService {
         // 2) 系统可见全部 org（内核跨租户扫描；org 表无 RLS 可直接读取）
         // 注意：用 CAST(... AS text) 而非 id::text —— Hibernate 原生查询把 ':' 解析为命名参数，
         // PostgreSQL 的 '::' 强转写法会触发 "syntax error at or near :"。
-        String allOrgs = (String) em.createNativeQuery(
-                        "SELECT coalesce(string_agg(CAST(id AS text), ','), '-1') FROM org")
-                .getSingleResult();
-        em.createNativeQuery("SET LOCAL app.visible_orgs = '" + allOrgs + "'").executeUpdate();
+        // 架构治理包 A26：会话可见域走 set_config 参数化（防注入样板）
+        VisibleOrgsSql.setAllOrgs(em);
 
         // 3) 扫描命中：unnest 把 reminder_days 展开，SQL 内判定"恰好到提醒日"
         @SuppressWarnings("unchecked")

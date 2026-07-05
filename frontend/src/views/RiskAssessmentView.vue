@@ -855,7 +855,7 @@
     <section v-show="drill" class="view view-risk">
       <div class="phead">
         <div>
-          <span class="bk" @click="drill = false">{{ $t('risk.report.back') }}</span>
+          <span class="bk" @click="backFromDrill">{{ $t('risk.report.back') }}</span>
           <div class="kqt">RA-{{ drillId }} · {{ $t('risk.tag') }}</div>
           <h1>{{ drillTitle || $t('risk.report.title') }}</h1>
         </div>
@@ -1107,6 +1107,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import AppShell from '@/components/AppShell.vue'
 import AssessmentFormFill from '@/components/AssessmentFormFill.vue'
 import AssessmentSignoff from '@/components/AssessmentSignoff.vue'
@@ -1166,14 +1167,42 @@ const findingsError = ref('')
 const opError = ref('') // 关闭/接受等写操作的错误（含后端门控 409 消息）
 const busyId = ref(null) // 正在流转的 finding id，避免重复点击
 
+const route = useRoute()
+const router = useRouter()
+
 async function drillInto(r) {
   drill.value = true
   drillId.value = r.id
   drillTitle.value = r.title
+  // 架构治理包 A14：把评估 id 写进 URL query，支持深链/刷新保持/收藏分享（#/risk?a=1013）
+  if (String(route.query.a) !== String(r.id)) {
+    router.replace({ query: { ...route.query, a: r.id } })
+  }
   loadDrillMeta()
   loadScopeAssets()
   loadAssessDocs()
   await loadFindings()
+}
+
+/** A14：从 URL 深链恢复下钻（挂载时 + query 变化时）。 */
+async function restoreDrillFromRoute() {
+  const a = route.query.a
+  if (a && (!drill.value || String(drillId.value) !== String(a))) {
+    const t = liveTasks.value.find((x) => String(x.id) === String(a))
+    if (t) await drillInto(t)
+  } else if (!a && drill.value) {
+    drill.value = false
+    drillId.value = null
+  }
+}
+
+/** A14：返回列表——清 URL query（浏览器后退/前进也能驱动 drill 开合）。 */
+function backFromDrill() {
+  drill.value = false
+  drillId.value = null
+  const q = { ...route.query }
+  delete q.a
+  router.replace({ query: q })
 }
 
 // ---- R2 · 场景生成发现 + 评估范围资产 ----
@@ -1618,7 +1647,12 @@ onMounted(async () => {
   }
   // 并行拉取三个参考库 + 评估计划 + A-T-V + 登记册（七轮 7-5：等级分布真值数据源）
   loadTemplates(); loadControls(); loadKris(); loadPlans(); loadAtv(); loadRegister()
+  // A14：任务列表就绪后恢复深链下钻（刷新/收藏直达具体评估）
+  await restoreDrillFromRoute()
 })
+
+// A14：URL query.a 变化（浏览器前进/后退、外链跳转）驱动下钻开合
+watch(() => route.query.a, () => { restoreDrillFromRoute() })
 
 // ---- 合规框架 枚举 → 短标/底色/语义类（统一控件库 + 模板库共用）----
 const FW_SHORT = {

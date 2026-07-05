@@ -90,10 +90,8 @@ public class ScheduledCrawlService {
         if (!Boolean.TRUE.equals(locked)) {
             return null;
         }
-        String allOrgs = (String) em.createNativeQuery(
-                        "SELECT coalesce(string_agg(CAST(id AS text), ','), '-1') FROM org")
-                .getSingleResult();
-        em.createNativeQuery("SET LOCAL app.visible_orgs = '" + allOrgs + "'").executeUpdate();
+        // 架构治理包 A26：会话可见域走 set_config 参数化（防注入样板）
+        VisibleOrgsSql.setAllOrgs(em);
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(

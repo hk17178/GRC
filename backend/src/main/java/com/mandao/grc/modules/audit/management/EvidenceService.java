@@ -198,35 +198,45 @@ public class EvidenceService {
     }
 
     /**
-     * 卷宗打包（.zip）：卷宗 .docx + 全部关联证据原件（文件名前缀 EV-{id}，保留原始扩展名）。
+     * 卷宗流式打包（架构治理包 B31）：直接把 zip 写进 HTTP 响应流，
+     * <b>不在内存组装整包</b>——证据原件逐个按 id 单取、写完即可回收，
+     * 避免此前 ByteArrayOutputStream 把卷宗 .docx + 全部证据字节一次性堆进内存（500MB 卷宗必 OOM）。
      * 证据原件与 docx 内的 sha256 清单互为印证——收件方可自行重算指纹核验。
+     *
+     * 注意：@Transactional 覆盖整个流式写出，保证懒加载证据字节时会话仍在（open-in-view=false）。
      */
     @Transactional(readOnly = true)
-    public byte[] buildDossierZip(Long planId) {
-        byte[] docx = buildDossier(planId);
+    public void streamDossierZip(Long planId, java.io.OutputStream out) {
+        byte[] docx = buildDossier(planId); // 卷宗正文体量可控（无证据字节），可内存生成
         List<AuditFinding> findings = findingRepo.findAll().stream()
                 .filter(f -> planId.equals(f.getAuditPlanId())).toList();
         List<RemediationOrder> remediations = remediationRepo.findAll().stream()
                 .filter(r -> findings.stream().anyMatch(f -> f.getId().equals(r.getFindingId()))).toList();
-        List<Evidence> evidences = evidenceRepo.findAllByOrderByIdDesc().stream()
+        // 只取证据的元数据 id（投影，不触 bytea）；字节在写 zip 时逐个单取
+        List<Long> evidenceIds = evidenceRepo.findSummaries(null, null, null, null, null,
+                        org.springframework.data.domain.PageRequest.of(0, 5000)).stream()
                 .filter(e -> planId.equals(e.getPlanId())
                         || findings.stream().anyMatch(f -> f.getId().equals(e.getFindingId()))
                         || remediations.stream().anyMatch(r -> r.getId().equals(e.getRemediationId())))
+                .map(EvidenceSummary::getId)
                 .toList();
 
-        try (ByteArrayOutputStream bos = new ByteArrayOutputStream();
-             java.util.zip.ZipOutputStream zip = new java.util.zip.ZipOutputStream(bos, StandardCharsets.UTF_8)) {
+        try (java.util.zip.ZipOutputStream zip =
+                     new java.util.zip.ZipOutputStream(out, StandardCharsets.UTF_8)) {
             zip.putNextEntry(new java.util.zip.ZipEntry("audit-dossier-" + planId + ".docx"));
             zip.write(docx);
             zip.closeEntry();
-            for (Evidence e : evidences) {
+            for (Long eid : evidenceIds) {
+                Evidence e = evidenceRepo.findById(eid).orElse(null); // 单取，写完出循环即可 GC
+                if (e == null || e.getData() == null) {
+                    continue;
+                }
                 String fn = e.getFileName() == null || e.getFileName().isBlank() ? "evidence" : e.getFileName();
                 zip.putNextEntry(new java.util.zip.ZipEntry("evidence/EV-" + e.getId() + "-" + fn));
                 zip.write(e.getData());
                 zip.closeEntry();
             }
             zip.finish();
-            return bos.toByteArray();
         } catch (IOException ex) {
             throw new UncheckedIOException("卷宗打包失败", ex);
         }

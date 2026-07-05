@@ -93,10 +93,15 @@ public class EvidenceController {
                 .body(body);
     }
 
-    /** 卷宗打包（.zip）：卷宗 .docx + 全部关联证据原件（与 docx 内 sha256 清单互为印证）。 */
+    /**
+     * 卷宗打包（.zip）：卷宗 .docx + 全部关联证据原件（与 docx 内 sha256 清单互为印证）。
+     * 架构治理包 B31：改流式写响应体——StreamingResponseBody 直写，证据字节逐个单取，不在内存组装整包。
+     */
     @GetMapping("/audit-plans/{id}/dossier.zip")
-    public ResponseEntity<byte[]> dossierZip(@PathVariable Long id) {
-        byte[] body = service.buildDossierZip(id);
+    public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> dossierZip(
+            @PathVariable Long id) {
+        org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody body =
+                out -> service.streamDossierZip(id, out);
         return ResponseEntity.ok()
                 .header("Content-Type", "application/zip")
                 .header("Content-Disposition", "attachment; filename=\"audit-dossier-" + id + ".zip\"")
