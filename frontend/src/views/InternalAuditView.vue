@@ -8,64 +8,64 @@
   <AppShell>
     <section class="view view-ia">
       <div class="phead">
-        <div><div class="kqt">M3 · 内部审计</div><h1>内部审计实施与管理</h1></div>
+        <div><div class="kqt">{{ $t('intaudit.kqt') }}</div><h1>{{ $t('intaudit.title') }}</h1></div>
         <div class="sp"></div>
         <button v-if="tab === 'plan'" class="btn" :disabled="!canWrite('extaudit')"
-                :title="canWrite('extaudit') ? '' : '无审计管理写权限'" @click="openPlan">＋ 新建审计计划</button>
+                :title="canWrite('extaudit') ? '' : $t('intaudit.noWritePerm')" @click="openPlan">{{ $t('intaudit.newPlan') }}</button>
       </div>
 
       <!-- KPI -->
       <div class="kpibar">
-        <div class="kc"><div class="l">内审计划</div><div class="v">{{ plans.length }}</div></div>
-        <div class="kc"><div class="l">实施中</div><div class="v" style="color:var(--accent-strong)">{{ inProgress }}</div></div>
-        <div class="kc"><div class="l">审计发现</div><div class="v">{{ findings.length }}</div></div>
-        <div class="kc"><div class="l">高风险发现</div><div class="v" style="color:var(--danger)">{{ highFindings }}</div></div>
+        <div class="kc"><div class="l">{{ $t('intaudit.kpi.plans') }}</div><div class="v">{{ plans.length }}</div></div>
+        <div class="kc"><div class="l">{{ $t('intaudit.kpi.inProgress') }}</div><div class="v" style="color:var(--accent-strong)">{{ inProgress }}</div></div>
+        <div class="kc"><div class="l">{{ $t('intaudit.kpi.findings') }}</div><div class="v">{{ findings.length }}</div></div>
+        <div class="kc"><div class="l">{{ $t('intaudit.kpi.highFindings') }}</div><div class="v" style="color:var(--danger)">{{ highFindings }}</div></div>
       </div>
 
       <div class="tabbar">
-        <button :class="{ on: tab === 'annual' }" @click="tab = 'annual'; loadAnnual()">年度计划</button>
-        <button :class="{ on: tab === 'plan' }" @click="tab = 'plan'">审计计划</button>
-        <button :class="{ on: tab === 'finding' }" @click="tab = 'finding'">审计发现</button>
-        <button :class="{ on: tab === 'remed' }" @click="tab = 'remed'">整改跟踪</button>
-        <button :class="{ on: tab === 'proc' }" @click="tab = 'proc'; loadProcedures()">程序底稿</button>
-        <button :class="{ on: tab === 'evidence' }" @click="tab = 'evidence'; loadEvidence()">证据库</button>
-        <button :class="{ on: tab === 'report' }" @click="tab = 'report'; loadReport()">审计报告</button>
+        <button :class="{ on: tab === 'annual' }" @click="tab = 'annual'; loadAnnual()">{{ $t('intaudit.tab.annual') }}</button>
+        <button :class="{ on: tab === 'plan' }" @click="tab = 'plan'">{{ $t('intaudit.tab.plan') }}</button>
+        <button :class="{ on: tab === 'finding' }" @click="tab = 'finding'">{{ $t('intaudit.tab.finding') }}</button>
+        <button :class="{ on: tab === 'remed' }" @click="tab = 'remed'">{{ $t('intaudit.tab.remed') }}</button>
+        <button :class="{ on: tab === 'proc' }" @click="tab = 'proc'; loadProcedures()">{{ $t('intaudit.tab.proc') }}</button>
+        <button :class="{ on: tab === 'evidence' }" @click="tab = 'evidence'; loadEvidence()">{{ $t('intaudit.tab.evidence') }}</button>
+        <button :class="{ on: tab === 'report' }" @click="tab = 'report'; loadReport()">{{ $t('intaudit.tab.report') }}</button>
       </div>
 
       <!-- 审计计划 -->
       <div v-show="tab === 'plan'" class="card">
-        <div class="ch"><h3>审计计划</h3><span class="cnt">{{ plans.length }}</span></div>
+        <div class="ch"><h3>{{ $t('intaudit.plan.title') }}</h3><span class="cnt">{{ plans.length }}</span></div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
           <table style="min-width:720px">
-            <thead><tr><th>编号</th><th>主题</th><th>类型</th><th>开始日</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.plan.th.id') }}</th><th>{{ $t('intaudit.plan.th.title') }}</th><th>{{ $t('intaudit.plan.th.type') }}</th><th>{{ $t('intaudit.plan.th.startDate') }}</th><th>{{ $t('intaudit.plan.th.status') }}</th><th>{{ $t('intaudit.plan.th.ops') }}</th></tr></thead>
             <tbody>
               <tr v-for="p in plans" :key="p.id" class="clk" :class="{ on: p.id === planId }" @click="pickPlan(p)">
                 <td class="code">AP-{{ p.id }}</td>
                 <td><b>{{ p.title }}</b></td>
-                <td><span class="pill">内部审计</span></td>
+                <td><span class="pill">{{ $t('intaudit.plan.typeInternal') }}</span></td>
                 <td class="num">{{ p.planStartDate || '—' }}</td>
-                <td><span class="st" :class="PLAN_CLS[p.status]"><span class="d"></span>{{ PLAN_LABEL[p.status] }}</span></td>
+                <td><span class="st" :class="PLAN_CLS[p.status]"><span class="d"></span>{{ planLabel(p.status) }}</span></td>
                 <td class="ops" @click.stop>
                   <!-- #2 操作列改下拉：按状态动态出可用操作，选中即执行 -->
                   <select class="opsel" :value="''" @change="dispatchPlanOp(p, $event)">
-                    <option value="" disabled>操作…</option>
+                    <option value="" disabled>{{ $t('intaudit.plan.opsPlaceholder') }}</option>
                     <template v-if="canWrite('extaudit')">
-                      <option v-if="p.status==='PLANNED'" value="start">开始审计</option>
-                      <option v-if="p.status==='IN_PROGRESS'" value="report">出具报告</option>
-                      <option v-if="p.status==='REPORTING'" value="close">关闭计划</option>
-                      <option v-if="p.status==='PLANNED'||p.status==='IN_PROGRESS'" value="cancel">取消计划</option>
-                      <option v-if="!p.checklistTemplateId && !p.checklistAssessmentId" value="bind">绑定检查表</option>
-                      <option v-else-if="!p.checklistAssessmentId" value="checklist">执行检查表</option>
-                      <option v-if="p.status==='CLOSED'" value="followup">发起后续审计</option>
+                      <option v-if="p.status==='PLANNED'" value="start">{{ $t('intaudit.plan.opStart') }}</option>
+                      <option v-if="p.status==='IN_PROGRESS'" value="report">{{ $t('intaudit.plan.opReport') }}</option>
+                      <option v-if="p.status==='REPORTING'" value="close">{{ $t('intaudit.plan.opClose') }}</option>
+                      <option v-if="p.status==='PLANNED'||p.status==='IN_PROGRESS'" value="cancel">{{ $t('intaudit.plan.opCancel') }}</option>
+                      <option v-if="!p.checklistTemplateId && !p.checklistAssessmentId" value="bind">{{ $t('intaudit.plan.opBind') }}</option>
+                      <option v-else-if="!p.checklistAssessmentId" value="checklist">{{ $t('intaudit.plan.opChecklist') }}</option>
+                      <option v-if="p.status==='CLOSED'" value="followup">{{ $t('intaudit.plan.opFollowup') }}</option>
                     </template>
-                    <option v-if="p.checklistAssessmentId" value="gotoChecklist">检查表 #{{ p.checklistAssessmentId }}</option>
-                    <option value="notice">通知书{{ p.noticeIssuedAt ? '（已签发）' : '' }}</option>
-                    <option value="dossier">卷宗导出</option>
+                    <option v-if="p.checklistAssessmentId" value="gotoChecklist">{{ $t('intaudit.plan.opGotoChecklist', { id: p.checklistAssessmentId }) }}</option>
+                    <option value="notice">{{ p.noticeIssuedAt ? $t('intaudit.plan.opNoticeIssued') : $t('intaudit.plan.opNotice') }}</option>
+                    <option value="dossier">{{ $t('intaudit.plan.opDossier') }}</option>
                   </select>
-                  <span v-if="p.followUpOf" class="pill" title="后续审计：验证原计划整改有效性">↩ AP-{{ p.followUpOf }}</span>
+                  <span v-if="p.followUpOf" class="pill" :title="$t('intaudit.plan.followUpTip')">↩ AP-{{ p.followUpOf }}</span>
                 </td>
               </tr>
-              <tr v-if="!plans.length"><td colspan="6" class="emptyrow">暂无内审计划，点「＋ 新建审计计划」。</td></tr>
+              <tr v-if="!plans.length"><td colspan="6" class="emptyrow">{{ $t('intaudit.plan.empty') }}</td></tr>
             </tbody>
           </table>
           <p v-if="opMsg" class="ok-msg">{{ opMsg }}</p>
@@ -76,30 +76,30 @@
       <!-- 审计发现 -->
       <div v-show="tab === 'finding'" class="card">
         <div class="ch">
-          <h3>审计发现</h3>
+          <h3>{{ $t('intaudit.finding.title') }}</h3>
           <select class="sel" v-model.number="planId" @change="loadFindings">
-            <option :value="0" disabled>— 选择审计计划 —</option>
+            <option :value="0" disabled>{{ $t('intaudit.finding.selectPlan') }}</option>
             <option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option>
           </select>
-          <button v-if="planId && canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openFinding">＋ 新建发现</button>
+          <button v-if="planId && canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openFinding">{{ $t('intaudit.finding.newBtn') }}</button>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <div v-if="!planId" class="hint">先选择一个审计计划。</div>
+          <div v-if="!planId" class="hint">{{ $t('intaudit.finding.selectFirst') }}</div>
           <table v-else style="min-width:600px">
-            <thead><tr><th>编号</th><th>问题</th><th>严重度</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.finding.th.id') }}</th><th>{{ $t('intaudit.finding.th.problem') }}</th><th>{{ $t('intaudit.finding.th.severity') }}</th><th>{{ $t('intaudit.finding.th.ops') }}</th></tr></thead>
             <tbody>
               <tr v-for="f in findings" :key="f.id" class="clk" :class="{ on: f.id === findingId }" @click="pickFinding(f)">
                 <td class="code">AF-{{ f.id }}</td>
                 <td><b>{{ f.title }}</b></td>
-                <td><span class="tag" :class="SEV_CLS[f.severity]">{{ SEV_LABEL[f.severity] }}</span></td>
+                <td><span class="tag" :class="SEV_CLS[f.severity]">{{ sevLabel(f.severity) }}</span></td>
                 <td class="ops" @click.stop>
-                  <button class="mini" @click="openDetail(f)">五要素{{ f.conditionDesc ? ' ✓' : '' }}</button>
+                  <button class="mini" @click="openDetail(f)">{{ f.conditionDesc ? $t('intaudit.finding.fiveElementsDone') : $t('intaudit.finding.fiveElements') }}</button>
                   <!-- B33：发现行直接上传证据（预选 findingId）-->
-                  <button v-if="canWrite('extaudit')" class="mini" @click="openEvUpload(f)">上传证据</button>
-                  <button v-if="canWrite('extaudit')" class="mini" @click="openRemed(f)">下达整改</button>
+                  <button v-if="canWrite('extaudit')" class="mini" @click="openEvUpload(f)">{{ $t('intaudit.finding.uploadEvidence') }}</button>
+                  <button v-if="canWrite('extaudit')" class="mini" @click="openRemed(f)">{{ $t('intaudit.finding.issueRemed') }}</button>
                 </td>
               </tr>
-              <tr v-if="!findings.length"><td colspan="4" class="emptyrow">该计划暂无审计发现。</td></tr>
+              <tr v-if="!findings.length"><td colspan="4" class="emptyrow">{{ $t('intaudit.finding.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -108,33 +108,33 @@
       <!-- 整改跟踪 -->
       <div v-show="tab === 'remed'" class="card">
         <div class="ch">
-          <h3>整改跟踪</h3>
+          <h3>{{ $t('intaudit.remed.title') }}</h3>
           <select class="sel" v-model.number="findingId" @change="loadRemed">
-            <option :value="0" disabled>— 选择审计发现 —</option>
+            <option :value="0" disabled>{{ $t('intaudit.remed.selectFinding') }}</option>
             <option v-for="f in findings" :key="f.id" :value="f.id">AF-{{ f.id }} · {{ f.title }}</option>
           </select>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <div v-if="!findingId" class="hint">先在「审计发现」选一条发现，或在此选择。</div>
+          <div v-if="!findingId" class="hint">{{ $t('intaudit.remed.pickFirst') }}</div>
           <table v-else style="min-width:640px">
-            <thead><tr><th>编号</th><th>责任人</th><th>整改措施</th><th>截止</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.remed.th.id') }}</th><th>{{ $t('intaudit.remed.th.assignee') }}</th><th>{{ $t('intaudit.remed.th.measure') }}</th><th>{{ $t('intaudit.remed.th.due') }}</th><th>{{ $t('intaudit.remed.th.status') }}</th><th>{{ $t('intaudit.remed.th.ops') }}</th></tr></thead>
             <tbody>
               <tr v-for="r in remeds" :key="r.id">
                 <td class="code">RO-{{ r.id }}</td>
                 <td>{{ r.assignee || '—' }}</td>
                 <td class="muted">{{ r.measure || '—' }}</td>
                 <td class="num">{{ r.dueDate || '—' }}</td>
-                <td><span class="st" :class="REM_CLS[r.status]"><span class="d"></span>{{ REM_LABEL[r.status] }}</span></td>
+                <td><span class="st" :class="REM_CLS[r.status]"><span class="d"></span>{{ remLabel(r.status) }}</span></td>
                 <td class="ops">
                   <template v-if="canWrite('extaudit')">
-                    <button v-if="r.status==='PENDING'" class="mini" @click="remAction(r,'start')">开始</button>
-                    <button v-if="r.status==='IN_PROGRESS'" class="mini" @click="remAction(r,'submit')">提交</button>
-                    <button v-if="r.status==='SUBMITTED'" class="mini" @click="remAction(r,'verify')">验证通过</button>
-                    <button v-if="r.status==='SUBMITTED'" class="mini danger" @click="remAction(r,'reject')">驳回</button>
+                    <button v-if="r.status==='PENDING'" class="mini" @click="remAction(r,'start')">{{ $t('intaudit.remed.start') }}</button>
+                    <button v-if="r.status==='IN_PROGRESS'" class="mini" @click="remAction(r,'submit')">{{ $t('intaudit.remed.submit') }}</button>
+                    <button v-if="r.status==='SUBMITTED'" class="mini" @click="remAction(r,'verify')">{{ $t('intaudit.remed.verify') }}</button>
+                    <button v-if="r.status==='SUBMITTED'" class="mini danger" @click="remAction(r,'reject')">{{ $t('intaudit.remed.reject') }}</button>
                   </template>
                 </td>
               </tr>
-              <tr v-if="!remeds.length"><td colspan="6" class="emptyrow">该发现暂无整改单，去「审计发现」下达整改。</td></tr>
+              <tr v-if="!remeds.length"><td colspan="6" class="emptyrow">{{ $t('intaudit.remed.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -143,52 +143,52 @@
       <!-- 年度计划（V52 · A3：直显列表——计划表 + 点行展开对象清单）-->
       <div v-show="tab === 'annual'" class="card">
         <div class="ch">
-          <h3>年度审计计划</h3><span class="cnt">{{ annuals.length }}</span>
-          <span class="sub">点行展开对象清单 · 风险排序 → 批准冻结 → 逐项立项</span>
-          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showAnnualNew = true">＋ 新建年度计划</button>
+          <h3>{{ $t('intaudit.annual.title') }}</h3><span class="cnt">{{ annuals.length }}</span>
+          <span class="sub">{{ $t('intaudit.annual.sub') }}</span>
+          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showAnnualNew = true">{{ $t('intaudit.annual.newBtn') }}</button>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
           <table style="min-width:760px">
-            <thead><tr><th>年度</th><th>标题</th><th>状态</th><th>批准</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.annual.th.year') }}</th><th>{{ $t('intaudit.annual.th.title') }}</th><th>{{ $t('intaudit.annual.th.status') }}</th><th>{{ $t('intaudit.annual.th.approve') }}</th><th>{{ $t('intaudit.annual.th.ops') }}</th></tr></thead>
             <tbody>
               <template v-for="a in annuals" :key="a.id">
                 <tr class="clk" :class="{ on: a.id === annualId }" @click="toggleAnnual(a)">
                   <td class="code">{{ a.year }}</td>
                   <td><b>{{ a.title }}</b></td>
-                  <td><span class="st" :class="a.status === 'APPROVED' ? 'ok' : 'wait'"><span class="d"></span>{{ a.status === 'APPROVED' ? '已批准' : '草稿' }}</span></td>
+                  <td><span class="st" :class="a.status === 'APPROVED' ? 'ok' : 'wait'"><span class="d"></span>{{ a.status === 'APPROVED' ? $t('intaudit.annual.approved') : $t('intaudit.annual.draft') }}</span></td>
                   <td class="muted">{{ a.approvedBy ? (a.approvedBy + ' · ' + fmtDt(a.approvedAt)) : '—' }}</td>
                   <td class="ops" @click.stop>
                     <template v-if="canWrite('extaudit') && a.status === 'DRAFT'">
-                      <button class="mini" @click="annualId = a.id; showAnnualItem = true">＋ 纳入对象</button>
-                      <button class="mini" @click="annualId = a.id; approveAnnual()">批准</button>
+                      <button class="mini" @click="annualId = a.id; showAnnualItem = true">{{ $t('intaudit.annual.addItem') }}</button>
+                      <button class="mini" @click="annualId = a.id; approveAnnual()">{{ $t('intaudit.annual.approve') }}</button>
                     </template>
                     <!-- 修复：td 上 @click.stop 会吞掉行点击，展开按钮须自带处理 -->
-                    <button class="mini" @click="toggleAnnual(a)">{{ a.id === annualId ? '▲ 收起' : '▼ 展开' }}</button>
+                    <button class="mini" @click="toggleAnnual(a)">{{ a.id === annualId ? $t('intaudit.annual.collapse') : $t('intaudit.annual.expand') }}</button>
                   </td>
                 </tr>
                 <tr v-if="a.id === annualId">
                   <td colspan="5" class="annual-sub">
                     <table style="width:100%">
-                      <thead><tr><th>风险序</th><th>审计对象</th><th>排期</th><th>关注要点</th><th>立项</th><th>操作</th></tr></thead>
+                      <thead><tr><th>{{ $t('intaudit.annual.subTh.riskRank') }}</th><th>{{ $t('intaudit.annual.subTh.target') }}</th><th>{{ $t('intaudit.annual.subTh.quarter') }}</th><th>{{ $t('intaudit.annual.subTh.note') }}</th><th>{{ $t('intaudit.annual.subTh.plan') }}</th><th>{{ $t('intaudit.annual.subTh.ops') }}</th></tr></thead>
                       <tbody>
                         <tr v-for="it in annualItems" :key="it.id">
                           <td><span class="tag" :class="it.riskRank <= 2 ? 'h' : (it.riskRank === 3 ? 'm' : '')">#{{ it.riskRank }}</span></td>
                           <td><b>{{ it.target }}</b></td>
                           <td class="num">{{ it.quarter }}</td>
                           <td class="muted">{{ it.note || '—' }}</td>
-                          <td><span v-if="it.planId" class="code">AP-{{ it.planId }}</span><span v-else class="muted">未立项</span></td>
+                          <td><span v-if="it.planId" class="code">AP-{{ it.planId }}</span><span v-else class="muted">{{ $t('intaudit.annual.notPlanned') }}</span></td>
                           <td class="ops">
                             <button v-if="!it.planId && a.status==='APPROVED' && canWrite('extaudit')"
-                                    class="mini" @click="itemToPlan(it)">转审计计划</button>
+                                    class="mini" @click="itemToPlan(it)">{{ $t('intaudit.annual.toPlan') }}</button>
                           </td>
                         </tr>
-                        <tr v-if="!annualItems.length"><td colspan="6" class="emptyrow">暂无审计对象，点「＋ 纳入对象」。</td></tr>
+                        <tr v-if="!annualItems.length"><td colspan="6" class="emptyrow">{{ $t('intaudit.annual.emptyItems') }}</td></tr>
                       </tbody>
                     </table>
                   </td>
                 </tr>
               </template>
-              <tr v-if="!annuals.length"><td colspan="5" class="emptyrow">暂无年度计划，点「＋ 新建年度计划」。</td></tr>
+              <tr v-if="!annuals.length"><td colspan="5" class="emptyrow">{{ $t('intaudit.annual.empty') }}</td></tr>
             </tbody>
           </table>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
@@ -198,14 +198,14 @@
       <!-- 新建年度计划弹窗 -->
       <div v-if="showAnnualNew" class="modal-mask" @click.self="showAnnualNew = false">
         <div class="modal-card">
-          <h3>新建年度审计计划</h3>
-          <label class="fld">计划年度<input type="number" v-model.number="af2.year" /></label>
-          <label class="fld">标题（可空，默认「{{ af2.year }} 年度内部审计计划」）<input v-model="af2.title" /></label>
-          <label class="fld">所属组织<select v-model.number="af2.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <h3>{{ $t('intaudit.annual.newTitle') }}</h3>
+          <label class="fld">{{ $t('intaudit.annual.fldYear') }}<input type="number" v-model.number="af2.year" /></label>
+          <label class="fld">{{ $t('intaudit.annual.fldTitle', { year: af2.year }) }}<input v-model="af2.title" /></label>
+          <label class="fld">{{ $t('intaudit.annual.fldOrg') }}<select v-model.number="af2.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showAnnualNew = false">取消</button>
-            <button class="btn" :disabled="!af2.year || saving" @click="submitAnnual">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showAnnualNew = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!af2.year || saving" @click="submitAnnual">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -213,21 +213,21 @@
       <!-- 纳入审计对象弹窗 -->
       <div v-if="showAnnualItem" class="modal-mask" @click.self="showAnnualItem = false">
         <div class="modal-card">
-          <h3>纳入审计对象</h3>
-          <label class="fld">审计对象（单位/系统/流程）<input v-model="aif.target" placeholder="如 支付结算系统" /></label>
+          <h3>{{ $t('intaudit.annual.itemTitle') }}</h3>
+          <label class="fld">{{ $t('intaudit.annual.fldTarget') }}<input v-model="aif.target" :placeholder="$t('intaudit.annual.targetPh')" /></label>
           <div class="fld-2col" style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <label class="fld">风险排序（1 最高）
+            <label class="fld">{{ $t('intaudit.annual.fldRiskRank') }}
               <select v-model.number="aif.riskRank"><option :value="1">1</option><option :value="2">2</option><option :value="3">3</option><option :value="4">4</option><option :value="5">5</option></select>
             </label>
-            <label class="fld">排期
+            <label class="fld">{{ $t('intaudit.annual.fldQuarter') }}
               <select v-model="aif.quarter"><option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option></select>
             </label>
           </div>
-          <label class="fld">关注要点/理由<input v-model="aif.note" placeholder="如 备付金合规重点、上年发现较多" /></label>
+          <label class="fld">{{ $t('intaudit.annual.fldNote') }}<input v-model="aif.note" :placeholder="$t('intaudit.annual.notePh')" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showAnnualItem = false">取消</button>
-            <button class="btn" :disabled="!aif.target || saving" @click="submitAnnualItem">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showAnnualItem = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!aif.target || saving" @click="submitAnnualItem">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -235,18 +235,18 @@
       <!-- 程序底稿（V50 · A2：审计程序 → 执行留底稿 → 复核）-->
       <div v-show="tab === 'proc'" class="card">
         <div class="ch">
-          <h3>审计程序 / 工作底稿</h3>
+          <h3>{{ $t('intaudit.proc.title') }}</h3>
           <select class="sel" v-model.number="procPlanId" @change="loadProcedures">
-            <option :value="0" disabled>— 选择审计计划 —</option>
+            <option :value="0" disabled>{{ $t('intaudit.report.selectPlan') }}</option>
             <option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option>
           </select>
-          <span class="sub">执行记录即底稿 · 复核人须≠执行人</span>
-          <button v-if="procPlanId && canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showProcAdd = true">＋ 新增程序</button>
+          <span class="sub">{{ $t('intaudit.proc.sub') }}</span>
+          <button v-if="procPlanId && canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="showProcAdd = true">{{ $t('intaudit.proc.newBtn') }}</button>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
-          <div v-if="!procPlanId" class="hint">选择计划后维护审计程序：程序（做什么/验证什么）→ 执行留工作底稿（WP 编号）→ 交叉复核。</div>
+          <div v-if="!procPlanId" class="hint">{{ $t('intaudit.proc.hint') }}</div>
           <table v-else style="min-width:860px">
-            <thead><tr><th>底稿号</th><th>程序步骤</th><th>目标</th><th>执行记录（底稿）</th><th>执行</th><th>复核</th><th>状态</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.proc.th.wpNo') }}</th><th>{{ $t('intaudit.proc.th.step') }}</th><th>{{ $t('intaudit.proc.th.objective') }}</th><th>{{ $t('intaudit.proc.th.record') }}</th><th>{{ $t('intaudit.proc.th.executor') }}</th><th>{{ $t('intaudit.proc.th.reviewer') }}</th><th>{{ $t('intaudit.proc.th.status') }}</th><th>{{ $t('intaudit.proc.th.ops') }}</th></tr></thead>
             <tbody>
               <tr v-for="pr in procedures" :key="pr.id">
                 <td class="code">{{ pr.workpaperNo }}</td>
@@ -255,15 +255,15 @@
                 <td class="muted" style="max-width:260px">{{ pr.result || '—' }}</td>
                 <td class="muted">{{ pr.executor || '—' }}</td>
                 <td class="muted">{{ pr.reviewer || '—' }}</td>
-                <td><span class="st" :class="PROC_CLS[pr.status]"><span class="d"></span>{{ PROC_LABEL[pr.status] }}</span></td>
+                <td><span class="st" :class="PROC_CLS[pr.status]"><span class="d"></span>{{ procLabel(pr.status) }}</span></td>
                 <td class="ops">
                   <template v-if="canWrite('extaudit')">
-                    <button v-if="pr.status==='PENDING'" class="mini" @click="openProcExec(pr)">执行</button>
-                    <button v-if="pr.status==='DONE'" class="mini" @click="reviewProc(pr)">复核</button>
+                    <button v-if="pr.status==='PENDING'" class="mini" @click="openProcExec(pr)">{{ $t('intaudit.proc.exec') }}</button>
+                    <button v-if="pr.status==='DONE'" class="mini" @click="reviewProc(pr)">{{ $t('intaudit.proc.review') }}</button>
                   </template>
                 </td>
               </tr>
-              <tr v-if="!procedures.length"><td colspan="8" class="emptyrow">暂无程序，点「＋ 新增程序」建立审计程序表。</td></tr>
+              <tr v-if="!procedures.length"><td colspan="8" class="emptyrow">{{ $t('intaudit.proc.empty') }}</td></tr>
             </tbody>
           </table>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
@@ -273,52 +273,52 @@
       <!-- 报告模板管理弹窗（V54）-->
       <div v-if="showRptTpl" class="modal-mask" @click.self="showRptTpl = false">
         <div class="modal-card wide2" style="width:700px">
-          <h3>审计报告模板<span class="cnt" style="margin-left:8px">{{ rptTpls.length }}</span></h3>
-          <p class="muted" style="margin:-8px 0 12px">生成草稿时选用作正文骨架，系统组稿（发现五要素/整改台账）作为附录随后。内置含《个人信息保护合规审计管理办法》（2025-05-01 施行）模板。</p>
+          <h3>{{ $t('intaudit.rptTpl.title') }}<span class="cnt" style="margin-left:8px">{{ rptTpls.length }}</span></h3>
+          <p class="muted" style="margin:-8px 0 12px">{{ $t('intaudit.rptTpl.desc') }}</p>
           <div class="rtpl-list">
             <div v-for="t in rptTpls" :key="t.id" class="rtpl-item">
               <div class="gov-row">
                 <b>{{ t.name }}</b><span class="pill" v-if="t.category">{{ t.category }}</span>
                 <span class="gap" style="flex:1"></span>
                 <template v-if="canWrite('extaudit')">
-                  <button class="mini" @click="editRptTpl(t)">{{ rptTplEditId === t.id ? '收起' : '编辑' }}</button>
-                  <button class="mini" @click="toggleRptTpl(t)">{{ t.enabled ? '停用' : '启用' }}</button>
-                  <button class="mini danger" @click="delRptTpl(t)">删</button>
+                  <button class="mini" @click="editRptTpl(t)">{{ rptTplEditId === t.id ? $t('intaudit.rptTpl.collapse') : $t('intaudit.rptTpl.edit') }}</button>
+                  <button class="mini" @click="toggleRptTpl(t)">{{ t.enabled ? $t('intaudit.rptTpl.disable') : $t('intaudit.rptTpl.enable') }}</button>
+                  <button class="mini danger" @click="delRptTpl(t)">{{ $t('intaudit.rptTpl.del') }}</button>
                 </template>
               </div>
               <div v-if="rptTplEditId === t.id" style="margin:6px 0 10px">
                 <textarea v-model="rptTplEditText" rows="10" class="rpt-ta mono" style="width:100%;box-sizing:border-box"></textarea>
-                <button class="btn sm" style="margin-top:6px" @click="saveRptTpl(t)">保存正文</button>
+                <button class="btn sm" style="margin-top:6px" @click="saveRptTpl(t)">{{ $t('intaudit.rptTpl.saveContent') }}</button>
               </div>
               <div v-else class="muted rtpl-clamp">{{ t.content }}</div>
             </div>
           </div>
           <div v-if="canWrite('extaudit')" class="gov-add" style="display:flex;gap:8px;margin-top:10px">
-            <input v-model="rptTplNew.name" placeholder="新模板名称" style="flex:1" />
-            <input v-model="rptTplNew.category" placeholder="分类（如 等保）" style="width:140px" />
-            <button class="btn sm" :disabled="!rptTplNew.name" @click="addRptTpl">新建模板</button>
+            <input v-model="rptTplNew.name" :placeholder="$t('intaudit.rptTpl.newNamePh')" style="flex:1" />
+            <input v-model="rptTplNew.category" :placeholder="$t('intaudit.rptTpl.categoryPh')" style="width:140px" />
+            <button class="btn sm" :disabled="!rptTplNew.name" @click="addRptTpl">{{ $t('intaudit.rptTpl.addBtn') }}</button>
           </div>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
-          <div class="modal-actions"><button class="btn ghost" @click="showRptTpl = false">关闭</button></div>
+          <div class="modal-actions"><button class="btn ghost" @click="showRptTpl = false">{{ $t('intaudit.rptTpl.close') }}</button></div>
         </div>
       </div>
 
       <!-- 通知书弹窗（V50：签发后冻结）-->
       <div v-if="noticeTarget" class="modal-mask" @click.self="noticeTarget = null">
         <div class="modal-card">
-          <h3>审计通知书 · AP-{{ noticeTarget.id }}</h3>
-          <p v-if="noticeTarget.noticeIssuedAt" class="rpt-issued" style="margin-bottom:12px">✓ 已签发 · {{ noticeTarget.noticeIssuedBy }} · {{ fmtDt(noticeTarget.noticeIssuedAt) }}（内容已冻结）</p>
-          <label class="fld">被审计单位/部门<input v-model="nf.auditee" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
-          <label class="fld">审计范围<textarea v-model="nf.noticeScope" rows="2" :disabled="!!noticeTarget.noticeIssuedAt"></textarea></label>
-          <label class="fld">审计依据<input v-model="nf.noticeBasis" :disabled="!!noticeTarget.noticeIssuedAt" placeholder="如 2026 年度内审计划第 3 项" /></label>
-          <label class="fld">审计组成员（组长在前）<input v-model="nf.auditTeam" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
+          <h3>{{ $t('intaudit.notice.title', { id: noticeTarget.id }) }}</h3>
+          <p v-if="noticeTarget.noticeIssuedAt" class="rpt-issued" style="margin-bottom:12px">{{ $t('intaudit.notice.issued', { by: noticeTarget.noticeIssuedBy, at: fmtDt(noticeTarget.noticeIssuedAt) }) }}</p>
+          <label class="fld">{{ $t('intaudit.notice.fldAuditee') }}<input v-model="nf.auditee" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
+          <label class="fld">{{ $t('intaudit.notice.fldScope') }}<textarea v-model="nf.noticeScope" rows="2" :disabled="!!noticeTarget.noticeIssuedAt"></textarea></label>
+          <label class="fld">{{ $t('intaudit.notice.fldBasis') }}<input v-model="nf.noticeBasis" :disabled="!!noticeTarget.noticeIssuedAt" :placeholder="$t('intaudit.notice.basisPh')" /></label>
+          <label class="fld">{{ $t('intaudit.notice.fldTeam') }}<input v-model="nf.auditTeam" :disabled="!!noticeTarget.noticeIssuedAt" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <a v-if="noticeTarget.noticeIssuedAt" class="btn ghost" :href="'/api/audit-plans/' + noticeTarget.id + '/notice.docx'" target="_blank" style="text-decoration:none">导出通知书 .docx</a>
-            <button class="btn ghost" @click="noticeTarget = null">关闭</button>
+            <a v-if="noticeTarget.noticeIssuedAt" class="btn ghost" :href="'/api/audit-plans/' + noticeTarget.id + '/notice.docx'" target="_blank" style="text-decoration:none">{{ $t('intaudit.notice.exportDocx') }}</a>
+            <button class="btn ghost" @click="noticeTarget = null">{{ $t('intaudit.notice.close') }}</button>
             <template v-if="!noticeTarget.noticeIssuedAt && canWrite('extaudit')">
-              <button class="btn ghost" :disabled="saving" @click="saveNotice(false)">保存草稿</button>
-              <button class="btn" :disabled="!nf.auditee || saving" @click="saveNotice(true)">{{ saving ? '提交中…' : '签发通知书' }}</button>
+              <button class="btn ghost" :disabled="saving" @click="saveNotice(false)">{{ $t('intaudit.notice.saveDraft') }}</button>
+              <button class="btn" :disabled="!nf.auditee || saving" @click="saveNotice(true)">{{ saving ? $t('common.submitting') : $t('intaudit.notice.issueBtn') }}</button>
             </template>
           </div>
         </div>
@@ -327,13 +327,13 @@
       <!-- 新增程序弹窗 -->
       <div v-if="showProcAdd" class="modal-mask" @click.self="showProcAdd = false">
         <div class="modal-card">
-          <h3>新增审计程序</h3>
-          <label class="fld">程序步骤（做什么）<input v-model="pf2.name" placeholder="如 抽样核验离职账号禁用情况" /></label>
-          <label class="fld">程序目标（验证什么）<input v-model="pf2.objective" placeholder="如 验证账号回收控制有效性" /></label>
+          <h3>{{ $t('intaudit.proc.addTitle') }}</h3>
+          <label class="fld">{{ $t('intaudit.proc.fldStep') }}<input v-model="pf2.name" :placeholder="$t('intaudit.proc.stepPh')" /></label>
+          <label class="fld">{{ $t('intaudit.proc.fldObjective') }}<input v-model="pf2.objective" :placeholder="$t('intaudit.proc.objectivePh')" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showProcAdd = false">取消</button>
-            <button class="btn" :disabled="!pf2.name || saving" @click="submitProc">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showProcAdd = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!pf2.name || saving" @click="submitProc">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -341,13 +341,13 @@
       <!-- 执行程序（落底稿）弹窗 -->
       <div v-if="procExecTarget" class="modal-mask" @click.self="procExecTarget = null">
         <div class="modal-card wide2">
-          <h3>执行程序 · {{ procExecTarget.workpaperNo }}</h3>
-          <p class="muted" style="margin:-6px 0 12px">{{ procExecTarget.name }}<br/>执行记录即工作底稿，提交后不可覆盖（如需补充另立程序）。</p>
-          <label class="fld">执行记录（工作底稿）<textarea v-model="procResult" rows="5" placeholder="做了什么、抽了哪些样本、发现了什么、证据在哪…"></textarea></label>
+          <h3>{{ $t('intaudit.proc.execTitle', { wp: procExecTarget.workpaperNo }) }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">{{ procExecTarget.name }}<br/>{{ $t('intaudit.proc.execHint') }}</p>
+          <label class="fld">{{ $t('intaudit.proc.fldRecord') }}<textarea v-model="procResult" rows="5" :placeholder="$t('intaudit.proc.recordPh')"></textarea></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="procExecTarget = null">取消</button>
-            <button class="btn" :disabled="!procResult.trim() || saving" @click="submitProcExec">{{ saving ? '提交中…' : '提交底稿' }}</button>
+            <button class="btn ghost" @click="procExecTarget = null">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!procResult.trim() || saving" @click="submitProcExec">{{ saving ? $t('common.submitting') : $t('intaudit.proc.submitRecord') }}</button>
           </div>
         </div>
       </div>
@@ -355,13 +355,13 @@
       <!-- 证据库（V44：上传/反向取证/关联回溯）-->
       <div v-show="tab === 'evidence'" class="card">
         <div class="ch">
-          <h3>证据库</h3><span class="cnt">{{ evidences.length }}</span>
-          <span class="sub">SHA-256 指纹固化 · 反向取证可校验篡改</span>
-          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openEvUpload">＋ 上传证据</button>
+          <h3>{{ $t('intaudit.evidence.title') }}</h3><span class="cnt">{{ evidences.length }}</span>
+          <span class="sub">{{ $t('intaudit.evidence.sub') }}</span>
+          <button v-if="canWrite('extaudit')" class="btn sm" style="margin-left:auto" @click="openEvUpload">{{ $t('intaudit.evidence.uploadBtn') }}</button>
         </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
           <table style="min-width:860px">
-            <thead><tr><th>编号</th><th>名称</th><th>文件</th><th>关联对象</th><th>指纹（SHA-256 前 12 位）</th><th>上传</th><th>操作</th></tr></thead>
+            <thead><tr><th>{{ $t('intaudit.evidence.th.id') }}</th><th>{{ $t('intaudit.evidence.th.name') }}</th><th>{{ $t('intaudit.evidence.th.file') }}</th><th>{{ $t('intaudit.evidence.th.linked') }}</th><th>{{ $t('intaudit.evidence.th.fingerprint') }}</th><th>{{ $t('intaudit.evidence.th.upload') }}</th><th>{{ $t('intaudit.evidence.th.ops') }}</th></tr></thead>
             <tbody>
               <tr v-for="e in evidences" :key="e.id">
                 <td class="code">EV-{{ e.id }}</td>
@@ -375,18 +375,18 @@
                 <td class="code" :title="e.sha256">{{ (e.sha256 || '').slice(0, 12) }}…</td>
                 <td class="muted">{{ e.uploadedBy || '—' }}</td>
                 <td class="ops">
-                  <a class="mini" :href="'/api/evidence/' + e.id + '/download'" target="_blank">下载</a>
-                  <button class="mini" @click="verifyEv(e)">反向取证</button>
+                  <a class="mini" :href="'/api/evidence/' + e.id + '/download'" target="_blank">{{ $t('intaudit.evidence.download') }}</a>
+                  <button class="mini" @click="verifyEv(e)">{{ $t('intaudit.evidence.verify') }}</button>
                 </td>
               </tr>
-              <tr v-if="!evidences.length"><td colspan="7" class="emptyrow">暂无证据，点「＋ 上传证据」并关联 计划/发现/整改单。</td></tr>
+              <tr v-if="!evidences.length"><td colspan="7" class="emptyrow">{{ $t('intaudit.evidence.empty') }}</td></tr>
             </tbody>
           </table>
           <div v-if="verifyResult" class="verify-box" :class="verifyResult.intact ? 'ok' : 'bad'">
-            <b>{{ verifyResult.intact ? '✓ 完整性校验通过' : '✕ 指纹不一致——文件可能被篡改！' }}</b>
-            <span>EV-{{ verifyResult.evidenceId }} · 固化指纹 {{ verifyResult.storedSha256.slice(0, 16) }}… · 现算 {{ verifyResult.actualSha256.slice(0, 16) }}…</span>
-            <span v-if="verifyResult.planTitle">回溯：计划「{{ verifyResult.planTitle }}」</span>
-            <span v-if="verifyResult.findingTitle">发现「{{ verifyResult.findingTitle }}」</span>
+            <b>{{ verifyResult.intact ? $t('intaudit.evidence.verifyOk') : $t('intaudit.evidence.verifyBad') }}</b>
+            <span>EV-{{ verifyResult.evidenceId }} · {{ $t('intaudit.evidence.verifyDetail', { stored: verifyResult.storedSha256.slice(0, 16), actual: verifyResult.actualSha256.slice(0, 16) }) }}</span>
+            <span v-if="verifyResult.planTitle">{{ $t('intaudit.evidence.tracePlan', { title: verifyResult.planTitle }) }}</span>
+            <span v-if="verifyResult.findingTitle">{{ $t('intaudit.evidence.traceFinding', { title: verifyResult.findingTitle }) }}</span>
           </div>
         </div>
       </div>
@@ -394,85 +394,85 @@
       <!-- 审计报告（V47 · A1：自动组稿 → 征求意见 → 定稿(选意见) → 签发）-->
       <div v-show="tab === 'report'" class="card">
         <div class="ch">
-          <h3>审计报告</h3>
+          <h3>{{ $t('intaudit.report.title') }}</h3>
           <select class="sel" v-model.number="reportPlanId" @change="loadReport">
-            <option :value="0" disabled>— 选择审计计划 —</option>
+            <option :value="0" disabled>{{ $t('intaudit.report.selectPlan') }}</option>
             <option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option>
           </select>
           <template v-if="reportPlanId">
-            <span v-if="report" class="st" :class="RPT_CLS[report.status]" style="margin-left:8px"><span class="d"></span>{{ RPT_LABEL[report.status] }}</span>
+            <span v-if="report" class="st" :class="RPT_CLS[report.status]" style="margin-left:8px"><span class="d"></span>{{ rptLabel(report.status) }}</span>
             <div style="margin-left:auto;display:flex;gap:8px" v-if="canWrite('extaudit')">
-              <button class="btn ghost sm" @click="openRptTpl">报告模板</button>
+              <button class="btn ghost sm" @click="openRptTpl">{{ $t('intaudit.report.tplBtn') }}</button>
               <template v-if="!report">
                 <select class="sel" v-model.number="rptTplId">
-                  <option :value="0">不使用模板</option>
+                  <option :value="0">{{ $t('intaudit.report.noTpl') }}</option>
                   <option v-for="t in rptTpls.filter(x => x.enabled)" :key="t.id" :value="t.id">{{ t.name }}</option>
                 </select>
-                <button class="btn sm" @click="createReport">生成报告草稿（自动组稿）</button>
+                <button class="btn sm" @click="createReport">{{ $t('intaudit.report.createDraft') }}</button>
               </template>
               <template v-else>
-                <button v-if="report.status==='DRAFT'||report.status==='COMMENTING'" class="btn ghost sm" :disabled="rptSaving" @click="saveReport">{{ rptSaving ? '保存中…' : '保存' }}</button>
-                <button v-if="report.status==='DRAFT'" class="btn sm" @click="rptAction('comment')">征求意见</button>
-                <button v-if="report.status==='COMMENTING'" class="btn sm" @click="rptAction('finalize')">定稿</button>
-                <button v-if="report.status==='FINAL'" class="btn sm" @click="rptAction('issue')">签发</button>
+                <button v-if="report.status==='DRAFT'||report.status==='COMMENTING'" class="btn ghost sm" :disabled="rptSaving" @click="saveReport">{{ rptSaving ? $t('intaudit.report.saving') : $t('intaudit.report.save') }}</button>
+                <button v-if="report.status==='DRAFT'" class="btn sm" @click="rptAction('comment')">{{ $t('intaudit.report.comment') }}</button>
+                <button v-if="report.status==='COMMENTING'" class="btn sm" @click="rptAction('finalize')">{{ $t('intaudit.report.finalize') }}</button>
+                <button v-if="report.status==='FINAL'" class="btn sm" @click="rptAction('issue')">{{ $t('intaudit.report.issue') }}</button>
               </template>
             </div>
           </template>
         </div>
         <div class="cb">
-          <div v-if="!reportPlanId" class="hint">选择一个审计计划：无报告可一键自动组稿（计划+发现五要素+整改台账），再走 征求意见 → 定稿（选审计意见）→ 签发。</div>
+          <div v-if="!reportPlanId" class="hint">{{ $t('intaudit.report.hint') }}</div>
           <template v-else-if="report">
             <div class="rpt-meta">
-              <label class="fld">报告标题<input v-model="rptEdit.title" :disabled="rptFrozen" /></label>
-              <label class="fld">审计意见（定稿必选）
+              <label class="fld">{{ $t('intaudit.report.fldTitle') }}<input v-model="rptEdit.title" :disabled="rptFrozen" /></label>
+              <label class="fld">{{ $t('intaudit.report.fldOpinion') }}
                 <select v-model="rptEdit.opinion" :disabled="rptFrozen">
-                  <option :value="null">— 未定 —</option>
-                  <option value="SATISFACTORY">满意</option>
-                  <option value="GENERALLY_SATISFACTORY">基本满意</option>
-                  <option value="NEEDS_IMPROVEMENT">需改进</option>
-                  <option value="UNSATISFACTORY">不满意</option>
+                  <option :value="null">{{ $t('intaudit.report.opinionUndecided') }}</option>
+                  <option value="SATISFACTORY">{{ $t('intaudit.report.opinionSatisfactory') }}</option>
+                  <option value="GENERALLY_SATISFACTORY">{{ $t('intaudit.report.opinionGenerally') }}</option>
+                  <option value="NEEDS_IMPROVEMENT">{{ $t('intaudit.report.opinionNeedsImprovement') }}</option>
+                  <option value="UNSATISFACTORY">{{ $t('intaudit.report.opinionUnsatisfactory') }}</option>
                 </select>
               </label>
             </div>
-            <label class="fld">审计概述与总体评价
+            <label class="fld">{{ $t('intaudit.report.fldSummary') }}
               <textarea v-model="rptEdit.summary" rows="2" :disabled="rptFrozen" class="rpt-ta"></textarea>
             </label>
-            <label class="fld">报告正文（自动组稿，可编辑）
+            <label class="fld">{{ $t('intaudit.report.fldContent') }}
               <textarea v-model="rptEdit.content" rows="14" :disabled="rptFrozen" class="rpt-ta mono"></textarea>
             </label>
             <div style="display:flex;gap:10px;align-items:center;margin-top:4px">
-              <a class="btn ghost sm" :href="'/api/audit-reports/' + report.id + '/docx'" target="_blank" style="text-decoration:none">导出报告 .docx</a>
-              <div v-if="report.status==='ISSUED'" class="rpt-issued" style="flex:1">✓ 已签发 · {{ report.issuedBy }} · {{ fmtDt(report.issuedAt) }}（正文已冻结）</div>
+              <a class="btn ghost sm" :href="'/api/audit-reports/' + report.id + '/docx'" target="_blank" style="text-decoration:none">{{ $t('intaudit.report.exportDocx') }}</a>
+              <div v-if="report.status==='ISSUED'" class="rpt-issued" style="flex:1">{{ $t('intaudit.report.issued', { by: report.issuedBy, at: fmtDt(report.issuedAt) }) }}</div>
             </div>
             <p v-if="opErr" class="cerr">{{ opErr }}</p>
           </template>
-          <div v-else class="hint">该计划暂无报告——点右上「生成报告草稿」。</div>
+          <div v-else class="hint">{{ $t('intaudit.report.noReport') }}</div>
         </div>
       </div>
 
-      <p class="note">检查表执行复用风险评估同一套 .docx 表单引擎：在计划上「绑定检查表」（选评估模板）→「执行检查表」生成评估 → 到风险评估页填写/导出。</p>
+      <p class="note">{{ $t('intaudit.note') }}</p>
 
       <!-- 发现五要素弹窗（V47 · IIA 4C+R：现状/标准/原因/影响/建议 + 管理层回应）-->
       <div v-if="detailTarget" class="modal-mask" @click.self="detailTarget = null">
         <div class="modal-card wide2">
-          <h3>发现五要素 · AF-{{ detailTarget.id }}<span class="muted" style="font-weight:400;font-size:12.5px;margin-left:8px">{{ detailTarget.title }}</span></h3>
-          <label class="fld">现状（condition：客观事实）<textarea v-model="df.conditionDesc" rows="2"></textarea></label>
-          <label class="fld">标准（criteria：应遵循的制度/法规）<textarea v-model="df.criteriaDesc" rows="2"></textarea></label>
-          <label class="fld">原因（cause）<textarea v-model="df.cause" rows="2"></textarea></label>
-          <label class="fld">影响（effect：风险与后果）<textarea v-model="df.effect" rows="2"></textarea></label>
-          <label class="fld">建议（recommendation）<textarea v-model="df.recommendation" rows="2"></textarea></label>
+          <h3>{{ $t('intaudit.detail.title', { id: detailTarget.id }) }}<span class="muted" style="font-weight:400;font-size:12.5px;margin-left:8px">{{ detailTarget.title }}</span></h3>
+          <label class="fld">{{ $t('intaudit.detail.condition') }}<textarea v-model="df.conditionDesc" rows="2"></textarea></label>
+          <label class="fld">{{ $t('intaudit.detail.criteria') }}<textarea v-model="df.criteriaDesc" rows="2"></textarea></label>
+          <label class="fld">{{ $t('intaudit.detail.cause') }}<textarea v-model="df.cause" rows="2"></textarea></label>
+          <label class="fld">{{ $t('intaudit.detail.effect') }}<textarea v-model="df.effect" rows="2"></textarea></label>
+          <label class="fld">{{ $t('intaudit.detail.recommendation') }}<textarea v-model="df.recommendation" rows="2"></textarea></label>
           <div class="resp-box">
-            <div class="resp-h">管理层回应</div>
+            <div class="resp-h">{{ $t('intaudit.detail.mgmtResponse') }}</div>
             <div v-if="detailTarget.mgmtResponse" class="resp-v">{{ detailTarget.mgmtResponse }}<span class="muted">　— {{ detailTarget.responseBy }} · {{ fmtDt(detailTarget.responseAt) }}</span></div>
             <div v-else class="resp-add">
-              <input v-model="df.response" placeholder="被审计单位意见 / 整改承诺…" />
-              <button class="btn ghost sm" :disabled="!df.response || saving" @click="submitResponse">提交回应</button>
+              <input v-model="df.response" :placeholder="$t('intaudit.detail.responsePh')" />
+              <button class="btn ghost sm" :disabled="!df.response || saving" @click="submitResponse">{{ $t('intaudit.detail.submitResponse') }}</button>
             </div>
           </div>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="detailTarget = null">关闭</button>
-            <button v-if="canWrite('extaudit')" class="btn" :disabled="saving" @click="submitDetail">{{ saving ? '保存中…' : '保存五要素' }}</button>
+            <button class="btn ghost" @click="detailTarget = null">{{ $t('intaudit.detail.close') }}</button>
+            <button v-if="canWrite('extaudit')" class="btn" :disabled="saving" @click="submitDetail">{{ saving ? $t('intaudit.detail.saving') : $t('intaudit.detail.saveElements') }}</button>
           </div>
         </div>
       </div>
@@ -480,16 +480,16 @@
       <!-- 上传证据弹窗 -->
       <div v-if="showEvUpload" class="modal-mask" @click.self="showEvUpload = false">
         <div class="modal-card">
-          <h3>上传证据</h3>
-          <label class="fld">证据名称/说明<input v-model="ev.name" placeholder="如 防火墙策略截图" /></label>
-          <label class="fld">文件<input type="file" @change="onEvFile" /></label>
-          <label class="fld">关联审计计划<select v-model.number="ev.planId"><option :value="0">— 不关联 —</option><option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option></select></label>
-          <label class="fld">关联审计发现<select v-model.number="ev.findingId"><option :value="0">— 不关联 —</option><option v-for="f in findings" :key="f.id" :value="f.id">AF-{{ f.id }} · {{ f.title }}</option></select></label>
-          <label class="fld">所属组织<select v-model.number="ev.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <h3>{{ $t('intaudit.evidence.uploadTitle') }}</h3>
+          <label class="fld">{{ $t('intaudit.evidence.fldName') }}<input v-model="ev.name" :placeholder="$t('intaudit.evidence.namePh')" /></label>
+          <label class="fld">{{ $t('intaudit.evidence.fldFile') }}<input type="file" @change="onEvFile" /></label>
+          <label class="fld">{{ $t('intaudit.evidence.fldPlan') }}<select v-model.number="ev.planId"><option :value="0">{{ $t('intaudit.evidence.noLink') }}</option><option v-for="p in plans" :key="p.id" :value="p.id">AP-{{ p.id }} · {{ p.title }}</option></select></label>
+          <label class="fld">{{ $t('intaudit.evidence.fldFinding') }}<select v-model.number="ev.findingId"><option :value="0">{{ $t('intaudit.evidence.noLink') }}</option><option v-for="f in findings" :key="f.id" :value="f.id">AF-{{ f.id }} · {{ f.title }}</option></select></label>
+          <label class="fld">{{ $t('intaudit.evidence.fldOrg') }}<select v-model.number="ev.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showEvUpload = false">取消</button>
-            <button class="btn" :disabled="!ev.name || !ev.file || (!ev.planId && !ev.findingId) || saving" @click="submitEvidence">{{ saving ? '上传中…' : '上传' }}</button>
+            <button class="btn ghost" @click="showEvUpload = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!ev.name || !ev.file || (!ev.planId && !ev.findingId) || saving" @click="submitEvidence">{{ saving ? $t('intaudit.evidence.uploading') : $t('intaudit.evidence.upload') }}</button>
           </div>
         </div>
       </div>
@@ -497,16 +497,16 @@
       <!-- 绑定检查表模板弹窗 -->
       <div v-if="showBind" class="modal-mask" @click.self="showBind = false">
         <div class="modal-card">
-          <h3>绑定检查表模板</h3>
-          <p class="muted" style="margin:-6px 0 12px">AP-{{ bindTarget && bindTarget.id }} · {{ bindTarget && bindTarget.title }}（模板须已在风险评估页上传 docx 表单）</p>
-          <label class="fld">评估模板<select v-model.number="bindTemplateId">
-            <option :value="0" disabled>— 选择模板 —</option>
+          <h3>{{ $t('intaudit.bind.title') }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">{{ $t('intaudit.bind.hint', { id: (bindTarget && bindTarget.id), title: (bindTarget && bindTarget.title) }) }}</p>
+          <label class="fld">{{ $t('intaudit.bind.fldTpl') }}<select v-model.number="bindTemplateId">
+            <option :value="0" disabled>{{ $t('intaudit.bind.selectTpl') }}</option>
             <option v-for="t in templates" :key="t.id" :value="t.id">#{{ t.id }} · {{ t.name }}</option>
           </select></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showBind = false">取消</button>
-            <button class="btn" :disabled="!bindTemplateId || saving" @click="submitBind">{{ saving ? '提交中…' : '确认绑定' }}</button>
+            <button class="btn ghost" @click="showBind = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!bindTemplateId || saving" @click="submitBind">{{ saving ? $t('common.submitting') : $t('intaudit.bind.confirmBind') }}</button>
           </div>
         </div>
       </div>
@@ -514,14 +514,14 @@
       <!-- 新建计划弹窗 -->
       <div v-if="showPlan" class="modal-mask" @click.self="showPlan = false">
         <div class="modal-card">
-          <h3>新建审计计划</h3>
-          <label class="fld">审计主题<input v-model="pf.title" placeholder="如 支付系统安全审计" /></label>
-          <label class="fld">计划开始日<input type="date" v-model="pf.planStartDate" /></label>
-          <label class="fld">所属组织<select v-model.number="pf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <h3>{{ $t('intaudit.planForm.title') }}</h3>
+          <label class="fld">{{ $t('intaudit.planForm.fldTopic') }}<input v-model="pf.title" :placeholder="$t('intaudit.planForm.topicPh')" /></label>
+          <label class="fld">{{ $t('intaudit.planForm.fldStartDate') }}<input type="date" v-model="pf.planStartDate" /></label>
+          <label class="fld">{{ $t('intaudit.planForm.fldOrg') }}<select v-model.number="pf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showPlan = false">取消</button>
-            <button class="btn" :disabled="!pf.title || saving" @click="submitPlan">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showPlan = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!pf.title || saving" @click="submitPlan">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -529,17 +529,17 @@
       <!-- 新建发现弹窗 -->
       <div v-if="showFinding" class="modal-mask" @click.self="showFinding = false">
         <div class="modal-card">
-          <h3>新建审计发现</h3>
-          <label class="fld">问题描述<input v-model="ff.title" placeholder="如 访问控制策略未落实最小授权" /></label>
-          <label class="fld">严重度<select v-model="ff.severity">
-            <option value="VERY_LOW">极低</option><option value="LOW">低</option><option value="MID">中</option><option value="HIGH">高</option>
+          <h3>{{ $t('intaudit.findingForm.title') }}</h3>
+          <label class="fld">{{ $t('intaudit.findingForm.fldProblem') }}<input v-model="ff.title" :placeholder="$t('intaudit.findingForm.problemPh')" /></label>
+          <label class="fld">{{ $t('intaudit.findingForm.fldSeverity') }}<select v-model="ff.severity">
+            <option value="VERY_LOW">{{ $t('intaudit.sev.VERY_LOW') }}</option><option value="LOW">{{ $t('intaudit.sev.LOW') }}</option><option value="MID">{{ $t('intaudit.sev.MID') }}</option><option value="HIGH">{{ $t('intaudit.sev.HIGH') }}</option>
           </select></label>
           <!-- B33：依据条款（引 M1 制度/准则）——写入五要素的「审计准则」，创建后可在五要素继续补全 -->
-          <label class="fld">审计依据/条款<input v-model="ff.criteria" placeholder="如 信息安全管理制度 §4.2 最小授权 / 等保2.0 8.1.4" /></label>
+          <label class="fld">{{ $t('intaudit.findingForm.fldCriteria') }}<input v-model="ff.criteria" :placeholder="$t('intaudit.findingForm.criteriaPh')" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showFinding = false">取消</button>
-            <button class="btn" :disabled="!ff.title || saving" @click="submitFinding">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showFinding = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!ff.title || saving" @click="submitFinding">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -547,15 +547,15 @@
       <!-- 下达整改弹窗 -->
       <div v-if="showRemed" class="modal-mask" @click.self="showRemed = false">
         <div class="modal-card">
-          <h3>下达整改单</h3>
-          <p class="muted" style="margin:-6px 0 12px">针对发现 AF-{{ remedTarget && remedTarget.id }}：{{ remedTarget && remedTarget.title }}</p>
-          <label class="fld">责任人<input v-model="rf.assignee" placeholder="如 张三" /></label>
-          <label class="fld">整改措施<input v-model="rf.measure" placeholder="如 配置最小授权策略并复核" /></label>
-          <label class="fld">截止日期<input type="date" v-model="rf.dueDate" /></label>
+          <h3>{{ $t('intaudit.remedForm.title') }}</h3>
+          <p class="muted" style="margin:-6px 0 12px">{{ $t('intaudit.remedForm.hint', { id: (remedTarget && remedTarget.id), title: (remedTarget && remedTarget.title) }) }}</p>
+          <label class="fld">{{ $t('intaudit.remedForm.fldAssignee') }}<input v-model="rf.assignee" :placeholder="$t('intaudit.remedForm.assigneePh')" /></label>
+          <label class="fld">{{ $t('intaudit.remedForm.fldMeasure') }}<input v-model="rf.measure" :placeholder="$t('intaudit.remedForm.measurePh')" /></label>
+          <label class="fld">{{ $t('intaudit.remedForm.fldDue') }}<input type="date" v-model="rf.dueDate" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
-            <button class="btn ghost" @click="showRemed = false">取消</button>
-            <button class="btn" :disabled="!rf.assignee || saving" @click="submitRemed">{{ saving ? '提交中…' : '确认' }}</button>
+            <button class="btn ghost" @click="showRemed = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!rf.assignee || saving" @click="submitRemed">{{ saving ? $t('common.submitting') : $t('common.confirm') }}</button>
           </div>
         </div>
       </div>
@@ -565,17 +565,24 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
-const PLAN_LABEL = { PLANNED: '已计划', IN_PROGRESS: '实施中', REPORTING: '待签批', CLOSED: '已关闭', CANCELLED: '已取消' }
+const { t } = useI18n()
+
+// 状态/严重度标签统一走 i18n（保留 *_CLS 样式映射不变）
+const planLabel = (s) => t('intaudit.planStatus.' + s)
+const sevLabel = (s) => t('intaudit.sev.' + s)
+const remLabel = (s) => t('intaudit.remStatus.' + s)
+const procLabel = (s) => t('intaudit.procStatus.' + s)
+const rptLabel = (s) => t('intaudit.rptStatus.' + s)
+
 const PLAN_CLS = { PLANNED: 'wait', IN_PROGRESS: 'doing', REPORTING: 'wait', CLOSED: 'ok', CANCELLED: 'over' }
-const SEV_LABEL = { VERY_LOW: '极低', LOW: '低', MID: '中', HIGH: '高' }
 const SEV_CLS = { VERY_LOW: '', LOW: '', MID: 'm', HIGH: 'h' }
-const REM_LABEL = { PENDING: '待开始', IN_PROGRESS: '整改中', SUBMITTED: '已提交', VERIFIED: '已验证', REJECTED: '已驳回' }
 const REM_CLS = { PENDING: 'wait', IN_PROGRESS: 'doing', SUBMITTED: 'wait', VERIFIED: 'ok', REJECTED: 'over' }
 
 const tab = ref('plan')
@@ -621,7 +628,7 @@ function dispatchPlanOp(p, e) {
 
 async function planAction(p, action) {
   opMsg.value = ''; opErr.value = ''
-  try { await api.post('/audit-plans/' + p.id + '/' + action, {}); opMsg.value = '已' + ({ start: '开始', report: '出具报告', close: '关闭', cancel: '取消' }[action]); await loadPlans(); setTimeout(() => (opMsg.value = ''), 2000) }
+  try { await api.post('/audit-plans/' + p.id + '/' + action, {}); opMsg.value = t('intaudit.msg.plan' + action.charAt(0).toUpperCase() + action.slice(1)); await loadPlans(); setTimeout(() => (opMsg.value = ''), 2000) }
   catch (e) { opErr.value = e.message }
 }
 async function remAction(r, action) {
@@ -650,7 +657,7 @@ async function startChecklist(p) {
   opErr.value = ''; opMsg.value = ''
   try {
     const saved = await api.post('/audit-plans/' + p.id + '/checklist/start', {})
-    opMsg.value = '已生成检查表评估 #' + saved.checklistAssessmentId + '，到风险评估页填写'
+    opMsg.value = t('intaudit.msg.checklistGen', { id: saved.checklistAssessmentId })
     await loadPlans(); setTimeout(() => (opMsg.value = ''), 3000)
   } catch (e) { opErr.value = e.message }
 }
@@ -667,7 +674,7 @@ async function loadEvidence() {
 function openEvUpload(finding) {
   // B33：从发现行进入时预选该发现（关联证据到 findingId）
   Object.assign(ev, {
-    name: finding ? '发现 AF-' + finding.id + ' 证据' : '',
+    name: finding ? t('intaudit.evidence.defaultName', { id: finding.id }) : '',
     planId: finding ? 0 : (planId.value || 0),
     findingId: finding ? finding.id : 0,
     orgId: finding ? (finding.orgId || 12) : 12, file: null
@@ -776,7 +783,7 @@ async function followUp(p) {
   opErr.value = ''; opMsg.value = ''
   try {
     const f = await api.post('/audit-plans/' + p.id + '/follow-up', {})
-    opMsg.value = '已发起后续审计 AP-' + f.id
+    opMsg.value = t('intaudit.msg.followupDone', { id: f.id })
     await loadPlans(); setTimeout(() => (opMsg.value = ''), 3000)
   } catch (e) { opErr.value = e.message }
 }
@@ -800,7 +807,6 @@ async function saveNotice(issue) {
   } catch (e) { opErr.value = e.message } finally { saving.value = false }
 }
 
-const PROC_LABEL = { PENDING: '待执行', DONE: '已执行', REVIEWED: '已复核' }
 const PROC_CLS = { PENDING: 'wait', DONE: 'doing', REVIEWED: 'ok' }
 const procPlanId = ref(0)
 const procedures = ref([])
@@ -836,7 +842,6 @@ async function reviewProc(pr) {
 }
 
 // ===== 审计报告（V47：自动组稿 → 征求意见 → 定稿 → 签发）=====
-const RPT_LABEL = { DRAFT: '草稿', COMMENTING: '征求意见中', FINAL: '已定稿', ISSUED: '已签发' }
 const RPT_CLS = { DRAFT: 'wait', COMMENTING: 'doing', FINAL: 'wait', ISSUED: 'ok' }
 const reportPlanId = ref(0)
 const report = ref(null)
@@ -884,9 +889,9 @@ async function saveRptTpl(t) {
 async function toggleRptTpl(t) {
   try { await api.put('/audit-reports/templates/' + t.id + '/enabled?enabled=' + (!t.enabled)); await loadRptTpls() } catch (e) { opErr.value = e.message }
 }
-async function delRptTpl(t) {
-  if (!window.confirm(`确认删除模板「${t.name}」？`)) return
-  try { await api.del('/audit-reports/templates/' + t.id); await loadRptTpls() } catch (e) { opErr.value = e.message }
+async function delRptTpl(tpl) {
+  if (!window.confirm(t('intaudit.rptTpl.confirmDel', { name: tpl.name }))) return
+  try { await api.del('/audit-reports/templates/' + tpl.id); await loadRptTpls() } catch (e) { opErr.value = e.message }
 }
 async function addRptTpl() {
   opErr.value = ''

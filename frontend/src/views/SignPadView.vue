@@ -5,25 +5,25 @@
   -->
   <div class="signpad-page">
     <div class="sp-card">
-      <div class="sp-brand">Mandao GRC · 手写签名</div>
+      <div class="sp-brand">Mandao GRC · {{ $t('signpad.brand') }}</div>
       <template v-if="state === 'ready'">
-        <div class="sp-title">{{ info.title || '风险评估签批' }}</div>
-        <div class="sp-hint">请在下方区域手写签名（横屏体验更佳），完成后点「提交签名」。</div>
+        <div class="sp-title">{{ info.title || $t('signpad.defaultTitle') }}</div>
+        <div class="sp-hint">{{ $t('signpad.hint') }}</div>
         <canvas ref="pad" class="sp-pad"
                 @pointerdown="start" @pointermove="move" @pointerup="end" @pointerleave="end"></canvas>
         <div class="sp-actions">
-          <button class="sp-btn ghost" @click="clearPad">清除</button>
-          <button class="sp-btn" :disabled="!dirty || busy" @click="submit">{{ busy ? '提交中…' : '提交签名' }}</button>
+          <button class="sp-btn ghost" @click="clearPad">{{ $t('signpad.clear') }}</button>
+          <button class="sp-btn" :disabled="!dirty || busy" @click="submit">{{ busy ? $t('common.submitting') : $t('signpad.submit') }}</button>
         </div>
-        <div class="sp-exp">令牌有效期至 {{ expText }}</div>
+        <div class="sp-exp">{{ $t('signpad.expLabel', { t: expText }) }}</div>
       </template>
       <template v-else-if="state === 'done'">
-        <div class="sp-done">✓ 签名已提交</div>
-        <div class="sp-hint">请回到电脑端完成签批，本页可关闭。</div>
+        <div class="sp-done">{{ $t('signpad.doneMsg') }}</div>
+        <div class="sp-hint">{{ $t('signpad.doneHint') }}</div>
       </template>
       <template v-else>
         <div class="sp-err">{{ errText }}</div>
-        <div class="sp-hint">请回到电脑端重新发起「手机签名」。</div>
+        <div class="sp-hint">{{ $t('signpad.invalidHint') }}</div>
       </template>
       <p v-if="error" class="sp-err" style="margin-top:8px">{{ error }}</p>
     </div>
@@ -33,8 +33,10 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client.js'
 
+const { t } = useI18n()
 const route = useRoute()
 const token = route.params.token
 const state = ref('loading')     // loading / ready / done / invalid
@@ -93,11 +95,11 @@ onMounted(async () => {
       state.value = 'done'
     } else {
       state.value = 'invalid'
-      errText.value = '令牌已过期或不可用'
+      errText.value = t('signpad.errExpired')
     }
   } catch (e) {
     state.value = 'invalid'
-    errText.value = '令牌不存在或已失效'
+    errText.value = t('signpad.errInvalid')
   }
 })
 </script>

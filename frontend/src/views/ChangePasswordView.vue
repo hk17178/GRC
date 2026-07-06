@@ -2,25 +2,25 @@
   <!-- 安全加固包 B17：修改口令页（首登强制改密的落点，也供日常改密）。极简卡片，复用登录页配色。 -->
   <div class="cp-root">
     <div class="cp-card">
-      <h2>修改登录口令</h2>
-      <p class="sub">{{ forced ? '首次登录须修改初始口令后方可使用系统。' : '定期更换口令有助于账号安全。' }}</p>
+      <h2>{{ $t('changepwd.title') }}</h2>
+      <p class="sub">{{ forced ? $t('changepwd.forcedSub') : $t('changepwd.sub') }}</p>
 
-      <label class="fld">原口令
-        <input v-model="oldPwd" type="password" autocomplete="off" placeholder="当前登录口令" />
+      <label class="fld">{{ $t('changepwd.oldLabel') }}
+        <input v-model="oldPwd" type="password" autocomplete="off" :placeholder="$t('changepwd.oldPh')" />
       </label>
-      <label class="fld">新口令
-        <input v-model="newPwd" type="password" autocomplete="new-password" placeholder="至少 8 位，不得为演示口令" />
+      <label class="fld">{{ $t('changepwd.newLabel') }}
+        <input v-model="newPwd" type="password" autocomplete="new-password" :placeholder="$t('changepwd.newPh')" />
       </label>
-      <label class="fld">确认新口令
-        <input v-model="confirmPwd" type="password" autocomplete="new-password" placeholder="再次输入新口令" />
+      <label class="fld">{{ $t('changepwd.confirmLabel') }}
+        <input v-model="confirmPwd" type="password" autocomplete="new-password" :placeholder="$t('changepwd.confirmPh')" />
       </label>
 
       <p v-if="err" class="err">{{ err }}</p>
-      <p v-if="ok" class="ok">口令已更新，正在进入系统…</p>
+      <p v-if="ok" class="ok">{{ $t('changepwd.okMsg') }}</p>
 
       <div class="actions">
-        <button v-if="!forced" class="btn ghost" @click="goBack">取消</button>
-        <button class="btn" :disabled="busy" @click="submit">{{ busy ? '提交中…' : '确认修改' }}</button>
+        <button v-if="!forced" class="btn ghost" @click="goBack">{{ $t('common.cancel') }}</button>
+        <button class="btn" :disabled="busy" @click="submit">{{ busy ? $t('common.submitting') : $t('changepwd.submit') }}</button>
       </div>
     </div>
   </div>
@@ -29,9 +29,11 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useI18n } from 'vue-i18n'
 import { api } from '@/api/client.js'
 import { authState, refreshAuth } from '@/auth.js'
 
+const { t } = useI18n()
 const router = useRouter()
 const forced = computed(() => !!(authState.user && authState.user.mustChangePassword))
 
@@ -46,9 +48,9 @@ function goBack() { router.push('/dashboard') }
 
 async function submit() {
   err.value = ''
-  if (newPwd.value.length < 8) { err.value = '新口令至少 8 位'; return }
-  if (newPwd.value === 'demo1234') { err.value = '不得使用演示口令'; return }
-  if (newPwd.value !== confirmPwd.value) { err.value = '两次输入的新口令不一致'; return }
+  if (newPwd.value.length < 8) { err.value = t('changepwd.errMin'); return }
+  if (newPwd.value === 'demo1234') { err.value = t('changepwd.errDemo'); return }
+  if (newPwd.value !== confirmPwd.value) { err.value = t('changepwd.errMismatch'); return }
   busy.value = true
   try {
     await api.post('/auth/change-password', { oldPassword: oldPwd.value, newPassword: newPwd.value })
