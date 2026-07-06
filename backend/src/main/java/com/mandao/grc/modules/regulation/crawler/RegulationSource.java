@@ -60,6 +60,10 @@ public class RegulationSource {
     @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
+    /** 连续未抓到计数（B25：失败或零命中累加，成功清零；达阈值产 CRAWLER_FAILED 告警运维）。 */
+    @Column(name = "consecutive_miss", nullable = false)
+    private int consecutiveMiss = 0;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -88,7 +92,15 @@ public class RegulationSource {
         this.lastHitCount = hitCount;
         this.lastError = error;
         this.status = error == null ? "OK" : "ERROR";
+        // B25：抓取出错或零命中视为"未抓到"，连续累加；正常命中则清零。
+        if (error != null || hitCount == 0) {
+            this.consecutiveMiss++;
+        } else {
+            this.consecutiveMiss = 0;
+        }
     }
+
+    public int getConsecutiveMiss() { return consecutiveMiss; }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;

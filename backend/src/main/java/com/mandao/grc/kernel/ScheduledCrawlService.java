@@ -37,6 +37,9 @@ public class ScheduledCrawlService {
     /** 单实例选源锁的 advisory key（本用途专用，与到期扫描 770001 区分）。 */
     private static final long CRAWL_LOCK_KEY = LockKeys.CRAWL;
 
+    /** B25：连续未抓到达此次数视为源失效，产 CRAWLER_FAILED 告警。 */
+    private static final int MISS_THRESHOLD = 3;
+
     @PersistenceContext
     private EntityManager em;
 
@@ -72,6 +75,10 @@ public class ScheduledCrawlService {
                 } else if (res.added() > 0) {
                     log.info("定时抓取源 {} 命中 {} 条，新增 {} 条", sourceId, res.hit(), res.added());
                 }
+                // B25：连续未抓到达阈值 → 产 CRAWLER_FAILED 告警运维（红线：源静默失效不能无人知）
+                if (res.consecutiveMiss() >= MISS_THRESHOLD) {
+                    emitCrawlerFailed(sourceId, res);
+                }
             } catch (RuntimeException e) {
                 // 单源异常不断本轮（源不存在等罕见竞态）
                 log.warn("定时抓取源 {} 异常：{}", sourceId, e.getMessage());
@@ -80,6 +87,35 @@ public class ScheduledCrawlService {
             }
         }
         return triggered;
+    }
+
+    /**
+     * B25：产爬虫失效告警——连续未抓到达阈值时，向该源所属 org 产 CRAWLER_FAILED 提醒运维。
+     * threshold_key 用 miss 次数，同一失效次数只产一条（幂等）；恢复抓取后 consecutiveMiss 归零，
+     * 下次再累积到阈值会以新的 miss 次数键再次告警。以新事务写入（内核内部表，跨 org）。
+     */
+    private void emitCrawlerFailed(long sourceId, RegulationCrawlService.CrawlResult res) {
+        tx.executeWithoutResult(status -> {
+            VisibleOrgsSql.setAllOrgs(em);
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('REG_SOURCE', :sid, 'CRAWLER_FAILED', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("sid", sourceId)
+                    .setParameter("tk", String.valueOf(res.consecutiveMiss()))
+                    .setParameter("org", res.orgId())
+                    .setParameter("msg", "法规采集源「" + res.sourceName() + "」已连续 " + res.consecutiveMiss()
+                            + " 次未抓到内容，疑似失效（选择器变更/源下线/网络），请运维核查")
+                    .executeUpdate();
+            if (inserted == 1) {
+                em.createNativeQuery("INSERT INTO domain_event(event_type, org_id, payload) "
+                                + "VALUES ('CRAWLER_FAILED', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", res.orgId())
+                        .setParameter("payload", "{\"sourceId\":" + sourceId + ",\"miss\":" + res.consecutiveMiss() + "}")
+                        .executeUpdate();
+                log.warn("采集源 {} 连续 {} 次未抓到，已产 CRAWLER_FAILED 告警", sourceId, res.consecutiveMiss());
+            }
+        });
     }
 
     /** 选源（须在事务内调用）：系统身份跨 org 读取到期源；抢不到 advisory 锁返回 null。 */

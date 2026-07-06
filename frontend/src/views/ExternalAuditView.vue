@@ -184,14 +184,37 @@
               </div>
             </div>
 
-            <!-- 认证有效期临近（七轮 7-5：原「剩 28 天」等为写死示意——证书台账尚未建模，
-                 诚实置灰待接入，真值来源随后续批次「证书有效期台账」交付） -->
-            <div class="card" style="opacity: .75">
-              <div class="ch"><h3>{{ $t('extaudit.expiry.title') }}</h3><span class="sub">待接入</span></div>
-              <div class="cb">
-                <div style="font-size: 12px; color: var(--text-3); line-height: 1.8; padding: 4px 0">
-                  证书有效期台账尚未建立，暂无法展示各认证的到期倒计时。
-                  外审计划的开始日临近提醒已由调度内核真实产出（见通知中心·提醒记录）。
+            <!-- 认证有效期临近（收口批 B24：证书台账真值来源，替换七轮置灰占位）-->
+            <div class="card">
+              <div class="ch"><h3>{{ $t('extaudit.expiry.title') }}</h3>
+                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('extaudit')" @click="openCert">＋ 登记证书</button>
+              </div>
+              <div class="cb" style="padding-top:0">
+                <div v-for="c in certsSorted" :key="c.id" class="srow">
+                  <span class="cert-nm">{{ c.name }}<span v-if="c.framework" class="pill" style="margin-left:6px">{{ c.framework }}</span></span>
+                  <b :class="certDueCls(c)">{{ certDueText(c) }}</b>
+                </div>
+                <div v-if="!certs.length" style="font-size:12px;color:var(--text-3);padding:6px 0">暂无证书，点「登记证书」建立有效期台账。</div>
+              </div>
+            </div>
+
+            <!-- B24：登记证书弹窗 -->
+            <div v-if="showCert" class="modal-mask" @click.self="showCert = false">
+              <div class="modal-card">
+                <h3>登记证书</h3>
+                <label class="fld">证书名称<input v-model="cf.name" placeholder="如 ISO 27001 信息安全管理体系认证" /></label>
+                <label class="fld">认证体系
+                  <select v-model="cf.framework"><option value="">—</option><option value="ISO27001">ISO27001</option><option value="MLPS">等保</option><option value="PCI_DSS">PCI-DSS</option><option value="PIMS">PIMS</option><option value="ISO22301">ISO22301</option></select>
+                </label>
+                <label class="fld">证书编号<input v-model="cf.certNo" /></label>
+                <label class="fld">发证机构<input v-model="cf.issuer" placeholder="如 中国网络安全审查认证中心" /></label>
+                <label class="fld">发证日期<input v-model="cf.issuedDate" type="date" /></label>
+                <label class="fld">到期日期<input v-model="cf.expiryDate" type="date" /></label>
+                <label class="fld">所属组织<select v-model.number="cf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+                <p v-if="certErr" class="cerr">{{ certErr }}</p>
+                <div class="modal-actions">
+                  <button class="btn ghost" @click="showCert = false">取消</button>
+                  <button class="btn" :disabled="!cf.name || !cf.expiryDate || certSaving" @click="submitCert">{{ certSaving ? '提交中…' : '确认登记' }}</button>
                 </div>
               </div>
             </div>
@@ -428,7 +451,28 @@ async function submitReg() {
   } catch (e) { regErr.value = e.message } finally { regSaving.value = false }
 }
 
-onMounted(() => { loadTasks(); loadFindings(); loadRemeds() })
+// ===== 收口批 B24：证书有效期台账 =====
+const certs = ref([])
+async function loadCerts() { try { certs.value = await api.get('/certificates') } catch (e) { certs.value = [] } }
+const certsSorted = computed(() => [...certs.value].filter((c) => c.status === 'VALID').sort((a, b) => (a.expiryDate || '9999') < (b.expiryDate || '9999') ? -1 : 1).slice(0, 8))
+function certDays(c) { return c.expiryDate ? Math.ceil((new Date(c.expiryDate) - new Date()) / 86400000) : null }
+function certDueText(c) { const d = certDays(c); return d == null ? '—' : (d < 0 ? '已过期 ' + -d + ' 天' : '剩 ' + d + ' 天') }
+function certDueCls(c) { const d = certDays(c); return d == null ? '' : (d < 0 ? 'cert-over' : (d <= 30 ? 'cert-warn' : '')) }
+
+const showCert = ref(false)
+const certSaving = ref(false)
+const certErr = ref('')
+const cf = reactive({ name: '', framework: '', certNo: '', issuer: '', issuedDate: '', expiryDate: '', orgId: 12 })
+function openCert() { Object.assign(cf, { name: '', framework: '', certNo: '', issuer: '', issuedDate: '', expiryDate: '', orgId: 12 }); certErr.value = ''; showCert.value = true }
+async function submitCert() {
+  certSaving.value = true; certErr.value = ''
+  try {
+    await api.post('/certificates', { orgId: cf.orgId, name: cf.name, framework: cf.framework || null, certNo: cf.certNo || null, issuer: cf.issuer || null, issuedDate: cf.issuedDate || null, expiryDate: cf.expiryDate })
+    showCert.value = false; await loadCerts()
+  } catch (e) { certErr.value = e.message } finally { certSaving.value = false }
+}
+
+onMounted(() => { loadTasks(); loadFindings(); loadRemeds(); loadCerts() })
 
 // ---- 按认证体系分布（bars）----
 const distBars = [
@@ -947,4 +991,8 @@ tbody tr:hover {
 .mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 .ops { white-space: nowrap; }
 .mutedcell { color: var(--text-2); max-width: 220px; }
+/* B24 证书有效期临近 */
+.cert-nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+.cert-warn { color: #a87d22; }
+.cert-over { color: var(--danger); }
 </style>

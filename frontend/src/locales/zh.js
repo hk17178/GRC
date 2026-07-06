@@ -719,7 +719,7 @@ export default {
     },
     // ---- Tab1 组织架构 ----
     tree: {
-      title: '组织树（AD 同步）',
+      title: '组织树（手动维护）',
       manualSync: '手动同步',
       // 组织节点
       hq: '集团总部',

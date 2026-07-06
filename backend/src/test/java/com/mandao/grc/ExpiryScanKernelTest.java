@@ -62,6 +62,8 @@ class ExpiryScanKernelTest {
     void clean() throws Exception {
         // CASCADE：M3(V6) 起 audit_finding 外键引用 audit_plan，截断 audit_plan 须级联（否则被 FK 阻止）
         execAsOwner("TRUNCATE audit_plan, reminder_dispatch_log, domain_event RESTART IDENTITY CASCADE");
+        execAsOwner("DELETE FROM certificate");                 // B24
+        execAsOwner("DELETE FROM policy WHERE org_id IN (12,13)"); // B23（迁移不含 policy 种子，本测试自插自清）
     }
 
     /** 以 owner 直连插入一条外审计划（绕 RLS，模拟数据已存在）。 */
@@ -88,6 +90,34 @@ class ExpiryScanKernelTest {
         assertEquals(1, scanService.scanOnce(TODAY).emitted());
         assertEquals(0, scanService.scanOnce(TODAY).emitted(), "二次扫描应幂等不再产");
         assertEquals(1, countEvents("EXT_AUDIT_PLAN_APPROACHING"), "事件总数仍为 1");
+    }
+
+    @Test
+    void b24_证书到期恰余30天产CERT_EXPIRY事件() throws Exception {
+        // 到期日 = today+30，命中 {60,30,7} 的 30 天档
+        execAsOwner("INSERT INTO certificate(org_id, name, expiry_date, status) VALUES "
+                + "(12, 'ISO27001 认证', DATE '" + TODAY.plusDays(30) + "', 'VALID')");
+        assertEquals(1, scanService.scanOnce(TODAY).emitted(), "应产 1 条证书到期事件");
+        assertEquals(1, countEvents("CERT_EXPIRY"), "domain_event 应有 1 条 CERT_EXPIRY");
+        // 幂等
+        assertEquals(0, scanService.scanOnce(TODAY).emitted());
+    }
+
+    @Test
+    void b24_已吊销证书不产事件() throws Exception {
+        execAsOwner("INSERT INTO certificate(org_id, name, expiry_date, status) VALUES "
+                + "(12, '已吊销证书', DATE '" + TODAY.plusDays(30) + "', 'REVOKED')");
+        assertEquals(0, scanService.scanOnce(TODAY).emitted(), "非 VALID 证书不产到期事件");
+    }
+
+    @Test
+    void b23_制度复审到期恰余7天产POLICY_REVIEW_DUE事件() throws Exception {
+        // 复审日 = 生效日 + 复审周期月。取 生效日 = today+7 - 12 月、周期 12 月 → 复审日 = today+7，命中 {30,7,0} 的 7 天档
+        java.time.LocalDate effective = TODAY.plusDays(7).minusMonths(12);
+        execAsOwner("INSERT INTO policy(org_id, code, title, status, version, effective_date, review_cycle_months) VALUES "
+                + "(12, 'POL-REV-1', '数据安全管理制度', 'EFFECTIVE', 1, DATE '" + effective + "', 12)");
+        assertEquals(1, scanService.scanOnce(TODAY).emitted(), "应产 1 条制度复审到期事件");
+        assertEquals(1, countEvents("POLICY_REVIEW_DUE"), "domain_event 应有 1 条 POLICY_REVIEW_DUE");
     }
 
     @Test

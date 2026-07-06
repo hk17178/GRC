@@ -285,7 +285,76 @@ public class ExpiryScanService {
             emitted++;
         }
 
-        // 10) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
+        // 10) 收口批 B24：证书到期段——VALID 证书 expiry_date 距今恰余 60/30/7 天时产 CERT_EXPIRY
+        // （认证证书过期=资质失效，须提前安排复审换证）。
+        @SuppressWarnings("unchecked")
+        List<Object[]> certHits = em.createNativeQuery(
+                        "SELECT c.id, c.org_id, c.name, rd FROM certificate c, unnest(ARRAY[60,30,7]) AS rd "
+                                + "WHERE c.status = 'VALID' AND (c.expiry_date - CAST(:today AS date)) = rd")
+                .setParameter("today", today.toString())
+                .getResultList();
+        for (Object[] r : certHits) {
+            long certId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String name = (String) r[2];
+            int reminderDay = ((Number) r[3]).intValue();
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('CERTIFICATE', :cid, 'CERT_EXPIRY', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("cid", certId)
+                    .setParameter("tk", String.valueOf(reminderDay))
+                    .setParameter("org", orgId)
+                    .setParameter("msg", "认证证书「" + name + "」将于 " + reminderDay + " 天后到期，请提前安排复审换证")
+                    .executeUpdate();
+            if (inserted == 1) {
+                em.createNativeQuery("INSERT INTO domain_event(event_type, org_id, payload) "
+                                + "VALUES ('CERT_EXPIRY', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", orgId)
+                        .setParameter("payload", "{\"certId\":" + certId + ",\"reminderDay\":" + reminderDay + "}")
+                        .executeUpdate();
+                emitted++;
+            }
+        }
+
+        // 11) 收口批 B23：制度复审到期段——EFFECTIVE 制度的复审日(生效日+复审周期月)距今恰余 30/7/0 天
+        // 时产 POLICY_REVIEW_DUE（制度须周期复审，逾期未复审属合规缺口）。
+        @SuppressWarnings("unchecked")
+        List<Object[]> policyHits = em.createNativeQuery(
+                        "SELECT p.id, p.org_id, p.title, rd FROM policy p, unnest(ARRAY[30,7,0]) AS rd "
+                                + "WHERE p.status = 'EFFECTIVE' AND p.effective_date IS NOT NULL "
+                                + "AND p.review_cycle_months IS NOT NULL AND p.review_cycle_months > 0 "
+                                + "AND (CAST(p.effective_date + CAST(p.review_cycle_months || ' months' AS interval) AS date) "
+                                + "     - CAST(:today AS date)) = rd")
+                .setParameter("today", today.toString())
+                .getResultList();
+        for (Object[] r : policyHits) {
+            long policyId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String title = (String) r[2];
+            int reminderDay = ((Number) r[3]).intValue();
+            int inserted = em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('POLICY', :pid, 'POLICY_REVIEW_DUE', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("pid", policyId)
+                    .setParameter("tk", String.valueOf(reminderDay))
+                    .setParameter("org", orgId)
+                    .setParameter("msg", "制度「" + title + "」复审"
+                            + (reminderDay == 0 ? "今日到期" : "将于 " + reminderDay + " 天后到期")
+                            + "，请责任部门按周期复审并留痕")
+                    .executeUpdate();
+            if (inserted == 1) {
+                em.createNativeQuery("INSERT INTO domain_event(event_type, org_id, payload) "
+                                + "VALUES ('POLICY_REVIEW_DUE', :org, CAST(:payload AS jsonb))")
+                        .setParameter("org", orgId)
+                        .setParameter("payload", "{\"policyId\":" + policyId + ",\"reminderDay\":" + reminderDay + "}")
+                        .executeUpdate();
+                emitted++;
+            }
+        }
+
+        // 12) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
         // 连行删除，防过期票据里的签名字节长期滞留。
         em.createNativeQuery("DELETE FROM signature_ticket WHERE created_at < now() - INTERVAL '24 hours'")
                 .executeUpdate();

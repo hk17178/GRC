@@ -98,12 +98,12 @@ public class RegulationCrawlService {
             sourceRepo.save(s);
             hashChainService.append(s.getOrgId(), "REG_SOURCE_CRAWL", actor, "REG_SOURCE:" + s.getId(),
                     "采集源「" + s.getName() + "」命中 " + hit + " 条，新增 " + newCount + " 条");
-            return new CrawlResult(hit, newCount, null);
+            return new CrawlResult(hit, newCount, null, s.getConsecutiveMiss(), s.getOrgId(), s.getName());
         } catch (RuntimeException e) {
             s.markFetched(hit, e.getMessage());
             sourceRepo.save(s);
             // 抓取失败不抛断（记录到源状态供前端展示"采集健康"）
-            return new CrawlResult(hit, newCount, e.getMessage());
+            return new CrawlResult(hit, newCount, e.getMessage(), s.getConsecutiveMiss(), s.getOrgId(), s.getName());
         }
     }
 
@@ -124,7 +124,7 @@ public class RegulationCrawlService {
                 .orElseThrow(() -> new IllegalArgumentException("追踪源不存在或不可见：id=" + id));
     }
 
-    /** 抓取结果。 */
-    public record CrawlResult(int hit, int added, String error) {
+    /** 抓取结果（B25：附源当前连续未抓到次数与源标识，供调度器判定失效告警）。 */
+    public record CrawlResult(int hit, int added, String error, int consecutiveMiss, Long orgId, String sourceName) {
     }
 }

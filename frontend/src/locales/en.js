@@ -672,7 +672,7 @@ export default {
       ropa: 'Processing Activities (ROPA)'
     },
     tree: {
-      title: 'Org Tree (AD sync)',
+      title: 'Org Tree (manual)',
       manualSync: 'Sync now',
       hq: 'Group HQ',
       payCo: 'PaySvc Subsidiary',
