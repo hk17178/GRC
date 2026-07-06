@@ -69,7 +69,7 @@ class AiQaTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE kb_document, kb_chunk RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE kb_document, kb_chunk, ai_feedback RESTART IDENTITY CASCADE");
         }
     }
 
@@ -97,6 +97,48 @@ class AiQaTest {
         AiQaService.AiAnswer ans = asOrg(ORG_CF, () -> qa.ask("客户身份识别", 5));
         assertTrue(ans.citations().isEmpty(), "org13 不应召回 org12 的知识");
         assertTrue(ans.answer().contains("未在知识库检索到"), "无召回应回「未检索到」，实际：" + ans.answer());
+    }
+
+    @Test
+    void a16_检索去重_单文档不霸榜引用来源多样() {
+        // 一篇长文档切成多块（全 KYC 主题），另一篇少量 TLS 主题
+        String bigKyc = KYC + "\n\n" + KYC + "\n\n" + KYC + "\n\n" + KYC + "\n\n" + KYC;
+        asOrg(ORG_PAY, () -> kb.ingest(ORG_PAY, "AML 大全", KbSourceType.POLICY, "POL-AML-BIG", bigKyc));
+        asOrg(ORG_PAY, () -> kb.ingest(ORG_PAY, "加密制度", KbSourceType.POLICY, "POL-TLS", TLS));
+
+        AiQaService.AiAnswer ans = asOrg(ORG_PAY, () -> qa.ask("客户身份识别", 4));
+        long distinctDocs = ans.citations().stream().map(AiQaService.Citation::documentId).distinct().count();
+        long perDocMax = ans.citations().stream()
+                .collect(java.util.stream.Collectors.groupingBy(AiQaService.Citation::documentId,
+                        java.util.stream.Collectors.counting()))
+                .values().stream().mapToLong(Long::longValue).max().orElse(0);
+        assertTrue(perDocMax <= 2, "A16：单文档引用不应超过 2 块，实际最多 " + perDocMax);
+        assertTrue(distinctDocs >= 1, "应有引用");
+    }
+
+    @Test
+    void b26_多轮追问_历史随请求送入不报错() {
+        asOrg(ORG_PAY, () -> kb.ingest(ORG_PAY, "AML 制度", KbSourceType.POLICY, "POL-AML-1", KYC));
+        var history = List.of(new AiQaService.Turn("什么是受益所有人？", "指最终拥有或控制客户的自然人。"));
+        // 指代性追问「那要怎么核验它？」——历史送入不应报错，仍返回带引用的回答
+        AiQaService.AiAnswer ans = asOrg(ORG_PAY, () -> qa.ask("那要怎么核验它？", 3, history));
+        assertFalse(ans.citations().isEmpty(), "带历史的追问仍应正常召回作答");
+    }
+
+    @Test
+    void b32_反馈落库_受组织隔离() {
+        asOrg(ORG_PAY, () -> {
+            qa.recordFeedback("客户身份识别怎么做？", "须核验证件……", true, null, "tester");
+            return null;
+        });
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             var rs = s.executeQuery("SELECT count(*) FROM ai_feedback WHERE org_id = 12 AND helpful = true")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "赞反馈应落 org12 一条");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private <T> T asOrg(long orgId, Supplier<T> action) {

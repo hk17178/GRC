@@ -35,12 +35,25 @@ public class VectorStore {
                 .executeUpdate();
     }
 
+    /** A16：过取倍数——先取 topK×此倍数的候选，再重排/去重/滤噪收敛到 topK。 */
+    private static final int OVERFETCH = 4;
+    /** A16：单文档最多保留的切块数（防一篇长文档霸榜，牺牲引用多样性）。 */
+    private static final int MAX_PER_DOC = 2;
+    /** A16：相对阈值——低于「最高分×此比例」的候选视为弱相关丢弃（0~1）。 */
+    private static final double REL_THRESHOLD = 0.55;
+
     /**
      * 余弦相似召回 top-k（仅在可见组织范围内，RLS 兜底）。
      * 返回按相似度降序的命中列表。embedding 为空的块（尚未嵌入）被排除。
+     *
+     * A16 检索排序优化：不再直接取库内 top-k，而是过取候选后重排——
+     *  1) 相对阈值：丢弃分数低于「最高分×{@link #REL_THRESHOLD}」的弱相关块（滤噪）；
+     *  2) 每文档限额：同一文档至多 {@link #MAX_PER_DOC} 块，提升引用来源多样性；
+     *  3) 收敛到 topK。库内已按距离升序返回，故遍历顺序即相关度降序。
      */
     @SuppressWarnings("unchecked")
     public List<ChunkHit> search(float[] query, int topK) {
+        int fetch = Math.max(topK * OVERFETCH, topK);
         List<Object[]> rows = em.createNativeQuery(
                         "SELECT id, document_id, seq, content, " +
                                 "       1 - (embedding <=> CAST(:q AS vector)) AS score " +
@@ -49,16 +62,36 @@ public class VectorStore {
                                 "ORDER BY embedding <=> CAST(:q AS vector) " +
                                 "LIMIT :k")
                 .setParameter("q", toLiteral(query))
-                .setParameter("k", topK)
+                .setParameter("k", fetch)
                 .getResultList();
-        List<ChunkHit> hits = new ArrayList<>(rows.size());
+        if (rows.isEmpty()) {
+            return List.of();
+        }
+        double best = ((Number) rows.get(0)[4]).doubleValue();
+        // 相对阈值仅对正相似度有意义：best<=0 时（弱相关整体偏低）不滤，避免把最高分也误丢导致零引用
+        double floor = best > 0 ? best * REL_THRESHOLD : Double.NEGATIVE_INFINITY;
+        java.util.Map<Long, Integer> perDoc = new java.util.HashMap<>();
+        List<ChunkHit> hits = new ArrayList<>(topK);
         for (Object[] r : rows) {
+            if (hits.size() >= topK) {
+                break;
+            }
+            double score = ((Number) r[4]).doubleValue();
+            if (score < floor) {
+                break; // 已按分数降序，后续只会更低
+            }
+            Long docId = ((Number) r[1]).longValue();
+            int used = perDoc.getOrDefault(docId, 0);
+            if (used >= MAX_PER_DOC) {
+                continue; // 该文档已达限额，跳过但继续看后面别的文档
+            }
+            perDoc.put(docId, used + 1);
             hits.add(new ChunkHit(
                     ((Number) r[0]).longValue(),
-                    ((Number) r[1]).longValue(),
+                    docId,
                     ((Number) r[2]).intValue(),
                     (String) r[3],
-                    ((Number) r[4]).doubleValue()));
+                    score));
         }
         return hits;
     }

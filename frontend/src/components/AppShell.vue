@@ -100,6 +100,9 @@
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     </button>
+
+    <!-- A22：全局 AI 合规助手侧滑面板（悬浮按钮唤起，多轮对话 + 反馈）-->
+    <AiChatPanel :open="aiPanelOpen" @close="aiPanelOpen = false" />
   </div>
 </template>
 
@@ -109,6 +112,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
+import AiChatPanel from '@/components/AiChatPanel.vue'
 import { api } from '@/api/client.js'
 import { authState, canSee, clearUser } from '@/auth.js'
 
@@ -270,11 +274,9 @@ function onNav(key) {
   }
 }
 
-// 浮动 AI 助手按钮点击：当前仅占位（不接后端），打印日志便于联调
-function onAiFab() {
-  // eslint-disable-next-line no-console
-  console.log('[AI 助手] 浮动按钮点击（占位，后续接入 AI 合规助手面板）')
-}
+// AI 深度包 A22：悬浮按钮唤起全局 AI 合规助手侧滑面板（此前仅 console 占位——即"点不开对话框"的 bug）
+const aiPanelOpen = ref(false)
+function onAiFab() { aiPanelOpen.value = true }
 </script>
 
 <style scoped>

@@ -131,6 +131,19 @@ export default {
   aiFab: {
     title: 'AI 助手'
   },
+  aiPanel: {
+    title: 'AI 合规助手',
+    clear: '清空对话',
+    intro: '基于本组织知识库的检索增强问答。可追问，我会结合上文回答；答案附引用来源，请以正式文件为准。',
+    askFail: '提问失败：',
+    fb: {
+      ask: '这条回答有用吗？',
+      thanksUp: '已记录，感谢反馈',
+      thanksDown: '已记录，我们会改进',
+      reasonPh: '哪里不对？（可选，帮助改进）',
+      submit: '提交'
+    }
+  },
 
   // ---- 占位页（尚未复原的菜单项，点击进入此页保证不报错）----
   placeholder: {

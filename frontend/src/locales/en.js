@@ -130,6 +130,19 @@ export default {
   aiFab: {
     title: 'AI Assistant'
   },
+  aiPanel: {
+    title: 'AI Compliance Assistant',
+    clear: 'Clear conversation',
+    intro: 'Retrieval-augmented Q&A over your organization\'s knowledge base. Ask follow-ups — I keep context; answers cite sources, defer to official documents.',
+    askFail: 'Query failed: ',
+    fb: {
+      ask: 'Was this helpful?',
+      thanksUp: 'Recorded — thanks!',
+      thanksDown: 'Recorded — we\'ll improve',
+      reasonPh: 'What was wrong? (optional)',
+      submit: 'Submit'
+    }
+  },
 
   // ---- placeholder page (menu items not yet restored) ----
   placeholder: {

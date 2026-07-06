@@ -135,11 +135,23 @@ public class AiController {
                                Boolean enabled, String apiKey) {
     }
 
-    /** 检索增强问答。 */
+    /** 检索增强问答（B26：可带 history 支持多轮追问）。 */
     @PostMapping("/ask")
     @RequiresPermission("ai")
     public AiQaService.AiAnswer ask(@RequestBody AskRequest req) {
-        return qa.ask(req.question(), req.topK());
+        return qa.ask(req.question(), req.topK(), req.history());
+    }
+
+    /** B32：AI 回答反馈（赞/踩 + 可选原因），入库供检索/生成质量分析。 */
+    @PostMapping("/feedback")
+    @RequiresPermission("ai")
+    public void feedback(@RequestBody FeedbackRequest req,
+                         @RequestHeader(value = "X-User", required = false) String user) {
+        qa.recordFeedback(req.question(), req.answer(), req.helpful(), req.reason(), actorOf(user));
+    }
+
+    /** 反馈请求体（helpful=true 赞 / false 踩；踩建议带 reason）。 */
+    public record FeedbackRequest(String question, String answer, boolean helpful, String reason) {
     }
 
     /** 当前 AI 配置状态（提供方/模型/嵌入维度），供「模型接入」页展示。 */
@@ -191,8 +203,8 @@ public class AiController {
     public record IngestRequest(Long orgId, String title, KbSourceType sourceType, String sourceRef, String content) {
     }
 
-    /** 提问请求体。 */
-    public record AskRequest(String question, Integer topK) {
+    /** 提问请求体（B26：history 为近几轮 {question,answer}，可空=单轮）。 */
+    public record AskRequest(String question, Integer topK, java.util.List<AiQaService.Turn> history) {
     }
 
     /** AI 状态：当前提供方、模型、嵌入维度、是否本地离线模式。 */

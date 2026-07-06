@@ -33,6 +33,19 @@
                       <span class="csnip">{{ c.snippet }}</span>
                     </div>
                   </div>
+                  <!-- B32：AI 回答反馈 -->
+                  <div v-if="!m.loading && !m.error" class="fb">
+                    <template v-if="!m.fb">
+                      <span class="fl">{{ $t('aiPanel.fb.ask') }}</span>
+                      <button class="fbtn" @click="sendFb(m, true)">👍</button>
+                      <button class="fbtn" @click="m.fbNegOpen = true">👎</button>
+                    </template>
+                    <span v-else class="fdone">{{ m.fb === 'up' ? $t('aiPanel.fb.thanksUp') : $t('aiPanel.fb.thanksDown') }}</span>
+                  </div>
+                  <div v-if="m.fbNegOpen" class="fbneg">
+                    <input v-model="m.fbReason" :placeholder="$t('aiPanel.fb.reasonPh')" @keyup.enter="sendFb(m, false)" />
+                    <button class="btn sm" @click="sendFb(m, false)">{{ $t('aiPanel.fb.submit') }}</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -162,21 +175,35 @@ async function ask() {
   const question = q.value.trim()
   if (!question || asking.value) return
   asking.value = true
-  const turn = reactive({ question, answer: '', citations: [], loading: true })
+  // B26：回传已成型历史轮，支持多轮追问
+  const history = messages.value
+    .filter((m) => !m.loading && !m.error)
+    .map((m) => ({ question: m.question, answer: m.answer }))
+  const turn = reactive({ question, answer: '', citations: [], loading: true, error: false, fb: null, fbNegOpen: false, fbReason: '' })
   messages.value.push(turn)
   q.value = ''
   await scrollDown()
   try {
-    const res = await api.post('/ai/ask', { question, topK: 4 })
+    const res = await api.post('/ai/ask', { question, topK: 4, history })
     turn.answer = res.answer
     turn.citations = res.citations || []
   } catch (e) {
     turn.answer = '提问失败：' + e.message
+    turn.error = true
   } finally {
     turn.loading = false
     asking.value = false
     await scrollDown()
   }
+}
+
+// B32：AI 回答反馈（赞/踩 + 原因）
+async function sendFb(m, helpful) {
+  try {
+    await api.post('/ai/feedback', { question: m.question, answer: m.answer, helpful, reason: helpful ? null : (m.fbReason || null) })
+    m.fb = helpful ? 'up' : 'down'
+    m.fbNegOpen = false
+  } catch (e) { /* 反馈失败静默 */ }
 }
 async function scrollDown() { await nextTick(); if (msgsEl.value) msgsEl.value.scrollTop = msgsEl.value.scrollHeight }
 
@@ -258,6 +285,14 @@ onMounted(() => { loadStatus(); loadDocs() })
 .cite .cref { color: var(--accent-strong); font-weight: 700; font-variant-numeric: tabular-nums; }
 .cite .cscore { color: var(--success); font-weight: 600; font-variant-numeric: tabular-nums; }
 .cite .csnip { color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* B32：反馈条 */
+.fb { margin-top: 9px; display: flex; align-items: center; gap: 6px; }
+.fb .fl { font-size: 10.5px; color: var(--text-3); }
+.fbtn { border: 1px solid var(--surface-border); background: var(--surface); border-radius: 6px; cursor: pointer; font-size: 12px; padding: 2px 7px; }
+.fbtn:hover { border-color: var(--accent); }
+.fdone { font-size: 10.5px; color: var(--success); font-weight: 600; }
+.fbneg { display: flex; gap: 6px; margin-top: 8px; }
+.fbneg input { flex: 1; height: 30px; padding: 0 9px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
 .ask-bar { display: flex; gap: 8px; margin-top: 12px; }
 .ask-bar input { flex: 1; height: 38px; padding: 0 12px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; outline: none; }
 table { width: 100%; border-collapse: collapse; }
