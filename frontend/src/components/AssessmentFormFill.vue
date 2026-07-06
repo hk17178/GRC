@@ -14,6 +14,8 @@
       <h3>评估表单</h3>
       <span class="sub" v-if="view.hasForm">按模板自定义格式填写（来源：上传的 .docx 报告模板）</span>
       <div class="sp"></div>
+      <!-- B38：自动保存草稿状态（静默存盘，避免填一半丢失）-->
+      <span v-if="view.hasForm && autosave" class="autosave">{{ autosave === 'saving' ? '自动保存中…' : autosave }}</span>
       <button
         v-if="view.hasForm"
         class="btn"
@@ -114,7 +116,7 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue'
+import { reactive, ref, watch, nextTick } from 'vue'
 import { api } from '../api/client'
 import { canWrite } from '../auth'
 
@@ -170,11 +172,30 @@ function removeRow(list, i) {
   model[list.key].splice(i, 1)
 }
 
+// ===== B38：关键操作自动保存草稿——填写变更后 debounce 静默存盘，避免填一半丢失。=====
+const autosave = ref('')          // ''|'saving'|时间串
+let autosaveTimer = null
+let formReady = false             // load/buildModel 期间不触发自动保存
+
+async function autosaveDraft() {
+  if (!formReady || !props.assessmentId || !writable) return
+  autosave.value = 'saving'
+  try {
+    // 草稿允许不完整：不做必填校验、不弹整体等级、不通知父组件（区别于手动「保存」）
+    await api.put('/assessments/' + props.assessmentId + '/answers', JSON.parse(JSON.stringify(model)))
+    const d = new Date()
+    autosave.value = '已自动保存 ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0')
+  } catch (e) {
+    autosave.value = '自动保存失败'
+  }
+}
+
 async function load() {
   if (!props.assessmentId) return
   loading.value = true
   error.value = ''
   okMsg.value = ''
+  formReady = false
   try {
     const v = await api.get('/assessments/' + props.assessmentId + '/form')
     view.value = v
@@ -184,8 +205,18 @@ async function load() {
     view.value = { hasForm: false, reason: e.message }
   } finally {
     loading.value = false
+    autosave.value = ''
+    // 下一 tick 再开放自动保存，避开 buildModel 引发的初始 watch
+    nextTick(() => { formReady = true })
   }
 }
+
+// 深度监听填写模型：变更后 1.5s 无进一步输入则静默存草稿
+watch(model, () => {
+  if (!formReady) return
+  clearTimeout(autosaveTimer)
+  autosaveTimer = setTimeout(autosaveDraft, 1500)
+}, { deep: true })
 
 // ===== M2 深度包 B19：必填校验 + showIf 条件显隐（跳题） =====
 const missingKeys = ref([])
@@ -249,6 +280,7 @@ watch(() => props.assessmentId, load, { immediate: true })
 .muted { color: var(--text-3); }
 .err { color: var(--danger); }
 .ok { color: var(--success); margin-bottom: 8px; font-weight: 600; }
+.autosave { font-size: 11px; color: var(--text-3); margin-right: 10px; white-space: nowrap; }
 .empty .hint { color: var(--text-3); font-size: 12px; margin-top: 4px; }
 .sec { margin-bottom: 18px; }
 /* M2 深度包 B19：必填标记与缺失高亮 */

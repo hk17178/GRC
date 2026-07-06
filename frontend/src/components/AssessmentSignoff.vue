@@ -54,8 +54,7 @@
             <input type="checkbox" v-model="form.accepted" :disabled="!writable" /> 接受残余风险
           </label>
 
-          <div class="fld">手写签名（框内鼠标签名，或
-            <a class="qr-link" @click.prevent="openMobileSign">📱 手机扫码签名</a>）
+          <div class="fld"><span>手写签名（框内鼠标签名，或 <a class="qr-link" @click.prevent="openMobileSign">📱 手机扫码签名</a>）</span>
             <div class="sig-wrap">
               <canvas ref="sigCanvas" class="sig-pad" width="420" height="120"
                       @pointerdown="sigStart" @pointermove="sigMove" @pointerup="sigEnd" @pointerleave="sigEnd"></canvas>

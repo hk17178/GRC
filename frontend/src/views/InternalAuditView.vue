@@ -94,6 +94,8 @@
                 <td><span class="tag" :class="SEV_CLS[f.severity]">{{ SEV_LABEL[f.severity] }}</span></td>
                 <td class="ops" @click.stop>
                   <button class="mini" @click="openDetail(f)">五要素{{ f.conditionDesc ? ' ✓' : '' }}</button>
+                  <!-- B33：发现行直接上传证据（预选 findingId）-->
+                  <button v-if="canWrite('extaudit')" class="mini" @click="openEvUpload(f)">上传证据</button>
                   <button v-if="canWrite('extaudit')" class="mini" @click="openRemed(f)">下达整改</button>
                 </td>
               </tr>
@@ -532,6 +534,8 @@
           <label class="fld">严重度<select v-model="ff.severity">
             <option value="VERY_LOW">极低</option><option value="LOW">低</option><option value="MID">中</option><option value="HIGH">高</option>
           </select></label>
+          <!-- B33：依据条款（引 M1 制度/准则）——写入五要素的「审计准则」，创建后可在五要素继续补全 -->
+          <label class="fld">审计依据/条款<input v-model="ff.criteria" placeholder="如 信息安全管理制度 §4.2 最小授权 / 等保2.0 8.1.4" /></label>
           <p v-if="opErr" class="cerr">{{ opErr }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showFinding = false">取消</button>
@@ -660,8 +664,14 @@ const ev = reactive({ name: '', planId: 0, findingId: 0, orgId: 12, file: null }
 async function loadEvidence() {
   try { evidences.value = await api.get('/evidence') } catch (e) { evidences.value = [] }
 }
-function openEvUpload() {
-  Object.assign(ev, { name: '', planId: planId.value || 0, findingId: 0, orgId: 12, file: null })
+function openEvUpload(finding) {
+  // B33：从发现行进入时预选该发现（关联证据到 findingId）
+  Object.assign(ev, {
+    name: finding ? '发现 AF-' + finding.id + ' 证据' : '',
+    planId: finding ? 0 : (planId.value || 0),
+    findingId: finding ? finding.id : 0,
+    orgId: finding ? (finding.orgId || 12) : 12, file: null
+  })
   opErr.value = ''; showEvUpload.value = true
 }
 function onEvFile(e) { ev.file = e.target.files && e.target.files[0] }
@@ -918,13 +928,17 @@ async function submitPlan() {
 
 // 新建发现
 const showFinding = ref(false)
-const ff = reactive({ title: '', severity: 'MID' })
-function openFinding() { Object.assign(ff, { title: '', severity: 'MID' }); opErr.value = ''; showFinding.value = true }
+const ff = reactive({ title: '', severity: 'MID', criteria: '' })
+function openFinding() { Object.assign(ff, { title: '', severity: 'MID', criteria: '' }); opErr.value = ''; showFinding.value = true }
 async function submitFinding() {
   saving.value = true; opErr.value = ''
   try {
     const plan = plans.value.find((p) => p.id === planId.value)
-    await api.post('/audit-findings', { orgId: plan ? plan.orgId : 12, auditPlanId: planId.value, title: ff.title, severity: ff.severity })
+    const created = await api.post('/audit-findings', { orgId: plan ? plan.orgId : 12, auditPlanId: planId.value, title: ff.title, severity: ff.severity })
+    // B33：依据条款写入五要素的「审计准则」（criteriaDesc），后续可在五要素继续补全其余四项
+    if (ff.criteria && ff.criteria.trim() && created && created.id) {
+      await api.put('/audit-findings/' + created.id + '/detail', { criteriaDesc: ff.criteria.trim() })
+    }
     showFinding.value = false; await loadFindings()
   } catch (e) { opErr.value = e.message } finally { saving.value = false }
 }
