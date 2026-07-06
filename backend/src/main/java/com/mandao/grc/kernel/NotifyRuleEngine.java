@@ -148,17 +148,33 @@ public class NotifyRuleEngine {
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(
                         "SELECT id, org_id, title, issuer FROM regulation_crawled "
-                                + "WHERE CAST(fetched_at AS date) > CAST(:today AS date) - :win")
+                                + "WHERE CAST(fetched_at AS date) > CAST(:today AS date) - :win "
+                                + "ORDER BY org_id, id DESC")
                 .setParameter("today", today.toString())
                 .setParameter("win", windowDays)
                 .getResultList();
-        int n = 0;
+        // B35 同批合并降噪：一次抓取 20 条不再产 20 条提醒，按 org 汇总为一条摘要
+        // （"本次新增 N 条法规：标题1、标题2…"），threshold_key 用当日 → 同日同 org 一条。
+        java.util.Map<Long, java.util.List<String>> byOrg = new java.util.LinkedHashMap<>();
         for (Object[] r : rows) {
-            String msg = template
-                    .replace("{标题}", nullSafe((String) r[2]))
-                    .replace("{发布机构}", nullSafe((String) r[3]));
-            n += dispatch("REG_CRAWLED", ((Number) r[0]).longValue(), "RULE_REG_NEW",
-                    "rule=" + ruleId, ((Number) r[1]).longValue(), msg, ruleId, collector);
+            long orgId = ((Number) r[1]).longValue();
+            String title = nullSafe((String) r[2]);
+            String issuer = nullSafe((String) r[3]);
+            byOrg.computeIfAbsent(orgId, k -> new java.util.ArrayList<>())
+                    .add(title + (issuer.isBlank() ? "" : "（" + issuer + "）"));
+        }
+        int n = 0;
+        for (var e : byOrg.entrySet()) {
+            java.util.List<String> titles = e.getValue();
+            int total = titles.size();
+            // 摘要最多列前 5 条标题，其余以"等 M 条"收口；模板含 {条数}/{标题列表} 占位则替换，否则用默认摘要
+            String preview = String.join("、", titles.subList(0, Math.min(5, total)));
+            String suffix = total > 5 ? "等 " + total + " 条" : "";
+            String digest = template.contains("{条数}") || template.contains("{标题列表}")
+                    ? template.replace("{条数}", String.valueOf(total)).replace("{标题列表}", preview + suffix)
+                    : "本次新增 " + total + " 条法规：" + preview + suffix;
+            n += dispatch("REG_CRAWLED_BATCH", e.getKey(), "RULE_REG_NEW",
+                    today.toString(), e.getKey(), digest, ruleId, collector);
         }
         return n;
     }

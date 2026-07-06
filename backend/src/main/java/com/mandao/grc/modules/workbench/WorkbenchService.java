@@ -40,6 +40,20 @@ public class WorkbenchService {
     private static final int DEFAULT_LIMIT = 100;
     private static final int MAX_LIMIT = 500;
 
+    // ===== B28：通知分类与订阅偏好 =====
+    /** event_type → 可订阅分类键。未列出的归 OTHER（可静音）。 */
+    private static final java.util.Map<String, String> EVENT_CATEGORY = java.util.Map.ofEntries(
+            java.util.Map.entry("RULE_REMEDIATION_OVERDUE", "REMEDIATION"),
+            java.util.Map.entry("RULE_ASSESSMENT_STALLED", "ASSESSMENT"),
+            java.util.Map.entry("ASSET_CHANGED", "ASSESSMENT"),
+            java.util.Map.entry("RULE_REG_NEW", "REGULATION"),
+            java.util.Map.entry("RULE_KRI_BREACH", "RISK"),
+            java.util.Map.entry("EXT_AUDIT_PLAN_APPROACHING", "AUDIT"),
+            java.util.Map.entry("PERIODIC_FILING_GENERATED", "FILING"));
+    /** 法定时限红线类——不可静音（无论用户偏好如何都必须送达）。 */
+    private static final java.util.Set<String> URGENT_EVENTS = java.util.Set.of(
+            "REG_FILING_DUE", "MAJOR_INCIDENT_REPORT_DUE", "MLPS_REVIEW_DUE");
+
     @PersistenceContext
     private EntityManager em;
 
@@ -48,17 +62,79 @@ public class WorkbenchService {
     private final RegFilingRepository regFilingRepository;
     private final TaskService taskService;
     private final RuntimeService runtimeService;
+    private final com.mandao.grc.common.auth.AppUserRepository appUserRepository;
 
     public WorkbenchService(RemediationOrderRepository remediationOrderRepository,
                             CompliancePlanItemRepository compliancePlanItemRepository,
                             RegFilingRepository regFilingRepository,
                             TaskService taskService,
-                            RuntimeService runtimeService) {
+                            RuntimeService runtimeService,
+                            com.mandao.grc.common.auth.AppUserRepository appUserRepository) {
         this.remediationOrderRepository = remediationOrderRepository;
         this.compliancePlanItemRepository = compliancePlanItemRepository;
         this.regFilingRepository = regFilingRepository;
         this.taskService = taskService;
         this.runtimeService = runtimeService;
+        this.appUserRepository = appUserRepository;
+    }
+
+    // ===== B28：通知订阅偏好 CRUD + 过滤辅助 =====
+
+    /** 当前登录人静音的分类集合（未登录/无偏好返回空集）。 */
+    private java.util.Set<String> mutedCategoriesOfCurrentUser() {
+        String username = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (username == null) {
+            return java.util.Set.of();
+        }
+        Long uid = appUserRepository.findByUsername(username).map(u -> u.getId()).orElse(null);
+        if (uid == null) {
+            return java.util.Set.of();
+        }
+        List<?> rows = em.createNativeQuery("SELECT muted_categories FROM notify_preference WHERE user_id = :uid")
+                .setParameter("uid", uid).getResultList();
+        if (rows.isEmpty() || rows.get(0) == null) {
+            return java.util.Set.of();
+        }
+        String csv = (String) rows.get(0);
+        if (csv.isBlank()) {
+            return java.util.Set.of();
+        }
+        return java.util.Arrays.stream(csv.split(",")).map(String::trim).filter(s -> !s.isBlank())
+                .collect(java.util.stream.Collectors.toSet());
+    }
+
+    /** 读当前登录人的订阅偏好（静音分类列表）。 */
+    @Transactional(readOnly = true)
+    public java.util.List<String> getMutedCategories() {
+        return new java.util.ArrayList<>(mutedCategoriesOfCurrentUser());
+    }
+
+    /** 保存当前登录人的订阅偏好——法定时限红线分类被强制剔除（不可静音）。 */
+    @Transactional
+    public void setMutedCategories(java.util.List<String> categories) {
+        String username = com.mandao.grc.common.auth.CurrentUserContext.get();
+        if (username == null) {
+            throw new IllegalStateException("未登录，无法保存通知偏好");
+        }
+        Long uid = appUserRepository.findByUsername(username).map(u -> u.getId())
+                .orElseThrow(() -> new IllegalStateException("当前用户不存在：" + username));
+        // 红线分类不允许静音（即便前端误传也剔除）
+        String csv = categories == null ? "" : categories.stream()
+                .map(String::trim).filter(s -> !s.isBlank() && !"URGENT".equals(s))
+                .distinct().collect(java.util.stream.Collectors.joining(","));
+        em.createNativeQuery("INSERT INTO notify_preference(user_id, muted_categories, updated_at) "
+                        + "VALUES (:uid, :csv, now()) "
+                        + "ON CONFLICT (user_id) DO UPDATE SET muted_categories = :csv, updated_at = now()")
+                .setParameter("uid", uid).setParameter("csv", csv).executeUpdate();
+    }
+
+    /** 该 event_type 是否应对当前用户隐藏（命中静音分类且非红线）。 */
+    private boolean isMuted(String eventType, java.util.Set<String> muted) {
+        if (URGENT_EVENTS.contains(eventType)) {
+            return false;  // 法定时限红线：永不静音
+        }
+        String category = EVENT_CATEGORY.getOrDefault(eventType, "OTHER");
+        return muted.contains(category);
     }
 
     /** 我的待办：可见范围内待处理工作的统一聚合（RLS 自动按域裁剪）。 */
@@ -172,7 +248,10 @@ public class WorkbenchService {
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
+        // B28：按当前用户订阅偏好过滤静音分类（法定时限红线不受影响）
+        java.util.Set<String> muted = mutedCategoriesOfCurrentUser();
         return rows.stream()
+                .filter(r -> !isMuted((String) r[3], muted))
                 .map(r -> new NotificationView(
                         ((Number) r[0]).longValue(),
                         (String) r[1],

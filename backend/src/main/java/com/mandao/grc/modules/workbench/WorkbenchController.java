@@ -4,6 +4,7 @@ import com.mandao.grc.common.auth.CurrentUserContext;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -57,5 +58,23 @@ public class WorkbenchController {
     @GetMapping("/digest")
     public List<WorkbenchService.DigestRow> digest(@RequestParam(required = false) Integer days) {
         return service.digest(days);
+    }
+
+    // ===== B28：通知订阅偏好（登录人维度）=====
+
+    /** 读当前登录人静音的通知分类。 */
+    @GetMapping("/notify-preference")
+    public List<String> getNotifyPreference() {
+        return service.getMutedCategories();
+    }
+
+    /** 保存当前登录人静音的通知分类（法定时限红线分类会被强制剔除）。 */
+    @PostMapping("/notify-preference")
+    public void setNotifyPreference(@RequestBody NotifyPreferenceRequest req) {
+        service.setMutedCategories(req.mutedCategories());
+    }
+
+    /** 通知偏好请求体（mutedCategories：静音分类键数组）。 */
+    public record NotifyPreferenceRequest(List<String> mutedCategories) {
     }
 }

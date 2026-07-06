@@ -20,6 +20,7 @@
         <button :class="{ on: tab === 'channel' }" @click="tab = 'channel'">通道管理</button>
         <button :class="{ on: tab === 'log' }" @click="tab = 'log'">提醒记录</button>
         <button :class="{ on: tab === 'digest' }" @click="tab = 'digest'; loadDigest()">{{ $t('notify.digest.tab') }}</button>
+        <button :class="{ on: tab === 'pref' }" @click="tab = 'pref'; loadPref()">订阅偏好</button>
       </div>
 
       <!-- 通知场景 -->
@@ -179,6 +180,24 @@
         </div>
       </div>
 
+      <!-- B28：订阅偏好——按分类静音；法定时限红线不可退订 -->
+      <div v-show="tab === 'pref'" class="card">
+        <div class="ch"><h3>通知订阅偏好</h3><span class="sub">静音的分类不再进入你的通知列表；法定时限红线始终送达</span></div>
+        <div class="cb">
+          <div v-for="c in PREF_CATEGORIES" :key="c.key" class="pref-row">
+            <div>
+              <b>{{ c.label }}</b>
+              <span class="pref-hint">{{ c.hint }}</span>
+            </div>
+            <label class="switch" :class="{ locked: c.urgent }">
+              <input type="checkbox" :checked="c.urgent || !mutedSet.has(c.key)" :disabled="c.urgent" @change="toggleMute(c.key, $event.target.checked)" />
+              <span>{{ c.urgent ? '强制订阅' : (mutedSet.has(c.key) ? '已静音' : '订阅中') }}</span>
+            </label>
+          </div>
+          <p v-if="prefSaved" class="pref-saved">已保存 ✓</p>
+        </div>
+      </div>
+
       <!-- 新建配置弹窗（按当前 tab 的 kind 显示字段）-->
       <div v-if="showAdd" class="modal-mask" @click.self="showAdd = false">
         <div class="modal-card">
@@ -284,6 +303,32 @@ async function loadDigest() {
   try { digestRows.value = await api.get('/workbench/digest?days=' + digestDays.value) } catch (e) { digestRows.value = [] }
 }
 
+// ===== B28：通知订阅偏好 =====
+const PREF_CATEGORIES = [
+  { key: 'REMEDIATION', label: '整改提醒', hint: '整改单逾期未提交' },
+  { key: 'ASSESSMENT', label: '评估提醒', hint: '评估复核滞留、范围资产变更' },
+  { key: 'REGULATION', label: '法规提醒', hint: '新采集法规摘要' },
+  { key: 'RISK', label: '风险提醒', hint: 'KRI 触阈预警' },
+  { key: 'AUDIT', label: '审计提醒', hint: '外部审计计划临近' },
+  { key: 'FILING', label: '报送提醒', hint: '周期报送生成' },
+  { key: 'URGENT', label: '法定时限红线', hint: '报送/重大事件/等保测评到期——不可退订', urgent: true }
+]
+const mutedSet = ref(new Set())
+const prefSaved = ref(false)
+async function loadPref() {
+  try { mutedSet.value = new Set(await api.get('/workbench/notify-preference')) } catch (e) { mutedSet.value = new Set() }
+}
+async function toggleMute(key, subscribed) {
+  // subscribed=false → 加入静音；true → 移出静音
+  const s = new Set(mutedSet.value)
+  if (subscribed) s.delete(key); else s.add(key)
+  mutedSet.value = s
+  try {
+    await api.post('/workbench/notify-preference', { mutedCategories: [...s] })
+    prefSaved.value = true; setTimeout(() => (prefSaved.value = false), 2000)
+  } catch (e) { window.alert(e.message); loadPref() }
+}
+
 // 启停 / 删除
 async function toggle(c) {
   try { await api.put('/notify/configs/' + c.id + '/enabled?enabled=' + (!c.enabled)); await loadAll() } catch (e) { /* 忽略 */ }
@@ -387,4 +432,13 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .ackd { font-size: 11px; color: var(--success); font-weight: 600; }
 .sel { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
 .ch .sub { font-size: 10.5px; color: var(--text-3); }
+/* B28 订阅偏好 */
+.pref-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 2px; border-bottom: 1px solid var(--border-subtle); }
+.pref-row:last-of-type { border-bottom: 0; }
+.pref-row b { font-size: 13px; color: var(--text-1); }
+.pref-hint { display: block; font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.switch { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-2); cursor: pointer; }
+.switch.locked { color: var(--text-3); cursor: not-allowed; }
+.switch input { width: 16px; height: 16px; accent-color: var(--accent); }
+.pref-saved { color: var(--success); font-size: 12px; font-weight: 600; margin-top: 10px; }
 </style>

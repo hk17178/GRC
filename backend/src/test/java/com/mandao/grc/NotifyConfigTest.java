@@ -22,6 +22,7 @@ import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -74,7 +75,9 @@ class NotifyConfigTest {
     @Test
     void 三类配置分类增查与启停() {
         asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.SCENARIO, "外审计划临近", "{\"trigger\":\"前15天\"}"));
-        NotifyConfig rule = asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.RULE, "整改逾期升级", "{\"level\":\"URGENT\"}"));
+        // A25：RULE 须为合法配置（已知 source + 非空 template）
+        NotifyConfig rule = asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.RULE, "整改逾期升级",
+                "{\"source\":\"REMEDIATION_OVERDUE\",\"template\":\"整改单{标题}逾期{逾期天数}天\"}"));
         asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.CHANNEL, "企微机器人", "{\"type\":\"WECOM\"}"));
 
         assertEquals(1, asOrg(ORG_PAY, () -> service.listByKind(NotifyConfig.SCENARIO)).size(), "场景应 1 条");
@@ -83,6 +86,25 @@ class NotifyConfigTest {
 
         // 停用规则
         assertFalse(asOrg(ORG_PAY, () -> service.setEnabled(rule.getId(), false)).isEnabled());
+    }
+
+    @Test
+    void a25_坏规则配置写入即拒() {
+        // 未知数据源 → 拒
+        assertThrows(IllegalArgumentException.class, () -> asOrg(ORG_PAY, () ->
+                service.create(ORG_PAY, NotifyConfig.RULE, "坏源", "{\"source\":\"FOO\",\"template\":\"x\"}")));
+        // 空模板 → 拒
+        assertThrows(IllegalArgumentException.class, () -> asOrg(ORG_PAY, () ->
+                service.create(ORG_PAY, NotifyConfig.RULE, "空模板", "{\"source\":\"REG_NEW\"}")));
+        // 非法 JSON → 拒
+        assertThrows(IllegalArgumentException.class, () -> asOrg(ORG_PAY, () ->
+                service.create(ORG_PAY, NotifyConfig.RULE, "坏JSON", "{not json")));
+        // 合法 → 通过
+        assertEquals(1, asOrg(ORG_PAY, () -> {
+            service.create(ORG_PAY, NotifyConfig.RULE, "好规则",
+                    "{\"source\":\"KRI_BREACH\",\"template\":\"{指标}触阈{级别}\"}");
+            return service.listByKind(NotifyConfig.RULE).size();
+        }));
     }
 
     @Test

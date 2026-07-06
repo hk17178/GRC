@@ -76,6 +76,7 @@ class WorkbenchTest {
     void clean() throws Exception {
         execAsOwner("TRUNCATE remediation_order, audit_finding, audit_plan, compliance_plan_item, compliance_plan, "
                 + "reg_filing, reminder_dispatch_log, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("DELETE FROM notify_preference");  // B28：每例前清用户偏好
     }
 
     @AfterEach
@@ -119,6 +120,41 @@ class WorkbenchTest {
         List<NotificationView> cf = asOrg(ORG_CF, () -> workbenchService.notifications(null));
         assertEquals(1, cf.size(), "org13 仅应看到自己的 1 条提醒");
         assertEquals("EXT_AUDIT_PLAN_APPROACHING", cf.get(0).eventType());
+    }
+
+    @Test
+    void b28_订阅偏好静音分类_法定时限红线不可静音() throws Exception {
+        // org12 两条提醒：法规采集摘要（REGULATION 分类，可静音）+ 报送法定时限（URGENT 红线，不可静音）
+        execAsOwner("INSERT INTO reminder_dispatch_log(object_type,object_id,event_type,threshold_key,org_id) "
+                + "VALUES ('REG_CRAWLED_BATCH',12,'RULE_REG_NEW','2026-07-06',12)");
+        execAsOwner("INSERT INTO reminder_dispatch_log(object_type,object_id,event_type,threshold_key,org_id) "
+                + "VALUES ('REG_FILING',5,'REG_FILING_DUE','reminder_day=10',12)");
+        // pay_user(id=2) 静音 REGULATION 分类
+        execAsOwner("INSERT INTO notify_preference(user_id, muted_categories) VALUES (2, 'REGULATION')");
+
+        com.mandao.grc.common.auth.CurrentUserContext.set("pay_user");
+        try {
+            List<NotificationView> list = asOrg(ORG_PAY, () -> workbenchService.notifications(null));
+            // REGULATION 被静音 → 仅剩红线一条
+            assertEquals(1, list.size(), "静音法规分类后应仅剩红线提醒");
+            assertEquals("REG_FILING_DUE", list.get(0).eventType(), "法定时限红线不可静音，必须送达");
+        } finally {
+            com.mandao.grc.common.auth.CurrentUserContext.clear();
+        }
+    }
+
+    @Test
+    void b28_红线分类不可写入偏好() throws Exception {
+        com.mandao.grc.common.auth.CurrentUserContext.set("pay_user");
+        try {
+            // 前端误传 URGENT 也应被剔除
+            asOrg(ORG_PAY, () -> { workbenchService.setMutedCategories(List.of("REGULATION", "URGENT")); return null; });
+            List<String> muted = asOrg(ORG_PAY, () -> workbenchService.getMutedCategories());
+            assertTrue(muted.contains("REGULATION"), "普通分类可静音");
+            assertTrue(!muted.contains("URGENT"), "红线分类不可静音（写入被剔除）");
+        } finally {
+            com.mandao.grc.common.auth.CurrentUserContext.clear();
+        }
     }
 
     // ---------- 测试辅助 ----------

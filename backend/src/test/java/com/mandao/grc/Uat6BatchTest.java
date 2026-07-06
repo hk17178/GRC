@@ -221,6 +221,46 @@ class Uat6BatchTest {
     }
 
     @Test
+    void b35_法规采集同批合并为一条摘要() throws Exception {
+        // 造 3 条今日采集的法规（同批），B35 应合并为一条摘要而非 3 条提醒
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("DELETE FROM regulation_crawled WHERE org_id = 12");
+            long srcId;
+            try (ResultSet rs = s.executeQuery("INSERT INTO regulation_source(org_id, name, source_type, frequency) "
+                    + "VALUES (12, 'B35源', 'SAMPLE', 'DAILY') RETURNING id")) {
+                rs.next();
+                srcId = rs.getLong(1);
+            }
+            for (int i = 1; i <= 3; i++) {
+                s.executeUpdate("INSERT INTO regulation_crawled(org_id, source_id, title, issuer, dedup_key, fetched_at) "
+                        + "VALUES (12, " + srcId + ", '新规" + i + "', '人民银行', 'b35-key-" + i + "', now())");
+            }
+        }
+
+        notifyRuleEngine.runOnce(LocalDate.now());
+
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*), min(message) FROM reminder_dispatch_log "
+                     + "WHERE event_type = 'RULE_REG_NEW' AND object_type = 'REG_CRAWLED_BATCH' AND org_id = 12")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "3 条同批采集应合并为 1 条摘要提醒");
+            assertTrue(rs.getString(2).contains("本次新增 3 条"), "摘要应含条数：" + rs.getString(2));
+        }
+
+        // 幂等：同日再扫不重复产
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*) FROM reminder_dispatch_log "
+                     + "WHERE event_type = 'RULE_REG_NEW' AND org_id = 12")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "同日重复扫描摘要幂等");
+        }
+    }
+
+    @Test
     void 风险登记册_跨评估聚合携来源标题() {
         Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "登记册来源评估", "u", "2026", "c"));
         asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "登记册测试风险",
