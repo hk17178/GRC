@@ -59,6 +59,14 @@ public class Ropa {
     @Column(length = 64)
     private String retention;
 
+    /** 处理方式（合规扩展包 B14：个保法§55/56 法定字段——收集/存储/使用/加工/传输/提供/公开/删除等）。 */
+    @Column(name = "processing_method", length = 256)
+    private String processingMethod;
+
+    /** 接收方（B14：数据接收/共享的第三方，个保法要求告知与记录）。 */
+    @Column(columnDefinition = "TEXT")
+    private String recipients;
+
     /** ROPA 生命周期状态机当前态。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -77,6 +85,13 @@ public class Ropa {
     /** 业务构造：以 DRAFT 态登记处理活动。 */
     public Ropa(Long orgId, String activityName, String purpose, String dataCategories,
                 String legalBasis, boolean crossBorder, String retention) {
+        this(orgId, activityName, purpose, dataCategories, legalBasis, crossBorder, retention, null, null);
+    }
+
+    /** 业务构造（B14 全字段：含处理方式/接收方）。 */
+    public Ropa(Long orgId, String activityName, String purpose, String dataCategories,
+                String legalBasis, boolean crossBorder, String retention,
+                String processingMethod, String recipients) {
         this.orgId = orgId;
         this.activityName = activityName;
         this.purpose = purpose;
@@ -84,6 +99,8 @@ public class Ropa {
         this.legalBasis = legalBasis;
         this.crossBorder = crossBorder;
         this.retention = retention;
+        this.processingMethod = processingMethod;
+        this.recipients = recipients;
         this.status = RopaStatus.DRAFT;
     }
 
@@ -109,6 +126,8 @@ public class Ropa {
     public String getLegalBasis() { return legalBasis; }
     public boolean isCrossBorder() { return crossBorder; }
     public String getRetention() { return retention; }
+    public String getProcessingMethod() { return processingMethod; }
+    public String getRecipients() { return recipients; }
     public RopaStatus getStatus() { return status; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }

@@ -126,10 +126,14 @@ public class FeedbackService {
         if ("PENDING_APPROVAL".equals(f.getOutboundStatus()) || "APPROVED".equals(f.getOutboundStatus())) {
             throw new IllegalStateException("出站回复已在审批中或已批准，不可重复发起");
         }
-        f.setOutbound(reply, "PENDING_APPROVAL");
+        // B29 红线（FB-4 之一）：出站前自动脱敏——抹除身份证/手机/银行卡/邮箱，PII 不随对外回复出域。
+        boolean hadSensitive = com.mandao.grc.common.privacy.SensitiveDataMasker.containsSensitive(reply);
+        String masked = com.mandao.grc.common.privacy.SensitiveDataMasker.mask(reply);
+        f.setOutbound(masked, "PENDING_APPROVAL");
         Feedback saved = repository.save(f);
         workflowService.submit(OUTBOUND_BIZ_TYPE, saved.getId(), saved.getOrgId(), OUTBOUND_APPROVER_GROUP, actor);
-        hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_SUBMIT", actor, "FEEDBACK:" + id, "发起出站回复审批");
+        hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_SUBMIT", actor, "FEEDBACK:" + id,
+                "发起出站回复审批" + (hadSensitive ? "（含敏感信息，已自动脱敏后提交）" : ""));
         return saved;
     }
 
@@ -149,8 +153,12 @@ public class FeedbackService {
         }
         workflowService.decide(task.getId(), decision, approver, comment);
         if (decision == ApprovalDecision.APPROVED) {
+            // B29：固化"实际批准对外发出内容"的 sha256（脱敏后的稿），事后可校验未被篡改
+            String sha = sha256(f.getOutboundReply());
+            f.setOutboundSha256(sha);
             f.setOutbound(null, "APPROVED");
-            hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_APPROVE", approver, "FEEDBACK:" + id, "出站回复审批通过");
+            hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_APPROVE", approver, "FEEDBACK:" + id,
+                    "出站回复审批通过，出站内容 sha256=" + sha);
         } else {
             f.setOutbound(null, "REJECTED");
             hashChainService.append(f.getOrgId(), "FEEDBACK_OUTBOUND_REJECT", approver, "FEEDBACK:" + id,
@@ -171,5 +179,20 @@ public class FeedbackService {
         hashChainService.append(f.getOrgId(), "FEEDBACK_REJECT", actor, "FEEDBACK:" + id,
                 "驳回反馈：" + (reason == null ? "" : reason));
         return saved;
+    }
+
+    /** B29：出站内容 sha256 指纹（与证据库同口径的防篡改指纹）。 */
+    private static String sha256(String s) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest((s == null ? "" : s).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(d.length * 2);
+            for (byte b : d) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 }

@@ -198,6 +198,15 @@ class OrgAssetTest {
     }
 
     @Test
+    void b14_ropa含处理方式与接收方法定字段() {
+        Long id = asOrg(ORG_PAY, () -> ropaService.create(ORG_PAY, "商户结算", "履约", "银行卡号",
+                "合同", false, "5年", "收集、存储、对外提供", "银联、合作银行", "dpo").getId());
+        var r = asOrg(ORG_PAY, () -> ropaService.get(id));
+        assertEquals("收集、存储、对外提供", r.getProcessingMethod(), "处理方式应落库");
+        assertEquals("银联、合作银行", r.getRecipients(), "接收方应落库");
+    }
+
+    @Test
     void ropa非法流转_草稿直接退役被拒() {
         Long id = asOrg(ORG_PAY, () -> ropaService.create(ORG_PAY, "X", "p",
                 "c", "同意", false, "1年", "dpo").getId());

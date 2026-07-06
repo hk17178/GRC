@@ -40,15 +40,26 @@ public class RopaService {
                 .orElseThrow(() -> new IllegalArgumentException("个人信息处理活动不存在或不可见：id=" + id));
     }
 
-    /** 登记处理活动（DRAFT 态）。 */
+    /** 兼容重载（B14 前七字段签名）：无处理方式/接收方。 */
     @Transactional
     public Ropa create(Long orgId, String activityName, String purpose, String dataCategories,
                        String legalBasis, boolean crossBorder, String retention, String actor) {
-        Ropa r = new Ropa(orgId, activityName, purpose, dataCategories, legalBasis, crossBorder, retention);
+        return create(orgId, activityName, purpose, dataCategories, legalBasis, crossBorder, retention,
+                null, null, actor);
+    }
+
+    /** 登记处理活动（DRAFT 态；B14：含处理方式/接收方法定字段）。 */
+    @Transactional
+    public Ropa create(Long orgId, String activityName, String purpose, String dataCategories,
+                       String legalBasis, boolean crossBorder, String retention,
+                       String processingMethod, String recipients, String actor) {
+        Ropa r = new Ropa(orgId, activityName, purpose, dataCategories, legalBasis, crossBorder, retention,
+                processingMethod, recipients);
         Ropa saved = repository.save(r);
         appendLog(saved, "ROPA_CREATE", actor,
                 "登记个人信息处理活动 name=" + activityName + " legalBasis=" + legalBasis
-                        + " crossBorder=" + crossBorder);
+                        + " crossBorder=" + crossBorder
+                        + (processingMethod == null ? "" : " method=" + processingMethod));
         return saved;
     }
 

@@ -37,6 +37,13 @@ public class PermissionController {
         return service.listUserRoles(orgId, userId);
     }
 
+    /** B18：SoD 存量冲突扫描——盘点现存互斥角色并存（读门控 perm）。 */
+    @GetMapping("/sod-conflicts")
+    @RequiresPermission("perm")
+    public List<PermissionService.SodConflict> scanSodConflicts() {
+        return service.scanSodConflicts();
+    }
+
     /** 授予角色（SoD 互斥且无豁免则抛 SodViolationException）。 */
     @PostMapping("/grant")
     @RequiresPermission("perm")

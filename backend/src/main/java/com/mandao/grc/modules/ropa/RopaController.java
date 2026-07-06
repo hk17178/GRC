@@ -42,7 +42,8 @@ public class RopaController {
     public Ropa create(@RequestBody CreateRopaRequest req,
                        @RequestHeader(value = "X-User", required = false) String user) {
         return service.create(req.orgId(), req.activityName(), req.purpose(), req.dataCategories(),
-                req.legalBasis(), req.crossBorder(), req.retention(), actor(user));
+                req.legalBasis(), req.crossBorder(), req.retention(),
+                req.processingMethod(), req.recipients(), actor(user));
     }
 
     @PostMapping("/{id}/activate")
@@ -63,8 +64,9 @@ public class RopaController {
         return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
     }
 
-    /** 登记个人信息处理活动请求体。 */
+    /** 登记个人信息处理活动请求体（B14：含处理方式/接收方法定字段）。 */
     public record CreateRopaRequest(Long orgId, String activityName, String purpose, String dataCategories,
-                                    String legalBasis, boolean crossBorder, String retention) {
+                                    String legalBasis, boolean crossBorder, String retention,
+                                    String processingMethod, String recipients) {
     }
 }

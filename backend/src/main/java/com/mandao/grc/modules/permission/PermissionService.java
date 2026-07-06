@@ -41,6 +41,10 @@ public class PermissionService {
     private final HashChainService hashChainService;
     private final WorkflowService workflowService;
 
+    /** B18 存量扫描用原生连表（跨用户/角色/规则聚合，走 RLS 裁剪的 user_role_org）。 */
+    @jakarta.persistence.PersistenceContext
+    private jakarta.persistence.EntityManager em;
+
     public PermissionService(UserRoleOrgRepository userRoleOrgRepository,
                              SodRuleRepository sodRuleRepository,
                              SodExceptionRepository sodExceptionRepository,
@@ -166,6 +170,48 @@ public class PermissionService {
                     "SoD 豁免驳回：" + (comment == null ? "" : comment));
         }
         return sodExceptionRepository.save(ex);
+    }
+
+    // ---------- B18：SoD 存量冲突扫描 ----------
+
+    /** 一条存量冲突：某用户在某 org 同时持有一对互斥角色（active）。 */
+    public record SodConflict(Long orgId, Long userId, String username, Long ruleId,
+                              String roleA, String roleB, String mode, String description, boolean exempted) {
+    }
+
+    /**
+     * 扫描存量 SoD 冲突（B18）：授权入口的 {@link #enforceSod} 只拦【新】授权，但历史遗留的互斥并存
+     * （如既有 pay_user 同时持发起人+审批人）从不复查。本方法对当前可见范围内全部有效授权做一次盘点——
+     * 连表求"同一 user 在同一 org 同时持有某互斥规则两端角色（active）"，并标注是否已有生效豁免。
+     *
+     * 只读盘点，不改状态；供合规/安全运营定期核查与整改（回收其一或补办豁免）。
+     */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public List<SodConflict> scanSodConflicts() {
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT ua.org_id, ua.user_id, u.username, sr.id, ra.name, rb.name, "
+                                + "sr.enforce_mode, sr.description, "
+                                + "EXISTS(SELECT 1 FROM sod_exception se WHERE se.org_id = ua.org_id "
+                                + "       AND se.user_id = ua.user_id AND se.sod_rule_id = sr.id "
+                                + "       AND se.status = 'APPROVED') AS exempted "
+                                + "FROM sod_rule sr "
+                                + "JOIN user_role_org ua ON ua.role_id = sr.role_a_id AND ua.active = true "
+                                + "JOIN user_role_org ub ON ub.role_id = sr.role_b_id AND ub.active = true "
+                                + "  AND ub.org_id = ua.org_id AND ub.user_id = ua.user_id "
+                                + "JOIN role ra ON ra.id = sr.role_a_id "
+                                + "JOIN role rb ON rb.id = sr.role_b_id "
+                                + "JOIN app_user u ON u.id = ua.user_id "
+                                + "ORDER BY ua.org_id, ua.user_id, sr.id")
+                .getResultList();
+        List<SodConflict> out = new java.util.ArrayList<>(rows.size());
+        for (Object[] r : rows) {
+            out.add(new SodConflict(
+                    ((Number) r[0]).longValue(), ((Number) r[1]).longValue(), (String) r[2],
+                    ((Number) r[3]).longValue(), (String) r[4], (String) r[5],
+                    (String) r[6], (String) r[7], (Boolean) r[8]));
+        }
+        return out;
     }
 
     // ---------- 内部辅助 ----------

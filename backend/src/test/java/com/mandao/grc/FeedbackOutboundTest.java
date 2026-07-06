@@ -23,7 +23,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 反馈出站审批集成测试（V43，真实 PG + Flowable）。验证：
@@ -95,6 +98,24 @@ class FeedbackOutboundTest {
                 service.decideOutbound(f.getId(), ApprovalDecision.APPROVED, "compliance_lead", null));
         assertEquals("APPROVED", approved.getOutboundStatus(), "批准后可对外发送");
         assertEquals("尊敬的来函人：…", approved.getOutboundReply(), "回复稿保留");
+    }
+
+    @Test
+    void b29_出站自动脱敏与哈希审计() {
+        Feedback f = resolvedFeedback();
+        // 含身份证号与手机号的回复稿 → 提交时自动脱敏
+        asOrg(ORG_PAY, () -> service.submitOutbound(f.getId(),
+                "经核实，您的身份证110101199001011234、手机13800138000信息属实。", "handler"));
+        Feedback pending = asOrg(ORG_PAY, () -> service.get(f.getId()));
+        assertTrue(pending.getOutboundReply().contains("110101********1234"), "身份证应脱敏，实际：" + pending.getOutboundReply());
+        assertTrue(pending.getOutboundReply().contains("138****8000"), "手机应脱敏");
+        assertFalse(pending.getOutboundReply().contains("13800138000"), "明文手机不应残留");
+
+        // 批准时固化出站内容 sha256
+        Feedback approved = asOrg(ORG_PAY, () ->
+                service.decideOutbound(f.getId(), ApprovalDecision.APPROVED, "compliance_lead", null));
+        assertNotNull(approved.getOutboundSha256(), "批准后应固化出站内容 sha256");
+        assertEquals(64, approved.getOutboundSha256().length(), "sha256 应为 64 位十六进制");
     }
 
     @Test

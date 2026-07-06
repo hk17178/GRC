@@ -114,6 +114,30 @@
             <p v-if="exError" class="cerr">{{ exError }}</p>
           </div>
         </div>
+
+        <!-- B18：SoD 存量冲突扫描（盘点历史遗留的互斥并存）-->
+        <div class="card">
+          <div class="ch"><h3>SoD 存量冲突扫描</h3><span class="sub">授权入口只拦新授权；此处盘点历史遗留的互斥角色并存</span>
+            <button class="btn sm" style="margin-left:auto" :disabled="sodScanning" @click="scanSod">{{ sodScanning ? '扫描中…' : '立即扫描' }}</button>
+          </div>
+          <div class="cb">
+            <table v-if="sodConflicts.length">
+              <thead><tr><th>组织</th><th>用户</th><th>互斥角色对</th><th>规则</th><th>模式</th><th>处置</th></tr></thead>
+              <tbody>
+                <tr v-for="(c, i) in sodConflicts" :key="i">
+                  <td class="code">org{{ c.orgId }}</td>
+                  <td>{{ c.username }}</td>
+                  <td>{{ c.roleA }} <span class="muted">×</span> {{ c.roleB }}</td>
+                  <td class="mutedcell">{{ c.description }}</td>
+                  <td><span class="tag" :class="c.mode === 'BLOCK' ? 'danger' : 'm'">{{ c.mode }}</span></td>
+                  <td><span v-if="c.exempted" class="st ok"><span class="d"></span>已豁免</span><span v-else class="st bad"><span class="d"></span>待整改</span></td>
+                </tr>
+              </tbody>
+            </table>
+            <p v-else-if="sodScanned" class="hint" style="color:var(--success)">未发现存量冲突 ✓</p>
+            <p v-else class="hint">点「立即扫描」盘点现存互斥角色并存情况。</p>
+          </div>
+        </div>
       </div>
 
       <!-- 访问复核（UAR · 周期性权限再认证）-->
@@ -267,6 +291,18 @@ const exRuleId = ref(1)
 const exReason = ref('')
 const exceptions = ref([])
 const exError = ref('')
+
+// B18：SoD 存量冲突扫描
+const sodConflicts = ref([])
+const sodScanning = ref(false)
+const sodScanned = ref(false)
+async function scanSod() {
+  sodScanning.value = true
+  try {
+    sodConflicts.value = await api.get('/permissions/sod-conflicts')
+    sodScanned.value = true
+  } catch (e) { window.alert(e.message) } finally { sodScanning.value = false }
+}
 
 async function requestException() {
   busy.value = true; exError.value = ''

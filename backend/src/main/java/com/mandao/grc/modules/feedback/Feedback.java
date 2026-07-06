@@ -69,6 +69,10 @@ public class Feedback {
     @Column(name = "outbound_status", length = 20)
     private String outboundStatus;
 
+    /** 出站内容 sha256（B29：审批通过时固化，对外发出内容的防篡改指纹）。 */
+    @Column(name = "outbound_sha256", length = 64)
+    private String outboundSha256;
+
     @Column(name = "created_at", updatable = false)
     private OffsetDateTime createdAt;
 
@@ -125,6 +129,13 @@ public class Feedback {
         }
         this.outboundStatus = status;
     }
+
+    /** B29：出站内容哈希（审批通过时固化，事后校验对外发出内容未被篡改）。 */
+    void setOutboundSha256(String sha256) {
+        this.outboundSha256 = sha256;
+    }
+
+    public String getOutboundSha256() { return outboundSha256; }
 
     public Long getId() { return id; }
     public Long getOrgId() { return orgId; }

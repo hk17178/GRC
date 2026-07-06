@@ -215,6 +215,37 @@ class PermissionSodTest {
                 "登记冲突后哈希链应仍校验通过");
     }
 
+    // ---------- B18：SoD 存量冲突扫描 ----------
+
+    @Test
+    void b18_存量扫描_检出互斥并存并标注豁免() {
+        // DETECT 放行两端角色 → 形成存量冲突
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_RISK_OWNER, "admin"));
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_AUDITOR, "admin"));
+
+        List<PermissionService.SodConflict> conflicts = asOrg(ORG_PAY,
+                () -> permissionService.scanSodConflicts());
+        assertEquals(1, conflicts.size(), "应检出 1 条存量互斥并存");
+        PermissionService.SodConflict c = conflicts.get(0);
+        assertEquals(USER_PAY, c.userId());
+        assertEquals(SOD_RULE_RISK_AUDITOR, c.ruleId());
+        assertFalse(c.exempted(), "未豁免应标记待整改");
+
+        // 回收其一后不再冲突
+        asOrg(ORG_PAY, () -> permissionService.revokeRole(ORG_PAY, USER_PAY, ROLE_AUDITOR, "admin"));
+        assertTrue(asOrg(ORG_PAY, () -> permissionService.scanSodConflicts()).isEmpty(),
+                "回收互斥角色其一后应无存量冲突");
+    }
+
+    @Test
+    void b18_存量扫描_组织隔离() {
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_RISK_OWNER, "admin"));
+        asOrg(ORG_PAY, () -> permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_AUDITOR, "admin"));
+        // org13 扫描看不到 org12 的冲突（RLS 裁剪）
+        assertTrue(asOrg(ORG_CF, () -> permissionService.scanSodConflicts()).isEmpty(),
+                "org13 不应看到 org12 的存量冲突");
+    }
+
     // ---------- UAR 权限审阅 ----------
 
     @Test

@@ -137,6 +137,9 @@
           <label class="fld">处理活动<input v-model="rf.activityName" placeholder="如 商户实名认证" /></label>
           <label class="fld">目的<input v-model="rf.purpose" placeholder="如 履行反洗钱义务" /></label>
           <label class="fld">数据类别<input v-model="rf.dataCategories" placeholder="如 身份证号、人脸信息" /></label>
+          <!-- B14：个保法§55/56 法定字段 -->
+          <label class="fld">处理方式<input v-model="rf.processingMethod" placeholder="如 收集、存储、使用、传输、对外提供" /></label>
+          <label class="fld">接收方<input v-model="rf.recipients" placeholder="如 银联、征信机构、合作商户（无则留空）" /></label>
           <label class="fld">法律依据<input v-model="rf.legalBasis" placeholder="如 个保法第13条第3款" /></label>
           <label class="fld">留存期限<input v-model="rf.retention" placeholder="如 合同终止后5年" /></label>
           <label class="chk"><input type="checkbox" v-model="rf.crossBorder" /> 涉及跨境提供</label>
@@ -293,6 +296,9 @@
                   <th>{{ $t('orgasset.ropa.th.activity') }}</th>
                   <th>{{ $t('orgasset.ropa.th.purpose') }}</th>
                   <th>{{ $t('orgasset.ropa.th.piType') }}</th>
+                  <!-- B14：个保法法定字段列 -->
+                  <th>处理方式</th>
+                  <th>接收方</th>
                   <th>法律依据</th>
                   <th>{{ $t('orgasset.ropa.th.export') }}</th>
                   <th>{{ $t('orgasset.ropa.th.retention') }}</th>
@@ -304,12 +310,14 @@
                   <td><b>{{ r.activityName }}</b></td>
                   <td class="mutedcell">{{ r.purpose || '—' }}</td>
                   <td>{{ r.dataCategories || '—' }}</td>
+                  <td>{{ r.processingMethod || '—' }}</td>
+                  <td class="mutedcell">{{ r.recipients || '—' }}</td>
                   <td class="mutedcell">{{ r.legalBasis || '—' }}</td>
                   <td><span v-if="r.crossBorder" class="tag m">是</span><template v-else>否</template></td>
                   <td>{{ r.retention || '—' }}</td>
                   <td><span class="pill" :class="r.status === 'ACTIVE' ? 'blue' : ''">{{ ROPA_ST[r.status] || r.status }}</span></td>
                 </tr>
-                <tr v-if="!ropas.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:18px">暂无处理活动记录，点「＋ 登记处理活动」。</td></tr>
+                <tr v-if="!ropas.length"><td colspan="9" style="text-align:center;color:var(--text-3);padding:18px">暂无处理活动记录，点「＋ 登记处理活动」。</td></tr>
               </tbody>
             </table>
           </div>
@@ -480,15 +488,16 @@ async function loadRopas() {
 const showRopa = ref(false)
 const ropaSaving = ref(false)
 const ropaErr = ref('')
-const rf = reactive({ activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', crossBorder: false, orgId: 12 })
+const rf = reactive({ activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', processingMethod: '', recipients: '', crossBorder: false, orgId: 12 })
 function openRopa() {
-  Object.assign(rf, { activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', crossBorder: false, orgId: 12 })
+  Object.assign(rf, { activityName: '', purpose: '', dataCategories: '', legalBasis: '', retention: '', processingMethod: '', recipients: '', crossBorder: false, orgId: 12 })
   ropaErr.value = ''; showRopa.value = true
 }
 async function submitRopa() {
   ropaSaving.value = true; ropaErr.value = ''
   try {
-    await api.post('/ropa', { orgId: rf.orgId, activityName: rf.activityName, purpose: rf.purpose || null, dataCategories: rf.dataCategories || null, legalBasis: rf.legalBasis || null, crossBorder: rf.crossBorder, retention: rf.retention || null })
+    // B14：处理方式/接收方随登记提交（个保法§55/56 法定字段）
+    await api.post('/ropa', { orgId: rf.orgId, activityName: rf.activityName, purpose: rf.purpose || null, dataCategories: rf.dataCategories || null, legalBasis: rf.legalBasis || null, crossBorder: rf.crossBorder, retention: rf.retention || null, processingMethod: rf.processingMethod || null, recipients: rf.recipients || null })
     showRopa.value = false; await loadRopas()
   } catch (e) { ropaErr.value = e.message } finally { ropaSaving.value = false }
 }
