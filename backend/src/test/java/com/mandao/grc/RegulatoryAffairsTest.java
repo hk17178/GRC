@@ -99,6 +99,9 @@ class RegulatoryAffairsTest {
     private ExpiryScanService scanService;
 
     @Autowired
+    private com.mandao.grc.modules.regulatory.RegFilingScheduleService scheduleService;
+
+    @Autowired
     private RuntimeService runtimeService;
 
     @Autowired
@@ -112,11 +115,12 @@ class RegulatoryAffairsTest {
     /** 每用例前清空 M11 相关表与操作日志、调度表（owner 连接，绕 RLS；grc_app 无删权）。 */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE reg_filing, reg_inquiry, reg_penalty, major_incident_report, "
+        execAsOwner("TRUNCATE reg_filing, reg_inquiry, reg_penalty, major_incident_report, reg_filing_schedule, "
                 + "operation_log, reminder_dispatch_log, domain_event RESTART IDENTITY CASCADE");
         // 七轮 7-2：回执证据挂 filing_id/incident_id——RESTART IDENTITY 会让 id 跨用例复用，
         // 残留回执会误放行了结门控，必须一并清掉
-        execAsOwner("DELETE FROM evidence WHERE filing_id IS NOT NULL OR incident_id IS NOT NULL");
+        execAsOwner("DELETE FROM evidence WHERE filing_id IS NOT NULL OR incident_id IS NOT NULL "
+                + "OR inquiry_id IS NOT NULL OR penalty_id IS NOT NULL");
         // 清理 Flowable 运行态/历史：reg_filing id 因 RESTART IDENTITY 跨用例复用，会使
         // 报送复核 businessKey(REG_FILING:{id}) 跨用例碰撞，须净化（生产 id 全局唯一无此问题）。
         runtimeService.createProcessInstanceQuery().list()
@@ -160,6 +164,15 @@ class RegulatoryAffairsTest {
             s.executeUpdate("INSERT INTO evidence(org_id, filing_id, incident_id, name, data, sha256, uploaded_by) "
                     + "VALUES (12, " + (filingId == null ? "NULL" : filingId) + ", "
                     + (incidentId == null ? "NULL" : incidentId) + ", '监管回执', '\\x01', 'seed-sha', 'officer')");
+        }
+    }
+
+    /** M11 B13：为问询/处罚挂举证证据（owner 直插，不走留痕链，仅满足计数门控）。 */
+    private void seedRegEvidence(String col, Long refId) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO evidence(org_id, " + col + ", name, data, sha256, uploaded_by) "
+                    + "VALUES (12, " + refId + ", '举证材料', '\\x01', 'seed-sha', 'officer')");
         }
     }
 
@@ -218,13 +231,46 @@ class RegulatoryAffairsTest {
         assertEquals(0, scanService.scanOnce(TODAY).emitted());
     }
 
+    // ---------- 周期性报送计划（B34） ----------
+
+    @Test
+    void b34_周期计划到期_自动生成报送实例并推进下次到期() {
+        // 季报，首次到期 today+10，lead=15 → 已进入生成窗口
+        Long sid = asOrg(ORG_PAY, () -> scheduleService.create(ORG_PAY, "反洗钱季度报表", "人民银行",
+                com.mandao.grc.modules.regulatory.RegFilingSchedule.Period.QUARTERLY, 15, TODAY.plusDays(10), "officer").getId());
+
+        int emitted = scanService.scanOnce(TODAY).emitted();
+        assertTrue(emitted >= 1, "应至少产 1 条周期报送生成事件");
+        // 生成了一份 reg_filing 草稿
+        assertEquals(1, asOrg(ORG_PAY, () -> filingService.list()).size(), "应自动生成 1 份报送实例");
+        // 幂等：同一到期日再扫不重复生成
+        scanService.scanOnce(TODAY);
+        assertEquals(1, asOrg(ORG_PAY, () -> filingService.list()).size(), "同一到期日不应重复生成");
+        // next_due 已推进到下个季度（+3 月）
+        var sched = asOrg(ORG_PAY, () -> scheduleService.get(sid));
+        assertEquals(TODAY.plusDays(10).plusMonths(3), sched.getNextDue(), "季报应推进到 +3 个月");
+    }
+
+    @Test
+    void b34_停用计划_不再生成() {
+        Long sid = asOrg(ORG_PAY, () -> scheduleService.create(ORG_PAY, "停用测试", "人民银行",
+                com.mandao.grc.modules.regulatory.RegFilingSchedule.Period.MONTHLY, 15, TODAY.plusDays(5), "officer").getId());
+        asOrg(ORG_PAY, () -> scheduleService.setEnabled(sid, false, "officer"));
+        scanService.scanOnce(TODAY);
+        assertTrue(asOrg(ORG_PAY, () -> filingService.list()).isEmpty(), "停用后不应生成实例");
+    }
+
     // ---------- 监管问询生命周期 ----------
 
     @Test
-    void 监管问询_起草答复待反馈了结全程通过() {
+    void 监管问询_起草答复待反馈了结全程通过() throws Exception {
         Long id = asOrg(ORG_PAY, () ->
                 inquiryService.create(ORG_PAY, "数据报送问询", "银保监", TODAY, TODAY.plusDays(15), "officer").getId());
 
+        // M11 B13：无答复材料证据不可答复 → 挂证据后放行
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> inquiryService.reply(id, "officer")));
+        seedRegEvidence("inquiry_id", id);
         assertEquals(RegInquiryStatus.REPLIED,
                 asOrg(ORG_PAY, () -> inquiryService.reply(id, "officer").getStatus()));
         assertEquals(RegInquiryStatus.AWAIT_FEEDBACK,
@@ -236,13 +282,17 @@ class RegulatoryAffairsTest {
     // ---------- 处罚约谈生命周期 ----------
 
     @Test
-    void 处罚约谈_登记整改了结全程通过() {
+    void 处罚约谈_登记整改了结全程通过() throws Exception {
         Long id = asOrg(ORG_PAY, () ->
                 penaltyService.create(ORG_PAY, "违规处罚", "央行", "罚款",
                         new BigDecimal("500000"), TODAY, "officer").getId());
 
         assertEquals(RegPenaltyStatus.RECTIFYING,
                 asOrg(ORG_PAY, () -> penaltyService.rectify(id, "officer").getStatus()));
+        // M11 B13：无整改/缴款凭证不可了结 → 挂证据后放行
+        assertThrows(IllegalStateException.class,
+                () -> runAsOrg(ORG_PAY, () -> penaltyService.close(id, "officer")));
+        seedRegEvidence("penalty_id", id);
         assertEquals(RegPenaltyStatus.CLOSED,
                 asOrg(ORG_PAY, () -> penaltyService.close(id, "officer").getStatus()));
     }

@@ -21,6 +21,12 @@ public interface EvidenceRepository extends JpaRepository<Evidence, Long> {
     /** 重大事件报送/确认材料（七轮 7-2）。 */
     List<Evidence> findByIncidentIdOrderByIdDesc(Long incidentId);
 
+    /** 问询答复回函/确认材料（M11 B13）。 */
+    List<Evidence> findByInquiryIdOrderByIdDesc(Long inquiryId);
+
+    /** 处罚整改/缴款凭证（M11 B13）。 */
+    List<Evidence> findByPenaltyIdOrderByIdDesc(Long penaltyId);
+
     // ---------- 七轮 7-8：计数门控与列表投影（都不触 bytea） ----------
 
     /** 整改证据计数（提交门控用——只需知道有没有，不必加载字节）。 */
@@ -32,10 +38,17 @@ public interface EvidenceRepository extends JpaRepository<Evidence, Long> {
     /** 重大事件回执证据计数（了结门控用）。 */
     long countByIncidentId(Long incidentId);
 
-    /** 列表投影：可选五维过滤 + 分页，字节列永不出库。 */
+    /** 问询答复证据计数（M11 B13：答复门控用）。 */
+    long countByInquiryId(Long inquiryId);
+
+    /** 处罚整改/缴款证据计数（M11 B13：了结门控用）。 */
+    long countByPenaltyId(Long penaltyId);
+
+    /** 列表投影：可选七维过滤 + 分页，字节列永不出库。 */
     @org.springframework.data.jpa.repository.Query(
             "select e.id as id, e.orgId as orgId, e.planId as planId, e.findingId as findingId, "
                     + "e.remediationId as remediationId, e.filingId as filingId, e.incidentId as incidentId, "
+                    + "e.inquiryId as inquiryId, e.penaltyId as penaltyId, "
                     + "e.name as name, e.fileName as fileName, e.contentType as contentType, "
                     + "e.sha256 as sha256, e.uploadedBy as uploadedBy, e.uploadedAt as uploadedAt "
                     + "from Evidence e "
@@ -44,11 +57,15 @@ public interface EvidenceRepository extends JpaRepository<Evidence, Long> {
                     + "and (:remediationId is null or e.remediationId = :remediationId) "
                     + "and (:filingId is null or e.filingId = :filingId) "
                     + "and (:incidentId is null or e.incidentId = :incidentId) "
+                    + "and (:inquiryId is null or e.inquiryId = :inquiryId) "
+                    + "and (:penaltyId is null or e.penaltyId = :penaltyId) "
                     + "order by e.id desc")
     List<EvidenceSummary> findSummaries(@org.springframework.data.repository.query.Param("planId") Long planId,
                                         @org.springframework.data.repository.query.Param("findingId") Long findingId,
                                         @org.springframework.data.repository.query.Param("remediationId") Long remediationId,
                                         @org.springframework.data.repository.query.Param("filingId") Long filingId,
                                         @org.springframework.data.repository.query.Param("incidentId") Long incidentId,
+                                        @org.springframework.data.repository.query.Param("inquiryId") Long inquiryId,
+                                        @org.springframework.data.repository.query.Param("penaltyId") Long penaltyId,
                                         org.springframework.data.domain.Pageable pageable);
 }

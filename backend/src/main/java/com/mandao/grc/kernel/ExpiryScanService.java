@@ -221,7 +221,71 @@ public class ExpiryScanService {
             }
         }
 
-        // 9) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
+        // 9) M11 深化包 B34：周期性报送——启用的报送计划到 next_due 前 lead_days 天时，
+        // 自动生成一份 reg_filing 草稿实例（TO_DRAFT）、推进 next_due 到下一周期、产提醒。
+        // last_generated 幂等：同一到期日只生成一次（多次扫描不重复建）。
+        @SuppressWarnings("unchecked")
+        List<Object[]> schedHits = em.createNativeQuery(
+                        "SELECT id, org_id, title, regulator, period, next_due, lead_days "
+                                + "FROM reg_filing_schedule "
+                                + "WHERE enabled = true "
+                                + "AND (next_due - CAST(:today AS date)) <= lead_days "
+                                + "AND (last_generated IS NULL OR last_generated < next_due)")
+                .setParameter("today", today.toString())
+                .getResultList();
+
+        for (Object[] r : schedHits) {
+            long schedId = ((Number) r[0]).longValue();
+            long orgId = ((Number) r[1]).longValue();
+            String title = (String) r[2];
+            String regulator = (String) r[3];
+            String period = (String) r[4];
+            java.time.LocalDate due = ((java.sql.Date) r[5]).toLocalDate();
+            String interval = switch (period) {
+                case "MONTHLY" -> "1 month";
+                case "QUARTERLY" -> "3 months";
+                default -> "1 year";
+            };
+
+            // 生成本期报送实例（标题带期次日期，便于区分）
+            em.createNativeQuery(
+                            "INSERT INTO reg_filing(org_id, title, regulator, statutory_deadline, status) "
+                                    + "VALUES (:org, :title, :reg, CAST(:due AS date), 'TO_DRAFT')")
+                    .setParameter("org", orgId)
+                    .setParameter("title", title + "（" + due + "期）")
+                    .setParameter("reg", regulator)
+                    .setParameter("due", due.toString())
+                    .executeUpdate();
+
+            // 推进计划到下一周期 + 记录已生成的到期日（幂等锚点）
+            em.createNativeQuery(
+                            "UPDATE reg_filing_schedule SET last_generated = CAST(:due AS date), "
+                                    + "next_due = next_due + CAST(:iv AS interval), updated_at = now() WHERE id = :sid")
+                    .setParameter("due", due.toString())
+                    .setParameter("iv", interval)
+                    .setParameter("sid", schedId)
+                    .executeUpdate();
+
+            em.createNativeQuery(
+                            "INSERT INTO reminder_dispatch_log(object_type, object_id, event_type, threshold_key, org_id, message) "
+                                    + "VALUES ('REG_FILING_SCHEDULE', :sid, 'PERIODIC_FILING_GENERATED', :tk, :org, :msg) "
+                                    + "ON CONFLICT (object_type, object_id, event_type, threshold_key) DO NOTHING")
+                    .setParameter("sid", schedId)
+                    .setParameter("tk", due.toString())
+                    .setParameter("org", orgId)
+                    .setParameter("msg", "周期报送「" + title + "」本期（截止 " + due + "）已自动生成草稿，请起草并按时报送")
+                    .executeUpdate();
+
+            em.createNativeQuery(
+                            "INSERT INTO domain_event(event_type, org_id, payload) "
+                                    + "VALUES ('PERIODIC_FILING_GENERATED', :org, CAST(:payload AS jsonb))")
+                    .setParameter("org", orgId)
+                    .setParameter("payload", "{\"scheduleId\":" + schedId + ",\"due\":\"" + due + "\"}")
+                    .executeUpdate();
+            emitted++;
+        }
+
+        // 10) 安全加固包 A18：签名票据日清——一次性令牌超过 24 小时无保留价值（正本已入评估存证），
         // 连行删除，防过期票据里的签名字节长期滞留。
         em.createNativeQuery("DELETE FROM signature_ticket WHERE created_at < now() - INTERVAL '24 hours'")
                 .executeUpdate();

@@ -39,13 +39,16 @@ public class EvidenceController {
                                @RequestParam(required = false) Long remediationId,
                                @RequestParam(required = false) Long filingId,
                                @RequestParam(required = false) Long incidentId,
+                               @RequestParam(required = false) Long inquiryId,
+                               @RequestParam(required = false) Long penaltyId,
                                @RequestParam(required = false) Integer page,
                                @RequestParam(required = false) Integer size) {
-        // 七轮 7-8：投影不带文件字节 + 分页护栏
-        return service.listSummaries(planId, findingId, remediationId, filingId, incidentId, page, size);
+        // 七轮 7-8 + M11 B13：投影不带文件字节 + 七维过滤 + 分页护栏
+        return service.listSummaries(planId, findingId, remediationId, filingId, incidentId,
+                inquiryId, penaltyId, page, size);
     }
 
-    /** 上传证据（multipart；至少关联 计划/发现/整改单 之一）。 */
+    /** 上传证据（multipart；至少关联 计划/发现/整改单/报送/事件/问询/处罚 之一）。 */
     @PostMapping("/evidence")
     @RequiresPermission("extaudit")
     public Evidence upload(@RequestParam("file") MultipartFile file,
@@ -56,12 +59,14 @@ public class EvidenceController {
                            @RequestParam(required = false) Long remediationId,
                            @RequestParam(required = false) Long filingId,
                            @RequestParam(required = false) Long incidentId,
+                           @RequestParam(required = false) Long inquiryId,
+                           @RequestParam(required = false) Long penaltyId,
                            @RequestHeader(value = "X-User", required = false) String user) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("未收到证据文件");
         }
-        // 七轮 7-2：支持报送回执/重大事件材料入证据库
-        return service.upload(orgId, planId, findingId, remediationId, filingId, incidentId,
+        // 七轮 7-2 + M11 B13：支持报送回执/事件/问询回函/处罚整改材料入证据库
+        return service.upload(orgId, planId, findingId, remediationId, filingId, incidentId, inquiryId, penaltyId,
                 name, file.getOriginalFilename(), file.getContentType(), file.getBytes(), actorOf(user));
     }
 

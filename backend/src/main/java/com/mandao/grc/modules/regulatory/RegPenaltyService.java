@@ -24,6 +24,14 @@ public class RegPenaltyService {
     private final RegPenaltyRepository repository;
     private final HashChainService hashChainService;
 
+    /** 证据仓库（M11 B13：了结须核验整改/缴款证据，setter 注入跨模块仓储）。 */
+    private com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireEvidenceRepository(com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
+
     public RegPenaltyService(RegPenaltyRepository repository, HashChainService hashChainService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
@@ -61,10 +69,17 @@ public class RegPenaltyService {
         return saved;
     }
 
-    /** 了结：RECTIFYING → CLOSED（终态）。 */
+    /**
+     * 了结：RECTIFYING → CLOSED（终态）。
+     * M11 B13（举证门控）：了结前须在证据库挂有本处罚的整改/缴款凭证（整改完成证明、罚款缴纳回单，
+     * sha256 固化）——无凭证的"办结"无法向监管举证整改到位。
+     */
     @Transactional
     public RegPenalty close(Long id, String actor) {
         RegPenalty p = get(id);
+        if (evidenceRepository.countByPenaltyId(id) == 0) {
+            throw new IllegalStateException("了结处罚约谈前须上传整改/缴款证据（证据库关联本处罚，整改证明或缴款回单原件 sha256 固化留档）");
+        }
         transition(p, RegPenaltyStatus.RECTIFYING, RegPenaltyStatus.CLOSED);
         RegPenalty saved = repository.save(p);
         appendLog(saved, "REG_PENALTY_CLOSE", actor, "了结处罚约谈");

@@ -23,6 +23,14 @@ public class RegInquiryService {
     private final RegInquiryRepository repository;
     private final HashChainService hashChainService;
 
+    /** 证据仓库（M11 B13：答复须核验回函证据，setter 注入跨模块仓储）。 */
+    private com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireEvidenceRepository(com.mandao.grc.modules.audit.management.EvidenceRepository evidenceRepository) {
+        this.evidenceRepository = evidenceRepository;
+    }
+
     public RegInquiryService(RegInquiryRepository repository, HashChainService hashChainService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
@@ -50,10 +58,17 @@ public class RegInquiryService {
         return saved;
     }
 
-    /** 答复：DRAFTING → REPLIED。 */
+    /**
+     * 答复：DRAFTING → REPLIED。
+     * M11 B13（举证门控）：答复前须在证据库挂有本问询的答复材料（给监管的回函/说明附件，
+     * sha256 固化）——"口头已回复"而无留痕，是监管举证链的断点。
+     */
     @Transactional
     public RegInquiry reply(Long id, String actor) {
         RegInquiry q = get(id);
+        if (evidenceRepository.countByInquiryId(id) == 0) {
+            throw new IllegalStateException("答复监管问询前须上传答复材料证据（证据库关联本问询，回函/说明原件 sha256 固化留档）");
+        }
         transition(q, RegInquiryStatus.DRAFTING, RegInquiryStatus.REPLIED);
         RegInquiry saved = repository.save(q);
         appendLog(saved, "REG_INQUIRY_REPLY", actor, "已答复监管问询");

@@ -45,6 +45,14 @@ public class Evidence {
     @Column(name = "incident_id")
     private Long incidentId;
 
+    /** 关联监管问询（M11 B13：答复回函/监管确认材料挂问询）。 */
+    @Column(name = "inquiry_id")
+    private Long inquiryId;
+
+    /** 关联处罚约谈（M11 B13：整改证明/缴款凭证挂处罚）。 */
+    @Column(name = "penalty_id")
+    private Long penaltyId;
+
     @Column(nullable = false, length = 256)
     private String name;
 
@@ -98,11 +106,15 @@ public class Evidence {
     public Long getRemediationId() { return remediationId; }
     public Long getFilingId() { return filingId; }
     public Long getIncidentId() { return incidentId; }
+    public Long getInquiryId() { return inquiryId; }
+    public Long getPenaltyId() { return penaltyId; }
 
-    /** 挂接报送/重大事件（七轮 7-2，由 Service 在上传时按参数调用）。 */
-    void attachRegulatory(Long filingId, Long incidentId) {
+    /** 挂接报送/重大事件/问询/处罚（七轮 7-2 + M11 B13，由 Service 在上传时按参数调用）。 */
+    void attachRegulatory(Long filingId, Long incidentId, Long inquiryId, Long penaltyId) {
         this.filingId = filingId;
         this.incidentId = incidentId;
+        this.inquiryId = inquiryId;
+        this.penaltyId = penaltyId;
     }
     public String getName() { return name; }
     public String getFileName() { return fileName; }

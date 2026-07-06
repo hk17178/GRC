@@ -75,6 +75,28 @@
         </div>
       </div>
 
+      <!-- B34：新建周期性报送计划弹窗 -->
+      <div v-if="showSchedule" class="modal-mask" @click.self="showSchedule = false">
+        <div class="modal-card">
+          <h3>新建周期性报送计划</h3>
+          <label class="fld">报送事项<input v-model="schedForm.title" placeholder="如 反洗钱季度报表" /></label>
+          <label class="fld">监管机构<input v-model="schedForm.regulator" placeholder="如 人民银行" /></label>
+          <label class="fld">周期
+            <select v-model="schedForm.period"><option value="MONTHLY">月报</option><option value="QUARTERLY">季报</option><option value="ANNUAL">年报</option></select>
+          </label>
+          <label class="fld">提前生成天数<input v-model.number="schedForm.leadDays" type="number" min="1" max="90" /></label>
+          <label class="fld">首次法定截止日<input v-model="schedForm.nextDue" type="date" /></label>
+          <label class="fld">所属组织
+            <select v-model="schedForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
+          </label>
+          <p v-if="schedErr" class="cerr">{{ schedErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showSchedule = false">{{ $t('common.cancel') }}</button>
+            <button class="btn" :disabled="!schedForm.title || !schedForm.nextDue || schedSaving" @click="submitSchedule">{{ schedSaving ? $t('common.submitting') : '创建' }}</button>
+          </div>
+        </div>
+      </div>
+
       <!-- ===== KPI 五卡（能派生的取真实计数，派生不了显「—」）===== -->
       <div class="kpibar k5">
         <div class="kc">
@@ -176,22 +198,43 @@
             </table>
           </div>
 
-          <!-- 右：报送达成 + 临近报送（后端无对应聚合/字段，不臆造数据，显「—」）-->
+          <!-- 右：报送达成 + 临近报送（A10：改由已加载的 filings 真值派生，原为硬编码「—」）-->
           <div>
             <div class="card">
               <div class="ch"><h3>{{ $t('regaffairs.achieve.title') }}</h3></div>
               <div class="cb">
-                <div class="empty">
-                  <div class="d">{{ $t('regaffairs.dash') }}</div>
-                </div>
+                <template v-if="filingAchieve.total">
+                  <div class="ach-num"><b>{{ filingAchieve.done }}</b> / {{ filingAchieve.total }}<span class="ach-pct">已报送 {{ filingAchieve.pct }}%</span></div>
+                  <div class="ach-bar"><span :style="{ width: filingAchieve.pct + '%' }"></span></div>
+                  <div class="ach-hint">本年报送事项，已提交/了结占比（TO_DRAFT/DRAFTING 视为未完成）</div>
+                </template>
+                <div v-else class="empty"><div class="d">{{ $t('regaffairs.dash') }}</div></div>
               </div>
             </div>
             <div class="card">
               <div class="ch"><h3>{{ $t('regaffairs.upcoming.title') }}</h3></div>
               <div class="cb">
-                <div class="empty">
-                  <div class="d">{{ $t('regaffairs.dash') }}</div>
+                <div v-for="f in upcomingFilings" :key="f.id" class="srow">
+                  <span class="up-t">{{ f.title }}</span>
+                  <b class="up-due" :class="f.dueCls">{{ f.dueText }}</b>
                 </div>
+                <div v-if="!upcomingFilings.length" class="empty"><div class="d">无临近未了结报送</div></div>
+              </div>
+            </div>
+            <!-- B34：周期性报送计划（滚动生成本期草稿）-->
+            <div class="card">
+              <div class="ch"><h3>周期性报送计划</h3>
+                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('regaffairs')" @click="openSchedule">新建</button>
+              </div>
+              <div class="cb" style="padding-top:0">
+                <div v-for="s in schedules" :key="s.id" class="srow">
+                  <span class="up-t">{{ s.title }}<span class="pill" style="margin-left:6px">{{ PERIOD_LABEL[s.period] }}</span></span>
+                  <span style="display:flex;align-items:center;gap:8px">
+                    <b class="up-due">{{ s.nextDue }}</b>
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="toggleSchedule(s)">{{ s.enabled ? '停用' : '启用' }}</button>
+                  </span>
+                </div>
+                <div v-if="!schedules.length" class="empty"><div class="d">暂无周期计划，点「新建」按月/季/年滚动生成</div></div>
               </div>
             </div>
           </div>
@@ -327,7 +370,11 @@
                 <td class="num">{{ r.dueDate || $t('regaffairs.dash') }}</td>
                 <!-- 七轮 7-6（B4）：生命周期操作接线（此前端点齐备 UI 只读） -->
                 <td class="ops">
-                  <button v-if="r.status === 'DRAFTING'" class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'reply', '标记已答复')">答复</button>
+                  <!-- M11 B13：答复前须上传答复材料证据（后端硬门控 409） -->
+                  <template v-if="r.status === 'DRAFTING'">
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="pickReceipt('inquiry', r)" title="给监管的回函/说明">上传答复材料</button>
+                    <button class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'reply', '标记已答复')" title="须先上传答复材料证据">答复</button>
+                  </template>
                   <button v-else-if="r.status === 'REPLIED'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'await-feedback', '转入等待监管反馈')">待反馈</button>
                   <button v-else-if="r.status === 'AWAIT_FEEDBACK'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-inquiries', r.id, 'close', '关闭问询')">关闭</button>
                   <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
@@ -377,7 +424,11 @@
                 <!-- 七轮 7-6（B4）：整改/关闭操作接线 -->
                 <td class="ops">
                   <button v-if="r.status === 'OPEN'" class="btn sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-penalties', r.id, 'rectify', '启动整改')">启动整改</button>
-                  <button v-else-if="r.status === 'RECTIFYING'" class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-penalties', r.id, 'close', '整改完成关闭')">关闭</button>
+                  <!-- M11 B13：了结前须上传整改/缴款凭证（后端硬门控 409） -->
+                  <template v-else-if="r.status === 'RECTIFYING'">
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="pickReceipt('penalty', r)" title="整改完成证明/罚款缴纳回单">上传整改凭证</button>
+                    <button class="btn ghost sm" :disabled="!canWrite('regaffairs')" @click="ledgerAct('reg-penalties', r.id, 'close', '整改完成关闭')" title="须先上传整改/缴款凭证">关闭</button>
+                  </template>
                   <span v-else class="muted">{{ $t('regaffairs.dash') }}</span>
                 </td>
                 <td>
@@ -513,13 +564,66 @@ const penaltiesError = ref('')
 const majors = ref([])
 const majorsError = ref('')
 
+const schedules = ref([])  // B34 周期性报送计划
+
 function reloadLedgers() {
   api.get('/reg-filings').then((d) => { filings.value = d || [] }).catch((e) => { filingsError.value = e.message })
   api.get('/reg-inquiries').then((d) => { inquiries.value = d || [] }).catch((e) => { inquiriesError.value = e.message })
   api.get('/reg-penalties').then((d) => { penalties.value = d || [] }).catch((e) => { penaltiesError.value = e.message })
   api.get('/major-incidents').then((d) => { majors.value = d || [] }).catch((e) => { majorsError.value = e.message })
+  api.get('/reg-filing-schedules').then((d) => { schedules.value = d || [] }).catch(() => { schedules.value = [] })
 }
 onMounted(reloadLedgers)
+
+// ===== A10：报送达成 + 临近报送（由 filings 真值派生，原为硬编码「—」）=====
+const filingAchieve = computed(() => {
+  const yr = new Date().getFullYear()
+  const thisYear = filings.value.filter((f) => (f.statutoryDeadline || '').startsWith(String(yr)))
+  const total = thisYear.length
+  const done = thisYear.filter((f) => f.status === 'SUBMITTED' || f.status === 'CLOSED').length
+  return { total, done, pct: total ? Math.round((done / total) * 100) : 0 }
+})
+const upcomingFilings = computed(() => {
+  const today = new Date()
+  return filings.value
+    .filter((f) => f.status !== 'CLOSED' && f.statutoryDeadline)
+    .map((f) => {
+      const days = Math.ceil((new Date(f.statutoryDeadline) - today) / 86400000)
+      return {
+        id: f.id, title: f.title,
+        dueText: days < 0 ? `逾期 ${-days} 天` : (days === 0 ? '今日到期' : `${days} 天后`),
+        dueCls: days < 0 ? 'over' : (days <= 7 ? 'warn' : ''),
+        _days: days
+      }
+    })
+    .sort((a, b) => a._days - b._days)
+    .slice(0, 6)
+})
+
+// ===== B34：周期性报送计划 =====
+const PERIOD_LABEL = { MONTHLY: '月报', QUARTERLY: '季报', ANNUAL: '年报' }
+const showSchedule = ref(false)
+const schedSaving = ref(false)
+const schedErr = ref('')
+const schedForm = reactive({ title: '', regulator: '', period: 'QUARTERLY', leadDays: 15, nextDue: '', orgId: 12 })
+function openSchedule() {
+  Object.assign(schedForm, { title: '', regulator: '', period: 'QUARTERLY', leadDays: 15, nextDue: '', orgId: 12 })
+  schedErr.value = ''; showSchedule.value = true
+}
+async function submitSchedule() {
+  schedSaving.value = true; schedErr.value = ''
+  try {
+    await api.post('/reg-filing-schedules', {
+      orgId: schedForm.orgId, title: schedForm.title, regulator: schedForm.regulator || null,
+      period: schedForm.period, leadDays: schedForm.leadDays, nextDue: schedForm.nextDue
+    })
+    showSchedule.value = false; reloadLedgers()
+  } catch (e) { schedErr.value = e.message } finally { schedSaving.value = false }
+}
+async function toggleSchedule(s) {
+  try { await api.post(`/reg-filing-schedules/${s.id}/enabled?enabled=${!s.enabled}`, {}); reloadLedgers() }
+  catch (e) { window.alert(e.message) }
+}
 
 // ===== 七轮 7-6（B4）：三台账生命周期操作（问询答复/处罚整改/重大事件上报确认了结）=====
 async function ledgerAct(base, id, action, label) {
@@ -530,8 +634,15 @@ async function ledgerAct(base, id, action, label) {
   } catch (e) { window.alert(e.message) }
 }
 
-// ===== 七轮 7-2（B2/B3）：回执证据上传（报送/重大事件共用，入证据库 sha256 固化）=====
-const receiptTarget = ref(null) // { kind: 'filing'|'incident', row }
+// ===== 七轮 7-2（B2/B3）+ M11 B13：举证证据上传（报送/事件/问询/处罚共用，入证据库 sha256 固化）=====
+// kind → { field: 证据关联参数名, label: 证据名前缀, done: 上传成功提示 }
+const RECEIPT_META = {
+  filing: { field: 'filingId', label: '监管回执 · 报送#', done: '回执已入证据库，现在可以「了结」。' },
+  incident: { field: 'incidentId', label: '监管回执 · 重大事件#', done: '回执已入证据库，现在可以「了结」。' },
+  inquiry: { field: 'inquiryId', label: '答复材料 · 问询#', done: '答复材料已入证据库，现在可以「答复」。' },
+  penalty: { field: 'penaltyId', label: '整改/缴款凭证 · 处罚#', done: '整改凭证已入证据库，现在可以「了结」。' }
+}
+const receiptTarget = ref(null) // { kind, row }
 function pickReceipt(kind, row) {
   receiptTarget.value = { kind, row }
   document.getElementById('receipt-file-input').click()
@@ -542,14 +653,15 @@ async function onReceiptPicked(e) {
   const tgt = receiptTarget.value
   receiptTarget.value = null
   if (!file || !tgt) return
+  const meta = RECEIPT_META[tgt.kind]
   try {
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('name', (tgt.kind === 'filing' ? '监管回执 · 报送#' : '监管回执 · 重大事件#') + tgt.row.id)
+    fd.append('name', meta.label + tgt.row.id)
     fd.append('orgId', tgt.row.orgId)
-    fd.append(tgt.kind === 'filing' ? 'filingId' : 'incidentId', tgt.row.id)
+    fd.append(meta.field, tgt.row.id)
     await api.upload('/evidence', fd)
-    window.alert('回执已入证据库（sha256 固化留档），现在可以执行「了结」。')
+    window.alert(meta.done + '（sha256 固化留档）')
   } catch (err) { window.alert(err.message) }
 }
 
@@ -1003,6 +1115,16 @@ td.ops {
 .srow b {
   color: var(--text-1);
 }
+/* A10：报送达成 + 临近报送卡 */
+.ach-num { font-size: 22px; font-weight: 760; color: var(--text-1); font-family: var(--font-display); }
+.ach-num .ach-pct { font-size: 11.5px; font-weight: 600; color: var(--success); margin-left: 10px; }
+.ach-bar { height: 7px; border-radius: 4px; background: var(--bg); margin: 10px 0 8px; overflow: hidden; }
+.ach-bar span { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent-strong)); border-radius: 4px; }
+.ach-hint { font-size: 11px; color: var(--text-3); }
+.up-t { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-right: 8px; }
+.up-due { font-variant-numeric: tabular-nums; }
+.up-due.warn { color: #a87d22; }
+.up-due.over { color: var(--danger); }
 
 /* ---- 提示信息行 infoline ---- */
 .infoline {

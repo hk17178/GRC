@@ -22,6 +22,10 @@ public interface EvidenceSummary {
 
     Long getIncidentId();
 
+    Long getInquiryId();
+
+    Long getPenaltyId();
+
     String getName();
 
     String getFileName();
