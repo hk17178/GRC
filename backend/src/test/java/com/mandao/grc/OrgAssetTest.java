@@ -81,6 +81,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.custom.CustomFieldService customFieldService;
 
     @Autowired
+    private com.mandao.grc.modules.custom.CustomViewService customViewService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -96,7 +99,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -256,6 +259,93 @@ class OrgAssetTest {
                 com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, false, false, 0, "admin"));
         assertEquals(1, asOrg(ORG_PAY, () -> customFieldService.list("ASSET")).size());
         assertTrue(asOrg(13L, () -> customFieldService.list("ASSET")).isEmpty(), "org13 不应看到 org12 的字段定义");
+    }
+
+    // ---------- B12 Phase2：自定义列表视图（H-05，隔离红线核心） ----------
+
+    @Test
+    void b12v2_视图执行_列筛选排序命中() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "核心支付库", "DATABASE", "dba",
+                AssetClassification.SENSITIVE, true, false, false, false, "CRITICAL", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "内网门户", "APP", "ops",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+
+        // 声明式：仅取名称/分级，筛 SENSITIVE，按名称升序
+        String def = "{\"columns\":[\"name\",\"classification\"],"
+                + "\"filters\":[{\"field\":\"classification\",\"op\":\"eq\",\"value\":\"SENSITIVE\"}],"
+                + "\"sort\":{\"field\":\"name\",\"dir\":\"asc\"}}";
+        var view = asOrg(ORG_PAY, () -> customViewService.create(ORG_PAY, "ASSET", "敏感资产视图", def, "admin"));
+
+        List<java.util.Map<String, Object>> rows = asOrg(ORG_PAY, () -> customViewService.execute(view.getId()));
+        assertEquals(1, rows.size(), "仅命中 1 条 SENSITIVE 资产");
+        assertEquals("核心支付库", rows.get(0).get("name"));
+        assertEquals("SENSITIVE", rows.get(0).get("classification"));
+    }
+
+    @Test
+    void b12v2_未授权列拒绝_未授权筛选拒绝() {
+        // 引用非白名单列 org_id（隔离锚点，绝不可被视图选出）
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customViewService.create(ORG_PAY, "ASSET", "越权列", "{\"columns\":[\"org_id\"]}", "admin")));
+        // 筛选引用未授权字段
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customViewService.create(ORG_PAY, "ASSET", "越权筛选",
+                        "{\"columns\":[\"name\"],\"filters\":[{\"field\":\"secret_col\",\"op\":\"eq\",\"value\":\"x\"}]}", "admin")));
+        // 排序引用未授权字段
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customViewService.create(ORG_PAY, "ASSET", "越权排序",
+                        "{\"columns\":[\"name\"],\"sort\":{\"field\":\"org_id\",\"dir\":\"asc\"}}", "admin")));
+    }
+
+    @Test
+    void b12v2_自定义字段可作为列与筛选() {
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "cpu_cores", "CPU核数",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.NUMBER, null, false, false, true, 0, "admin"));
+        var big = new java.util.HashMap<String, Object>();
+        big.put("cpu_cores", "16");
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "大机", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID", null, null, null, null, big, "admin"));
+        var small = new java.util.HashMap<String, Object>();
+        small.put("cpu_cores", "2");
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "小机", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID", null, null, null, null, small, "admin"));
+
+        // 自定义字段以 ext.<key> 引用；NUMBER 转 numeric 比较，筛 >= 8
+        String def = "{\"columns\":[\"name\",\"ext.cpu_cores\"],"
+                + "\"filters\":[{\"field\":\"ext.cpu_cores\",\"op\":\"gte\",\"value\":8}]}";
+        List<java.util.Map<String, Object>> rows = asOrg(ORG_PAY, () -> customViewService.preview("ASSET", def));
+        assertEquals(1, rows.size(), "仅命中 CPU>=8 的大机");
+        assertEquals("大机", rows.get(0).get("name"));
+    }
+
+    @Test
+    void b12v2_跨子公司视图0越界_TC_SEC_102() {
+        // org12 有一条资产
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "支付机密库", "DATABASE", "dba",
+                AssetClassification.SENSITIVE, true, false, false, false, "CRITICAL", "admin"));
+
+        // org13 构造一个"想看全部资产"的视图（甚至直接按名称精确匹配 org12 的资产名）
+        String greedy = "{\"columns\":[\"name\",\"classification\"]}";
+        String targeted = "{\"columns\":[\"name\"],"
+                + "\"filters\":[{\"field\":\"name\",\"op\":\"eq\",\"value\":\"支付机密库\"}]}";
+
+        // 期望：RLS 兜底，org13 视角下均 0 行——无路径越过 visibleOrgs
+        assertTrue(asOrg(ORG_CF, () -> customViewService.preview("ASSET", greedy)).isEmpty(),
+                "org13 的全量视图不得看到 org12 资产");
+        assertTrue(asOrg(ORG_CF, () -> customViewService.preview("ASSET", targeted)).isEmpty(),
+                "org13 精确匹配 org12 资产名仍应 0 行（TC-SEC-102）");
+
+        // 反证：org12 自己能看到
+        assertEquals(1, asOrg(ORG_PAY, () -> customViewService.preview("ASSET", greedy)).size());
+    }
+
+    @Test
+    void b12v2_视图定义组织隔离() {
+        String def = "{\"columns\":[\"name\"]}";
+        asOrg(ORG_PAY, () -> customViewService.create(ORG_PAY, "ASSET", "支付视图", def, "admin"));
+        assertEquals(1, asOrg(ORG_PAY, () -> customViewService.list("ASSET")).size());
+        assertTrue(asOrg(ORG_CF, () -> customViewService.list("ASSET")).isEmpty(),
+                "org13 不应看到 org12 的视图定义");
     }
 
     // ---------- ROPA 生命周期 ----------

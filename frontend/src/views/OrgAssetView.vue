@@ -173,6 +173,82 @@
         </div>
       </div>
 
+      <!-- B12 Phase2：自定义列表视图弹窗（H-05 声明式构建器 + 执行结果）-->
+      <div v-if="showViewMgr" class="modal-mask" @click.self="showViewMgr = false">
+        <div class="modal-card" style="width:760px">
+          <h3>自定义列表视图 · 资产</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">声明式选择「显示列 / 筛选 / 排序」，系统仅允许白名单字段并强制组织隔离（RLS 兜底）——任何视图都无法越权看到其他子公司的数据。</p>
+
+          <!-- 已保存视图 -->
+          <div class="cf-divider" style="margin-top:0">已保存视图</div>
+          <table style="width:100%;font-size:12px;margin-bottom:12px">
+            <thead><tr><th style="text-align:left">名称</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="v in viewDefs" :key="v.id">
+                <td>{{ v.name }}</td>
+                <td style="text-align:center"><span :class="v.status==='ACTIVE'?'pill blue':'pill'">{{ v.status==='ACTIVE'?'启用':'停用' }}</span></td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button class="mini" @click="runView(v)">运行</button>
+                  <button v-if="v.status==='ACTIVE'" class="mini danger" @click="retireView(v)">停用</button>
+                </td>
+              </tr>
+              <tr v-if="!viewDefs.length"><td colspan="3" style="text-align:center;color:var(--text-3);padding:10px">暂无视图，用下方构建器新建。</td></tr>
+            </tbody>
+          </table>
+
+          <!-- 构建器 -->
+          <div class="cf-divider">新建视图</div>
+          <label class="fld">视图名称<input v-model="vb.name" placeholder="如 高敏跨境资产" /></label>
+          <div class="fld">显示列（勾选，至少一列）
+            <div class="cf-cols">
+              <label v-for="c in viewColumns" :key="c.key" class="chk" style="font-size:12px">
+                <input type="checkbox" :value="c.key" v-model="vb.columns" /> {{ c.label }}
+              </label>
+            </div>
+          </div>
+          <div class="fld">筛选（可选，逐条 AND）
+            <div v-for="(f, i) in vb.filters" :key="i" class="vb-filter">
+              <select v-model="f.field" style="width:150px"><option value="">选字段</option><option v-for="c in viewColumns" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+              <select v-model="f.op" style="width:96px"><option value="eq">等于</option><option value="ne">不等于</option><option value="contains">包含</option><option value="gt">大于</option><option value="gte">≥</option><option value="lt">小于</option><option value="lte">≤</option></select>
+              <input v-model="f.value" placeholder="值" style="width:150px" />
+              <button class="mini danger" @click="vb.filters.splice(i,1)">×</button>
+            </div>
+            <button class="btn sm ghost" @click="vb.filters.push({ field:'', op:'eq', value:'' })">＋ 加筛选</button>
+          </div>
+          <div class="vb-sort">
+            <span>排序</span>
+            <select v-model="vb.sortField" style="width:150px"><option value="">不排序</option><option v-for="c in viewColumns" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+            <select v-model="vb.sortDir" style="width:96px"><option value="asc">升序</option><option value="desc">降序</option></select>
+          </div>
+          <p v-if="viewErr" class="cerr">{{ viewErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" style="margin-right:auto" :disabled="!vb.columns.length" @click="previewView">预览</button>
+            <button class="btn ghost" @click="showViewMgr = false">关闭</button>
+            <button class="btn" :disabled="!vb.name || !vb.columns.length" @click="saveView">保存视图</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 视图执行结果弹窗（动态列） -->
+      <div v-if="showViewResult" class="modal-mask" @click.self="showViewResult = false">
+        <div class="modal-card" style="width:760px">
+          <h3>视图结果 · {{ viewResultName }}</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">共 {{ viewRows.length }} 行（RLS 已裁剪至当前可见组织，最多 500 行）。</p>
+          <div style="overflow-x:auto;max-height:52vh">
+            <table style="width:100%;font-size:12px">
+              <thead><tr><th v-for="k in viewResultCols" :key="k" style="text-align:left">{{ colLabel(k) }}</th></tr></thead>
+              <tbody>
+                <tr v-for="(row, i) in viewRows" :key="i">
+                  <td v-for="k in viewResultCols" :key="k">{{ fmtCell(row[k]) }}</td>
+                </tr>
+                <tr v-if="!viewRows.length"><td :colspan="viewResultCols.length || 1" style="text-align:center;color:var(--text-3);padding:14px">无匹配数据。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="modal-actions"><button class="btn ghost" @click="showViewResult = false">关闭</button></div>
+        </div>
+      </div>
+
       <!-- 登记 ROPA 处理活动弹窗（真实 POST /api/ropa）-->
       <div v-if="showRopa" class="modal-mask" @click.self="showRopa = false">
         <div class="modal-card">
@@ -256,8 +332,10 @@
             <div class="ch">
               <h3>{{ $t('orgasset.asset.title') }}</h3>
               <span class="sub">{{ $t('orgasset.asset.sub') }}</span>
+              <!-- B12 Phase2：自定义列表视图（声明式列/筛选/排序，白名单+RLS 隔离） -->
+              <button class="mini" style="margin-left:auto" @click="openViewMgr" title="按需自定义资产列表的列、筛选与排序">🔧 自定义视图</button>
               <!-- B46：资产台账 CSV 导出（当前列表态） -->
-              <button class="mini" style="margin-left:auto" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
+              <button class="mini" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
             </div>
             <div class="cb" style="overflow-x: auto; padding-bottom: 6px">
               <table style="min-width: 1020px">
@@ -526,6 +604,81 @@ async function addCf() {
 async function retireCf(d) {
   try { await api.post('/custom-fields/' + d.id + '/retire', {}); await openCfConfig(); await loadCustomFields() }
   catch (e) { window.alert(e.message) }
+}
+
+// ===== B12 Phase2：自定义列表视图（H-05）=====
+// 前端白名单需与后端 CustomViewService.ASSET_STD 一致；自定义字段以 ext.<key> 引用。
+const ASSET_STD_COLS = [
+  { key: 'name', label: '资产名称' }, { key: 'asset_type', label: '类型' },
+  { key: 'owner', label: '责任人' }, { key: 'classification', label: '数据分级' },
+  { key: 'criticality', label: '重要性' }, { key: 'status', label: '状态' },
+  { key: 'cia_rating', label: 'CIA评级' }, { key: 'network_zone', label: '网络区域' },
+  { key: 'mlps_level', label: '等保定级' }, { key: 'mlps_review_due', label: '测评到期' },
+  { key: 'contains_pi', label: '含个人信息' }, { key: 'cross_border', label: '跨境' },
+  { key: 'mlps_filed', label: '等保备案' }, { key: 'contains_chd', label: '含持卡人数据' }
+]
+const showViewMgr = ref(false)
+const viewDefs = ref([])
+const viewErr = ref('')
+const vb = reactive({ name: '', columns: [], filters: [], sortField: '', sortDir: 'asc' })
+// 可选列 = 标准列 + 启用自定义字段（ext.<key>）
+const viewColumns = computed(() => ([
+  ...ASSET_STD_COLS,
+  ...customFields.value.map((f) => ({ key: 'ext.' + f.fieldKey, label: f.label + '（自定义）' }))
+]))
+function colLabel(key) { const c = viewColumns.value.find((x) => x.key === key); return c ? c.label : key }
+async function openViewMgr() {
+  viewErr.value = ''
+  Object.assign(vb, { name: '', columns: ['name', 'classification', 'status'], filters: [], sortField: '', sortDir: 'asc' })
+  await loadCustomFields()
+  try { viewDefs.value = await api.get('/custom-views?objectType=ASSET') } catch (e) { viewDefs.value = [] }
+  showViewMgr.value = true
+}
+/** 把构建器状态编译为后端声明式 definition JSON。 */
+function buildDefinition() {
+  const def = { columns: vb.columns.slice() }
+  const fs = vb.filters.filter((f) => f.field && f.value !== '')
+  if (fs.length) def.filters = fs.map((f) => ({ field: f.field, op: f.op, value: coerceVal(f.value) }))
+  if (vb.sortField) def.sort = { field: vb.sortField, dir: vb.sortDir }
+  return JSON.stringify(def)
+}
+// 数值样字符串转数字，便于 NUMBER/等保定级等数值比较
+function coerceVal(v) { return typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v)) ? Number(v) : v }
+async function saveView() {
+  viewErr.value = ''
+  try {
+    await api.post('/custom-views', { orgId: af.orgId, objectType: 'ASSET', name: vb.name, definition: buildDefinition() })
+    viewDefs.value = await api.get('/custom-views?objectType=ASSET')
+    Object.assign(vb, { name: '', columns: ['name', 'classification', 'status'], filters: [], sortField: '', sortDir: 'asc' })
+  } catch (e) { viewErr.value = e.message }
+}
+async function retireView(v) {
+  try { await api.post('/custom-views/' + v.id + '/retire', {}); viewDefs.value = await api.get('/custom-views?objectType=ASSET') }
+  catch (e) { window.alert(e.message) }
+}
+const showViewResult = ref(false)
+const viewRows = ref([])
+const viewResultCols = ref([])
+const viewResultName = ref('')
+function openResult(name, rows) {
+  viewResultName.value = name
+  viewRows.value = rows || []
+  viewResultCols.value = rows && rows.length ? Object.keys(rows[0]) : []
+  showViewResult.value = true
+}
+async function previewView() {
+  viewErr.value = ''
+  try { openResult('（预览）' + (vb.name || '未命名'), await api.post('/custom-views/preview', { objectType: 'ASSET', definition: buildDefinition() })) }
+  catch (e) { viewErr.value = e.message }
+}
+async function runView(v) {
+  try { openResult(v.name, await api.get('/custom-views/' + v.id + '/rows')) }
+  catch (e) { window.alert(e.message) }
+}
+function fmtCell(val) {
+  if (val === null || val === undefined) return '—'
+  if (val === true) return '是'; if (val === false) return '否'
+  return String(val)
 }
 /** B46：资产台账导出（当前列表态，含深化合规属性）。 */
 function exportAssets() {
@@ -990,4 +1143,10 @@ tbody tr:hover {
 .cf-divider { font-size: 11px; font-weight: 700; color: var(--accent-strong); border-top: 1px dashed var(--border-subtle); margin: 6px 0 10px; padding-top: 10px; }
 .cf-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; background: var(--bg); border-radius: var(--radius-md); }
 .cf-add input, .cf-add select { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+/* B12 Phase2：自定义视图构建器 */
+.cf-cols { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 6px; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-md); }
+.vb-filter { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+.vb-filter select, .vb-filter input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+.vb-sort { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; color: var(--text-2); }
+.vb-sort select { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
 </style>
