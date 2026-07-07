@@ -94,6 +94,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.custom.CustomDashboardService dashboardService;
 
     @Autowired
+    private com.mandao.grc.modules.workflow.ProcessBindingService processBindingService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -109,7 +112,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, process_binding, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -587,6 +590,77 @@ class OrgAssetTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid());
         assertEquals(6, r.count(), "资产×3 + KPI + 报表 + 看板 = 6 条留痕");
+    }
+
+    // ---------- D1-8 H-06：自定义工作流（process_binding 条件分流 + 版本快照固化） ----------
+
+    @Test
+    void h06_条件分流_高危走专用流程_其余走兜底() {
+        // seq0：level=HIGH → 高危专用流程 v2；seq1：兜底 → 通用流程 v1
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "高危制度审批",
+                "{\"predicates\":[{\"field\":\"level\",\"op\":\"eq\",\"value\":\"HIGH\"}]}", "highApproval", 2, 0, "admin"));
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "通用制度审批",
+                "{}", "genericApproval", 1, 1, "admin"));
+
+        var high = asOrg(ORG_PAY, () -> processBindingService.resolve("POLICY", java.util.Map.of("level", "HIGH")));
+        assertEquals("highApproval", high.processDefKey());
+        assertEquals(2, high.processVersion());
+
+        var low = asOrg(ORG_PAY, () -> processBindingService.resolve("POLICY", java.util.Map.of("level", "LOW")));
+        assertEquals("genericApproval", low.processDefKey(), "非高危落兜底");
+        assertEquals(1, low.processVersion());
+    }
+
+    @Test
+    void h06_版本快照固化_不受后续改绑定影响() {
+        Long id = asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "制度审批",
+                "{}", "genericApproval", 1, 0, "admin").getId());
+        // 单据发起时固化快照 s1（v1）
+        var s1 = asOrg(ORG_PAY, () -> processBindingService.resolve("POLICY", java.util.Map.of()));
+        assertEquals(1, s1.processVersion());
+
+        // 之后改绑定：停旧、建新版 v3
+        asOrg(ORG_PAY, () -> processBindingService.retire(id, "admin"));
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "制度审批v3",
+                "{}", "genericApproval", 3, 0, "admin"));
+
+        // 新单据解析得 v3；而 s1 是已固化的不可变值，仍为 v1（在途单据不受影响）
+        var s2 = asOrg(ORG_PAY, () -> processBindingService.resolve("POLICY", java.util.Map.of()));
+        assertEquals(3, s2.processVersion(), "新发起单据走新版 v3");
+        assertEquals(1, s1.processVersion(), "已固化快照不被后续改绑定改动（在途单据固化）");
+    }
+
+    @Test
+    void h06_非法key_版本_越权字段结构拒绝() {
+        // 非法 process_def_key
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                processBindingService.create(ORG_PAY, "POLICY", "x", "{}", "2bad key", 1, 0, "admin")));
+        // 版本 < 1
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                processBindingService.create(ORG_PAY, "POLICY", "x", "{}", "genericApproval", 0, 0, "admin")));
+        // 谓词缺 field
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                processBindingService.create(ORG_PAY, "POLICY", "x",
+                        "{\"predicates\":[{\"op\":\"eq\",\"value\":\"HIGH\"}]}", "genericApproval", 1, 0, "admin")));
+    }
+
+    @Test
+    void h06_无匹配返回null() {
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "仅高危",
+                "{\"predicates\":[{\"field\":\"level\",\"op\":\"eq\",\"value\":\"HIGH\"}]}", "highApproval", 2, 0, "admin"));
+        // 无兜底绑定，非高危上下文 → null（业务方回落默认流程）
+        assertNull(asOrg(ORG_PAY, () -> processBindingService.resolve("POLICY", java.util.Map.of("level", "LOW"))));
+    }
+
+    @Test
+    void h06_流程绑定组织隔离() {
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "支付制度审批",
+                "{}", "genericApproval", 1, 0, "admin"));
+        assertEquals(1, asOrg(ORG_PAY, () -> processBindingService.list("POLICY")).size());
+        // org13 看不到 org12 的绑定，且解析同类型上下文 → null（跨组织绑定永不命中）
+        assertTrue(asOrg(ORG_CF, () -> processBindingService.list("POLICY")).isEmpty(), "org13 不应看到 org12 的绑定");
+        assertNull(asOrg(ORG_CF, () -> processBindingService.resolve("POLICY", java.util.Map.of())),
+                "org13 解析不得命中 org12 的绑定");
     }
 
     // ---------- ROPA 生命周期 ----------

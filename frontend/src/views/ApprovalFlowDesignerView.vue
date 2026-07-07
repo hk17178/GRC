@@ -92,6 +92,49 @@
           </template>
         </div>
       </div>
+
+      <!-- D1-8 H-06：流程绑定（条件分流 + 版本快照固化） -->
+      <div class="pb-card">
+        <div class="pb-head">
+          <h3>流程绑定 · 条件分流（H-06）</h3>
+          <span class="pb-sub">按单据上下文把「{{ bizType }}」分流到不同流程定义；发起时固化 key+version，后续改绑定不影响在途单据。跨组织绑定永不命中（RLS）。</span>
+        </div>
+        <table class="pb-tbl">
+          <thead><tr><th>优先级</th><th>名称</th><th>条件</th><th>流程 key</th><th>版本</th><th>状态</th><th></th></tr></thead>
+          <tbody>
+            <tr v-for="b in bindings" :key="b.id">
+              <td style="text-align:center">{{ b.seq }}</td>
+              <td>{{ b.name }}</td>
+              <td><code style="font-size:11px">{{ condText(b.condition) }}</code></td>
+              <td><code>{{ b.processDefKey }}</code></td>
+              <td style="text-align:center">v{{ b.processVersion }}</td>
+              <td style="text-align:center"><span :class="b.status==='ACTIVE'?'pb-pill on':'pb-pill'">{{ b.status==='ACTIVE'?'启用':'停用' }}</span></td>
+              <td style="text-align:right"><button v-if="b.status==='ACTIVE'" class="btn ghost sm danger" @click="retireBinding(b)">停用</button></td>
+            </tr>
+            <tr v-if="!bindings.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:10px">暂无绑定，下方新建。空条件=兜底默认。</td></tr>
+          </tbody>
+        </table>
+        <div class="pb-add">
+          <input v-model="nb.name" placeholder="绑定名" style="width:120px" />
+          <span class="pb-lbl">条件</span>
+          <input v-model="nb.field" placeholder="字段(留空=兜底)" style="width:110px" />
+          <select v-model="nb.op" style="width:70px"><option value="eq">=</option><option value="ne">≠</option><option value="in">in</option><option value="gt">&gt;</option><option value="gte">≥</option><option value="lt">&lt;</option><option value="lte">≤</option></select>
+          <input v-model="nb.value" placeholder="值" style="width:90px" />
+          <span class="pb-lbl">→</span>
+          <input v-model="nb.processDefKey" placeholder="流程 key" style="width:120px" />
+          <input v-model.number="nb.processVersion" type="number" min="1" placeholder="版本" style="width:60px" />
+          <input v-model.number="nb.seq" type="number" min="0" placeholder="优先级" style="width:70px" />
+          <button class="btn sm" :disabled="!nb.name || !nb.processDefKey" @click="addBinding">＋ 新增</button>
+        </div>
+        <div class="pb-resolve">
+          <span class="pb-lbl">试解析</span>
+          <input v-model="rb.field" placeholder="上下文字段" style="width:110px" />
+          <input v-model="rb.value" placeholder="值" style="width:90px" />
+          <button class="btn ghost sm" @click="tryResolve">解析</button>
+          <span v-if="resolveResult" class="pb-res">{{ resolveResult }}</span>
+        </div>
+        <p v-if="pbMsg" class="msg" :class="pbMsgKind">{{ pbMsg }}</p>
+      </div>
     </section>
   </AppShell>
 </template>
@@ -129,6 +172,60 @@ function setMsg(text, kind) { msg.value = text; msgKind.value = kind || 'ok' }
 async function loadList() {
   selId.value = 0
   try { flows.value = await api.get('/approval-flows?bizType=' + bizType.value) } catch (e) { flows.value = [] }
+  loadBindings()
+}
+
+// ===== D1-8 H-06：流程绑定（条件分流 + 版本快照固化）=====
+const bindings = ref([])
+const nb = ref({ name: '', field: '', op: 'eq', value: '', processDefKey: '', processVersion: 1, seq: 0 })
+const rb = ref({ field: '', value: '' })
+const resolveResult = ref('')
+const pbMsg = ref('')
+const pbMsgKind = ref('ok')
+function setPbMsg(t, k) { pbMsg.value = t; pbMsgKind.value = k || 'ok' }
+function condText(cond) {
+  try {
+    const preds = (JSON.parse(cond || '{}').predicates) || []
+    if (!preds.length) return '兜底（无条件）'
+    return preds.map((p) => `${p.field} ${p.op} ${JSON.stringify(p.value)}`).join(' AND ')
+  } catch (e) { return cond }
+}
+async function loadBindings() {
+  try { bindings.value = await api.get('/process-bindings?objectType=' + bizType.value) } catch (e) { bindings.value = [] }
+}
+function buildCondition() {
+  if (!nb.value.field) return '{}'   // 兜底
+  const raw = nb.value.value
+  const num = raw !== '' && !isNaN(Number(raw)) ? Number(raw) : raw
+  const value = nb.value.op === 'in' ? String(raw).split(',').map((s) => s.trim()) : num
+  return JSON.stringify({ predicates: [{ field: nb.value.field, op: nb.value.op, value }] })
+}
+async function addBinding() {
+  setPbMsg('')
+  try {
+    await api.post('/process-bindings', {
+      orgId: 12, objectType: bizType.value, name: nb.value.name, condition: buildCondition(),
+      processDefKey: nb.value.processDefKey, processVersion: nb.value.processVersion || 1, seq: nb.value.seq || 0
+    })
+    nb.value = { name: '', field: '', op: 'eq', value: '', processDefKey: '', processVersion: 1, seq: 0 }
+    await loadBindings(); setPbMsg('✓ 已新增绑定', 'ok')
+  } catch (e) { setPbMsg(e.message, 'err') }
+}
+async function retireBinding(b) {
+  try { await api.post('/process-bindings/' + b.id + '/retire', {}); await loadBindings() }
+  catch (e) { setPbMsg(e.message, 'err') }
+}
+async function tryResolve() {
+  resolveResult.value = ''
+  const ctx = {}
+  if (rb.value.field) {
+    const raw = rb.value.value
+    ctx[rb.value.field] = raw !== '' && !isNaN(Number(raw)) ? Number(raw) : raw
+  }
+  try {
+    const r = await api.post('/process-bindings/resolve', { objectType: bizType.value, context: ctx })
+    resolveResult.value = r ? `命中 → ${r.processDefKey} v${r.processVersion}（绑定#${r.bindingId}）` : '无匹配（回落业务默认流程）'
+  } catch (e) { resolveResult.value = '解析失败：' + e.message }
 }
 
 // ---- 画布 ↔ FlowGraph ----
@@ -294,6 +391,20 @@ loadList()
 .fl { display: block; font-size: 11.5px; color: var(--text-2); margin-bottom: 9px; }
 .fl input, .fl select { display: block; width: 100%; height: 32px; margin-top: 4px; padding: 0 9px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12.5px; font-family: inherit; box-sizing: border-box; }
 .props :deep(.vf-controls) { }
+/* D1-8 H-06：流程绑定面板 */
+.pb-card { margin-top: 16px; border: 1px solid var(--surface-border); border-radius: var(--radius-lg, 12px); background: var(--surface); padding: 16px; }
+.pb-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.pb-head h3 { font-size: 14px; font-weight: 700; color: var(--text-1); margin: 0; }
+.pb-sub { font-size: 11.5px; color: var(--text-3); }
+.pb-tbl { width: 100%; font-size: 12px; border-collapse: collapse; margin-bottom: 12px; }
+.pb-tbl th { text-align: left; font-size: 11px; color: var(--text-3); font-weight: 600; padding: 4px 8px; border-bottom: 1px solid var(--surface-border); }
+.pb-tbl td { padding: 5px 8px; border-bottom: 1px solid var(--border-subtle, rgba(0,0,0,.05)); }
+.pb-pill { font-size: 10px; padding: 1px 7px; border-radius: 8px; background: var(--bg); color: var(--text-3); }
+.pb-pill.on { background: var(--accent-tint, rgba(40,90,180,.12)); color: var(--accent-strong); }
+.pb-add, .pb-resolve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; background: var(--bg); border-radius: var(--radius-md); margin-bottom: 8px; }
+.pb-add input, .pb-add select, .pb-resolve input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+.pb-lbl { font-size: 12px; color: var(--text-2); }
+.pb-res { font-size: 12px; font-weight: 600; color: var(--accent-strong); }
 </style>
 
 <style>
