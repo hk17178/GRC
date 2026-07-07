@@ -122,11 +122,54 @@
             <select v-model="af.networkZone"><option :value="null">—</option><option value="生产核心区">生产核心区</option><option value="DMZ">DMZ</option><option value="办公网">办公网</option><option value="托管机房">托管机房</option><option value="云上VPC">云上VPC</option></select>
           </label>
           <label class="fld">所属组织<select v-model.number="af.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <!-- B12 Phase1：自定义字段动态渲染（按 custom_field_def 启用项，值落 ext）-->
+          <template v-if="customFields.length">
+            <div class="cf-divider">自定义字段</div>
+            <label v-for="f in customFields" :key="f.id" class="fld">{{ f.label }}<i v-if="f.required" style="color:var(--danger)">*</i>
+              <select v-if="f.dataType === 'SELECT'" v-model="af.ext[f.fieldKey]"><option value="">—</option><option v-for="o in (f.options || '').split(';').filter(Boolean)" :key="o" :value="o.trim()">{{ o.trim() }}</option></select>
+              <select v-else-if="f.dataType === 'BOOL'" v-model="af.ext[f.fieldKey]"><option value="">—</option><option value="true">是</option><option value="false">否</option></select>
+              <input v-else-if="f.dataType === 'DATE'" v-model="af.ext[f.fieldKey]" type="date" />
+              <input v-else-if="f.dataType === 'NUMBER'" v-model="af.ext[f.fieldKey]" type="number" />
+              <input v-else v-model="af.ext[f.fieldKey]" :placeholder="f.label" />
+            </label>
+          </template>
           <p v-if="assetErr" class="cerr">{{ assetErr }}</p>
           <div class="modal-actions">
+            <button class="btn ghost" style="margin-right:auto" @click="openCfConfig" title="定义资产的自定义字段">⚙ 字段配置</button>
             <button class="btn ghost" @click="showAsset = false">取消</button>
             <button class="btn" :disabled="!af.name || assetSaving" @click="submitAsset">{{ assetSaving ? '提交中…' : '确认登记' }}</button>
           </div>
+        </div>
+      </div>
+
+      <!-- B12 Phase1：自定义字段配置弹窗（资产对象）-->
+      <div v-if="showCfConfig" class="modal-mask" @click.self="showCfConfig = false">
+        <div class="modal-card" style="width:560px">
+          <h3>自定义字段配置 · 资产</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">不改代码即可为资产登记扩展字段；字段值随资产按组织隔离存储，受类型/必填校验。</p>
+          <table style="width:100%;font-size:12px;margin-bottom:12px">
+            <thead><tr><th style="text-align:left">键</th><th style="text-align:left">标签</th><th>类型</th><th>必填</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="d in cfDefs" :key="d.id">
+                <td><code>{{ d.fieldKey }}</code></td><td>{{ d.label }}</td>
+                <td style="text-align:center">{{ CF_TYPE[d.dataType] || d.dataType }}</td>
+                <td style="text-align:center">{{ d.required ? '是' : '—' }}</td>
+                <td style="text-align:center"><span :class="d.status==='ACTIVE'?'pill blue':'pill'">{{ d.status==='ACTIVE'?'启用':'停用' }}</span></td>
+                <td style="text-align:right"><button v-if="d.status==='ACTIVE'" class="mini danger" @click="retireCf(d)">停用</button></td>
+              </tr>
+              <tr v-if="!cfDefs.length"><td colspan="6" style="text-align:center;color:var(--text-3);padding:10px">暂无自定义字段</td></tr>
+            </tbody>
+          </table>
+          <div class="cf-add">
+            <input v-model="cf.fieldKey" placeholder="字段键(英文)" style="width:110px" />
+            <input v-model="cf.label" placeholder="标签" style="width:110px" />
+            <select v-model="cf.dataType"><option value="TEXT">文本</option><option value="NUMBER">数值</option><option value="DATE">日期</option><option value="BOOL">布尔</option><option value="SELECT">下拉</option></select>
+            <input v-if="cf.dataType==='SELECT'" v-model="cf.options" placeholder="选项;分号隔" style="width:120px" />
+            <label class="chk" style="font-size:12px"><input type="checkbox" v-model="cf.required" /> 必填</label>
+            <button class="btn sm" :disabled="!cf.fieldKey || !cf.label" @click="addCf">＋ 新增</button>
+          </div>
+          <p v-if="cfErr" class="cerr">{{ cfErr }}</p>
+          <div class="modal-actions"><button class="btn ghost" @click="showCfConfig = false">关闭</button></div>
         </div>
       </div>
 
@@ -429,16 +472,18 @@ const distBars = computed(() => {
 const showAsset = ref(false)
 const assetSaving = ref(false)
 const assetErr = ref('')
-const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12 })
+const af = reactive({ name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12, ext: {} })
 function openAsset() {
   editingAssetId.value = null // 登记模式（八轮 8-10：与编辑复用同一弹窗）
-  Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12 })
+  Object.assign(af, { name: '', assetType: 'SYSTEM', owner: '', classification: 'INTERNAL', criticality: 'MID', containsPi: false, crossBorder: false, mlpsFiled: false, containsChd: false, mlpsLevel: null, mlpsReviewDue: '', ciaRating: '', networkZone: null, orgId: 12, ext: {} })
   assetErr.value = ''; showAsset.value = true
 }
 async function submitAsset() {
   assetSaving.value = true; assetErr.value = ''
-  // B47：深化合规属性随表单一并提交（空值传 null）
-  const body = { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality, mlpsLevel: af.mlpsLevel, mlpsReviewDue: af.mlpsReviewDue || null, ciaRating: af.ciaRating || null, networkZone: af.networkZone }
+  // B47：深化合规属性 + B12：自定义字段 ext 随表单一并提交（空值传 null）
+  const ext = {}
+  for (const f of customFields.value) { const v = af.ext[f.fieldKey]; if (v !== undefined && v !== '') ext[f.fieldKey] = v }
+  const body = { orgId: af.orgId, name: af.name, assetType: af.assetType, owner: af.owner || null, classification: af.classification, containsPi: af.containsPi, crossBorder: af.crossBorder, mlpsFiled: af.mlpsFiled, containsChd: af.containsChd, criticality: af.criticality, mlpsLevel: af.mlpsLevel, mlpsReviewDue: af.mlpsReviewDue || null, ciaRating: af.ciaRating || null, networkZone: af.networkZone, ext }
   try {
     // 八轮 8-10（B42）：editingAssetId 非空即编辑（PUT），否则登记（POST）
     if (editingAssetId.value) await api.put('/assets/' + editingAssetId.value, body)
@@ -451,8 +496,36 @@ async function submitAsset() {
 const editingAssetId = ref(null)
 function openAssetEdit(r) {
   editingAssetId.value = r.id
-  Object.assign(af, { name: r.name, assetType: r.assetType, owner: r.owner || '', classification: r.classification, criticality: r.criticality || 'MID', containsPi: !!r.containsPi, crossBorder: !!r.crossBorder, mlpsFiled: !!r.mlpsFiled, containsChd: !!r.containsChd, mlpsLevel: r.mlpsLevel ?? null, mlpsReviewDue: r.mlpsReviewDue || '', ciaRating: r.ciaRating || '', networkZone: r.networkZone ?? null, orgId: r.orgId })
+  Object.assign(af, { name: r.name, assetType: r.assetType, owner: r.owner || '', classification: r.classification, criticality: r.criticality || 'MID', containsPi: !!r.containsPi, crossBorder: !!r.crossBorder, mlpsFiled: !!r.mlpsFiled, containsChd: !!r.containsChd, mlpsLevel: r.mlpsLevel ?? null, mlpsReviewDue: r.mlpsReviewDue || '', ciaRating: r.ciaRating || '', networkZone: r.networkZone ?? null, orgId: r.orgId, ext: { ...(r.ext || {}) } })
   assetErr.value = ''; showAsset.value = true
+}
+
+// ===== B12 Phase1：自定义字段（资产对象）=====
+const CF_TYPE = { TEXT: '文本', NUMBER: '数值', DATE: '日期', BOOL: '布尔', SELECT: '下拉' }
+const customFields = ref([])   // 启用字段（渲染用）
+const cfDefs = ref([])         // 全部字段（配置页）
+async function loadCustomFields() {
+  try { customFields.value = await api.get('/custom-fields/active?objectType=ASSET') } catch (e) { customFields.value = [] }
+}
+const showCfConfig = ref(false)
+const cfErr = ref('')
+const cf = reactive({ fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false })
+async function openCfConfig() {
+  cfErr.value = ''
+  try { cfDefs.value = await api.get('/custom-fields?objectType=ASSET') } catch (e) { cfDefs.value = [] }
+  showCfConfig.value = true
+}
+async function addCf() {
+  cfErr.value = ''
+  try {
+    await api.post('/custom-fields', { orgId: af.orgId, objectType: 'ASSET', fieldKey: cf.fieldKey, label: cf.label, dataType: cf.dataType, options: cf.options || null, required: cf.required, sensitive: false, aggregatable: false, seq: cfDefs.value.length })
+    Object.assign(cf, { fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false })
+    await openCfConfig(); await loadCustomFields()
+  } catch (e) { cfErr.value = e.message }
+}
+async function retireCf(d) {
+  try { await api.post('/custom-fields/' + d.id + '/retire', {}); await openCfConfig(); await loadCustomFields() }
+  catch (e) { window.alert(e.message) }
 }
 /** B46：资产台账导出（当前列表态，含深化合规属性）。 */
 function exportAssets() {
@@ -502,7 +575,7 @@ async function submitRopa() {
   } catch (e) { ropaErr.value = e.message } finally { ropaSaving.value = false }
 }
 
-onMounted(() => { loadTree(); loadAssets(); loadRopas() })
+onMounted(() => { loadTree(); loadAssets(); loadRopas(); loadCustomFields() })
 </script>
 
 <style scoped>
@@ -913,4 +986,8 @@ tbody tr:hover {
 .chkrow { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin: 2px 0 12px; }
 .chk { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-2); }
 .mutedcell { color: var(--text-2); max-width: 220px; }
+/* B12 自定义字段 */
+.cf-divider { font-size: 11px; font-weight: 700; color: var(--accent-strong); border-top: 1px dashed var(--border-subtle); margin: 6px 0 10px; padding-top: 10px; }
+.cf-add { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; background: var(--bg); border-radius: var(--radius-md); }
+.cf-add input, .cf-add select { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
 </style>

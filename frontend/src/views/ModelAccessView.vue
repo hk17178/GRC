@@ -1,7 +1,9 @@
 <template>
   <!--
     模型接入（ModelAccessView · CR-004）：AI 提供方/嵌入配置「状态展示 + 切换指引」。
-    功能真源 = 后端 /api/ai/status。安全：密钥经部署环境变量注入，<b>不</b>在 UI 录入/展示密钥（无密钥输入框）。
+    功能真源 = 后端 /api/ai/status + /api/ai/config。
+    安全（C9 口径）：运营可在界面配置 provider/BaseURL/模型/密钥；密钥经 AES 加密落库、
+    接口从不回显明文（仅显示 ····last4），加密主密钥走部署环境变量 GRC_CONFIG_SECRET。
   -->
   <AppShell>
     <section class="view view-model">
@@ -68,7 +70,7 @@
               <span v-if="saveErr" class="err-msg">{{ saveErr }}</span>
             </div>
             <p class="note">支持范围：任意提供 OpenAI 兼容接口的模型服务商（含公有云大模型与本地私有化部署推理服务），以及 Anthropic 协议服务商——按贵司选型填入对应 Base URL / 模型 id / 密钥即可，平台不绑定、不推荐特定厂商。</p>
-            <p class="warn">🔒 密钥经 AES 加密落库、接口不回显明文；上线须配置环境变量 <b>GRC_CONFIG_SECRET</b>（加密主密钥）。我（助手）不会代你输入真实密钥。</p>
+            <p class="warn">🔒 密钥经 AES 加密落库、接口不回显明文（仅显示 ····末四位）；上线须配置环境变量 <b>GRC_CONFIG_SECRET</b>（加密主密钥）。请由运营人员在此录入真实密钥。</p>
           </div>
         </div>
 

@@ -31,6 +31,14 @@ public class AssetService {
     @jakarta.persistence.PersistenceContext
     private jakarta.persistence.EntityManager em;
 
+    /** B12 Phase1：自定义字段校验（setter 注入避免与自定义模块构成环）。 */
+    private com.mandao.grc.modules.custom.CustomFieldService customFieldService;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireCustomField(com.mandao.grc.modules.custom.CustomFieldService customFieldService) {
+        this.customFieldService = customFieldService;
+    }
+
     public AssetService(AssetRepository repository, HashChainService hashChainService) {
         this.repository = repository;
         this.hashChainService = hashChainService;
@@ -92,10 +100,12 @@ public class AssetService {
                           AssetClassification classification, boolean containsPi, boolean crossBorder,
                           boolean mlpsFiled, boolean containsChd, String criticality,
                           Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
-                          String ciaRating, String networkZone, String actor) {
+                          String ciaRating, String networkZone, java.util.Map<String, Object> ext, String actor) {
         Asset a = new Asset(orgId, name, assetType, owner, classification,
                 containsPi, crossBorder, mlpsFiled, containsChd, criticality);
         applyComplianceDeep(a, mlpsLevel, mlpsReviewDue, ciaRating, networkZone);
+        // B12 Phase1：自定义字段值按启用定义校验后落 ext（类型/必填/选项白名单）
+        a.setExt(customFieldService.validateExt("ASSET", ext));
         Asset saved = repository.save(a);
         appendLog(saved, "ASSET_REGISTER", actor,
                 "登记资产 name=" + name + " type=" + assetType
@@ -113,7 +123,7 @@ public class AssetService {
                         AssetClassification classification, boolean containsPi, boolean crossBorder,
                         boolean mlpsFiled, boolean containsChd, String criticality,
                         Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
-                        String ciaRating, String networkZone, String actor) {
+                        String ciaRating, String networkZone, java.util.Map<String, Object> ext, String actor) {
         Asset a = get(id);
         if (a.getStatus() != AssetStatus.ACTIVE) {
             throw new IllegalStateException(
@@ -141,6 +151,7 @@ public class AssetService {
         a.setContainsChd(containsChd);
         a.setCriticality(criticality);
         applyComplianceDeep(a, mlpsLevel, mlpsReviewDue, ciaRating, networkZone);
+        a.setExt(customFieldService.validateExt("ASSET", ext));  // B12：自定义字段校验后落 ext
         Asset saved = repository.save(a);
         appendLog(saved, "ASSET_UPDATE", actor,
                 "更新资产合规属性 class=" + saved.getClassification() + " pi=" + containsPi
@@ -221,7 +232,18 @@ public class AssetService {
                           AssetClassification classification, boolean containsPi, boolean crossBorder,
                           boolean mlpsFiled, boolean containsChd, String criticality, String actor) {
         return register(orgId, name, assetType, owner, classification, containsPi, crossBorder,
-                mlpsFiled, containsChd, criticality, null, null, null, null, actor);
+                mlpsFiled, containsChd, criticality, null, null, null, null, null, actor);
+    }
+
+    /** 兼容重载：B47 深化合规属性但无自定义字段 ext（ext 置空）。 */
+    @Transactional
+    public Asset register(Long orgId, String name, String assetType, String owner,
+                          AssetClassification classification, boolean containsPi, boolean crossBorder,
+                          boolean mlpsFiled, boolean containsChd, String criticality,
+                          Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
+                          String ciaRating, String networkZone, String actor) {
+        return register(orgId, name, assetType, owner, classification, containsPi, crossBorder,
+                mlpsFiled, containsChd, criticality, mlpsLevel, mlpsReviewDue, ciaRating, networkZone, null, actor);
     }
 
     /** 兼容重载：不带深化合规属性的更新（四项深化属性一并置空）。 */
@@ -230,7 +252,18 @@ public class AssetService {
                         AssetClassification classification, boolean containsPi, boolean crossBorder,
                         boolean mlpsFiled, boolean containsChd, String criticality, String actor) {
         return update(id, name, assetType, owner, classification, containsPi, crossBorder,
-                mlpsFiled, containsChd, criticality, null, null, null, null, actor);
+                mlpsFiled, containsChd, criticality, null, null, null, null, null, actor);
+    }
+
+    /** 兼容重载：B47 深化合规属性但无自定义字段 ext（ext 置空）。 */
+    @Transactional
+    public Asset update(Long id, String name, String assetType, String owner,
+                        AssetClassification classification, boolean containsPi, boolean crossBorder,
+                        boolean mlpsFiled, boolean containsChd, String criticality,
+                        Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
+                        String ciaRating, String networkZone, String actor) {
+        return update(id, name, assetType, owner, classification, containsPi, crossBorder,
+                mlpsFiled, containsChd, criticality, mlpsLevel, mlpsReviewDue, ciaRating, networkZone, null, actor);
     }
 
     // ---------- 内部辅助 ----------

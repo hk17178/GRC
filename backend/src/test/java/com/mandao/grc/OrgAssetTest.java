@@ -78,6 +78,9 @@ class OrgAssetTest {
     private AssetService assetService;
 
     @Autowired
+    private com.mandao.grc.modules.custom.CustomFieldService customFieldService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -93,7 +96,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -184,6 +187,75 @@ class OrgAssetTest {
         assertThrows(IllegalStateException.class, () -> runAsOrg(ORG_PAY, () ->
                 assetService.update(id, "改名", "SYSTEM", "ops",
                         AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin")));
+    }
+
+    // ---------- B12 Phase1：自定义字段 ----------
+
+    @Test
+    void b12_自定义字段登记与ext校验落库() {
+        // 登记两个自定义字段：数值(必填) + 下拉
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "cpu_cores", "CPU核数",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.NUMBER, null, true, false, false, 0, "admin"));
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "env", "环境",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.SELECT, "生产;测试;开发", false, false, false, 1, "admin"));
+        assertEquals(2, asOrg(ORG_PAY, () -> customFieldService.listActive("ASSET")).size());
+
+        // 登记资产带 ext（NUMBER 归一为数值、SELECT 校验选项）
+        var ext = new java.util.HashMap<String, Object>();
+        ext.put("cpu_cores", "16");
+        ext.put("env", "生产");
+        var asset = asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "自定义字段资产", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID",
+                null, null, null, null, ext, "admin"));
+        assertEquals(16.0, ((Number) asset.getExt().get("cpu_cores")).doubleValue(), 0.001, "NUMBER 应归一为数值");
+        assertEquals("生产", asset.getExt().get("env"));
+    }
+
+    @Test
+    void b12_未登记键拒绝_必填缺失拒绝_选项越界拒绝() {
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "cpu_cores", "CPU核数",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.NUMBER, null, true, false, false, 0, "admin"));
+
+        // 未登记键
+        var bad = new java.util.HashMap<String, Object>();
+        bad.put("unknown_key", "x");
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                assetService.register(ORG_PAY, "a", "SYSTEM", "o", AssetClassification.INTERNAL,
+                        false, false, false, false, "MID", null, null, null, null, bad, "admin")));
+
+        // 必填缺失（cpu_cores required 但未给）
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                assetService.register(ORG_PAY, "a", "SYSTEM", "o", AssetClassification.INTERNAL,
+                        false, false, false, false, "MID", null, null, null, null, java.util.Map.of(), "admin")));
+
+        // 数值类型非数
+        var notNum = new java.util.HashMap<String, Object>();
+        notNum.put("cpu_cores", "abc");
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                assetService.register(ORG_PAY, "a", "SYSTEM", "o", AssetClassification.INTERNAL,
+                        false, false, false, false, "MID", null, null, null, null, notNum, "admin")));
+    }
+
+    @Test
+    void b12_字段键非法拒绝_停用后不再校验() {
+        // 非法键
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customFieldService.create(ORG_PAY, "ASSET", "2bad key", "坏键",
+                        com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, false, false, 0, "admin")));
+
+        // 停用字段后，其键不再是启用字段 → 带该键会被当"未登记"拒绝
+        Long id = asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "legacy", "旧字段",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, false, false, 0, "admin").getId());
+        asOrg(ORG_PAY, () -> customFieldService.retire(id, "admin"));
+        assertTrue(asOrg(ORG_PAY, () -> customFieldService.listActive("ASSET")).isEmpty(), "停用后无启用字段");
+    }
+
+    @Test
+    void b12_自定义字段组织隔离() {
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "pay_only", "仅支付",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, false, false, 0, "admin"));
+        assertEquals(1, asOrg(ORG_PAY, () -> customFieldService.list("ASSET")).size());
+        assertTrue(asOrg(13L, () -> customFieldService.list("ASSET")).isEmpty(), "org13 不应看到 org12 的字段定义");
     }
 
     // ---------- ROPA 生命周期 ----------

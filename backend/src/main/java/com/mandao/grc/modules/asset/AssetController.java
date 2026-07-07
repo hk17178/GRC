@@ -64,7 +64,7 @@ public class AssetController {
         return service.register(req.orgId(), req.name(), req.assetType(), req.owner(),
                 req.classification(), req.containsPi(), req.crossBorder(), req.mlpsFiled(),
                 req.containsChd(), req.criticality(),
-                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), actor(user));
+                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), req.ext(), actor(user));
     }
 
     @PutMapping("/{id}")
@@ -74,7 +74,7 @@ public class AssetController {
         return service.update(id, req.name(), req.assetType(), req.owner(),
                 req.classification(), req.containsPi(), req.crossBorder(), req.mlpsFiled(),
                 req.containsChd(), req.criticality(),
-                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), actor(user));
+                req.mlpsLevel(), req.mlpsReviewDue(), req.ciaRating(), req.networkZone(), req.ext(), actor(user));
     }
 
     @PostMapping("/{id}/retire")
@@ -93,6 +93,7 @@ public class AssetController {
                                AssetClassification classification, boolean containsPi, boolean crossBorder,
                                boolean mlpsFiled, boolean containsChd, String criticality,
                                Integer mlpsLevel, java.time.LocalDate mlpsReviewDue,
-                               String ciaRating, String networkZone) {
+                               String ciaRating, String networkZone,
+                               java.util.Map<String, Object> ext) {
     }
 }

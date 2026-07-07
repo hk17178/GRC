@@ -95,6 +95,11 @@ public class Asset {
     @Column(name = "network_zone", length = 64)
     private String networkZone;
 
+    /** 自定义字段值（B12 Phase1：键=custom_field_def.field_key，随本行 org_id 隔离）。 */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
+    private java.util.Map<String, Object> ext = new java.util.LinkedHashMap<>();
+
     /** 资产生命周期状态机当前态。 */
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -156,6 +161,7 @@ public class Asset {
     public java.time.LocalDate getMlpsReviewDue() { return mlpsReviewDue; }
     public String getCiaRating() { return ciaRating; }
     public String getNetworkZone() { return networkZone; }
+    public java.util.Map<String, Object> getExt() { return ext; }
     public AssetStatus getStatus() { return status; }
     public OffsetDateTime getCreatedAt() { return createdAt; }
     public OffsetDateTime getUpdatedAt() { return updatedAt; }
@@ -174,5 +180,6 @@ public class Asset {
     void setMlpsReviewDue(java.time.LocalDate mlpsReviewDue) { this.mlpsReviewDue = mlpsReviewDue; }
     void setCiaRating(String ciaRating) { this.ciaRating = ciaRating; }
     void setNetworkZone(String networkZone) { this.networkZone = networkZone; }
+    void setExt(java.util.Map<String, Object> ext) { this.ext = ext == null ? new java.util.LinkedHashMap<>() : ext; }
     void setStatus(AssetStatus status) { this.status = status; }
 }
