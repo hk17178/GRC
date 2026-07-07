@@ -189,6 +189,11 @@
                   <div class="t">{{ k.name }}</div>
                   <div class="src">{{ k.code }}</div>
                 </span>
+                <!-- B37：迷你折线趋势（近 8 次测量）+ 预警阈值基线 -->
+                <svg v-if="kriSpark[k.id]" class="kspark" :viewBox="'0 0 ' + 54 + ' ' + 18" preserveAspectRatio="none">
+                  <line v-if="kriSpark[k.id].baseY" x1="0" :y1="kriSpark[k.id].baseY" x2="54" :y2="kriSpark[k.id].baseY" stroke="var(--warning)" stroke-width="0.6" stroke-dasharray="2 2" opacity="0.6" />
+                  <polyline :points="kriSpark[k.id].line" fill="none" :stroke="kriDot(k.currentStatus)" stroke-width="1.3" stroke-linejoin="round" stroke-linecap="round" />
+                </svg>
                 <span class="val" :style="{ color: kriDot(k.currentStatus) }">
                   {{ k.currentValue == null ? '—' : k.currentValue + (k.unit || '') }}
                   <div class="th">预警 {{ k.thresholdWarning }} / 严重 {{ k.thresholdCritical }}</div>
@@ -626,6 +631,33 @@ const kris = ref([])
 const kriDot = (st) => st === 'CRITICAL' ? 'var(--danger)' : (st === 'WARNING' ? 'var(--warning)'
   : (st === 'NORMAL' ? 'var(--success)' : 'var(--text-3)'))
 
+// B37：KRI 迷你折线趋势——近 N 次测量归一化为 54×18 sparkline，叠加预警阈值基线
+const SPARK_W = 54
+const SPARK_H = 18
+const kriSpark = ref({})   // { [kriId]: { line, baseY } }
+async function loadKriSparks() {
+  const map = {}
+  await Promise.all(kris.value.map(async (k) => {
+    try {
+      const ms = await api.get('/kris/' + k.id + '/measurements')
+      const pts = (ms || []).slice(-8).map((m) => Number(m.value)).filter((v) => !Number.isNaN(v))
+      if (pts.length < 2) return
+      // 值域含阈值，保证基线落在框内
+      const wt = Number(k.thresholdWarning)
+      const all = Number.isNaN(wt) ? pts : pts.concat(wt)
+      const lo = Math.min(...all), hi = Math.max(...all)
+      const span = hi - lo || 1
+      const x = (i) => (i / (pts.length - 1)) * (SPARK_W - 2) + 1
+      const y = (v) => SPARK_H - 1 - ((v - lo) / span) * (SPARK_H - 2)
+      map[k.id] = {
+        line: pts.map((v, i) => x(i).toFixed(1) + ',' + y(v).toFixed(1)).join(' '),
+        baseY: Number.isNaN(wt) ? null : y(wt).toFixed(1)
+      }
+    } catch (e) { /* 该 KRI 无测量则不画 */ }
+  }))
+  kriSpark.value = map
+}
+
 // 待我审批 ← /api/workbench/my-approvals（Flowable 真任务）
 const approvals = ref([])
 const BIZ_LABEL = { POLICY: '制度审批', RISK_ACCEPTANCE: '风险接受', FEEDBACK_OUTBOUND: '出站审批', REG_FILING: '报送复核' }
@@ -643,7 +675,7 @@ const feedBadgeText = (et) => et && et.startsWith('RULE_KRI') ? 'KRI'
   : (et && et.startsWith('RULE_REG') ? '法规' : (et && et.includes('AUDIT') ? '审计' : '提醒'))
 
 async function loadLiveWidgets() {
-  try { kris.value = await api.get('/kris') } catch (e) { kris.value = [] }
+  try { kris.value = await api.get('/kris'); loadKriSparks() } catch (e) { kris.value = [] }
   try { approvals.value = await api.get('/workbench/my-approvals') } catch (e) { approvals.value = [] }
   try { feed.value = (await api.get('/workbench/notifications')).slice(0, 6) } catch (e) { feed.value = [] }
 }
