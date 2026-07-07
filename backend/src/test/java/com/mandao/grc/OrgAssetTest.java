@@ -91,6 +91,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.custom.KpiDefService kpiDefService;
 
     @Autowired
+    private com.mandao.grc.modules.custom.CustomDashboardService dashboardService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -106,7 +109,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -508,6 +511,82 @@ class OrgAssetTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid());
         assertEquals(2, r.count(), "资产登记 + KPI 登记 = 2 条留痕");
+    }
+
+    // ---------- B12 Phase5：自定义看板（§五，组件走标准聚合接口） ----------
+
+    /** 在 ORG_PAY 造 2 敏感 + 1 内部资产，并登记一个 KPI（敏感数）+ 一个报表（分级分布），返回其 id。 */
+    private long[] seedKpiAndReport() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库A", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "HIGH", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库B", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "MID", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "门户", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+        long kpiId = asOrg(ORG_PAY, () -> kpiDefService.create(ORG_PAY, "ASSET", "敏感数",
+                "{\"terms\":{\"a\":{\"agg\":\"count\",\"filters\":[{\"field\":\"classification\",\"op\":\"eq\",\"value\":\"SENSITIVE\"}]}},\"expr\":\"a\"}",
+                "个", "admin").getId());
+        long repId = asOrg(ORG_PAY, () -> customReportService.create(ORG_PAY, "ASSET", "分级分布",
+                "{\"groupBy\":[\"classification\"],\"measures\":[{\"agg\":\"count\"}]}", "admin").getId());
+        return new long[]{kpiId, repId};
+    }
+
+    @Test
+    void b12v5_看板渲染_kpi卡与报表组件() {
+        long[] ids = seedKpiAndReport();
+        String layout = "{\"widgets\":[{\"type\":\"KPI\",\"refId\":" + ids[0] + ",\"title\":\"敏感数\"},"
+                + "{\"type\":\"REPORT\",\"refId\":" + ids[1] + ",\"title\":\"分级分布\"}]}";
+        Long dashId = asOrg(ORG_PAY, () -> dashboardService.create(ORG_PAY, "资产看板", layout, "admin").getId());
+
+        var render = asOrg(ORG_PAY, () -> dashboardService.render(dashId));
+        assertEquals(2, render.widgets().size());
+
+        var kw = render.widgets().get(0);
+        assertEquals("KPI", kw.type());
+        assertNull(kw.error(), "KPI 组件应正常解析");
+        assertEquals(2.0, ((com.mandao.grc.modules.custom.KpiDefService.KpiResult) kw.data()).value(), 0.001,
+                "敏感数 KPI = 2");
+
+        var rw = render.widgets().get(1);
+        assertEquals("REPORT", rw.type());
+        assertNull(rw.error());
+        assertTrue(rw.data() instanceof List, "报表组件数据应为行列表");
+        assertEquals(2, ((List<?>) rw.data()).size(), "分级分布应 2 组");
+    }
+
+    @Test
+    void b12v5_组件绑定不存在源_与跨组织绑定均拒() {
+        long[] ids = seedKpiAndReport();
+        // 绑定不存在的 KPI
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                dashboardService.create(ORG_PAY, "坏看板", "{\"widgets\":[{\"type\":\"KPI\",\"refId\":99999,\"title\":\"x\"}]}", "admin")));
+        // org13 绑定 org12 的 KPI（RLS 不可见 → 拒，不自取数 + 隔离）
+        String crossLayout = "{\"widgets\":[{\"type\":\"KPI\",\"refId\":" + ids[0] + ",\"title\":\"越权\"}]}";
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_CF, () ->
+                dashboardService.create(ORG_CF, "越权看板", crossLayout, "admin")));
+    }
+
+    @Test
+    void b12v5_坏组件降级不崩() {
+        long[] ids = seedKpiAndReport();
+        // 预览一个 layout：一个有效 KPI + 一个指向不存在源的 KPI（绕过登记校验，验渲染期降级）
+        String layout = "{\"widgets\":[{\"type\":\"KPI\",\"refId\":" + ids[0] + ",\"title\":\"好\"},"
+                + "{\"type\":\"KPI\",\"refId\":99999,\"title\":\"坏\"}]}";
+        var render = asOrg(ORG_PAY, () -> dashboardService.preview("混合看板", layout));
+        assertEquals(2, render.widgets().size());
+        assertNull(render.widgets().get(0).error(), "好组件正常");
+        assertNotNull(render.widgets().get(1).error(), "坏组件降级为 error，看板不崩");
+    }
+
+    @Test
+    void b12v5_看板登记留痕() {
+        long[] ids = seedKpiAndReport();   // REGISTER×3 + KPI_CREATE×1 + REPORT_CREATE×1 = 5
+        String layout = "{\"widgets\":[{\"type\":\"KPI\",\"refId\":" + ids[0] + ",\"title\":\"敏感数\"}]}";
+        asOrg(ORG_PAY, () -> dashboardService.create(ORG_PAY, "看板", layout, "admin"));   // DASHBOARD_CREATE = 6
+
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid());
+        assertEquals(6, r.count(), "资产×3 + KPI + 报表 + 看板 = 6 条留痕");
     }
 
     // ---------- ROPA 生命周期 ----------

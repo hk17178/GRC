@@ -364,6 +364,83 @@
         </div>
       </div>
 
+      <!-- B12 Phase5：自定义看板弹窗（§五 组件绑定 KPI/报表，不自取数）-->
+      <div v-if="showDashMgr" class="modal-mask" @click.self="showDashMgr = false">
+        <div class="modal-card" style="width:720px">
+          <h3>自定义看板 · 资产</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">把已登记的 KPI 指标卡与报表组装成看板。组件<b>不自取数</b>——只能绑定已有 KPI/报表，数据源一律走标准聚合接口（受 M8 + visibleOrgs）。</p>
+
+          <!-- 已保存看板 -->
+          <div class="cf-divider" style="margin-top:0">已保存看板</div>
+          <table style="width:100%;font-size:12px;margin-bottom:12px">
+            <thead><tr><th style="text-align:left">名称</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="d in dashDefs" :key="d.id">
+                <td>{{ d.name }}</td>
+                <td style="text-align:center"><span :class="d.status==='ACTIVE'?'pill blue':'pill'">{{ d.status==='ACTIVE'?'启用':'停用' }}</span></td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button class="mini" @click="runDash(d)">打开</button>
+                  <button v-if="d.status==='ACTIVE'" class="mini danger" @click="retireDash(d)">停用</button>
+                </td>
+              </tr>
+              <tr v-if="!dashDefs.length"><td colspan="3" style="text-align:center;color:var(--text-3);padding:10px">暂无看板，用下方构建器新建。</td></tr>
+            </tbody>
+          </table>
+
+          <!-- 构建器 -->
+          <div class="cf-divider">新建看板</div>
+          <label class="fld">看板名称<input v-model="db.name" placeholder="如 资产合规态势" /></label>
+          <div class="fld">
+            <span>组件（绑定已有 KPI/报表）</span>
+            <div style="margin:6px 0">
+              <button class="btn sm ghost" @click="addWidget('KPI')">＋ 加 KPI 卡</button>
+              <button class="btn sm ghost" @click="addWidget('REPORT')" style="margin-left:8px">＋ 加报表</button>
+            </div>
+            <div v-for="(w, i) in db.widgets" :key="i" class="vb-filter">
+              <span class="pill" :class="w.type==='KPI'?'blue':''" style="width:56px;text-align:center">{{ w.type==='KPI'?'指标':'报表' }}</span>
+              <select v-if="w.type==='KPI'" v-model.number="w.refId" style="width:200px"><option v-for="o in dashKpiOpts" :key="o.id" :value="o.id">{{ o.name }}</option></select>
+              <select v-else v-model.number="w.refId" style="width:200px"><option v-for="o in dashReportOpts" :key="o.id" :value="o.id">{{ o.name }}</option></select>
+              <input v-model="w.title" placeholder="卡片标题（默认取源名）" style="width:180px" />
+              <button class="mini danger" @click="db.widgets.splice(i,1)">×</button>
+            </div>
+            <div v-if="!db.widgets.length" style="font-size:12px;color:var(--text-3);padding:6px 0">尚无组件，点上方按钮添加。</div>
+          </div>
+          <p v-if="dashErr" class="cerr">{{ dashErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" style="margin-right:auto" :disabled="!db.widgets.length" @click="previewDash">预览</button>
+            <button class="btn ghost" @click="showDashMgr = false">关闭</button>
+            <button class="btn" :disabled="!db.name || !db.widgets.length" @click="saveDash">保存看板</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 看板渲染视图（指标卡 + 报表迷你表）-->
+      <div v-if="showDashView && dashRender" class="modal-mask" @click.self="showDashView = false">
+        <div class="modal-card" style="width:820px">
+          <h3>{{ dashRender.name }}</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">数据经统一访问层（已裁剪至当前可见组织）。</p>
+          <div class="dash-grid">
+            <div v-for="(w, i) in dashRender.widgets" :key="i" class="dash-widget">
+              <div class="dw-title">{{ w.title }} <span class="dw-type">{{ w.type==='KPI'?'指标':'报表' }}</span></div>
+              <div v-if="w.error" class="dw-err">组件源不可用：{{ w.error }}</div>
+              <div v-else-if="w.type==='KPI'" class="dw-kpi">{{ kpiWidgetText(w) }}</div>
+              <div v-else class="dw-report">
+                <table style="width:100%;font-size:11.5px">
+                  <thead><tr><th v-for="k in reportWidgetCols(w)" :key="k" style="text-align:left">{{ repColLabel(k) }}</th></tr></thead>
+                  <tbody>
+                    <tr v-for="(row, ri) in (w.data || []).slice(0, 8)" :key="ri">
+                      <td v-for="k in reportWidgetCols(w)" :key="k">{{ fmtCell(row[k]) }}</td>
+                    </tr>
+                    <tr v-if="!w.data || !w.data.length"><td :colspan="reportWidgetCols(w).length || 1" style="text-align:center;color:var(--text-3);padding:8px">无数据</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions"><button class="btn ghost" @click="showDashView = false">关闭</button></div>
+        </div>
+      </div>
+
       <!-- 登记 ROPA 处理活动弹窗（真实 POST /api/ropa）-->
       <div v-if="showRopa" class="modal-mask" @click.self="showRopa = false">
         <div class="modal-card">
@@ -453,6 +530,8 @@
               <button class="mini" @click="openReportMgr" title="按维度分组聚合，生成可导出的统计报表">📊 自定义报表</button>
               <!-- B12 Phase4：自定义 KPI（公式 DSL 指标） -->
               <button class="mini" @click="openKpiMgr" title="用聚合与公式定义指标（如敏感资产占比）">📈 自定义 KPI</button>
+              <!-- B12 Phase5：自定义看板（组件绑定 KPI/报表，不自取数） -->
+              <button class="mini" @click="openDashMgr" title="把 KPI/报表组装成可上屏的看板">🗂 自定义看板</button>
               <!-- B46：资产台账 CSV 导出（当前列表态） -->
               <button class="mini" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
             </div>
@@ -930,6 +1009,71 @@ async function retireKpi(k) {
   catch (e) { window.alert(e.message) }
 }
 
+// ===== B12 Phase5：自定义看板（§五，收官）=====
+// 看板 = 一组组件；组件不自取数，只绑定已登记的 KPI/报表（数据源走标准聚合接口 + RLS）。
+const showDashMgr = ref(false)
+const dashDefs = ref([])
+const dashKpiOpts = ref([])       // 可选 KPI 源
+const dashReportOpts = ref([])    // 可选报表源
+const dashErr = ref('')
+// db：看板构建器（name + widgets 列表）
+const db = reactive({ name: '', widgets: [] })
+async function openDashMgr() {
+  dashErr.value = ''
+  Object.assign(db, { name: '', widgets: [] })
+  try {
+    dashDefs.value = await api.get('/dashboards')
+    dashKpiOpts.value = (await api.get('/custom-kpis?objectType=ASSET')).filter((k) => k.status === 'ACTIVE')
+    dashReportOpts.value = (await api.get('/custom-reports?objectType=ASSET')).filter((r) => r.status === 'ACTIVE')
+  } catch (e) { dashDefs.value = [] }
+  showDashMgr.value = true
+}
+function addWidget(type) {
+  const opts = type === 'KPI' ? dashKpiOpts.value : dashReportOpts.value
+  if (!opts.length) { window.alert(type === 'KPI' ? '暂无可用 KPI，请先在「自定义 KPI」中登记' : '暂无可用报表，请先在「自定义报表」中登记'); return }
+  db.widgets.push({ type, refId: opts[0].id, title: opts[0].name })
+}
+function widgetSourceName(w) {
+  const opts = w.type === 'KPI' ? dashKpiOpts.value : dashReportOpts.value
+  const o = opts.find((x) => x.id === w.refId)
+  return o ? o.name : ('#' + w.refId)
+}
+function buildLayout() {
+  return JSON.stringify({ widgets: db.widgets.map((w) => ({ type: w.type, refId: Number(w.refId), title: w.title || widgetSourceName(w) })) })
+}
+async function saveDash() {
+  dashErr.value = ''
+  try {
+    await api.post('/dashboards', { orgId: af.orgId, name: db.name, layout: buildLayout() })
+    await openDashMgr()
+  } catch (e) { dashErr.value = e.message }
+}
+async function retireDash(d) {
+  try { await api.post('/dashboards/' + d.id + '/retire', {}); await openDashMgr() }
+  catch (e) { window.alert(e.message) }
+}
+// 看板渲染视图
+const showDashView = ref(false)
+const dashRender = ref(null)
+async function runDash(d) {
+  try { dashRender.value = await api.get('/dashboards/' + d.id + '/render'); showDashView.value = true }
+  catch (e) { window.alert(e.message) }
+}
+async function previewDash() {
+  dashErr.value = ''
+  if (!db.widgets.length) { dashErr.value = '请先添加至少一个组件'; return }
+  try { dashRender.value = await api.post('/dashboards/preview', { name: db.name || '预览', layout: buildLayout() }); showDashView.value = true }
+  catch (e) { dashErr.value = e.message }
+}
+// 渲染辅助：KPI 组件值 / 报表组件表头与行
+function kpiWidgetText(w) {
+  if (w.error) return '—'
+  const d = w.data
+  if (!d || d.value === null || d.value === undefined) return '—'
+  return d.value + (d.unit ? ' ' + d.unit : '')
+}
+function reportWidgetCols(w) { return w.data && w.data.length ? Object.keys(w.data[0]) : [] }
+
 /** B46：资产台账导出（当前列表态，含深化合规属性）。 */
 function exportAssets() {
   const headers = ['ID', '资产名称', '类型', '责任人', '数据分级', '含个人信息', '跨境', '等保备案',
@@ -1399,4 +1543,12 @@ tbody tr:hover {
 .vb-filter select, .vb-filter input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
 .vb-sort { display: flex; align-items: center; gap: 8px; margin: 8px 0; font-size: 12px; color: var(--text-2); }
 .vb-sort select { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+/* B12 Phase5：自定义看板渲染 */
+.dash-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.dash-widget { border: 1px solid var(--surface-border); border-radius: var(--radius-md); padding: 12px; background: var(--surface); }
+.dw-title { font-size: 12px; font-weight: 700; color: var(--text-1); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.dw-type { font-size: 10px; font-weight: 600; color: var(--text-3); background: var(--bg); padding: 1px 6px; border-radius: 8px; }
+.dw-kpi { font-size: 28px; font-weight: 800; color: var(--accent-strong); text-align: center; padding: 12px 0; }
+.dw-err { font-size: 11.5px; color: var(--danger); padding: 8px 0; }
+.dw-report { overflow-x: auto; }
 </style>
