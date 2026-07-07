@@ -42,6 +42,9 @@ public class ObjectColumnCatalog {
     private static final Map<String, Map<String, Col>> STD_BY_OBJECT = Map.of("ASSET", ASSET_STD);
     private static final Map<String, String> HOST_TABLE = Map.of("ASSET", "asset");
 
+    private static final java.util.Set<String> NUMERIC_AGG = java.util.Set.of("SUM", "AVG");
+    private static final java.util.Set<String> ORDERED_AGG = java.util.Set.of("MIN", "MAX");   // 可作用于 NUMBER 或 DATE
+
     private final CustomFieldDefRepository fieldRepository;
 
     public ObjectColumnCatalog(CustomFieldDefRepository fieldRepository) {
@@ -79,6 +82,33 @@ public class ObjectColumnCatalog {
             throw new IllegalArgumentException("非法自定义字段键：" + key);
         }
         return key;
+    }
+
+    // ---------- 共享聚合编译（报表/KPI 复用同一套聚合枚举与类型校验） ----------
+
+    /**
+     * 聚合函数 + 度量字段 → 参数化 SQL 聚合表达式（取自固定枚举/白名单，安全）。
+     * COUNT 恒用 COUNT(*)；SUM/AVG 仅可作用于 NUMBER 列；MIN/MAX 限 NUMBER/DATE。未授权字段/未知函数/类型不符均拒。
+     */
+    public String aggregateSql(Map<String, Col> allowed, String agg, String field) {
+        String a = agg == null ? "" : agg.toUpperCase();
+        if ("COUNT".equals(a)) {
+            return "COUNT(*)";
+        }
+        if (NUMERIC_AGG.contains(a) || ORDERED_AGG.contains(a)) {
+            Col c = allowed.get(field);
+            if (c == null) {
+                throw new IllegalArgumentException("聚合引用了未授权字段：" + field);
+            }
+            boolean typeOk = NUMERIC_AGG.contains(a)
+                    ? "NUMBER".equals(c.type())
+                    : ("NUMBER".equals(c.type()) || "DATE".equals(c.type()));
+            if (!typeOk) {
+                throw new IllegalArgumentException(a + " 只能作用于" + (NUMERIC_AGG.contains(a) ? "数值" : "数值/日期") + "字段：" + field);
+            }
+            return a + "(" + c.sql() + ")";
+        }
+        throw new IllegalArgumentException("不支持的聚合函数：" + agg);
     }
 
     // ---------- 共享筛选编译（视图/报表复用同一套参数化条件） ----------

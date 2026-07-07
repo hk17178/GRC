@@ -13,7 +13,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * 自定义报表服务（B12 Phase3 / D1-8 §六）。
@@ -33,8 +32,6 @@ public class CustomReportService {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int ROW_CAP = 500;
-    private static final Set<String> NUMERIC_AGG = Set.of("SUM", "AVG");
-    private static final Set<String> ORDERED_AGG = Set.of("MIN", "MAX");   // 可作用于 NUMBER 或 DATE
 
     @PersistenceContext
     private EntityManager em;
@@ -171,27 +168,9 @@ public class CustomReportService {
         for (JsonNode m : measures) {
             String agg = m.path("agg").asText("count").toUpperCase();
             String field = m.path("field").asText("");
-            String expr;
-            String key;
-            if ("COUNT".equals(agg)) {
-                expr = "COUNT(*)";
-                key = "count";
-            } else if (NUMERIC_AGG.contains(agg) || ORDERED_AGG.contains(agg)) {
-                ObjectColumnCatalog.Col c = allowed.get(field);
-                if (c == null) {
-                    throw new IllegalArgumentException("报表度量引用了未授权字段：" + field);
-                }
-                boolean typeOk = NUMERIC_AGG.contains(agg)
-                        ? "NUMBER".equals(c.type())
-                        : ("NUMBER".equals(c.type()) || "DATE".equals(c.type()));
-                if (!typeOk) {
-                    throw new IllegalArgumentException(agg + " 只能作用于" + (NUMERIC_AGG.contains(agg) ? "数值" : "数值/日期") + "字段：" + field);
-                }
-                expr = agg + "(" + c.sql() + ")";
-                key = agg.toLowerCase() + "_" + field;
-            } else {
-                throw new IllegalArgumentException("不支持的聚合函数：" + agg);
-            }
+            // 聚合表达式取自共享目录（枚举 + 白名单 + 类型校验，报表/KPI 同一套）
+            String expr = catalog.aggregateSql(allowed, agg, field);
+            String key = "COUNT".equals(agg) ? "count" : agg.toLowerCase() + "_" + field;
             if (select.length() > 0) {
                 select.append(", ");
             }

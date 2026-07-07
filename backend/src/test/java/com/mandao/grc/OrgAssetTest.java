@@ -88,6 +88,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.custom.CustomReportService customReportService;
 
     @Autowired
+    private com.mandao.grc.modules.custom.KpiDefService kpiDefService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -103,7 +106,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -432,6 +435,79 @@ class OrgAssetTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕链应校验通过");
         assertEquals(3, r.count(), "应有 3 条留痕：资产登记 + 报表登记 + 报表导出");
+    }
+
+    // ---------- B12 Phase4：自定义 KPI（§七 公式 DSL） ----------
+
+    @Test
+    void b12v4_kpi占比公式求值() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库A", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "HIGH", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库B", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "MID", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "门户", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "工具", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+
+        // 敏感资产占比 = count(SENSITIVE) / count(*) * 100 = 2/4*100 = 50
+        String formula = "{\"terms\":{"
+                + "\"a\":{\"agg\":\"count\",\"filters\":[{\"field\":\"classification\",\"op\":\"eq\",\"value\":\"SENSITIVE\"}]},"
+                + "\"b\":{\"agg\":\"count\"}},\"expr\":\"a / b * 100\",\"decimals\":1}";
+        var res = asOrg(ORG_PAY, () -> kpiDefService.preview("ASSET", "敏感资产占比", formula, "%"));
+        assertEquals(50.0, res.value(), 0.001, "2/4*100=50");
+        assertEquals("%", res.unit());
+    }
+
+    @Test
+    void b12v4_kpi除零返回null() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "唯一", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+        // b = count(classification=PUBLIC) = 0 → a/b 除零 → 不可计算 → null
+        String formula = "{\"terms\":{\"a\":{\"agg\":\"count\"},"
+                + "\"b\":{\"agg\":\"count\",\"filters\":[{\"field\":\"classification\",\"op\":\"eq\",\"value\":\"PUBLIC\"}]}},"
+                + "\"expr\":\"a / b\"}";
+        var res = asOrg(ORG_PAY, () -> kpiDefService.preview("ASSET", "除零", formula, null));
+        assertNull(res.value(), "除零应返回 null（前端显示—）");
+    }
+
+    @Test
+    void b12v4_kpi越权字段_非法表达式_未定义项均拒() {
+        // 度量引用未授权字段 org_id
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                kpiDefService.preview("ASSET", "x", "{\"terms\":{\"a\":{\"agg\":\"sum\",\"field\":\"org_id\"}},\"expr\":\"a\"}", null)));
+        // 表达式引用未定义项 z
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                kpiDefService.preview("ASSET", "x", "{\"terms\":{\"a\":{\"agg\":\"count\"}},\"expr\":\"a + z\"}", null)));
+        // 表达式含非法字符（防注入）
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                kpiDefService.preview("ASSET", "x", "{\"terms\":{\"a\":{\"agg\":\"count\"}},\"expr\":\"a; DROP\"}", null)));
+    }
+
+    @Test
+    void b12v4_kpi数据集组织隔离() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "仅支付", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+        String formula = "{\"terms\":{\"a\":{\"agg\":\"count\"}},\"expr\":\"a\"}";
+        // org13 视角：RLS 裁剪 → count(*)=0
+        assertEquals(0.0, asOrg(ORG_CF, () -> kpiDefService.preview("ASSET", "总数", formula, "个")).value(), 0.001,
+                "org13 KPI 不得计入 org12 资产");
+        assertEquals(1.0, asOrg(ORG_PAY, () -> kpiDefService.preview("ASSET", "总数", formula, "个")).value(), 0.001);
+    }
+
+    @Test
+    void b12v4_kpi登记求值与留痕() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "资产", "APP", "o",
+                AssetClassification.SENSITIVE, false, false, false, false, "HIGH", "admin"));   // REGISTER=1
+        Long id = asOrg(ORG_PAY, () -> kpiDefService.create(ORG_PAY, "ASSET", "敏感数",
+                "{\"terms\":{\"a\":{\"agg\":\"count\",\"filters\":[{\"field\":\"classification\",\"op\":\"eq\",\"value\":\"SENSITIVE\"}]}},\"expr\":\"a\"}",
+                "个", "admin").getId());   // KPI_CREATE=2
+        var res = asOrg(ORG_PAY, () -> kpiDefService.evaluate(id));
+        assertEquals(1.0, res.value(), 0.001);
+
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid());
+        assertEquals(2, r.count(), "资产登记 + KPI 登记 = 2 条留痕");
     }
 
     // ---------- ROPA 生命周期 ----------

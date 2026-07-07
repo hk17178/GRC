@@ -310,6 +310,60 @@
         </div>
       </div>
 
+      <!-- B12 Phase4：自定义 KPI 弹窗（§七 公式 DSL 构建器 + 实时值）-->
+      <div v-if="showKpiMgr" class="modal-mask" @click.self="showKpiMgr = false">
+        <div class="modal-card" style="width:820px">
+          <h3>自定义 KPI · 资产</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">用「带筛选的标量聚合」项 + 受限算术公式定义指标（如 <code>敏感占比 = a/b*100</code>）。求值经统一访问层（visibleOrgs），仅允许白名单字段与安全表达式，除零显示「—」。</p>
+
+          <!-- 已保存 KPI（实时值）-->
+          <div class="cf-divider" style="margin-top:0">已保存 KPI</div>
+          <table style="width:100%;font-size:12px;margin-bottom:12px">
+            <thead><tr><th style="text-align:left">名称</th><th style="text-align:right">当前值</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="k in kpiDefs" :key="k.id">
+                <td>{{ k.name }}</td>
+                <td style="text-align:right;font-weight:700;color:var(--accent-strong)">{{ fmtKpi(kpiVals[k.id]) }}</td>
+                <td style="text-align:center"><span :class="k.status==='ACTIVE'?'pill blue':'pill'">{{ k.status==='ACTIVE'?'启用':'停用' }}</span></td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button class="mini" @click="runKpi(k)">刷新</button>
+                  <button v-if="k.status==='ACTIVE'" class="mini danger" @click="retireKpi(k)">停用</button>
+                </td>
+              </tr>
+              <tr v-if="!kpiDefs.length"><td colspan="4" style="text-align:center;color:var(--text-3);padding:10px">暂无 KPI，用下方构建器新建。</td></tr>
+            </tbody>
+          </table>
+
+          <!-- 构建器 -->
+          <div class="cf-divider">新建 KPI</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <label class="fld" style="flex:1;min-width:180px">KPI 名称<input v-model="kb.name" placeholder="如 敏感资产占比" /></label>
+            <label class="fld" style="width:90px">单位<input v-model="kb.unit" placeholder="% / 个" /></label>
+            <label class="fld" style="width:90px">小数位<input v-model="kb.decimals" type="number" min="0" max="6" /></label>
+          </div>
+          <div class="fld">聚合项（项名可在公式中引用）
+            <div v-for="(t, i) in kb.terms" :key="i" class="vb-filter" style="flex-wrap:wrap">
+              <input v-model="t.key" placeholder="项名" style="width:56px" />
+              <select v-model="t.agg" style="width:84px"><option value="count">计数</option><option value="sum">求和</option><option value="avg">平均</option><option value="min">最小</option><option value="max">最大</option></select>
+              <select v-if="t.agg !== 'count'" v-model="t.field" style="width:150px"><option value="">选数值字段</option><option v-for="c in numericCols" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+              <span style="font-size:11px;color:var(--text-3)">筛选</span>
+              <select v-model="t.flField" style="width:120px"><option value="">（无）</option><option v-for="c in viewColumns" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+              <select v-model="t.flOp" style="width:76px"><option value="eq">=</option><option value="ne">≠</option><option value="contains">含</option><option value="gt">&gt;</option><option value="gte">≥</option><option value="lt">&lt;</option><option value="lte">≤</option></select>
+              <input v-model="t.flVal" placeholder="值" style="width:96px" />
+              <button class="mini danger" @click="kb.terms.splice(i,1)" :disabled="kb.terms.length<=1">×</button>
+            </div>
+            <button class="btn sm ghost" @click="kb.terms.push({ key:'', agg:'count', field:'', flField:'', flOp:'eq', flVal:'' })">＋ 加项</button>
+          </div>
+          <label class="fld">公式表达式（用项名 + 加减乘除与括号）<input v-model="kb.expr" placeholder="如 a / b * 100" style="font-family:var(--font-mono,monospace)" /></label>
+          <p v-if="kpiErr" class="cerr">{{ kpiErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" style="margin-right:auto" @click="previewKpi">预览值</button>
+            <button class="btn ghost" @click="showKpiMgr = false">关闭</button>
+            <button class="btn" :disabled="!kb.name || !kb.expr" @click="saveKpi">保存 KPI</button>
+          </div>
+        </div>
+      </div>
+
       <!-- 登记 ROPA 处理活动弹窗（真实 POST /api/ropa）-->
       <div v-if="showRopa" class="modal-mask" @click.self="showRopa = false">
         <div class="modal-card">
@@ -397,6 +451,8 @@
               <button class="mini" style="margin-left:auto" @click="openViewMgr" title="按需自定义资产列表的列、筛选与排序">🔧 自定义视图</button>
               <!-- B12 Phase3：自定义报表（分组聚合，导出留痕） -->
               <button class="mini" @click="openReportMgr" title="按维度分组聚合，生成可导出的统计报表">📊 自定义报表</button>
+              <!-- B12 Phase4：自定义 KPI（公式 DSL 指标） -->
+              <button class="mini" @click="openKpiMgr" title="用聚合与公式定义指标（如敏感资产占比）">📈 自定义 KPI</button>
               <!-- B46：资产台账 CSV 导出（当前列表态） -->
               <button class="mini" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
             </div>
@@ -808,6 +864,69 @@ async function exportReport(r) {
 }
 async function retireReport(r) {
   try { await api.post('/custom-reports/' + r.id + '/retire', {}); reportDefs.value = await api.get('/custom-reports?objectType=ASSET') }
+  catch (e) { window.alert(e.message) }
+}
+
+// ===== B12 Phase4：自定义 KPI（§七 公式 DSL）=====
+// KPI = 若干「带筛选的标量聚合」项，用受限算术表达式组合为一个指标值（占比/比率等）。
+const showKpiMgr = ref(false)
+const kpiDefs = ref([])
+const kpiVals = ref({})   // id → 求值结果 {value,unit}
+const kpiErr = ref('')
+// kb：KPI 构建器（terms 列表：项名 + 聚合 + 数值字段 + 单个筛选；expr 表达式；单位）
+const kb = reactive({
+  name: '', unit: '%', expr: 'a / b * 100', decimals: 1,
+  terms: [
+    { key: 'a', agg: 'count', field: '', flField: 'classification', flOp: 'eq', flVal: 'SENSITIVE' },
+    { key: 'b', agg: 'count', field: '', flField: '', flOp: 'eq', flVal: '' }
+  ]
+})
+async function openKpiMgr() {
+  kpiErr.value = ''
+  await loadCustomFields()
+  try {
+    kpiDefs.value = await api.get('/custom-kpis?objectType=ASSET')
+    kpiVals.value = {}
+    for (const k of kpiDefs.value.filter((x) => x.status === 'ACTIVE')) { runKpi(k, true) }
+  } catch (e) { kpiDefs.value = [] }
+  showKpiMgr.value = true
+}
+/** 把构建器 terms/expr 编译为后端 formula JSON DSL。 */
+function buildFormula() {
+  const terms = {}
+  for (const t of kb.terms) {
+    if (!t.key) continue
+    const term = { agg: t.agg }
+    if (t.agg !== 'count' && t.field) term.field = t.field
+    if (t.flField && t.flVal !== '') term.filters = [{ field: t.flField, op: t.flOp, value: coerceVal(t.flVal) }]
+    terms[t.key] = term
+  }
+  return JSON.stringify({ terms, expr: kb.expr, decimals: Number(kb.decimals) || 0 })
+}
+function fmtKpi(res) {
+  if (!res || res.value === null || res.value === undefined) return '—'
+  return res.value + (res.unit ? ' ' + res.unit : '')
+}
+async function previewKpi() {
+  kpiErr.value = ''
+  try {
+    const res = await api.post('/custom-kpis/preview', { objectType: 'ASSET', name: kb.name || '预览', formula: buildFormula(), unit: kb.unit || null })
+    window.alert('预览值：' + fmtKpi(res))
+  } catch (e) { kpiErr.value = e.message }
+}
+async function saveKpi() {
+  kpiErr.value = ''
+  try {
+    await api.post('/custom-kpis', { orgId: af.orgId, objectType: 'ASSET', name: kb.name, formula: buildFormula(), unit: kb.unit || null })
+    await openKpiMgr()
+  } catch (e) { kpiErr.value = e.message }
+}
+async function runKpi(k, silent) {
+  try { kpiVals.value = { ...kpiVals.value, [k.id]: await api.get('/custom-kpis/' + k.id + '/value') } }
+  catch (e) { if (!silent) window.alert(e.message) }
+}
+async function retireKpi(k) {
+  try { await api.post('/custom-kpis/' + k.id + '/retire', {}); await openKpiMgr() }
   catch (e) { window.alert(e.message) }
 }
 
