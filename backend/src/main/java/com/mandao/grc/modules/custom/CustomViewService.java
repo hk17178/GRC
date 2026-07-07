@@ -32,41 +32,17 @@ public class CustomViewService {
     private static final ObjectMapper MAPPER = new ObjectMapper();
     private static final int ROW_CAP = 500;
 
-    /** 一个白名单列：SQL 表达式（取自固定映射）+ 逻辑类型（决定参数强转）。 */
-    private record Col(String sql, String type) {
-    }
-
-    /** ASSET 标准列白名单（key → 列表达式 + 类型）。仅这些标准列可被视图引用。 */
-    private static final Map<String, Col> ASSET_STD = Map.ofEntries(
-            Map.entry("id", new Col("id", "NUMBER")),
-            Map.entry("name", new Col("name", "TEXT")),
-            Map.entry("asset_type", new Col("asset_type", "TEXT")),
-            Map.entry("owner", new Col("owner", "TEXT")),
-            Map.entry("classification", new Col("classification", "TEXT")),
-            Map.entry("criticality", new Col("criticality", "TEXT")),
-            Map.entry("status", new Col("status", "TEXT")),
-            Map.entry("cia_rating", new Col("cia_rating", "TEXT")),
-            Map.entry("network_zone", new Col("network_zone", "TEXT")),
-            Map.entry("mlps_level", new Col("mlps_level", "NUMBER")),
-            Map.entry("mlps_review_due", new Col("mlps_review_due", "DATE")),
-            Map.entry("contains_pi", new Col("contains_pi", "BOOL")),
-            Map.entry("cross_border", new Col("cross_border", "BOOL")),
-            Map.entry("mlps_filed", new Col("mlps_filed", "BOOL")),
-            Map.entry("contains_chd", new Col("contains_chd", "BOOL")));
-
-    private static final Map<String, String> HOST_TABLE = Map.of("ASSET", "asset");
-
     @PersistenceContext
     private EntityManager em;
 
     private final CustomViewDefRepository repository;
-    private final CustomFieldDefRepository fieldRepository;
+    private final ObjectColumnCatalog catalog;
     private final HashChainService hashChainService;
 
-    public CustomViewService(CustomViewDefRepository repository, CustomFieldDefRepository fieldRepository,
+    public CustomViewService(CustomViewDefRepository repository, ObjectColumnCatalog catalog,
                              HashChainService hashChainService) {
         this.repository = repository;
-        this.fieldRepository = fieldRepository;
+        this.catalog = catalog;
         this.hashChainService = hashChainService;
     }
 
@@ -110,32 +86,6 @@ public class CustomViewService {
 
     // ---------- 编排器核心 ----------
 
-    /** 当前可见范围内某对象的允许列集合 = 标准列 + 启用自定义字段（ext->>'key'，NUMBER 转 numeric）。 */
-    private Map<String, Col> allowedColumns(String objectType) {
-        Map<String, Col> allowed = new LinkedHashMap<>();
-        if ("ASSET".equals(objectType)) {
-            allowed.putAll(ASSET_STD);
-        }
-        for (CustomFieldDef d : fieldRepository.findByObjectTypeAndStatusOrderBySeqAscIdAsc(objectType, "ACTIVE")) {
-            String key = d.getFieldKey();
-            String type = d.getDataType();
-            // 自定义字段值存 ext JSONB；NUMBER 比较转 numeric（用 CAST，避开 Hibernate 对 :: 的命名参数误判），其余按文本
-            String expr = "NUMBER".equals(type)
-                    ? "CAST(ext->>'" + safeKey(key) + "' AS numeric)"
-                    : "ext->>'" + safeKey(key) + "'";
-            allowed.put("ext." + key, new Col(expr, "NUMBER".equals(type) ? "NUMBER" : "TEXT"));
-        }
-        return allowed;
-    }
-
-    /** field_key 已在登记时校验为 [A-Za-z][A-Za-z0-9_]*，此处再断言一次（防越权拼入）。 */
-    private String safeKey(String key) {
-        if (key == null || !key.matches("[A-Za-z][A-Za-z0-9_]{0,63}")) {
-            throw new IllegalArgumentException("非法自定义字段键：" + key);
-        }
-        return key;
-    }
-
     /** 仅校验白名单（写入时）。 */
     private void validateDefinition(String objectType, String definition) {
         compile(objectType, definition);   // 复用编译逻辑，只为触发白名单校验
@@ -167,11 +117,11 @@ public class CustomViewService {
 
     /** 声明式 definition → 参数化查询（白名单强校验 + 值绑定）。 */
     private Compiled compile(String objectType, String definition) {
-        String table = HOST_TABLE.get(objectType);
+        String table = catalog.hostTable(objectType);
         if (table == null) {
             throw new IllegalArgumentException("不支持的对象类型：" + objectType);
         }
-        Map<String, Col> allowed = allowedColumns(objectType);
+        Map<String, ObjectColumnCatalog.Col> allowed = catalog.allowedColumns(objectType);
         JsonNode def;
         try {
             def = MAPPER.readTree(definition == null || definition.isBlank() ? "{}" : definition);
@@ -189,7 +139,7 @@ public class CustomViewService {
         StringBuilder select = new StringBuilder();
         List<String> columnKeys = new ArrayList<>();
         for (String col : columns) {
-            Col c = allowed.get(col);
+            ObjectColumnCatalog.Col c = allowed.get(col);
             if (c == null) {
                 throw new IllegalArgumentException("视图引用了未授权列（不在白名单）：" + col);
             }
@@ -208,12 +158,12 @@ public class CustomViewService {
             for (JsonNode f : def.get("filters")) {
                 String field = f.path("field").asText("");
                 String op = f.path("op").asText("eq");
-                Col c = allowed.get(field);
+                ObjectColumnCatalog.Col c = allowed.get(field);
                 if (c == null) {
                     throw new IllegalArgumentException("筛选引用了未授权字段：" + field);
                 }
                 String pname = "p" + (pi++);
-                String cond = buildCondition(c, op, pname, f.path("value"), params);
+                String cond = catalog.buildCondition(c, op, pname, f.path("value"), params);
                 where.append(where.length() == 0 ? " WHERE " : " AND ").append(cond);
             }
         }
@@ -223,7 +173,7 @@ public class CustomViewService {
         if (def.has("sort") && def.get("sort").isObject()) {
             String sf = def.get("sort").path("field").asText("");
             if (!sf.isEmpty()) {
-                Col c = allowed.get(sf);
+                ObjectColumnCatalog.Col c = allowed.get(sf);
                 if (c == null) {
                     throw new IllegalArgumentException("排序引用了未授权字段：" + sf);
                 }
@@ -237,51 +187,6 @@ public class CustomViewService {
         Query q = em.createNativeQuery(sql);
         params.forEach(q::setParameter);
         return new Compiled(q, columnKeys);
-    }
-
-    /** 单个筛选条件 → 参数化片段，值按列类型强转后绑定（从不拼接原值）。 */
-    private String buildCondition(Col c, String op, String pname, JsonNode valueNode, Map<String, Object> params) {
-        String expr = c.sql();
-        switch (op) {
-            case "contains":
-                params.put(pname, "%" + valueNode.asText("") + "%");
-                // 文本模糊：非文本列转文本再 ILIKE
-                return ("TEXT".equals(c.type()) ? expr : "CAST(" + expr + " AS text)") + " ILIKE :" + pname;
-            case "ne":
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " <> :" + pname;
-            case "gt":
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " > :" + pname;
-            case "lt":
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " < :" + pname;
-            case "gte":
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " >= :" + pname;
-            case "lte":
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " <= :" + pname;
-            case "eq":
-            default:
-                params.put(pname, coerce(c.type(), valueNode));
-                return expr + " = :" + pname;
-        }
-    }
-
-    /** 按列逻辑类型把 JSON 值强转为绑定参数（防类型不匹配 + 杜绝越权表达式）。 */
-    private Object coerce(String type, JsonNode v) {
-        switch (type) {
-            case "NUMBER":
-                return v.isNumber() ? v.numberValue() : Double.valueOf(v.asText("0"));
-            case "BOOL":
-                return v.isBoolean() ? v.asBoolean() : Boolean.valueOf(v.asText("false"));
-            case "DATE":
-                return java.time.LocalDate.parse(v.asText());
-            case "TEXT":
-            default:
-                return v.asText("");
-        }
     }
 
     private CustomViewDef get(Long id) {

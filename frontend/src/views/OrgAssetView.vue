@@ -236,7 +236,7 @@
           <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">共 {{ viewRows.length }} 行（RLS 已裁剪至当前可见组织，最多 500 行）。</p>
           <div style="overflow-x:auto;max-height:52vh">
             <table style="width:100%;font-size:12px">
-              <thead><tr><th v-for="k in viewResultCols" :key="k" style="text-align:left">{{ colLabel(k) }}</th></tr></thead>
+              <thead><tr><th v-for="k in viewResultCols" :key="k" style="text-align:left">{{ repColLabel(k) }}</th></tr></thead>
               <tbody>
                 <tr v-for="(row, i) in viewRows" :key="i">
                   <td v-for="k in viewResultCols" :key="k">{{ fmtCell(row[k]) }}</td>
@@ -246,6 +246,67 @@
             </table>
           </div>
           <div class="modal-actions"><button class="btn ghost" @click="showViewResult = false">关闭</button></div>
+        </div>
+      </div>
+
+      <!-- B12 Phase3：自定义报表弹窗（§六 分组聚合构建器 + 导出留痕）-->
+      <div v-if="showReportMgr" class="modal-mask" @click.self="showReportMgr = false">
+        <div class="modal-card" style="width:780px">
+          <h3>自定义报表 · 资产</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">声明式选择「分组维度 + 聚合度量 + 筛选」，数据集经统一访问层（visibleOrgs），仅允许白名单字段与枚举聚合函数（COUNT/SUM/AVG/MIN/MAX）。导出动作入操作留痕。</p>
+
+          <!-- 已保存报表 -->
+          <div class="cf-divider" style="margin-top:0">已保存报表</div>
+          <table style="width:100%;font-size:12px;margin-bottom:12px">
+            <thead><tr><th style="text-align:left">名称</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="r in reportDefs" :key="r.id">
+                <td>{{ r.name }}</td>
+                <td style="text-align:center"><span :class="r.status==='ACTIVE'?'pill blue':'pill'">{{ r.status==='ACTIVE'?'启用':'停用' }}</span></td>
+                <td style="text-align:right;white-space:nowrap">
+                  <button class="mini" @click="runReport(r)">运行</button>
+                  <button class="mini" @click="exportReport(r)">导出</button>
+                  <button v-if="r.status==='ACTIVE'" class="mini danger" @click="retireReport(r)">停用</button>
+                </td>
+              </tr>
+              <tr v-if="!reportDefs.length"><td colspan="3" style="text-align:center;color:var(--text-3);padding:10px">暂无报表，用下方构建器新建。</td></tr>
+            </tbody>
+          </table>
+
+          <!-- 构建器 -->
+          <div class="cf-divider">新建报表</div>
+          <label class="fld">报表名称<input v-model="rb.name" placeholder="如 各分级资产分布" /></label>
+          <div class="fld">分组维度（勾选，可留空做全表汇总）
+            <div class="cf-cols">
+              <label v-for="c in viewColumns" :key="c.key" class="chk" style="font-size:12px">
+                <input type="checkbox" :value="c.key" v-model="rb.groupBy" /> {{ c.label }}
+              </label>
+            </div>
+          </div>
+          <div class="fld">度量（至少一项）
+            <div v-for="(m, i) in rb.measures" :key="i" class="vb-filter">
+              <select v-model="m.agg" style="width:96px"><option value="count">计数</option><option value="sum">求和</option><option value="avg">平均</option><option value="min">最小</option><option value="max">最大</option></select>
+              <select v-if="m.agg !== 'count'" v-model="m.field" style="width:180px"><option value="">选数值字段</option><option v-for="c in numericCols" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+              <span v-else style="font-size:12px;color:var(--text-3)">按行计数（无需字段）</span>
+              <button class="mini danger" @click="rb.measures.splice(i,1)" :disabled="rb.measures.length<=1">×</button>
+            </div>
+            <button class="btn sm ghost" @click="rb.measures.push({ agg:'count', field:'' })">＋ 加度量</button>
+          </div>
+          <div class="fld">筛选（可选，逐条 AND）
+            <div v-for="(f, i) in rb.filters" :key="i" class="vb-filter">
+              <select v-model="f.field" style="width:150px"><option value="">选字段</option><option v-for="c in viewColumns" :key="c.key" :value="c.key">{{ c.label }}</option></select>
+              <select v-model="f.op" style="width:96px"><option value="eq">等于</option><option value="ne">不等于</option><option value="contains">包含</option><option value="gt">大于</option><option value="gte">≥</option><option value="lt">小于</option><option value="lte">≤</option></select>
+              <input v-model="f.value" placeholder="值" style="width:150px" />
+              <button class="mini danger" @click="rb.filters.splice(i,1)">×</button>
+            </div>
+            <button class="btn sm ghost" @click="rb.filters.push({ field:'', op:'eq', value:'' })">＋ 加筛选</button>
+          </div>
+          <p v-if="reportErr" class="cerr">{{ reportErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" style="margin-right:auto" @click="previewReport">预览</button>
+            <button class="btn ghost" @click="showReportMgr = false">关闭</button>
+            <button class="btn" :disabled="!rb.name" @click="saveReport">保存报表</button>
+          </div>
         </div>
       </div>
 
@@ -334,6 +395,8 @@
               <span class="sub">{{ $t('orgasset.asset.sub') }}</span>
               <!-- B12 Phase2：自定义列表视图（声明式列/筛选/排序，白名单+RLS 隔离） -->
               <button class="mini" style="margin-left:auto" @click="openViewMgr" title="按需自定义资产列表的列、筛选与排序">🔧 自定义视图</button>
+              <!-- B12 Phase3：自定义报表（分组聚合，导出留痕） -->
+              <button class="mini" @click="openReportMgr" title="按维度分组聚合，生成可导出的统计报表">📊 自定义报表</button>
               <!-- B46：资产台账 CSV 导出（当前列表态） -->
               <button class="mini" :disabled="!assets.length" @click="exportAssets">导出 CSV</button>
             </div>
@@ -680,6 +743,74 @@ function fmtCell(val) {
   if (val === true) return '是'; if (val === false) return '否'
   return String(val)
 }
+
+// ===== B12 Phase3：自定义报表（§六 分组聚合 + 导出留痕）=====
+const AGG_LABEL = { count: '计数', sum: '求和', avg: '平均', min: '最小', max: '最大' }
+// 可作维度的列（全部白名单列）；可作数值度量的列（NUMBER 类：等保定级 + 自定义 NUMBER 字段）
+const numericCols = computed(() => ([
+  { key: 'mlps_level', label: '等保定级' },
+  ...customFields.value.filter((f) => f.dataType === 'NUMBER').map((f) => ({ key: 'ext.' + f.fieldKey, label: f.label + '（自定义）' }))
+]))
+const showReportMgr = ref(false)
+const reportDefs = ref([])
+const reportErr = ref('')
+// rb：报表构建器（维度多选 + 度量列表 + 筛选）
+const rb = reactive({ name: '', groupBy: [], measures: [{ agg: 'count', field: '' }], filters: [] })
+function repColLabel(key) {
+  if (key === 'count') return '计数'
+  const m = key.match(/^(sum|avg|min|max)_(.+)$/)
+  if (m) { const c = viewColumns.value.find((x) => x.key === m[2]); return (AGG_LABEL[m[1]] || m[1]) + '·' + (c ? c.label : m[2]) }
+  return colLabel(key)
+}
+async function openReportMgr() {
+  reportErr.value = ''
+  Object.assign(rb, { name: '', groupBy: ['classification'], measures: [{ agg: 'count', field: '' }], filters: [] })
+  await loadCustomFields()
+  try { reportDefs.value = await api.get('/custom-reports?objectType=ASSET') } catch (e) { reportDefs.value = [] }
+  showReportMgr.value = true
+}
+function buildReportDefinition() {
+  const def = {}
+  if (rb.groupBy.length) def.groupBy = rb.groupBy.slice()
+  def.measures = rb.measures
+    .filter((m) => m.agg === 'count' || m.field)
+    .map((m) => (m.agg === 'count' ? { agg: 'count' } : { agg: m.agg, field: m.field }))
+  if (!def.measures.length) def.measures = [{ agg: 'count' }]
+  const fs = rb.filters.filter((f) => f.field && f.value !== '')
+  if (fs.length) def.filters = fs.map((f) => ({ field: f.field, op: f.op, value: coerceVal(f.value) }))
+  return JSON.stringify(def)
+}
+async function previewReport() {
+  reportErr.value = ''
+  try { openResult('（报表预览）' + (rb.name || '未命名'), await api.post('/custom-reports/preview', { objectType: 'ASSET', definition: buildReportDefinition() })) }
+  catch (e) { reportErr.value = e.message }
+}
+async function saveReport() {
+  reportErr.value = ''
+  try {
+    await api.post('/custom-reports', { orgId: af.orgId, objectType: 'ASSET', name: rb.name, definition: buildReportDefinition() })
+    reportDefs.value = await api.get('/custom-reports?objectType=ASSET')
+    Object.assign(rb, { name: '', groupBy: ['classification'], measures: [{ agg: 'count', field: '' }], filters: [] })
+  } catch (e) { reportErr.value = e.message }
+}
+async function runReport(r) {
+  try { openResult(r.name, await api.get('/custom-reports/' + r.id + '/rows')) }
+  catch (e) { window.alert(e.message) }
+}
+async function exportReport(r) {
+  try {
+    const rows = await api.post('/custom-reports/' + r.id + '/export', {})   // 导出动作入 operation_log 留痕
+    if (!rows.length) { window.alert('无数据可导出'); return }
+    const cols = Object.keys(rows[0])
+    exportCsv('报表_' + r.name + '_' + new Date().toISOString().slice(0, 10) + '.csv',
+      cols.map(repColLabel), rows.map((row) => cols.map((k) => fmtCell(row[k]))))
+  } catch (e) { window.alert(e.message) }
+}
+async function retireReport(r) {
+  try { await api.post('/custom-reports/' + r.id + '/retire', {}); reportDefs.value = await api.get('/custom-reports?objectType=ASSET') }
+  catch (e) { window.alert(e.message) }
+}
+
 /** B46：资产台账导出（当前列表态，含深化合规属性）。 */
 function exportAssets() {
   const headers = ['ID', '资产名称', '类型', '责任人', '数据分级', '含个人信息', '跨境', '等保备案',

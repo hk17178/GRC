@@ -32,6 +32,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -84,6 +85,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.custom.CustomViewService customViewService;
 
     @Autowired
+    private com.mandao.grc.modules.custom.CustomReportService customReportService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -99,7 +103,7 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -346,6 +350,88 @@ class OrgAssetTest {
         assertEquals(1, asOrg(ORG_PAY, () -> customViewService.list("ASSET")).size());
         assertTrue(asOrg(ORG_CF, () -> customViewService.list("ASSET")).isEmpty(),
                 "org13 不应看到 org12 的视图定义");
+    }
+
+    // ---------- B12 Phase3：自定义报表（§六，分组聚合 + 导出留痕） ----------
+
+    @Test
+    void b12v3_报表分组聚合按分级计数() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库A", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "HIGH", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "库B", "DATABASE", "d",
+                AssetClassification.SENSITIVE, false, false, false, false, "MID", "admin"));
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "门户", "APP", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));
+
+        // 按数据分级分组计数
+        String def = "{\"groupBy\":[\"classification\"],\"measures\":[{\"agg\":\"count\"}]}";
+        List<java.util.Map<String, Object>> rows = asOrg(ORG_PAY, () -> customReportService.preview("ASSET", def));
+        assertEquals(2, rows.size(), "两个分级各一组");
+        var byCls = new java.util.HashMap<String, Long>();
+        for (var r : rows) {
+            byCls.put((String) r.get("classification"), ((Number) r.get("count")).longValue());
+        }
+        assertEquals(2L, byCls.get("SENSITIVE"), "SENSITIVE 应 2 条");
+        assertEquals(1L, byCls.get("INTERNAL"), "INTERNAL 应 1 条");
+    }
+
+    @Test
+    void b12v3_越权维度_越权度量_非数值sum均拒绝() {
+        // 越权维度 org_id
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customReportService.preview("ASSET", "{\"groupBy\":[\"org_id\"]}")));
+        // 越权度量字段
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customReportService.preview("ASSET", "{\"measures\":[{\"agg\":\"sum\",\"field\":\"secret\"}]}")));
+        // SUM 作用于非数值列（classification 是 TEXT）
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customReportService.preview("ASSET", "{\"measures\":[{\"agg\":\"sum\",\"field\":\"classification\"}]}")));
+        // 未知聚合函数
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                customReportService.preview("ASSET", "{\"measures\":[{\"agg\":\"median\",\"field\":\"mlps_level\"}]}")));
+    }
+
+    @Test
+    void b12v3_自定义NUMBER字段可作度量() {
+        asOrg(ORG_PAY, () -> customFieldService.create(ORG_PAY, "ASSET", "cpu_cores", "CPU核数",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.NUMBER, null, false, false, true, 0, "admin"));
+        var e1 = new java.util.HashMap<String, Object>(); e1.put("cpu_cores", "8");
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "机1", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID", null, null, null, null, e1, "admin"));
+        var e2 = new java.util.HashMap<String, Object>(); e2.put("cpu_cores", "16");
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "机2", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID", null, null, null, null, e2, "admin"));
+
+        // 全表 AVG(ext.cpu_cores)（无 groupBy → 单行）
+        String def = "{\"measures\":[{\"agg\":\"avg\",\"field\":\"ext.cpu_cores\"}]}";
+        List<java.util.Map<String, Object>> rows = asOrg(ORG_PAY, () -> customReportService.preview("ASSET", def));
+        assertEquals(1, rows.size());
+        assertEquals(12.0, ((Number) rows.get(0).get("avg_ext.cpu_cores")).doubleValue(), 0.001, "均值 (8+16)/2=12");
+    }
+
+    @Test
+    void b12v3_报表数据集组织隔离() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "仅支付", "SYSTEM", "o",
+                AssetClassification.SENSITIVE, false, false, false, false, "HIGH", "admin"));
+        String def = "{\"groupBy\":[\"classification\"],\"measures\":[{\"agg\":\"count\"}]}";
+        // org13 视角：报表数据集经 RLS，看不到 org12 资产 → 0 组
+        assertTrue(asOrg(ORG_CF, () -> customReportService.preview("ASSET", def)).isEmpty(),
+                "org13 报表不得聚合到 org12 资产");
+        assertEquals(1, asOrg(ORG_PAY, () -> customReportService.preview("ASSET", def)).size());
+    }
+
+    @Test
+    void b12v3_导出动作入operation_log留痕() {
+        asOrg(ORG_PAY, () -> assetService.register(ORG_PAY, "留痕资产", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "LOW", "admin"));   // REGISTER=1
+        Long id = asOrg(ORG_PAY, () -> customReportService.create(ORG_PAY, "ASSET", "分级统计",
+                "{\"groupBy\":[\"classification\"],\"measures\":[{\"agg\":\"count\"}]}", "admin").getId());   // CREATE=2
+        var rows = asOrg(ORG_PAY, () -> customReportService.export(id, "admin"));               // EXPORT=3
+        assertFalse(rows.isEmpty(), "导出应有数据");
+
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid(), "留痕链应校验通过");
+        assertEquals(3, r.count(), "应有 3 条留痕：资产登记 + 报表登记 + 报表导出");
     }
 
     // ---------- ROPA 生命周期 ----------
