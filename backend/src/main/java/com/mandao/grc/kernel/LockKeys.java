@@ -18,6 +18,9 @@ public final class LockKeys {
     /** 通知规则引擎（NotifyRuleEngine）——原与 CRAWL 撞号，七轮改号。 */
     public static final long NOTIFY_RULES = 770003L;
 
+    /** 通知场景升级链运行器（EscalationRunner，§九 接线二）。 */
+    public static final long SCENE_ESCALATION = 770004L;
+
     private LockKeys() {
     }
 }

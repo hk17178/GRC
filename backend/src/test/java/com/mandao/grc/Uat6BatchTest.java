@@ -1,7 +1,9 @@
 package com.mandao.grc;
 
 import com.mandao.grc.common.isolation.IsolationContext;
+import com.mandao.grc.kernel.EscalationRunner;
 import com.mandao.grc.kernel.NotifyRuleEngine;
+import com.mandao.grc.kernel.SceneNotifyConsumer;
 import com.mandao.grc.modules.assessment.Assessment;
 import com.mandao.grc.modules.assessment.AssessmentService;
 import com.mandao.grc.modules.assessment.AssessmentTemplate;
@@ -82,8 +84,13 @@ class Uat6BatchTest {
     private RegulationService regulationService;
     @Autowired
     private NotifyRuleEngine notifyRuleEngine;
+    @Autowired
+    private EscalationRunner escalationRunner;
+    @Autowired
+    private SceneNotifyConsumer sceneNotifyConsumer;
 
     private static final long ORG_PAY = 12L;
+    private static final long ORG_CF = 13L;
 
     @BeforeEach
     void clean() throws Exception {
@@ -98,6 +105,10 @@ class Uat6BatchTest {
             s.executeUpdate("DELETE FROM policy WHERE org_id = 12");
             s.executeUpdate("TRUNCATE remediation_order CASCADE");
             s.executeUpdate("DELETE FROM reminder_dispatch_log WHERE event_type LIKE 'RULE_%'");
+            // §九 接线二：清运行态场景通知/升级留痕 + 测试装配的场景/升级链（notif_scene_def 全局预置不清）
+            s.executeUpdate("TRUNCATE scene_escalation_log, scene_notification CASCADE");
+            s.executeUpdate("DELETE FROM notification_escalation WHERE org_id IN (12, 13)");
+            s.executeUpdate("DELETE FROM notification_scene WHERE org_id IN (12, 13)");
         }
     }
 
@@ -257,6 +268,163 @@ class Uat6BatchTest {
                      + "WHERE event_type = 'RULE_REG_NEW' AND org_id = 12")) {
             rs.next();
             assertEquals(1, rs.getInt(1), "同日重复扫描摘要幂等");
+        }
+    }
+
+    // ---------- D1-8 §九 接线二：内核消费场景 + 升级链运行器 ----------
+
+    @Test
+    void s9接线_引擎新告警装配场景通知_跨子公司不外溢() throws Exception {
+        long defId = remediationSceneDefId();
+        // org12 装配「整改闭环」场景（接收 COMPLIANCE，升级链 L1/L2）；org13 也装配（接收 AUDIT）
+        seedScene(ORG_PAY, defId, "[\"COMPLIANCE\"]", new int[][]{{1, 12}, {2, 48}}, new String[]{"MANAGER", "CISO"});
+        seedScene(ORG_CF, defId, "[\"AUDIT\"]", new int[][]{}, new String[]{});
+        long orderId = seedOverdueRemediation(ORG_PAY, 5);
+
+        int produced = notifyRuleEngine.runOnce(LocalDate.now());
+        assertTrue(produced >= 1, "应产出整改逾期告警");
+
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            // org12 命中场景 → 1 条 PENDING 场景通知，携接收角色快照与单据引用
+            try (ResultSet rs = s.executeQuery("SELECT count(*), min(recipient_roles), min(status), min(object_type), min(object_id) "
+                    + "FROM scene_notification WHERE org_id = 12")) {
+                rs.next();
+                assertEquals(1, rs.getInt(1), "org12 应生成 1 条场景通知");
+                assertTrue(rs.getString(2).contains("COMPLIANCE"), "应承接场景接收角色快照");
+                assertEquals("PENDING", rs.getString(3));
+                assertEquals("REMEDIATION", rs.getString(4));
+                assertEquals(orderId, rs.getLong(5), "应引用逾期整改单");
+            }
+            // 跨子公司不外溢：org12 的告警绝不落到 org13 的场景（org13 无对应告警）
+            try (ResultSet rs = s.executeQuery("SELECT count(*) FROM scene_notification WHERE org_id = 13")) {
+                rs.next();
+                assertEquals(0, rs.getInt(1), "org12 告警不得为 org13 场景生成通知");
+            }
+        }
+
+        // 幂等：再评估一轮，不重复生成
+        notifyRuleEngine.runOnce(LocalDate.now());
+        assertEquals(1, sceneNotifCount(ORG_PAY), "重复评估场景通知幂等");
+    }
+
+    @Test
+    void s9接线_升级链按延迟逐级触发_幂等() throws Exception {
+        long defId = remediationSceneDefId();
+        seedScene(ORG_PAY, defId, "[\"COMPLIANCE\"]", new int[][]{{1, 12}, {2, 48}}, new String[]{"MANAGER", "CISO"});
+        seedOverdueRemediation(ORG_PAY, 5);
+        notifyRuleEngine.runOnce(LocalDate.now());
+        assertEquals(1, sceneNotifCount(ORG_PAY), "先有一条待处理场景通知");
+
+        java.time.OffsetDateTime base = java.time.OffsetDateTime.now();
+        // 刚发生：无级到期
+        assertEquals(0, escalationRunner.runOnce(base), "首发即刻无升级");
+        // 过 13 小时：L1（12h）到期 → 升级到 MANAGER
+        assertEquals(1, escalationRunner.runOnce(base.plusHours(13)), "L1 到期触发 1 级");
+        assertEscalation(ORG_PAY, 1, "MANAGER");
+        // 过 50 小时：L2（48h）到期 → 升级到 CISO
+        assertEquals(1, escalationRunner.runOnce(base.plusHours(50)), "L2 到期触发 1 级");
+        assertEscalation(ORG_PAY, 2, "CISO");
+        assertEquals(2, escalationLogCount(ORG_PAY), "共触发 2 级");
+
+        // 幂等：同一时刻再跑不重复升级
+        assertEquals(0, escalationRunner.runOnce(base.plusHours(50)), "已触发级别不重复升级");
+        assertEquals(2, escalationLogCount(ORG_PAY));
+    }
+
+    @Test
+    void s9接线_已确认通知不再升级() throws Exception {
+        long defId = remediationSceneDefId();
+        seedScene(ORG_PAY, defId, "[\"COMPLIANCE\"]", new int[][]{{1, 12}}, new String[]{"MANAGER"});
+        long orderId = seedOverdueRemediation(ORG_PAY, 5);
+        notifyRuleEngine.runOnce(LocalDate.now());
+
+        // 处理即止链：确认该单据的场景通知
+        assertEquals(1, sceneNotifyConsumer.acknowledge(ORG_PAY, "REMEDIATION", orderId), "应确认 1 条");
+        // 即便升级延迟早已越过，已确认者不再升级
+        assertEquals(0, escalationRunner.runOnce(java.time.OffsetDateTime.now().plusHours(100)),
+                "已确认通知不得升级");
+        assertEquals(0, escalationLogCount(ORG_PAY));
+    }
+
+    // ---------- §九接线二 测试辅助（owner 直插，绕业务全链路聚焦内核行为） ----------
+
+    private long remediationSceneDefId() throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT id FROM notif_scene_def WHERE code = 'REMEDIATION_CLOSURE'")) {
+            rs.next();
+            return rs.getLong(1);
+        }
+    }
+
+    /** 装配一个运行态场景 + 升级链（delays[i]={level,delayHours}, roles[i]=升级角色）。 */
+    private long seedScene(long orgId, long defId, String rolesJson, int[][] esc, String[] roles) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            long sceneId;
+            try (ResultSet rs = s.executeQuery(
+                    "INSERT INTO notification_scene(org_id, scene_def_id, name, recipient_roles, template, channel_type, org_scope) "
+                            + "VALUES (" + orgId + ", " + defId + ", '整改闭环', '" + rolesJson + "', '整改逾期 {标题}', 'INBOX', 'SELF') RETURNING id")) {
+                rs.next();
+                sceneId = rs.getLong(1);
+            }
+            for (int i = 0; i < esc.length; i++) {
+                s.executeUpdate("INSERT INTO notification_escalation(org_id, scene_id, level, delay_hours, escalate_to_role) "
+                        + "VALUES (" + orgId + ", " + sceneId + ", " + esc[i][0] + ", " + esc[i][1] + ", '" + roles[i] + "')");
+            }
+            return sceneId;
+        }
+    }
+
+    /** 造一条逾期 days 天的整改单，返回其 id。 */
+    private long seedOverdueRemediation(long orgId, int days) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            long planId;
+            try (ResultSet rs = s.executeQuery("INSERT INTO audit_plan(org_id, title, plan_start_date, external_status) "
+                    + "VALUES (" + orgId + ", '接线二计划', '2099-01-01', 'DONE') RETURNING id")) {
+                rs.next();
+                planId = rs.getLong(1);
+            }
+            long findingId;
+            try (ResultSet rs = s.executeQuery("INSERT INTO audit_finding(org_id, audit_plan_id, title, severity) "
+                    + "VALUES (" + orgId + ", " + planId + ", '接线二发现', 'HIGH') RETURNING id")) {
+                rs.next();
+                findingId = rs.getLong(1);
+            }
+            try (ResultSet rs = s.executeQuery("INSERT INTO remediation_order(org_id, finding_id, assignee, due_date, measure) "
+                    + "VALUES (" + orgId + ", " + findingId + ", '李四', current_date - " + days + ", '接线二整改') RETURNING id")) {
+                rs.next();
+                return rs.getLong(1);
+            }
+        }
+    }
+
+    private int sceneNotifCount(long orgId) throws Exception {
+        return scalar("SELECT count(*) FROM scene_notification WHERE org_id = " + orgId);
+    }
+
+    private int escalationLogCount(long orgId) throws Exception {
+        return scalar("SELECT count(*) FROM scene_escalation_log WHERE org_id = " + orgId);
+    }
+
+    private void assertEscalation(long orgId, int level, String role) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*) FROM scene_escalation_log "
+                     + "WHERE org_id = " + orgId + " AND level = " + level + " AND escalate_to_role = '" + role + "'")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "应有 L" + level + "→" + role + " 的升级留痕");
+        }
+    }
+
+    private int scalar(String sql) throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery(sql)) {
+            rs.next();
+            return rs.getInt(1);
         }
     }
 

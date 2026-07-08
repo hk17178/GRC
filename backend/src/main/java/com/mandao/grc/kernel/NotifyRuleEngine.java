@@ -43,6 +43,10 @@ public class NotifyRuleEngine {
     @PersistenceContext
     private EntityManager em;
 
+    /** §九 接线二：新告警消费本组织命中的通知场景，生成场景通知（供升级链运行器）。 */
+    @org.springframework.beans.factory.annotation.Autowired
+    private SceneNotifyConsumer sceneNotifyConsumer;
+
     /** 评估全部启用规则一轮，返回本轮新产出的通知条数。 */
     @Transactional
     public int runOnce(LocalDate today) {
@@ -219,8 +223,12 @@ public class NotifyRuleEngine {
                 .setParameter("msg", message)
                 .setParameter("rid", ruleId)
                 .executeUpdate();
-        if (inserted == 1 && collector != null) {
-            collector.add(new AlertPushService.Alert(orgId, message));
+        if (inserted == 1) {
+            if (collector != null) {
+                collector.add(new AlertPushService.Alert(orgId, message));
+            }
+            // §九 接线二：只对真正新增的告警消费场景（幂等），跨子公司永不外溢（consume 显式按 org 过滤）
+            sceneNotifyConsumer.consume(orgId, eventType, objectType, objectId, message);
         }
         return inserted;
     }

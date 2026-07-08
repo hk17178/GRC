@@ -24,13 +24,16 @@ public class ScheduledScanner {
     private final ScheduledCrawlService scheduledCrawlService;
     private final NotifyRuleEngine notifyRuleEngine;
     private final AlertPushService alertPushService;
+    private final EscalationRunner escalationRunner;
 
     public ScheduledScanner(ExpiryScanService expiryScanService, ScheduledCrawlService scheduledCrawlService,
-                            NotifyRuleEngine notifyRuleEngine, AlertPushService alertPushService) {
+                            NotifyRuleEngine notifyRuleEngine, AlertPushService alertPushService,
+                            EscalationRunner escalationRunner) {
         this.expiryScanService = expiryScanService;
         this.scheduledCrawlService = scheduledCrawlService;
         this.notifyRuleEngine = notifyRuleEngine;
         this.alertPushService = alertPushService;
+        this.escalationRunner = escalationRunner;
     }
 
     /** 默认每 15 分钟扫描一次（可由 grc.scheduler.fixed-delay-ms 调整）。 */
@@ -47,6 +50,11 @@ public class ScheduledScanner {
             log.info("通知规则引擎产出 {} 条告警", produced);
         }
         alertPushService.pushAll(fresh);
+        // §九 接线二：升级链运行器同节拍——PENDING 场景通知按延迟逐级升级
+        int escalated = escalationRunner.runOnce(java.time.OffsetDateTime.now());
+        if (escalated > 0) {
+            log.info("通知场景升级链本轮触发 {} 级", escalated);
+        }
     }
 
     /** 法规爬虫定时抓取：默认每 30 分钟选一次到期源（可由 grc.crawler.fixed-delay-ms 调整）。 */
