@@ -41,16 +41,25 @@ public class WorkflowService {
     private final RuntimeService runtimeService;
     private final TaskService taskService;
     private final HistoryService historyService;
+    private final org.flowable.engine.RepositoryService repositoryService;
     private final HashChainService hashChainService;
+    private final ProcessBindingService processBindingService;
+    private final ProcessLaunchRepository processLaunchRepository;
 
     public WorkflowService(RuntimeService runtimeService,
                            TaskService taskService,
                            HistoryService historyService,
-                           HashChainService hashChainService) {
+                           org.flowable.engine.RepositoryService repositoryService,
+                           HashChainService hashChainService,
+                           ProcessBindingService processBindingService,
+                           ProcessLaunchRepository processLaunchRepository) {
         this.runtimeService = runtimeService;
         this.taskService = taskService;
         this.historyService = historyService;
+        this.repositoryService = repositoryService;
         this.hashChainService = hashChainService;
+        this.processBindingService = processBindingService;
+        this.processLaunchRepository = processLaunchRepository;
     }
 
     /**
@@ -65,6 +74,32 @@ public class WorkflowService {
      */
     @Transactional
     public String submit(String bizType, Long bizId, Long orgId, String approverGroup, String submitter) {
+        return submit(bizType, bizId, orgId, approverGroup, submitter, Map.of());
+    }
+
+    /**
+     * 发起审批（H-06 条件化选流程）：按 {@code routingContext} 解析流程绑定——命中且该流程已部署则用绑定流程，
+     * 否则回落通用审批流；并把本次选中的 process_def_key + version（+binding_id）固化到 process_launch
+     * （后续改绑定不影响在途单据）。审批节点仍走本引擎，不绕职责分离。
+     *
+     * @param routingContext 条件分流上下文（如 {level:HIGH}），无需分流时传空 Map
+     */
+    @Transactional
+    public String submit(String bizType, Long bizId, Long orgId, String approverGroup, String submitter,
+                         Map<String, Object> routingContext) {
+        // 条件化选流程：解析绑定，命中且已部署→用绑定流程，否则回落 genericApproval
+        ProcessBindingService.ProcessSnapshot snap = processBindingService.resolve(bizType, routingContext);
+        String effectiveKey = GENERIC_APPROVAL;
+        Long bindingId = null;
+        int version;
+        if (snap != null && isDeployed(snap.processDefKey())) {
+            effectiveKey = snap.processDefKey();
+            bindingId = snap.bindingId();
+            version = snap.processVersion();
+        } else {
+            version = deployedVersion(GENERIC_APPROVAL);
+        }
+
         String businessKey = businessKey(bizType, bizId);
         Map<String, Object> vars = new HashMap<>();
         vars.put("bizType", bizType);
@@ -74,13 +109,35 @@ public class WorkflowService {
         vars.put("submitter", submitter);
 
         String instanceId = runtimeService
-                .startProcessInstanceByKey(GENERIC_APPROVAL, businessKey, vars)
+                .startProcessInstanceByKey(effectiveKey, businessKey, vars)
                 .getId();
 
+        // 版本快照固化（H-06）：记录发起时点用的流程定义 key+version，供在途单据回查、与后续改绑定解耦
+        processLaunchRepository.save(new ProcessLaunch(orgId, bizType, bizId, effectiveKey, version,
+                bindingId, instanceId, submitter));
+
         hashChainService.append(orgId, "WORKFLOW_SUBMIT", submitter, businessKey,
-                "发起审批 process=" + GENERIC_APPROVAL + " instance=" + instanceId
+                "发起审批 process=" + effectiveKey + " v" + version + " instance=" + instanceId
                         + " approverGroup=" + approverGroup);
         return instanceId;
+    }
+
+    /** 查某单据的流程发起快照（最新在前）。走服务层以经切面注入 visible_orgs + RLS 裁剪。 */
+    @Transactional(readOnly = true)
+    public List<ProcessLaunch> launches(String bizType, Long bizId) {
+        return processLaunchRepository.findByBizTypeAndBizIdOrderByIdDesc(bizType, bizId);
+    }
+
+    /** 该 key 的流程定义是否已部署（未部署的绑定流程回落通用审批流，避免启动失败）。 */
+    private boolean isDeployed(String key) {
+        return repositoryService.createProcessDefinitionQuery().processDefinitionKey(key).count() > 0;
+    }
+
+    /** 取某 key 已部署的最新版本号（用于回落通用审批流时固化版本）。 */
+    private int deployedVersion(String key) {
+        org.flowable.engine.repository.ProcessDefinition def = repositoryService.createProcessDefinitionQuery()
+                .processDefinitionKey(key).latestVersion().singleResult();
+        return def == null ? 1 : def.getVersion();
     }
 
     /**

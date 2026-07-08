@@ -27,6 +27,7 @@ import java.util.function.Supplier;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -72,6 +73,12 @@ class WorkflowEngineTest {
     @Autowired
     private RepositoryService repositoryService;
 
+    @Autowired
+    private com.mandao.grc.modules.workflow.ProcessBindingService processBindingService;
+
+    @Autowired
+    private com.mandao.grc.modules.workflow.ProcessLaunchRepository processLaunchRepository;
+
     private static final long ORG_PAY = 12L; // 支付子公司
 
     /** 每用例前清空操作日志（owner 连接绕 RLS），稳定留痕计数。引擎表不清，靠独立候选组隔离。 */
@@ -79,7 +86,7 @@ class WorkflowEngineTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE operation_log RESTART IDENTITY");
+            s.executeUpdate("TRUNCATE operation_log, process_binding, process_launch RESTART IDENTITY");
         }
     }
 
@@ -139,6 +146,36 @@ class WorkflowEngineTest {
 
         assertTrue(asOrg(ORG_PAY, () -> workflowService.isEnded(instanceId)));
         assertEquals(ApprovalDecision.REJECTED, asOrg(ORG_PAY, () -> workflowService.outcome(instanceId)));
+    }
+
+    // ---------- H-06 接线：发起时固化流程快照 ----------
+
+    @Test
+    void h06接线_发起记录流程快照_无绑定回落通用审批流() {
+        String instanceId = asOrg(ORG_PAY, () ->
+                workflowService.submit("POLICY", 5001L, ORG_PAY, "grp-h06-a", "alice"));
+
+        var launches = asOrg(ORG_PAY, () -> workflowService.launches("POLICY", 5001L));
+        assertEquals(1, launches.size(), "应固化 1 条发起快照");
+        var l = launches.get(0);
+        assertEquals(WorkflowService.GENERIC_APPROVAL, l.getProcessDefKey(), "无绑定→回落通用审批流");
+        assertTrue(l.getProcessVersion() >= 1);
+        assertEquals(instanceId, l.getProcessInstanceId());
+        assertNull(l.getBindingId(), "回落时无 binding");
+    }
+
+    @Test
+    void h06接线_命中绑定固化其key与版本() {
+        // 建一个 POLICY 兜底绑定，指向已部署的 genericApproval，声明版本 7
+        asOrg(ORG_PAY, () -> processBindingService.create(ORG_PAY, "POLICY", "制度默认审批",
+                "{}", WorkflowService.GENERIC_APPROVAL, 7, 0, "admin"));
+
+        asOrg(ORG_PAY, () -> workflowService.submit("POLICY", 5002L, ORG_PAY, "grp-h06-b", "carol"));
+
+        var l = asOrg(ORG_PAY, () -> workflowService.launches("POLICY", 5002L)).get(0);
+        assertEquals(WorkflowService.GENERIC_APPROVAL, l.getProcessDefKey());
+        assertEquals(7, l.getProcessVersion(), "固化绑定声明的版本 7（改绑定不影响此在途单据快照）");
+        assertNotNull(l.getBindingId(), "命中绑定应记录 binding_id");
     }
 
     // ---------- 测试辅助：在指定 org 可见上下文中执行 ----------
