@@ -97,6 +97,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.workflow.ProcessBindingService processBindingService;
 
     @Autowired
+    private com.mandao.grc.modules.notify.NotificationSceneService notificationSceneService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -112,7 +115,8 @@ class OrgAssetTest {
      */
     @BeforeEach
     void clean() throws Exception {
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, process_binding, operation_log RESTART IDENTITY CASCADE");
+        // 注：notif_scene_def 为 V75 平台预置全局场景库，不清；只清运行态装配与升级链
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, process_binding, notification_scene, notification_escalation, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
@@ -661,6 +665,93 @@ class OrgAssetTest {
         assertTrue(asOrg(ORG_CF, () -> processBindingService.list("POLICY")).isEmpty(), "org13 不应看到 org12 的绑定");
         assertNull(asOrg(ORG_CF, () -> processBindingService.resolve("POLICY", java.util.Map.of())),
                 "org13 解析不得命中 org12 的绑定");
+    }
+
+    // ---------- D1-8 §九：自定义通知场景（场景库装配 + 升级链 + 不跨子公司） ----------
+
+    /** 取平台预置场景库里指定 code 的 def id。 */
+    private long sceneDefId(String code) {
+        return asOrg(ORG_PAY, () -> notificationSceneService.listDefs().stream()
+                .filter(d -> code.equals(d.getCode())).findFirst().orElseThrow().getId());
+    }
+
+    @Test
+    void s9_装配_按事件类型返回场景与角色和升级链() {
+        long defId = sceneDefId("REMEDIATION_CLOSURE");   // 涵盖 RULE_REMEDIATION_OVERDUE
+        asOrg(ORG_PAY, () -> notificationSceneService.createScene(ORG_PAY, defId, "整改逾期通知",
+                java.util.List.of("COMPLIANCE", "AUDIT"), "整改单 {标题} 已逾期 {逾期天数} 天", "INBOX", "SELF",
+                java.util.List.of(new com.mandao.grc.modules.notify.NotificationSceneService.EscalationInput(1, 24, "MANAGER")),
+                "admin"));
+
+        var hit = asOrg(ORG_PAY, () -> notificationSceneService.assemble("RULE_REMEDIATION_OVERDUE"));
+        assertEquals(1, hit.size(), "该事件命中 1 个场景");
+        assertEquals(java.util.List.of("COMPLIANCE", "AUDIT"), hit.get(0).recipientRoles());
+        assertEquals("INBOX", hit.get(0).channelType());
+        assertEquals(1, hit.get(0).escalation().size());
+        assertEquals("MANAGER", hit.get(0).escalation().get(0).escalateToRole());
+
+        // 不涵盖该场景的事件 → 0
+        assertTrue(asOrg(ORG_PAY, () -> notificationSceneService.assemble("RULE_KRI_BREACH")).isEmpty());
+    }
+
+    @Test
+    void s9_场景组织隔离_不跨子公司() {
+        long defId = sceneDefId("RISK_ALERT");
+        asOrg(ORG_PAY, () -> notificationSceneService.createScene(ORG_PAY, defId, "支付风险告警",
+                java.util.List.of("RISK"), "KRI {指标} 触发 {级别}", "INBOX", "SELF", null, "admin"));
+
+        assertEquals(1, asOrg(ORG_PAY, () -> notificationSceneService.listScenes()).size());
+        // org13 看不到 org12 场景，装配同事件 → 0（不跨子公司广播）
+        assertTrue(asOrg(ORG_CF, () -> notificationSceneService.listScenes()).isEmpty(), "org13 不应看到 org12 场景");
+        assertTrue(asOrg(ORG_CF, () -> notificationSceneService.assemble("RULE_KRI_BREACH")).isEmpty(),
+                "org13 装配不得命中 org12 场景");
+    }
+
+    @Test
+    void s9_校验_非法通道_非法范围_空角色_坏引用均拒() {
+        long defId = sceneDefId("REMEDIATION_CLOSURE");
+        // 非法通道
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                notificationSceneService.createScene(ORG_PAY, defId, "x", java.util.List.of("COMPLIANCE"),
+                        "t", "SMS", "SELF", null, "admin")));
+        // 非法范围（跨子公司选项不存在）
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                notificationSceneService.createScene(ORG_PAY, defId, "x", java.util.List.of("COMPLIANCE"),
+                        "t", "INBOX", "CROSS_SUBSIDIARY", null, "admin")));
+        // 空角色
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                notificationSceneService.createScene(ORG_PAY, defId, "x", java.util.List.of(),
+                        "t", "INBOX", "SELF", null, "admin")));
+        // 坏 def 引用
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                notificationSceneService.createScene(ORG_PAY, 99999L, "x", java.util.List.of("COMPLIANCE"),
+                        "t", "INBOX", "SELF", null, "admin")));
+    }
+
+    @Test
+    void s9_升级链按级别有序() {
+        long defId = sceneDefId("MAJOR_INCIDENT");
+        asOrg(ORG_PAY, () -> notificationSceneService.createScene(ORG_PAY, defId, "重大事件报送",
+                java.util.List.of("DPO"), "重大事件 {标题} 报送时限临近", "WECOM", "SUBTREE",
+                java.util.List.of(
+                        new com.mandao.grc.modules.notify.NotificationSceneService.EscalationInput(2, 48, "CISO"),
+                        new com.mandao.grc.modules.notify.NotificationSceneService.EscalationInput(1, 12, "MANAGER")),
+                "admin"));
+        var chain = asOrg(ORG_PAY, () -> notificationSceneService.assemble("MAJOR_INCIDENT_REPORT_DUE"))
+                .get(0).escalation();
+        assertEquals(2, chain.size());
+        assertEquals(1, chain.get(0).level(), "升级链按 level 升序");
+        assertEquals(2, chain.get(1).level());
+    }
+
+    @Test
+    void s9_装配留痕() {
+        long defId = sceneDefId("REG_DYNAMICS");
+        asOrg(ORG_PAY, () -> notificationSceneService.createScene(ORG_PAY, defId, "监管动态",
+                java.util.List.of("COMPLIANCE"), "新法规 {条数} 条", "INBOX", "SELF", null, "admin"));
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid());
+        assertEquals(1, r.count(), "1 条 NOTIF_SCENE_CREATE 留痕");
     }
 
     // ---------- ROPA 生命周期 ----------

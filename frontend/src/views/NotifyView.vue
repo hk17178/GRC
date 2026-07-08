@@ -9,7 +9,7 @@
       <div class="phead">
         <div><div class="kqt">{{ $t('notify.tag') }}</div><h1>{{ $t('notify.title') }}</h1></div>
         <div class="sp"></div>
-        <button v-if="tab !== 'log'" class="btn" :disabled="!canWrite('notify')"
+        <button v-if="tab !== 'log' && tab !== 'sceneassy' && tab !== 'digest' && tab !== 'pref'" class="btn" :disabled="!canWrite('notify')"
                 :title="canWrite('notify') ? '' : $t('common.noPerm')" @click="openAdd">＋ 新建{{ KIND_LABEL[tab] }}</button>
         <button v-else class="btn ghost" @click="loadLog">{{ $t('notify.refresh') }}</button>
       </div>
@@ -21,6 +21,7 @@
         <button :class="{ on: tab === 'log' }" @click="tab = 'log'">提醒记录</button>
         <button :class="{ on: tab === 'digest' }" @click="tab = 'digest'; loadDigest()">{{ $t('notify.digest.tab') }}</button>
         <button :class="{ on: tab === 'pref' }" @click="tab = 'pref'; loadPref()">订阅偏好</button>
+        <button :class="{ on: tab === 'sceneassy' }" @click="tab = 'sceneassy'; loadScenes()">场景装配</button>
       </div>
 
       <!-- 通知场景 -->
@@ -47,6 +48,67 @@
             </tbody>
           </table>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">模板变量：{责任人}{任务编号}{对象}{来源发现}{截止}{剩余天数}{链接}，可在内容要点中引用。</div>
+        </div>
+      </div>
+
+      <!-- D1-8 §九：自定义通知场景（场景库装配 + 升级链 + 不跨子公司） -->
+      <div v-show="tab === 'sceneassy'" class="card">
+        <div class="ch"><h3>通知场景装配</h3><span class="cnt">{{ scenes.length }}</span>
+          <span class="sub">从场景库挑「事件集」种类 → 配本组织角色/模板/通道/范围 + 升级链，无需改码。装配结果由 M10 消费；范围仅本组织子树，不跨子公司。</span></div>
+        <div class="cb" style="overflow-x:auto;padding-top:0">
+          <table style="min-width:820px">
+            <thead><tr><th>场景</th><th>事件集</th><th>接收角色</th><th>通道</th><th>范围</th><th>升级链</th><th>状态</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="s in scenes" :key="s.id">
+                <td><b>{{ s.name }}</b></td>
+                <td class="muted"><code style="font-size:11px">{{ defEvents(s.sceneDefId) }}</code></td>
+                <td class="muted">{{ rolesText(s.recipientRoles) }}</td>
+                <td><span class="pill">{{ s.channelType }}</span></td>
+                <td>{{ s.orgScope === 'SUBTREE' ? '本组织及下级' : '仅本组织' }}</td>
+                <td class="muted">{{ (escById[s.id] || []).map(e => 'L'+e.level+'→'+e.escalateToRole).join(' ') || '—' }}</td>
+                <td>{{ s.status === 'ACTIVE' ? '启用' : '停用' }}</td>
+                <td class="ops"><template v-if="canWrite('notify')"><button v-if="s.status==='ACTIVE'" class="mini danger" @click="retireScene(s)">停用</button></template></td>
+              </tr>
+              <tr v-if="!scenes.length"><td colspan="8" class="emptyrow">暂无装配场景，下方从场景库新建。</td></tr>
+            </tbody>
+          </table>
+
+          <!-- 装配表单 -->
+          <div class="sa-add" v-if="canWrite('notify')">
+            <div class="sa-row">
+              <select v-model.number="ns.sceneDefId" style="width:220px">
+                <option :value="0">选场景种类（事件集）</option>
+                <option v-for="d in sceneDefs" :key="d.id" :value="d.id">{{ d.name }} · {{ defEvents(d.id) }}</option>
+              </select>
+              <input v-model="ns.name" placeholder="场景名（如 整改逾期通知）" style="width:180px" />
+              <input v-model="ns.roles" placeholder="接收角色(逗号,如 COMPLIANCE,AUDIT)" style="width:210px" />
+            </div>
+            <div class="sa-row">
+              <input v-model="ns.template" placeholder="消息模板（可用 {标题}{逾期天数} 等占位）" style="flex:1;min-width:280px" />
+              <select v-model="ns.channelType" style="width:100px"><option value="INBOX">站内信</option><option value="WECOM">企微</option></select>
+              <select v-model="ns.orgScope" style="width:130px"><option value="SELF">仅本组织</option><option value="SUBTREE">本组织及下级</option></select>
+            </div>
+            <div class="sa-row">
+              <span class="sa-lbl">升级链</span>
+              <template v-for="(e, i) in ns.escalations" :key="i">
+                <span class="sa-esc">L{{ e.level }} · {{ e.delayHours }}h → </span>
+                <input v-model="e.escalateToRole" placeholder="升级角色" style="width:100px" />
+                <input v-model.number="e.delayHours" type="number" min="0" placeholder="小时" style="width:64px" />
+                <button class="mini danger" @click="ns.escalations.splice(i,1)">×</button>
+              </template>
+              <button class="btn ghost sm" @click="addEscRow">＋ 加一级</button>
+              <button class="btn sm" style="margin-left:auto" :disabled="!ns.sceneDefId || !ns.name || !ns.roles || !ns.template" @click="saveScene">装配场景</button>
+            </div>
+          </div>
+
+          <!-- 试装配 -->
+          <div class="sa-resolve">
+            <span class="sa-lbl">试装配</span>
+            <input v-model="assy.eventType" placeholder="事件类型(如 RULE_REMEDIATION_OVERDUE)" style="width:260px" />
+            <button class="btn ghost sm" @click="tryAssemble">装配</button>
+            <span v-if="assyResult" class="sa-res">{{ assyResult }}</span>
+          </div>
+          <p v-if="saMsg" class="msg" :class="saMsgKind">{{ saMsg }}</p>
         </div>
       </div>
 
@@ -281,6 +343,60 @@ const loadError = ref('')
 const d = (c) => { try { return JSON.parse(c.detail || '{}') } catch (e) { return {} } }
 const statusCell = (c) => (c.enabled ? '启用' : '停用')
 
+// ===== D1-8 §九：自定义通知场景（场景库装配 + 升级链 + 不跨子公司）=====
+const sceneDefs = ref([])          // 场景库（全局种类）
+const scenes = ref([])             // 本组织已装配场景
+const escById = ref({})            // sceneId → 升级链
+const ns = reactive({ sceneDefId: 0, name: '', roles: '', template: '', channelType: 'INBOX', orgScope: 'SELF', escalations: [] })
+const assy = reactive({ eventType: '' })
+const assyResult = ref('')
+const saMsg = ref('')
+const saMsgKind = ref('ok')
+function setSaMsg(t, k) { saMsg.value = t; saMsgKind.value = k || 'ok' }
+function defEvents(defId) {
+  const dd = sceneDefs.value.find((x) => x.id === defId)
+  if (!dd) return '—'
+  try { return JSON.parse(dd.eventTypes || '[]').join(', ') } catch (e) { return dd.eventTypes }
+}
+function rolesText(rolesJson) { try { return JSON.parse(rolesJson || '[]').join('、') } catch (e) { return rolesJson } }
+async function loadScenes() {
+  try {
+    if (!sceneDefs.value.length) sceneDefs.value = await api.get('/notification-scenes/defs')
+    scenes.value = await api.get('/notification-scenes')
+    const map = {}
+    for (const s of scenes.value.filter((x) => x.status === 'ACTIVE')) {
+      try { map[s.id] = await api.get('/notification-scenes/' + s.id + '/escalations') } catch (e) { map[s.id] = [] }
+    }
+    escById.value = map
+  } catch (e) { scenes.value = [] }
+}
+function addEscRow() { ns.escalations.push({ level: ns.escalations.length + 1, delayHours: 24, escalateToRole: '' }) }
+async function saveScene() {
+  setSaMsg('')
+  const roles = ns.roles.split(',').map((s) => s.trim()).filter(Boolean)
+  const escalations = ns.escalations.filter((e) => e.escalateToRole).map((e) => ({ level: e.level, delayHours: Number(e.delayHours) || 0, escalateToRole: e.escalateToRole }))
+  try {
+    await api.post('/notification-scenes', {
+      orgId: 12, sceneDefId: ns.sceneDefId, name: ns.name, recipientRoles: roles,
+      template: ns.template, channelType: ns.channelType, orgScope: ns.orgScope, escalations
+    })
+    Object.assign(ns, { sceneDefId: 0, name: '', roles: '', template: '', channelType: 'INBOX', orgScope: 'SELF', escalations: [] })
+    await loadScenes(); setSaMsg('✓ 已装配场景', 'ok')
+  } catch (e) { setSaMsg(e.message, 'err') }
+}
+async function retireScene(s) {
+  try { await api.post('/notification-scenes/' + s.id + '/retire', {}); await loadScenes() }
+  catch (e) { setSaMsg(e.message, 'err') }
+}
+async function tryAssemble() {
+  assyResult.value = ''
+  try {
+    const r = await api.post('/notification-scenes/assemble', { eventType: assy.eventType })
+    if (!r.length) { assyResult.value = '无场景触发（该事件未装配）'; return }
+    assyResult.value = r.map((x) => `${x.name}[${x.channelType}] → ${x.recipientRoles.join('、')}` + (x.escalation.length ? `（升级 ${x.escalation.length} 级）` : '')).join('；')
+  } catch (e) { assyResult.value = '装配失败：' + e.message }
+}
+
 async function loadKind(kind, target) {
   try { target.value = await api.get('/notify/configs?kind=' + KIND_API[kind]) } catch (e) { target.value = [] }
 }
@@ -441,4 +557,13 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .switch.locked { color: var(--text-3); cursor: not-allowed; }
 .switch input { width: 16px; height: 16px; accent-color: var(--accent); }
 .pref-saved { color: var(--success); font-size: 12px; font-weight: 600; margin-top: 10px; }
+/* D1-8 §九：通知场景装配面板 */
+.sa-add { margin-top: 12px; padding: 12px; background: var(--bg); border-radius: var(--radius-md); }
+.sa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sa-row:last-child { margin-bottom: 0; }
+.sa-add input, .sa-add select, .sa-resolve input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+.sa-resolve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; background: var(--bg); border-radius: var(--radius-md); }
+.sa-lbl { font-size: 12px; color: var(--text-2); font-weight: 600; }
+.sa-esc { font-size: 11.5px; color: var(--text-3); }
+.sa-res { font-size: 12px; font-weight: 600; color: var(--accent-strong); }
 </style>
