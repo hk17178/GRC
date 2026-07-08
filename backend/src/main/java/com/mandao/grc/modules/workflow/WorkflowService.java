@@ -196,6 +196,63 @@ public class WorkflowService {
                 "审批结论=" + decision.name() + (comment == null || comment.isBlank() ? "" : "，意见：" + comment));
     }
 
+    /** 列出分派给我或我可领取（候选）的待办审批任务——转办给我/对我加签后可在此看到。 */
+    @Transactional(readOnly = true)
+    public List<Task> myPendingTasks(String user) {
+        return taskService.createTaskQuery()
+                .taskCandidateOrAssigned(user)
+                .orderByTaskCreateTime().asc()
+                .list();
+    }
+
+    /**
+     * 转办（M8-5）：把当前审批任务改派给指定审批人。
+     * 职责分离红线：不得转办给单据发起人（防把审批绕回发起人自批）。
+     */
+    @Transactional
+    public void reassign(String taskId, String toUser, String actor) {
+        requireTask(taskId);
+        guardNotSubmitter(taskId, toUser, "转办");
+        taskService.setAssignee(taskId, toUser);
+        logTaskAction(taskId, "WORKFLOW_REASSIGN", actor, "转办给 " + toUser);
+    }
+
+    /**
+     * 加签（M8-5）：为当前审批任务追加一名审批候选人（或签——追加人也可处置本任务）。
+     * 职责分离红线：不得对单据发起人加签（防发起人自批）。
+     */
+    @Transactional
+    public void addSigner(String taskId, String addUser, String actor) {
+        requireTask(taskId);
+        guardNotSubmitter(taskId, addUser, "加签");
+        taskService.addCandidateUser(taskId, addUser);
+        logTaskAction(taskId, "WORKFLOW_ADD_SIGNER", actor, "加签 " + addUser + "（或签）");
+    }
+
+    private Task requireTask(String taskId) {
+        Task task = taskService.createTaskQuery().taskId(taskId).singleResult();
+        if (task == null) {
+            throw new IllegalArgumentException("审批任务不存在或已处理：taskId=" + taskId);
+        }
+        return task;
+    }
+
+    /** 职责分离：目标人不得是单据发起人（submitter 变量在 submit 时置于流程实例）。 */
+    private void guardNotSubmitter(String taskId, String targetUser, String action) {
+        Object submitter = taskService.getVariable(taskId, "submitter");
+        if (submitter != null && submitter.toString().equals(targetUser)) {
+            throw new IllegalStateException(action + "违反职责分离：不得指向单据发起人 " + targetUser);
+        }
+    }
+
+    /** 任务操作留痕（读任务上的 org/biz 变量分链）。 */
+    private void logTaskAction(String taskId, String action, String actor, String detail) {
+        long orgId = asLong(taskService.getVariable(taskId, "orgId"));
+        String bizType = (String) taskService.getVariable(taskId, "bizType");
+        long bizId = asLong(taskService.getVariable(taskId, "bizId"));
+        hashChainService.append(orgId, action, actor, businessKey(bizType, bizId), detail);
+    }
+
     /**
      * 读取审批结论（流程结束后供业务方推进自身状态机）。
      * 未决（任务未完成）或无该变量时返回 null。

@@ -16,15 +16,20 @@
 
       <!-- ① 我的审批（真·按登录人：登录人角色匹配候选组的待办审批） -->
       <div class="card" style="margin-bottom: 14px">
-        <div class="ch"><h3>{{ $t('todo.myApprovals') }}</h3><span class="cnt mine">{{ myApprovals.length }}</span></div>
+        <div class="ch"><h3>{{ $t('todo.myApprovals') }}</h3><span class="cnt mine">{{ myApprovals.length }}</span>
+          <!-- M10-11：批量委派（勾选后一次性转办给同一人）-->
+          <button v-if="selectedTasks.length" class="mini" style="margin-left:auto" @click="batchReassign">批量转办（{{ selectedTasks.length }}）</button>
+        </div>
         <div class="cb" style="overflow-x: auto; padding-top: 0">
           <table style="min-width: 680px">
             <thead><tr>
+              <th style="width:28px"><input type="checkbox" :checked="allTasksSelected" @change="toggleAllTasks($event.target.checked)" /></th>
               <th>{{ $t('todo.ath.biz') }}</th><th>{{ $t('todo.ath.node') }}</th>
               <th>{{ $t('todo.ath.role') }}</th><th>{{ $t('todo.ath.time') }}</th><th>操作</th>
             </tr></thead>
             <tbody>
               <tr v-for="(a, i) in myApprovals" :key="i">
+                <td><input type="checkbox" :value="a.taskId" v-model="selectedTasks" /></td>
                 <td><span class="tpill APPROVAL">{{ BIZ_TXT[a.bizType] || a.bizType }}</span> <span class="code">#{{ a.bizId }}</span></td>
                 <td>{{ a.nodeName }}</td>
                 <td><span class="rolepill">{{ a.roleGroup }}</span></td>
@@ -36,10 +41,13 @@
                     <button class="mini danger" @click="decidePolicy(a, false)">驳回</button>
                   </template>
                   <span v-else class="muted" style="font-size:11px">到对应模块页处置</span>
+                  <!-- M8-5：加签/转办（对任意审批任务可用，走 taskId；职责分离由后端校验）-->
+                  <button class="mini" title="改派给他人" @click="reassignTask(a)">转办</button>
+                  <button class="mini" title="追加一名审批人（或签）" @click="addSignerTask(a)">加签</button>
                 </td>
               </tr>
               <tr v-if="!myApprovals.length">
-                <td colspan="5" class="emptyrow">{{ $t('todo.myEmpty') }}</td>
+                <td colspan="6" class="emptyrow">{{ $t('todo.myEmpty') }}</td>
               </tr>
             </tbody>
           </table>
@@ -115,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
@@ -137,6 +145,34 @@ async function decidePolicy(a, approved) {
     else await api.post('/policies/' + a.bizId + '/reject', { reason: comment })
     await load()
   } catch (e) { window.alert(e.message) }
+}
+// ===== M10-11：批量委派（勾选多条审批一次性转办）=====
+const selectedTasks = ref([])
+const allTasksSelected = computed(() => myApprovals.value.length > 0 && selectedTasks.value.length === myApprovals.value.length)
+function toggleAllTasks(checked) { selectedTasks.value = checked ? myApprovals.value.map((a) => a.taskId) : [] }
+async function batchReassign() {
+  const user = window.prompt(`批量转办选中的 ${selectedTasks.value.length} 项审批给：请输入接收人用户名`, '')
+  if (!user || !user.trim()) return
+  try {
+    await api.post('/workbench/approvals/reassign-batch', { taskIds: selectedTasks.value.slice(), user: user.trim() })
+    window.alert('已批量转办给 ' + user.trim())
+    selectedTasks.value = []
+    await load()
+  } catch (e) { window.alert(e.message) }
+}
+
+// ===== M8-5：审批加签/转办（走 taskId；后端校验职责分离——不得指向发起人）=====
+async function reassignTask(a) {
+  const user = window.prompt(`转办审批「${BIZ_TXT[a.bizType] || a.bizType} #${a.bizId}」给：请输入接收人用户名`, '')
+  if (!user || !user.trim()) return
+  try { await api.post('/workbench/approvals/' + a.taskId + '/reassign', { user: user.trim() }); window.alert('已转办给 ' + user.trim()); await load() }
+  catch (e) { window.alert(e.message) }
+}
+async function addSignerTask(a) {
+  const user = window.prompt(`对审批「${BIZ_TXT[a.bizType] || a.bizType} #${a.bizId}」加签（或签）：请输入追加审批人用户名`, '')
+  if (!user || !user.trim()) return
+  try { await api.post('/workbench/approvals/' + a.taskId + '/add-signer', { user: user.trim() }); window.alert('已加签 ' + user.trim()); await load() }
+  catch (e) { window.alert(e.message) }
 }
 const loadError = ref('')
 function fmtTime(ms) {

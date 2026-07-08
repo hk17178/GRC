@@ -103,6 +103,24 @@ class NotifyReceiptTest {
     }
 
     @Test
+    void m10_11_批量回执_仅可见组织未回执生效且幂等() {
+        // org12 一次性回执全部 4 条原始提醒（RESTART IDENTITY → id 1..4）
+        int acked = asOrg(ORG_PAY, () -> service.ackNotifications(List.of(1L, 2L, 3L, 4L), "batch"));
+        assertEquals(4, acked, "4 条未回执提醒应全部回执");
+        // 简报：所有事件未回执归零
+        assertTrue(asOrg(ORG_PAY, () -> service.digest(7)).stream().allMatch(d -> d.unread() == 0),
+                "批量回执后无未回执");
+        // 幂等：再批量回执返回 0（已回执不重复）
+        assertEquals(0, asOrg(ORG_PAY, () -> service.ackNotifications(List.of(1L, 2L, 3L, 4L), "batch2")));
+    }
+
+    @Test
+    void m10_11_批量回执跨组织无效() {
+        assertEquals(0, asOrg(ORG_CF, () -> service.ackNotifications(List.of(1L, 2L, 3L, 4L), "spy")),
+                "org13 批量回执 org12 的提醒应 0 生效（RLS 兜底）");
+    }
+
+    @Test
     void 隔离_org13不可见不可回执() {
         assertTrue(asOrg(ORG_CF, () -> service.notifications(null)).isEmpty(), "org13 不应看到 org12 的提醒");
         assertTrue(asOrg(ORG_CF, () -> service.digest(7)).isEmpty());

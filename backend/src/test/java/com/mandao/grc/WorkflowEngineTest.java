@@ -28,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -176,6 +177,58 @@ class WorkflowEngineTest {
         assertEquals(WorkflowService.GENERIC_APPROVAL, l.getProcessDefKey());
         assertEquals(7, l.getProcessVersion(), "固化绑定声明的版本 7（改绑定不影响此在途单据快照）");
         assertNotNull(l.getBindingId(), "命中绑定应记录 binding_id");
+    }
+
+    // ---------- M8-5：审批加签/转办 ----------
+
+    @Test
+    void m8_5_转办改派_职责分离拒发起人() {
+        String group = "grp-m85-a";
+        asOrg(ORG_PAY, () -> workflowService.submit("POLICY", 6001L, ORG_PAY, group, "alice"));
+        String taskId = asOrg(ORG_PAY, () -> workflowService.pendingTasks(group)).get(0).getId();
+
+        // 转办给 bob（由 carol 操作）
+        asOrg(ORG_PAY, () -> { workflowService.reassign(taskId, "bob", "carol"); return null; });
+        assertTrue(asOrg(ORG_PAY, () -> workflowService.myPendingTasks("bob")).stream()
+                .anyMatch(t -> t.getId().equals(taskId)), "转办后 bob 待办应含该任务");
+
+        // 转办给发起人 alice → 职责分离拒
+        assertThrows(IllegalStateException.class, () -> asOrg(ORG_PAY, () -> {
+            workflowService.reassign(taskId, "alice", "carol");
+            return null;
+        }));
+    }
+
+    @Test
+    void m8_5_加签追加候选人_职责分离拒发起人() {
+        String group = "grp-m85-b";
+        asOrg(ORG_PAY, () -> workflowService.submit("POLICY", 6002L, ORG_PAY, group, "alice"));
+        String taskId = asOrg(ORG_PAY, () -> workflowService.pendingTasks(group)).get(0).getId();
+
+        asOrg(ORG_PAY, () -> { workflowService.addSigner(taskId, "dave", "carol"); return null; });
+        assertTrue(asOrg(ORG_PAY, () -> workflowService.myPendingTasks("dave")).stream()
+                .anyMatch(t -> t.getId().equals(taskId)), "加签后 dave（或签候选人）应可见该任务");
+
+        // 对发起人 alice 加签 → 职责分离拒
+        assertThrows(IllegalStateException.class, () -> asOrg(ORG_PAY, () -> {
+            workflowService.addSigner(taskId, "alice", "carol");
+            return null;
+        }));
+    }
+
+    @Test
+    void m8_5_转办后原候选人处置仍推进流程() {
+        String group = "grp-m85-c";
+        String iid = asOrg(ORG_PAY, () -> workflowService.submit("POLICY", 6003L, ORG_PAY, group, "alice"));
+        String taskId = asOrg(ORG_PAY, () -> workflowService.pendingTasks(group)).get(0).getId();
+        asOrg(ORG_PAY, () -> { workflowService.reassign(taskId, "bob", "carol"); return null; });
+        // 受让人 bob 处置通过 → 流程结束
+        asOrg(ORG_PAY, () -> {
+            workflowService.decide(taskId, ApprovalDecision.APPROVED, "bob", "同意");
+            return null;
+        });
+        assertTrue(asOrg(ORG_PAY, () -> workflowService.isEnded(iid)));
+        assertEquals(ApprovalDecision.APPROVED, asOrg(ORG_PAY, () -> workflowService.outcome(iid)));
     }
 
     // ---------- 测试辅助：在指定 org 可见上下文中执行 ----------

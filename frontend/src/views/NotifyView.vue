@@ -198,12 +198,16 @@
 
       <!-- 提醒记录（调度内核派发）-->
       <div v-show="tab === 'log'" class="card">
-        <div class="ch"><h3>{{ $t('notify.listTitle') }}</h3><span class="cnt">{{ items.length }}</span></div>
+        <div class="ch"><h3>{{ $t('notify.listTitle') }}</h3><span class="cnt">{{ items.length }}</span>
+          <!-- M10-11：批量回执（勾选多条未回执一次性已读）-->
+          <button v-if="selectedNotifs.length" class="mini" style="margin-left:auto" @click="batchAck">批量已读（{{ selectedNotifs.length }}）</button>
+        </div>
         <div class="cb" style="overflow-x:auto;padding-top:0">
           <table style="min-width:820px">
-            <thead><tr><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>内容</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.receipt') }}</th></tr></thead>
+            <thead><tr><th style="width:26px"><input type="checkbox" :checked="allNotifsSelected" @change="toggleAllNotifs($event.target.checked)" /></th><th>{{ $t('notify.th.time') }}</th><th>{{ $t('notify.th.event') }}</th><th>内容</th><th>{{ $t('notify.th.object') }}</th><th>{{ $t('notify.th.receipt') }}</th></tr></thead>
             <tbody>
               <tr v-for="n in items" :key="n.id">
+                <td><input v-if="!n.readBy" type="checkbox" :value="n.id" v-model="selectedNotifs" /></td>
                 <td class="num">{{ fmtTime(n.createdAtMs) }}</td>
                 <td><span class="evt">{{ n.eventType }}</span><span v-if="n.mergedCount > 1" class="merge" :title="$t('notify.mergeTip')">×{{ n.mergedCount }}</span></td>
                 <td class="muted" style="max-width:340px">{{ n.message || '—' }}</td>
@@ -213,7 +217,7 @@
                   <button v-else class="mini" @click="ack(n)">{{ $t('notify.ack') }}</button>
                 </td>
               </tr>
-              <tr v-if="!items.length"><td colspan="5" class="emptyrow">{{ loadError || $t('notify.empty') }}</td></tr>
+              <tr v-if="!items.length"><td colspan="6" class="emptyrow">{{ loadError || $t('notify.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -303,7 +307,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
@@ -412,6 +416,20 @@ function fmtTime(ms) { return ms ? new Date(ms).toLocaleString() : '—' }
 // ===== 回执 + 定期简报（V41）=====
 async function ack(n) {
   try { await api.post('/workbench/notifications/' + n.id + '/ack', {}); await loadLog() } catch (e) { /* 忽略 */ }
+}
+// M10-11：批量回执
+const selectedNotifs = ref([])
+const allNotifsSelected = computed(() => {
+  const unread = items.value.filter((n) => !n.readBy)
+  return unread.length > 0 && selectedNotifs.value.length === unread.length
+})
+function toggleAllNotifs(checked) { selectedNotifs.value = checked ? items.value.filter((n) => !n.readBy).map((n) => n.id) : [] }
+async function batchAck() {
+  try {
+    await api.post('/workbench/notifications/ack-batch', { ids: selectedNotifs.value.slice() })
+    selectedNotifs.value = []
+    await loadLog()
+  } catch (e) { window.alert(e.message) }
 }
 const digestDays = ref(7)
 const digestRows = ref([])

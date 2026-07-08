@@ -63,19 +63,66 @@ public class WorkbenchService {
     private final TaskService taskService;
     private final RuntimeService runtimeService;
     private final com.mandao.grc.common.auth.AppUserRepository appUserRepository;
+    private final com.mandao.grc.modules.workflow.WorkflowService workflowService;
 
     public WorkbenchService(RemediationOrderRepository remediationOrderRepository,
                             CompliancePlanItemRepository compliancePlanItemRepository,
                             RegFilingRepository regFilingRepository,
                             TaskService taskService,
                             RuntimeService runtimeService,
-                            com.mandao.grc.common.auth.AppUserRepository appUserRepository) {
+                            com.mandao.grc.common.auth.AppUserRepository appUserRepository,
+                            com.mandao.grc.modules.workflow.WorkflowService workflowService) {
         this.remediationOrderRepository = remediationOrderRepository;
         this.compliancePlanItemRepository = compliancePlanItemRepository;
         this.regFilingRepository = regFilingRepository;
         this.taskService = taskService;
         this.runtimeService = runtimeService;
         this.appUserRepository = appUserRepository;
+        this.workflowService = workflowService;
+    }
+
+    // ===== M8-5：审批加签/转办 =====
+
+    /** 转办审批任务给指定人（职责分离在 WorkflowService 内校验，留痕）。 */
+    @org.springframework.transaction.annotation.Transactional
+    public void reassignApproval(String taskId, String toUser) {
+        workflowService.reassign(taskId, toUser, com.mandao.grc.common.auth.CurrentUserContext.get());
+    }
+
+    /** 对审批任务加签一名候选审批人（或签，职责分离校验，留痕）。 */
+    @org.springframework.transaction.annotation.Transactional
+    public void addApprovalSigner(String taskId, String addUser) {
+        workflowService.addSigner(taskId, addUser, com.mandao.grc.common.auth.CurrentUserContext.get());
+    }
+
+    // ===== M10-11：待办批量处理 / 委派 =====
+
+    /** 批量委派：把多个审批任务一次性转办给同一人（原子——任一违反职责分离则整批回滚，留痕逐条）。 */
+    @org.springframework.transaction.annotation.Transactional
+    public void reassignApprovals(List<String> taskIds, String toUser) {
+        if (taskIds == null) {
+            return;
+        }
+        String actor = com.mandao.grc.common.auth.CurrentUserContext.get();
+        for (String taskId : taskIds) {
+            workflowService.reassign(taskId, toUser, actor);
+        }
+    }
+
+    /** 批量回执：一次性确认多条提醒已读（仅可见组织内、未回执的生效），返回实际回执条数。 */
+    @org.springframework.transaction.annotation.Transactional
+    public int ackNotifications(List<Long> ids, String actor) {
+        List<Long> orgs = IsolationContext.get();
+        if (orgs == null || orgs.isEmpty() || ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        return em.createNativeQuery(
+                        "UPDATE reminder_dispatch_log SET read_by = :actor, read_at = now() "
+                                + "WHERE id IN (:ids) AND org_id IN (:orgs) AND read_by IS NULL")
+                .setParameter("actor", actor)
+                .setParameter("ids", ids)
+                .setParameter("orgs", orgs)
+                .executeUpdate();
     }
 
     // ===== B28：通知订阅偏好 CRUD + 过滤辅助 =====
@@ -206,6 +253,27 @@ public class WorkbenchService {
                 long created = t.getCreateTime() != null ? t.getCreateTime().getTime() : 0L;
                 out.add(new MyApprovalItem(t.getId(), bizType, bizId, t.getName(), code, created));
             }
+        }
+        // M8-5：转办给我（assignee）/ 对我加签（候选人）的任务，也应出现在我的待办
+        for (Task t : taskService.createTaskQuery().taskCandidateOrAssigned(username)
+                .orderByTaskCreateTime().asc().list()) {
+            if (!seen.add(t.getId())) {
+                continue;
+            }
+            String bizType = null;
+            Long bizId = null;
+            String bk = businessKeyOf(t.getProcessInstanceId());
+            if (bk != null && bk.contains(":")) {
+                String[] p = bk.split(":", 2);
+                bizType = p[0];
+                try {
+                    bizId = Long.parseLong(p[1]);
+                } catch (NumberFormatException ignore) {
+                    // 业务键非标准格式，bizId 保持 null
+                }
+            }
+            long created = t.getCreateTime() != null ? t.getCreateTime().getTime() : 0L;
+            out.add(new MyApprovalItem(t.getId(), bizType, bizId, t.getName(), username.equals(t.getAssignee()) ? "转办给我" : "加签给我", created));
         }
         return out;
     }

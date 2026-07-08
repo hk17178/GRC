@@ -39,6 +39,43 @@ public class WorkbenchController {
         return service.myApprovals();
     }
 
+    /** M8-5 转办：把审批任务改派给指定人（职责分离——不得转办给发起人）。 */
+    @PostMapping("/approvals/{taskId}/reassign")
+    public void reassignApproval(@PathVariable String taskId, @RequestBody TaskTargetRequest req) {
+        service.reassignApproval(taskId, req.user());
+    }
+
+    /** M8-5 加签：为审批任务追加一名候选审批人（或签；职责分离——不得对发起人加签）。 */
+    @PostMapping("/approvals/{taskId}/add-signer")
+    public void addApprovalSigner(@PathVariable String taskId, @RequestBody TaskTargetRequest req) {
+        service.addApprovalSigner(taskId, req.user());
+    }
+
+    /** 加签/转办目标用户名。 */
+    public record TaskTargetRequest(String user) {
+    }
+
+    /** M10-11 批量委派：多个审批任务一次性转办给同一人。 */
+    @PostMapping("/approvals/reassign-batch")
+    public void reassignApprovalsBatch(@RequestBody BatchReassignRequest req) {
+        service.reassignApprovals(req.taskIds(), req.user());
+    }
+
+    /** M10-11 批量回执：一次性确认多条提醒已读，返回实际回执条数。 */
+    @PostMapping("/notifications/ack-batch")
+    public java.util.Map<String, Integer> ackNotificationsBatch(@RequestBody AckBatchRequest req,
+                                                                @RequestHeader(value = "X-User", required = false) String user) {
+        String actor = CurrentUserContext.get() != null ? CurrentUserContext.get()
+                : (user == null || user.isBlank() ? "anonymous" : user);
+        return java.util.Map.of("acked", service.ackNotifications(req.ids(), actor));
+    }
+
+    public record BatchReassignRequest(java.util.List<String> taskIds, String user) {
+    }
+
+    public record AckBatchRequest(java.util.List<Long> ids) {
+    }
+
     /** 通知中心（调度内核派发的提醒，新→旧；同对象同事件合并降噪）。 */
     @GetMapping("/notifications")
     public List<NotificationView> notifications(@RequestParam(required = false) Integer limit) {
