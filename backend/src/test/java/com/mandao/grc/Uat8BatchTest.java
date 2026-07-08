@@ -201,6 +201,28 @@ class Uat8BatchTest {
     }
 
     @Test
+    void m10_多通道_邮件短信也被路由并留痕() throws Exception {
+        // #61：登记邮件 + 短信通道（此前仅 WECOM 被外推，邮件/短信被忽略）
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO notify_config(org_id, kind, name, detail, enabled) VALUES "
+                    + "(1, 'CHANNEL', '邮件网关', '{\"type\":\"EMAIL\",\"target\":\"http://127.0.0.1/mail\",\"recipient\":\"a@b.com\"}', TRUE),"
+                    + "(1, 'CHANNEL', '短信网关', '{\"type\":\"SMS\",\"target\":\"http://127.0.0.1/sms\",\"recipient\":\"13800000000\"}', TRUE)");
+        }
+        alertPushService.pushAll(List.of(new AlertPushService.Alert(ORG_PAY, "多通道验证")));
+        // 两通道均产生留痕（channel_type=EMAIL/SMS）→ 证明已被 loadChannels 路由（内网目标发送失败，但留痕即达标）
+        java.util.Set<String> types = new java.util.HashSet<>();
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT channel_type FROM notify_send_log WHERE message = '多通道验证'")) {
+            while (rs.next()) {
+                types.add(rs.getString(1));
+            }
+        }
+        assertTrue(types.contains("EMAIL") && types.contains("SMS"), "邮件+短信通道均应被路由并留痕：" + types);
+    }
+
+    @Test
     void 差异化表单_等保与PBOC章节() {
         FormSchema mlps = formParser.parse(formGenerator.generateFor("TPL-MLPS", "等保 "));
         assertTrue(mlps.sections().stream().anyMatch(sec -> sec.title().contains("等保符合性自查")),

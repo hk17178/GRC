@@ -18,14 +18,16 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 告警通道外推（八轮 8-1 / 评估报告 B5）：把规则引擎/到期扫描产出的告警推送到企微群机器人。
+ * 告警通道外推（八轮 8-1 / 评估报告 B5；#61 多通道）：把规则引擎/到期扫描产出的告警
+ * 按通道类型推送到 企微群机器人 / 邮件网关 / 短信网关。
  *
- * 边界声明：第一批只落地 企微 Webhook 单通道 + 发送成功/失败留痕（notify_send_log）；
- * 邮件/短信通道后置（通道管理里可登记，引擎暂不外推）。失败不重试——留痕即达标，
- * 站内提醒（reminder_dispatch_log）始终是权威记录，外推只是"多喊一嗓子"。
+ * 边界声明：三通道均走 HTTP（企微=群机器人 webhook；邮件/短信=统一 HTTP 通知网关，
+ * target=网关地址、recipient=邮箱/手机）+ 发送成功/失败留痕（notify_send_log）。实际投递委托
+ * 已配置的网关（同企微委托企微）。失败不重试——留痕即达标，站内提醒（reminder_dispatch_log）
+ * 始终是权威记录，外推只是"多喊一嗓子"。
  *
  * 结构上遵守 7-7 教训：HTTP 外呼绝不夹在数据库事务里——
- *   loadWecomChannels()（短事务读通道）→ HTTP 裸跑 → logResults()（短事务写留痕）。
+ *   loadChannels()（短事务读通道）→ HTTP 裸跑 → logResults()（短事务写留痕）。
  * 与内核其它服务同范式：native SQL + SET LOCAL 系统全域可见（notify_config 有 RLS）。
  *
  * 安全：webhook 主机白名单（grc.notify.webhook-allowlist）+ DNS 私网复核（防 SSRF），
@@ -55,8 +57,8 @@ public class AlertPushService {
     public record Alert(long orgId, String message) {
     }
 
-    /** 已配置的企微通道。 */
-    public record Channel(long orgId, String name, String target) {
+    /** 已配置的外推通道（type ∈ WECOM/EMAIL/SMS）。target=网关/webhook 地址，recipient=收件人（邮箱/手机，WECOM 可空）。 */
+    public record Channel(long orgId, String name, String type, String target, String recipient) {
     }
 
     /** 推送结果（写留痕用）。 */
@@ -64,12 +66,12 @@ public class AlertPushService {
                              boolean success, String error) {
     }
 
-    /** 外推入口：无新告警或无通道则静默返回；HTTP 在事务外执行。 */
+    /** 外推入口：无新告警或无通道则静默返回；HTTP 在事务外执行。按通道 type 分派企微/邮件/短信。 */
     public int pushAll(List<Alert> alerts) {
         if (alerts == null || alerts.isEmpty()) {
             return 0;
         }
-        List<Channel> channels = self.loadWecomChannels();
+        List<Channel> channels = self.loadChannels();
         if (channels.isEmpty()) {
             return 0;
         }
@@ -80,20 +82,20 @@ public class AlertPushService {
                 if (c.orgId() != 1L && c.orgId() != a.orgId()) {
                     continue;
                 }
-                results.add(sendWecom(c, a));
+                results.add(send(c, a));
             }
         }
         self.logResults(results);
         long ok = results.stream().filter(SendResult::success).count();
         if (!results.isEmpty()) {
-            log.info("告警外推：企微 {} 条（成功 {}，失败 {}）", results.size(), ok, results.size() - ok);
+            log.info("告警外推：{} 条（成功 {}，失败 {}）", results.size(), ok, results.size() - ok);
         }
         return (int) ok;
     }
 
-    /** 读启用的企微通道（notify_config kind=CHANNEL，detail.type=WECOM 且有 target）。 */
+    /** 读启用的外推通道（notify_config kind=CHANNEL，type ∈ WECOM/EMAIL/SMS 且有 target）。 */
     @Transactional(readOnly = true)
-    public List<Channel> loadWecomChannels() {
+    public List<Channel> loadChannels() {
         // 架构治理包 A26：会话可见域走 set_config 参数化（防注入样板）
         VisibleOrgsSql.setAllOrgs(em);
         @SuppressWarnings("unchecked")
@@ -105,8 +107,11 @@ public class AlertPushService {
         for (Object[] r : rows) {
             try {
                 var d = mapper.readTree((String) r[2] == null ? "{}" : (String) r[2]);
-                if ("WECOM".equals(d.path("type").asText()) && !d.path("target").asText().isBlank()) {
-                    out.add(new Channel(((Number) r[0]).longValue(), (String) r[1], d.path("target").asText()));
+                String type = d.path("type").asText();
+                String target = d.path("target").asText();
+                if (("WECOM".equals(type) || "EMAIL".equals(type) || "SMS".equals(type)) && !target.isBlank()) {
+                    out.add(new Channel(((Number) r[0]).longValue(), (String) r[1], type, target,
+                            d.path("recipient").asText("")));
                 }
             } catch (Exception ignore) {
                 // 坏 JSON 的通道跳过（配置校验属通知体验包）
@@ -115,23 +120,28 @@ public class AlertPushService {
         return out;
     }
 
-    /** 单条企微推送（事务外；白名单+私网复核+超时）。 */
-    private SendResult sendWecom(Channel c, Alert a) {
+    /** 按通道类型分派：企微群机器人 / 邮件网关 / 短信网关（EMAIL/SMS 走统一 HTTP 通知网关，同白名单+私网复核）。 */
+    private SendResult send(Channel c, Alert a) {
         try {
             validateWebhook(c.target());
             SimpleClientHttpRequestFactory f = new SimpleClientHttpRequestFactory();
             f.setConnectTimeout(5000);
             f.setReadTimeout(10000);
             RestClient http = RestClient.builder().requestFactory(f).build();
+            Object payload = switch (c.type()) {
+                case "EMAIL" -> Map.of("to", c.recipient(), "subject", "【GRC 告警】", "content", a.message());
+                case "SMS" -> Map.of("to", c.recipient(), "content", "【GRC 告警】" + a.message());
+                default -> Map.of("msgtype", "text", "text", Map.of("content", "【GRC 告警】" + a.message()));
+            };
             http.post().uri(c.target())
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(Map.of("msgtype", "text", "text", Map.of("content", "【GRC 告警】" + a.message())))
+                    .body(payload)
                     .retrieve()
                     .toBodilessEntity();
-            return new SendResult(a.orgId(), "WECOM", c.target(), a.message(), true, null);
+            return new SendResult(a.orgId(), c.type(), c.target(), a.message(), true, null);
         } catch (Exception e) {
             String err = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
-            return new SendResult(a.orgId(), "WECOM", c.target(), a.message(), false,
+            return new SendResult(a.orgId(), c.type(), c.target(), a.message(), false,
                     err.length() > 480 ? err.substring(0, 480) : err);
         }
     }

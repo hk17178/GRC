@@ -167,7 +167,7 @@
             </tbody>
           </table>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">
-            第一批外推仅支持 企微群机器人（类型=企微，目标=webhook 地址）；规则引擎产出的新告警会自动推送并留痕。邮件/短信通道后续批次接入。
+            支持三通道：企微群机器人（目标=webhook）、邮件网关、短信网关（目标=网关 URL + 收件人）。规则引擎产出的新告警按通道类型自动外推并留痕；实际投递委托已配置的网关，目标主机受白名单 + 私网复核（防 SSRF）。
           </div>
         </div>
       </div>
@@ -291,7 +291,9 @@
           </template>
           <template v-else>
             <label class="fld">类型<select v-model="f.type"><option value="EMAIL">邮件</option><option value="SMS">短信</option><option value="WECOM">企微</option></select></label>
-            <label class="fld">目标/机器人<input v-model="f.target" placeholder="邮箱 / 短信网关 / 企微机器人 webhook" /></label>
+            <label class="fld">网关/机器人地址<input v-model="f.target" placeholder="企微 webhook / 邮件网关 / 短信网关 URL" /></label>
+            <!-- #61 多通道：邮件/短信需收件人；企微群机器人可空 -->
+            <label v-if="f.type === 'EMAIL' || f.type === 'SMS'" class="fld">收件人<input v-model="f.recipient" :placeholder="f.type === 'EMAIL' ? '收件邮箱' : '收件手机号'" /></label>
           </template>
 
           <label class="fld">所属组织<select v-model.number="f.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
@@ -476,7 +478,7 @@ async function del(c) {
 const showAdd = ref(false)
 const addSaving = ref(false)
 const addErr = ref('')
-const f = reactive({ name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: 'WECOM', type: 'EMAIL', target: '', source: 'REMEDIATION_OVERDUE', days: 3, template: SRC.REMEDIATION_OVERDUE.tpl })
+const f = reactive({ name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: 'WECOM', type: 'EMAIL', target: '', recipient: '', source: 'REMEDIATION_OVERDUE', days: 3, template: SRC.REMEDIATION_OVERDUE.tpl })
 function openAdd() {
   Object.assign(f, { name: '', orgId: 12, trigger: '', receiver: '', contentPoints: '', channel: tab.value === 'rule' ? 'INBOX' : 'WECOM', type: 'EMAIL', target: '', source: 'REMEDIATION_OVERDUE', days: 3, template: SRC.REMEDIATION_OVERDUE.tpl })
   addErr.value = ''; showAdd.value = true
@@ -486,7 +488,7 @@ watch(() => f.source, (s) => { if (SRC[s]) f.template = SRC[s].tpl })
 function buildDetail() {
   if (tab.value === 'scenario') return JSON.stringify({ trigger: f.trigger, receiver: f.receiver, contentPoints: f.contentPoints, channel: f.channel })
   if (tab.value === 'rule') return JSON.stringify({ source: f.source, days: f.days || 0, channel: f.channel, template: f.template })
-  return JSON.stringify({ type: f.type, target: f.target })
+  return JSON.stringify({ type: f.type, target: f.target, recipient: f.recipient || '' })   // #61 邮件/短信含收件人
 }
 
 // ===== 六轮 #7：手动触发一轮规则评估（平时由内核每 15 分钟自动跑）=====
