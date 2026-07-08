@@ -1,5 +1,6 @@
 package com.mandao.grc;
 
+import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.common.isolation.IsolationContext;
 import com.mandao.grc.modules.asset.Asset;
 import com.mandao.grc.modules.asset.AssetClassification;
@@ -100,6 +101,9 @@ class OrgAssetTest {
     private com.mandao.grc.modules.notify.NotificationSceneService notificationSceneService;
 
     @Autowired
+    private com.mandao.grc.modules.classification.DataClassificationService dataClassificationService;
+
+    @Autowired
     private RopaService ropaService;
 
     @Autowired
@@ -116,13 +120,14 @@ class OrgAssetTest {
     @BeforeEach
     void clean() throws Exception {
         // 注：notif_scene_def 为 V75 平台预置全局场景库，不清；只清运行态装配与升级链
-        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, process_binding, notification_scene, notification_escalation, operation_log RESTART IDENTITY CASCADE");
+        execAsOwner("TRUNCATE asset, ropa, custom_field_def, custom_view_def, custom_report_def, kpi_def, dashboard_def, process_binding, notification_scene, notification_escalation, sensitive_access_log, operation_log RESTART IDENTITY CASCADE");
         execAsOwner("DELETE FROM org WHERE id > 13");
     }
 
     @AfterEach
     void clearContext() {
         IsolationContext.clear();
+        CurrentUserContext.clear();
     }
 
     // ---------- 组织树 ----------
@@ -363,6 +368,97 @@ class OrgAssetTest {
         assertEquals(1, asOrg(ORG_PAY, () -> customViewService.list("ASSET")).size());
         assertTrue(asOrg(ORG_CF, () -> customViewService.list("ASSET")).isEmpty(),
                 "org13 不应看到 org12 的视图定义");
+    }
+
+    // ---------- B30 数据分级引擎（三级访问控制 + 敏感访问留痕，隔离红线） ----------
+
+    /** 在 ORG_CF(13) 造一个敏感字段(id_no,含PII)、一个敏感字段(secret,非PII)、一个普通字段(env)，并登记一条带值资产。 */
+    private void seedSensitiveAsset() {
+        asOrg(ORG_CF, () -> customFieldService.create(ORG_CF, "ASSET", "id_no", "身份证号",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, true, false, 0, "admin"));
+        asOrg(ORG_CF, () -> customFieldService.create(ORG_CF, "ASSET", "secret", "密钥",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, true, false, 1, "admin"));
+        asOrg(ORG_CF, () -> customFieldService.create(ORG_CF, "ASSET", "env", "环境",
+                com.mandao.grc.modules.custom.CustomFieldDef.DataType.TEXT, null, false, false, false, 2, "admin"));
+        var ext = new java.util.HashMap<String, Object>();
+        ext.put("id_no", "110101199001011234");
+        ext.put("secret", "TOPSECRET");
+        ext.put("env", "生产");
+        asOrg(ORG_CF, () -> assetService.register(ORG_CF, "含敏资产", "SYSTEM", "o",
+                AssetClassification.INTERNAL, false, false, false, false, "MID", null, null, null, null, ext, "admin"));
+    }
+
+    private static final String VIEW_DEF =
+            "{\"columns\":[\"name\",\"ext.id_no\",\"ext.secret\",\"ext.env\"]}";
+
+    @Test
+    void b30_密级解析_超管敏感_普通用户内部() {
+        assertEquals(com.mandao.grc.modules.classification.DataLevel.SENSITIVE,
+                asOrg(ORG_GROUP, () -> dataClassificationService.clearanceOf("group_admin")),
+                "平台超管应具 SENSITIVE 密级（持有全部资源含 org.viewSensitive）");
+        assertEquals(com.mandao.grc.modules.classification.DataLevel.INTERNAL,
+                asOrg(ORG_CF, () -> dataClassificationService.clearanceOf("cf_user")),
+                "普通角色未授 org.viewSensitive → 默认 INTERNAL 密级");
+    }
+
+    @Test
+    void b30_无密级用户_敏感字段脱敏_普通字段原样_留痕MASKED() {
+        seedSensitiveAsset();
+        // cf_user（INTERNAL 密级）执行视图 → 敏感列脱敏、普通列原样
+        var rows = asUser(ORG_CF, "cf_user", () -> customViewService.preview("ASSET", VIEW_DEF));
+        assertEquals(1, rows.size());
+        var row = rows.get(0);
+        assertEquals("110101********1234", row.get("ext.id_no"), "含PII敏感字段应保留头尾脱敏");
+        assertEquals("******", row.get("ext.secret"), "非PII敏感字段应整体抹除");
+        assertEquals("生产", row.get("ext.env"), "普通字段不脱敏");
+
+        // 留痕：org13 域内 1 条 MASKED
+        var logs = asOrg(ORG_CF, () -> dataClassificationService.recentLog(50));
+        assertEquals(1, logs.size(), "应有 1 条敏感访问留痕");
+        assertEquals("MASKED", logs.get(0).get("action"));
+        assertEquals("INTERNAL", logs.get(0).get("clearance"));
+        assertEquals("cf_user", logs.get(0).get("username"));
+        assertTrue(((String) logs.get(0).get("fieldKeys")).contains("ext.id_no"), "留痕应记命中的敏感字段");
+    }
+
+    @Test
+    void b30_有密级用户_敏感字段明文_留痕GRANTED() {
+        seedSensitiveAsset();
+        // group_admin（SENSITIVE 密级）执行视图 → 敏感列明文
+        var rows = asUser(ORG_GROUP, "group_admin", () -> customViewService.preview("ASSET", VIEW_DEF));
+        assertEquals(1, rows.size());
+        var row = rows.get(0);
+        assertEquals("110101199001011234", row.get("ext.id_no"), "有密级应见明文");
+        assertEquals("TOPSECRET", row.get("ext.secret"), "有密级应见明文");
+
+        // 留痕：group 可见域内含 1 条 GRANTED（锚定操作者主可见组织 org1）
+        var logs = asOrg(ORG_GROUP, () -> dataClassificationService.recentLog(50));
+        assertEquals(1, logs.size());
+        assertEquals("GRANTED", logs.get(0).get("action"));
+        assertEquals("SENSITIVE", logs.get(0).get("clearance"));
+    }
+
+    @Test
+    void b30_无敏感列命中_不脱敏不留痕() {
+        seedSensitiveAsset();
+        // 视图只选普通列 → 不触发门控、不留痕
+        var rows = asUser(ORG_CF, "cf_user", () ->
+                customViewService.preview("ASSET", "{\"columns\":[\"name\",\"ext.env\"]}"));
+        assertEquals(1, rows.size());
+        assertEquals("生产", rows.get(0).get("ext.env"));
+        assertTrue(asOrg(ORG_CF, () -> dataClassificationService.recentLog(50)).isEmpty(),
+                "未命中敏感列不应产生留痕");
+    }
+
+    @Test
+    void b30_敏感访问留痕组织隔离() {
+        seedSensitiveAsset();
+        asUser(ORG_CF, "cf_user", () -> customViewService.preview("ASSET", VIEW_DEF));   // org13 产 1 条
+
+        // org13 自身可见；org12 视角（RLS）看不到 org13 的敏感访问留痕
+        assertEquals(1, asOrg(ORG_CF, () -> dataClassificationService.recentLog(50)).size());
+        assertTrue(asOrg(ORG_PAY, () -> dataClassificationService.recentLog(50)).isEmpty(),
+                "org12 不应看到 org13 的敏感访问留痕（TC-SEC 隔离）");
     }
 
     // ---------- B12 Phase3：自定义报表（§六，分组聚合 + 导出留痕） ----------
@@ -829,6 +925,18 @@ class OrgAssetTest {
         try {
             return action.get();
         } finally {
+            IsolationContext.clear();
+        }
+    }
+
+    /** 同 asOrg，但另设当前登录者（B30 密级门控读 CurrentUserContext 判定数据密级）。 */
+    private <T> T asUser(long orgId, String username, Supplier<T> action) {
+        IsolationContext.set(visibleFor(orgId));
+        CurrentUserContext.set(username);
+        try {
+            return action.get();
+        } finally {
+            CurrentUserContext.clear();
             IsolationContext.clear();
         }
     }

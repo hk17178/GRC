@@ -60,6 +60,8 @@ public final class ResourceCatalog {
             new Def("vendor.activate", "启用供应商", "ACTION", "vendor", 3),
             new Def("obligation.create", "登记义务", "ACTION", "obligation", 1),
             new Def("obligation.fulfill", "标记落实", "ACTION", "obligation", 2),
+            new Def("org.viewSensitive", "查看敏感数据明文", "ACTION", "org", 1), // B30 数据分级：数据密级凭据（持有=SENSITIVE 密级）
+
             new Def("approvalflow.save", "保存审批流", "ACTION", "approvalflow", 1),
             new Def("approvalflow.publish", "发布审批流", "ACTION", "approvalflow", 2));
 

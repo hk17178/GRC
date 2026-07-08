@@ -148,16 +148,17 @@
           <h3>自定义字段配置 · 资产</h3>
           <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">不改代码即可为资产登记扩展字段；字段值随资产按组织隔离存储，受类型/必填校验。</p>
           <table style="width:100%;font-size:12px;margin-bottom:12px">
-            <thead><tr><th style="text-align:left">键</th><th style="text-align:left">标签</th><th>类型</th><th>必填</th><th>状态</th><th></th></tr></thead>
+            <thead><tr><th style="text-align:left">键</th><th style="text-align:left">标签</th><th>类型</th><th>必填</th><th>敏感</th><th>状态</th><th></th></tr></thead>
             <tbody>
               <tr v-for="d in cfDefs" :key="d.id">
                 <td><code>{{ d.fieldKey }}</code></td><td>{{ d.label }}</td>
                 <td style="text-align:center">{{ CF_TYPE[d.dataType] || d.dataType }}</td>
                 <td style="text-align:center">{{ d.required ? '是' : '—' }}</td>
+                <td style="text-align:center"><span v-if="d.sensitive" class="tag red" title="无数据密级者读取将被脱敏">敏感</span><span v-else>—</span></td>
                 <td style="text-align:center"><span :class="d.status==='ACTIVE'?'pill blue':'pill'">{{ d.status==='ACTIVE'?'启用':'停用' }}</span></td>
                 <td style="text-align:right"><button v-if="d.status==='ACTIVE'" class="mini danger" @click="retireCf(d)">停用</button></td>
               </tr>
-              <tr v-if="!cfDefs.length"><td colspan="6" style="text-align:center;color:var(--text-3);padding:10px">暂无自定义字段</td></tr>
+              <tr v-if="!cfDefs.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:10px">暂无自定义字段</td></tr>
             </tbody>
           </table>
           <div class="cf-add">
@@ -166,8 +167,10 @@
             <select v-model="cf.dataType"><option value="TEXT">文本</option><option value="NUMBER">数值</option><option value="DATE">日期</option><option value="BOOL">布尔</option><option value="SELECT">下拉</option></select>
             <input v-if="cf.dataType==='SELECT'" v-model="cf.options" placeholder="选项;分号隔" style="width:120px" />
             <label class="chk" style="font-size:12px"><input type="checkbox" v-model="cf.required" /> 必填</label>
+            <label class="chk" style="font-size:12px" title="标记敏感：无数据密级者经视图读取时该字段将被脱敏"><input type="checkbox" v-model="cf.sensitive" /> 敏感</label>
             <button class="btn sm" :disabled="!cf.fieldKey || !cf.label" @click="addCf">＋ 新增</button>
           </div>
+          <p style="font-size:11px;color:var(--text-3);margin:6px 0 0">B30 数据分级：勾选「敏感」的字段，仅具 <b>SENSITIVE 数据密级</b> 的用户可见明文，其余经视图读取时自动脱敏，且每次访问入敏感访问留痕。</p>
           <p v-if="cfErr" class="cerr">{{ cfErr }}</p>
           <div class="modal-actions"><button class="btn ghost" @click="showCfConfig = false">关闭</button></div>
         </div>
@@ -177,7 +180,16 @@
       <div v-if="showViewMgr" class="modal-mask" @click.self="showViewMgr = false">
         <div class="modal-card" style="width:760px">
           <h3>自定义列表视图 · 资产</h3>
-          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 12px">声明式选择「显示列 / 筛选 / 排序」，系统仅允许白名单字段并强制组织隔离（RLS 兜底）——任何视图都无法越权看到其他子公司的数据。</p>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">声明式选择「显示列 / 筛选 / 排序」，系统仅允许白名单字段并强制组织隔离（RLS 兜底）——任何视图都无法越权看到其他子公司的数据。</p>
+
+          <!-- B30 数据分级：当前用户密级 + 敏感访问留痕入口 -->
+          <div class="clr-bar">
+            <span>我的数据密级：
+              <span v-if="myClearance==='SENSITIVE'" class="tag green">SENSITIVE（可见敏感明文）</span>
+              <span v-else class="tag">INTERNAL（敏感字段将脱敏）</span>
+            </span>
+            <button class="mini" style="margin-left:auto" @click="openAccessLog" title="谁在何时读取了敏感字段">🔎 敏感访问留痕</button>
+          </div>
 
           <!-- 已保存视图 -->
           <div class="cf-divider" style="margin-top:0">已保存视图</div>
@@ -246,6 +258,32 @@
             </table>
           </div>
           <div class="modal-actions"><button class="btn ghost" @click="showViewResult = false">关闭</button></div>
+        </div>
+      </div>
+
+      <!-- B30 敏感访问留痕弹窗 -->
+      <div v-if="showAccessLog" class="modal-mask" @click.self="showAccessLog = false">
+        <div class="modal-card" style="width:720px">
+          <h3>敏感数据访问留痕</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">记录经自定义视图读取敏感字段的行为（谁 / 何时 / 读了哪些字段 / 明文放行还是脱敏）。仅回当前可见组织，最多 50 条。</p>
+          <div style="overflow-x:auto;max-height:52vh">
+            <table style="width:100%;font-size:12px">
+              <thead><tr><th style="text-align:left">时间</th><th style="text-align:left">访问者</th><th>对象</th><th style="text-align:left">敏感字段</th><th>行数</th><th>密级</th><th>结果</th></tr></thead>
+              <tbody>
+                <tr v-for="l in accessLogs" :key="l.id">
+                  <td>{{ fmtTs(l.accessedAtMs) }}</td>
+                  <td>{{ l.username }}</td>
+                  <td style="text-align:center">{{ l.objectType }}</td>
+                  <td><code style="font-size:11px">{{ l.fieldKeys }}</code></td>
+                  <td style="text-align:center">{{ l.rowCount }}</td>
+                  <td style="text-align:center">{{ l.clearance }}</td>
+                  <td style="text-align:center"><span :class="l.action==='GRANTED'?'tag green':'tag red'">{{ l.action==='GRANTED'?'明文':'脱敏' }}</span></td>
+                </tr>
+                <tr v-if="!accessLogs.length"><td colspan="7" style="text-align:center;color:var(--text-3);padding:14px">暂无敏感访问记录。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="modal-actions"><button class="btn ghost" @click="showAccessLog = false">关闭</button></div>
         </div>
       </div>
 
@@ -785,7 +823,7 @@ async function loadCustomFields() {
 }
 const showCfConfig = ref(false)
 const cfErr = ref('')
-const cf = reactive({ fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false })
+const cf = reactive({ fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false, sensitive: false })
 async function openCfConfig() {
   cfErr.value = ''
   try { cfDefs.value = await api.get('/custom-fields?objectType=ASSET') } catch (e) { cfDefs.value = [] }
@@ -794,8 +832,8 @@ async function openCfConfig() {
 async function addCf() {
   cfErr.value = ''
   try {
-    await api.post('/custom-fields', { orgId: af.orgId, objectType: 'ASSET', fieldKey: cf.fieldKey, label: cf.label, dataType: cf.dataType, options: cf.options || null, required: cf.required, sensitive: false, aggregatable: false, seq: cfDefs.value.length })
-    Object.assign(cf, { fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false })
+    await api.post('/custom-fields', { orgId: af.orgId, objectType: 'ASSET', fieldKey: cf.fieldKey, label: cf.label, dataType: cf.dataType, options: cf.options || null, required: cf.required, sensitive: cf.sensitive, aggregatable: false, seq: cfDefs.value.length })
+    Object.assign(cf, { fieldKey: '', label: '', dataType: 'TEXT', options: '', required: false, sensitive: false })
     await openCfConfig(); await loadCustomFields()
   } catch (e) { cfErr.value = e.message }
 }
@@ -829,9 +867,24 @@ async function openViewMgr() {
   viewErr.value = ''
   Object.assign(vb, { name: '', columns: ['name', 'classification', 'status'], filters: [], sortField: '', sortDir: 'asc' })
   await loadCustomFields()
+  await loadClearance()
   try { viewDefs.value = await api.get('/custom-views?objectType=ASSET') } catch (e) { viewDefs.value = [] }
   showViewMgr.value = true
 }
+
+// ===== B30 数据分级引擎：当前用户数据密级 + 敏感访问留痕 =====
+const myClearance = ref('')          // SENSITIVE / INTERNAL
+const showAccessLog = ref(false)
+const accessLogs = ref([])
+async function loadClearance() {
+  try { myClearance.value = (await api.get('/data-classification/my-clearance')).clearance } catch (e) { myClearance.value = '' }
+}
+async function openAccessLog() {
+  try { accessLogs.value = await api.get('/data-classification/access-log?limit=50') }
+  catch (e) { accessLogs.value = []; window.alert(e.message) }
+  showAccessLog.value = true
+}
+function fmtTs(ms) { return ms ? new Date(ms).toLocaleString('zh-CN', { hour12: false }) : '—' }
 /** 把构建器状态编译为后端声明式 definition JSON。 */
 function buildDefinition() {
   const def = { columns: vb.columns.slice() }
@@ -1482,6 +1535,34 @@ tbody tr:hover {
 }
 .tag.l::before {
   background: var(--safe);
+}
+/* B30 数据分级：绿=有密级/明文放行，红=敏感/脱敏 */
+.tag.green {
+  background: var(--safe-weak);
+  color: var(--safe);
+}
+.tag.green::before {
+  background: var(--safe);
+}
+.tag.red {
+  background: var(--danger-tint);
+  color: var(--danger);
+}
+.tag.red::before {
+  background: var(--danger);
+}
+/* B30 数据密级条 */
+.clr-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--surface-2, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 7px 10px;
+  margin-bottom: 12px;
 }
 
 /* ---- 状态标签 st（AD 同步态势「正常」）---- */

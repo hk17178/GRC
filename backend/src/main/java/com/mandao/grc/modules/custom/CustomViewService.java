@@ -2,7 +2,9 @@ package com.mandao.grc.modules.custom;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mandao.grc.common.auth.CurrentUserContext;
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.classification.DataClassificationService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -38,12 +40,15 @@ public class CustomViewService {
     private final CustomViewDefRepository repository;
     private final ObjectColumnCatalog catalog;
     private final HashChainService hashChainService;
+    private final DataClassificationService classificationService;
 
     public CustomViewService(CustomViewDefRepository repository, ObjectColumnCatalog catalog,
-                             HashChainService hashChainService) {
+                             HashChainService hashChainService,
+                             DataClassificationService classificationService) {
         this.repository = repository;
         this.catalog = catalog;
         this.hashChainService = hashChainService;
+        this.classificationService = classificationService;
     }
 
     @Transactional(readOnly = true)
@@ -71,15 +76,18 @@ public class CustomViewService {
         return saved;
     }
 
-    /** 执行视图（按 id）：编译为参数化查询并返回行（RLS 裁剪，行数封顶）。 */
-    @Transactional(readOnly = true)
+    /**
+     * 执行视图（按 id）：编译为参数化查询并返回行（RLS 裁剪，行数封顶）。
+     * 非只读事务——B30 分级引擎对命中的敏感字段脱敏并写敏感访问留痕（sensitive_access_log）。
+     */
+    @Transactional
     public List<Map<String, Object>> execute(Long id) {
         CustomViewDef v = get(id);
         return runQuery(v.getObjectType(), v.getDefinition());
     }
 
-    /** 执行临时定义（预览用，不落库）。 */
-    @Transactional(readOnly = true)
+    /** 执行临时定义（预览用，视图本身不落库；但敏感字段访问仍经 B30 门控并留痕）。 */
+    @Transactional
     public List<Map<String, Object>> preview(String objectType, String definition) {
         return runQuery(objectType, definition);
     }
@@ -109,7 +117,8 @@ public class CustomViewService {
             }
             out.add(row);
         }
-        return out;
+        // B30 数据分级引擎：对命中的敏感自定义字段按调用方密级脱敏并留痕（视图/预览同一choke point）
+        return classificationService.screen(objectType, c.columnKeys, out, CurrentUserContext.get());
     }
 
     private record Compiled(Query query, List<String> columnKeys) {
