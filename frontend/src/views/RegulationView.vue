@@ -14,6 +14,13 @@
         <button class="btn" :disabled="!canWrite('law')" :title="canWrite('law') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('reg.create.btn') }}</button>
       </div>
 
+      <!-- 页面说明：厘清 法规库 与 制度/合规清单 的关系及变更影响闭环 -->
+      <div class="reg-intro" style="order:0">
+        <b>法规库</b> = 你要跟踪的<b>外部法规/监管要求</b>（区别于「制度体系」是你内部制度、「合规清单」是你的合规义务）。
+        用法闭环：选中一条法规 → 在下方<b>「命中制度映射」</b>把它关联到你的内部制度（可用 ⚡AI 匹配建议）→ 做<b>符合度评估</b>；
+        当该法规发生<b>变更</b>（变更动态 / 追踪源采集到新版）时，被关联的制度会自动标记<b>「需重评」</b>——这就是"法规变化自动提示影响到哪些制度"。
+      </div>
+
       <!-- ===== 法规跟踪爬虫：追踪源采集 + 采集流（放在法规库/变更动态之下，order:2）===== -->
       <div class="g g-1-1" style="order:2">
         <!-- 追踪源 -->
@@ -646,4 +653,6 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .mini:hover { background: var(--accent-tint, var(--accent-weak)); }
 .mini.danger { color: var(--danger); border-color: var(--danger-tint); }
 .src-ops { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.reg-intro { font-size: 12px; line-height: 1.75; color: var(--text-2); background: var(--accent-tint, rgba(176,58,46,0.05)); border: 1px solid var(--accent-weak, var(--surface-border)); border-radius: 10px; padding: 11px 14px; margin-bottom: 14px; }
+.reg-intro b { color: var(--accent-strong); }
 </style>

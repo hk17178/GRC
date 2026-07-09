@@ -110,7 +110,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
@@ -283,6 +283,40 @@ function onNav(key) {
 // AI 深度包 A22：悬浮按钮唤起全局 AI 合规助手侧滑面板（此前仅 console 占位——即"点不开对话框"的 bug）
 const aiPanelOpen = ref(false)
 function onAiFab() { aiPanelOpen.value = true }
+
+// #3 无操作自动登出（会话安全 · V82 security.session.idle-minutes，缺省 30 分钟）
+let idleTimer = null
+let idleMinutes = 30
+let lastActivity = 0
+const IDLE_EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'click']
+function resetIdle() {
+  if (idleTimer) clearTimeout(idleTimer)
+  idleTimer = setTimeout(onIdle, idleMinutes * 60 * 1000)
+}
+async function onIdle() {
+  try { await api.post('/auth/logout', {}) } catch (e) { /* 忽略 */ }
+  clearUser()
+  router.push({ name: 'login', query: { idle: 1 } })
+}
+function onActivity() {
+  const now = Date.now()
+  if (now - lastActivity < 5000) return   // 5s 节流，避免每次 mousemove 都重置定时器
+  lastActivity = now
+  resetIdle()
+}
+onMounted(async () => {
+  try {
+    const list = await api.get('/settings')
+    const s = Array.isArray(list) ? list.find((x) => x.settingKey === 'security.session.idle-minutes') : null
+    if (s && Number(s.settingValue) > 0) idleMinutes = Number(s.settingValue)
+  } catch (e) { /* 无 settings 读权限则用缺省 30 分钟 */ }
+  IDLE_EVENTS.forEach((ev) => window.addEventListener(ev, onActivity, { passive: true }))
+  resetIdle()
+})
+onUnmounted(() => {
+  if (idleTimer) clearTimeout(idleTimer)
+  IDLE_EVENTS.forEach((ev) => window.removeEventListener(ev, onActivity))
+})
 </script>
 
 <style scoped>

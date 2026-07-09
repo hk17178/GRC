@@ -27,6 +27,10 @@
           <h3>{{ $t('policy.list') }}</h3><span class="cnt">{{ filtered.length }}</span>
           <!-- 工具栏：搜索 + 体系筛选（需求 D1-7§5.3）-->
           <input v-model="q" class="tool-input" placeholder="搜索标题/编号…" />
+          <select v-model.number="orgFilter" class="tool-sel" title="按公司主体筛选">
+            <option :value="0">全部主体</option>
+            <option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option>
+          </select>
           <select v-model="fwFilter" class="tool-sel">
             <option value="">全部体系</option>
             <option v-for="(l, k) in FW_LABEL" :key="k" :value="k">{{ l }}</option>
@@ -35,7 +39,7 @@
         <div class="cb" style="overflow-x: auto; padding-top: 0">
           <table style="min-width: 860px">
             <thead><tr>
-              <th>{{ $t('policy.th.code') }}</th><th>{{ $t('policy.th.title') }}</th>
+              <th>{{ $t('policy.th.code') }}</th><th>{{ $t('policy.th.title') }}</th><th>公司主体</th>
               <th>体系</th><th>{{ $t('policy.th.version') }}</th><th>生效日期</th><th>责任部门</th>
               <th>{{ $t('policy.th.status') }}</th><th>{{ $t('policy.th.op') }}</th>
             </tr></thead>
@@ -43,6 +47,7 @@
               <tr v-for="p in filtered" :key="p.id" class="clk" @click="openDetail(p)">
                 <td class="code">{{ p.code }}</td>
                 <td><b>{{ p.title }}</b></td>
+                <td><span class="pill">{{ orgName(p.orgId) }}</span></td>
                 <td><span v-if="p.framework" class="pill">{{ FW_LABEL[p.framework] || p.framework }}</span><span v-else class="muted">—</span></td>
                 <td class="num">v{{ p.version }}</td>
                 <td class="num">{{ p.effectiveDate || '—' }}</td>
@@ -62,7 +67,7 @@
                   <span v-else class="muted">{{ $t('policy.deprecated') }}</span>
                 </td>
               </tr>
-              <tr v-if="!filtered.length"><td colspan="8" class="emptyrow">{{ loadError || $t('policy.empty') }}</td></tr>
+              <tr v-if="!filtered.length"><td colspan="9" class="emptyrow">{{ loadError || $t('policy.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -238,7 +243,10 @@ const kpi = computed(() => ({
 }))
 const q = ref('')
 const fwFilter = ref('')
+const orgFilter = ref(0)   // #2 按公司主体筛选（0=全部）
+const orgName = (id) => { const o = orgOptions.value.find((x) => x.id === id); return o ? o.name : ('#' + id) }
 const filtered = computed(() => policies.value.filter((p) =>
+  (!orgFilter.value || p.orgId === orgFilter.value) &&
   (!fwFilter.value || p.framework === fwFilter.value) &&
   (!q.value.trim() || (p.title + p.code).toLowerCase().includes(q.value.trim().toLowerCase()))
 ))

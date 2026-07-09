@@ -257,7 +257,7 @@
 // ——登录页逻辑：认证方式切换、密码显隐、验证码刷新、后台可配置文案/品牌——
 import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 import { api } from '@/api/client.js'
@@ -265,7 +265,10 @@ import { setUser } from '@/auth.js'
 
 const { t, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const loginError = ref('')
+// #3 从"无操作自动登出"跳回时给出提示
+onMounted(() => { if (route.query.idle) loginError.value = '因长时间无操作，已自动退出登录，请重新登录。' })
 const submitting = ref(false)
 
 // 认证面板：默认统一身份(AD)
