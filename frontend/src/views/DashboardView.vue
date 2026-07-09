@@ -141,6 +141,30 @@
           </div>
         </div>
 
+        <!-- B37 跨子公司 benchmark（仅集团/母公司多组织视角显示，静态整行） -->
+        <div v-if="showBenchmark" class="card gi" style="grid-column:1/-1">
+          <div class="ch">
+            <h3>跨子公司 Benchmark</h3>
+            <span class="sub">合规负荷横向对比 · 集团均值 {{ benchmark.avgLoad }} · 通知回执率</span>
+          </div>
+          <div class="cb">
+            <table class="bm">
+              <thead><tr><th>排名</th><th style="text-align:left">子公司</th><th>合规负荷</th><th>对均值</th><th>回执率</th><th>回执台账</th></tr></thead>
+              <tbody>
+                <tr v-for="r in benchmark.rows" :key="r.orgId">
+                  <td><b>#{{ r.rank }}</b></td>
+                  <td style="text-align:left">{{ r.orgName }}</td>
+                  <td>{{ r.load }}</td>
+                  <td :class="r.deltaVsAvg > 0 ? 'bm-hi' : (r.deltaVsAvg < 0 ? 'bm-lo' : '')">{{ r.deltaVsAvg > 0 ? '+' + r.deltaVsAvg : r.deltaVsAvg }}</td>
+                  <td :class="r.ackRatePct >= 85 ? 'bm-lo' : (r.ackRatePct >= 60 ? '' : 'bm-hi')">{{ r.ackRatePct }}%</td>
+                  <td style="color:var(--text-3)">{{ r.ackDone }}/{{ r.ackTotal }}</td>
+                </tr>
+              </tbody>
+            </table>
+            <p style="font-size:11px;color:var(--text-3);margin:8px 0 0">合规负荷 = 六域未闭环计数之和（负荷重者排名靠前）。回执口径：回执 = 收件人在通知中心点「确认收到」（提醒台账 read_by 落人），企微/邮件/短信外推不计入回执；回执率低 = 提醒到人未被确认。</p>
+          </div>
+        </div>
+
         <!-- 整改完成率 · 分子公司（span 3） -->
         <div v-if="inLayout('remed')" class="card gi" :style="{ '--w': widthOf('remed') }">
           <div v-if="editMode" class="wedit">
@@ -550,6 +574,7 @@ const summary = ref(null)
 const loadError = ref('')
 onMounted(async () => {
   loadOrgSummary()
+  loadBenchmark()
   loadExtras()
   try {
     summary.value = await api.get('/dashboard/summary')
@@ -601,6 +626,12 @@ const orgSummary = ref([])
 async function loadOrgSummary() {
   try { orgSummary.value = await api.get('/dashboard/org-summary') } catch (e) { orgSummary.value = [] }
 }
+// B37 跨子公司 benchmark：仅当可见组织 >1（集团/母公司视角）才有横向对比意义
+const benchmark = ref(null)
+async function loadBenchmark() {
+  try { benchmark.value = await api.get('/dashboard/benchmark') } catch (e) { benchmark.value = null }
+}
+const showBenchmark = computed(() => !!benchmark.value && benchmark.value.rows && benchmark.value.rows.length > 1)
 function heatColor(v) {
   if (v <= 0) return '#7fa76a'
   if (v <= 2) return '#dfb84d'
@@ -1189,4 +1220,10 @@ loadLiveWidgets()
 .kd-row { display: flex; gap: 10px; font-size: 12.5px; color: var(--text-2); padding: 7px 0; border-top: 1px solid var(--border-subtle); line-height: 1.6; }
 .kd-k { flex-shrink: 0; width: 60px; color: var(--text-3); font-weight: 700; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 14px; }
+/* B37 benchmark 表 */
+.bm { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.bm th { font-size: 11px; color: var(--text-3); font-weight: 700; padding: 6px 8px; text-align: center; }
+.bm td { padding: 7px 8px; text-align: center; border-top: 1px solid var(--border-subtle); }
+.bm-hi { color: var(--danger); font-weight: 700; }
+.bm-lo { color: var(--success); font-weight: 700; }
 </style>

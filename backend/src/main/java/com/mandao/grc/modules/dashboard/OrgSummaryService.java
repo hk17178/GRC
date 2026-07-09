@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,6 +76,75 @@ public class OrgSummaryService {
                     v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8], pct));
         }
         return out;
+    }
+
+    // ===== B37 跨子公司 benchmark + 回执口径成文 =====
+
+    /** benchmark 一行：合规负荷指数 + 排名 + 对集团均值偏差 + 通知回执台账（总/已回执/回执率%）。 */
+    public record BenchmarkRow(Long orgId, String orgName, long load, int rank, long deltaVsAvg,
+                               long ackTotal, long ackDone, int ackRatePct) {
+    }
+
+    /** benchmark 结果：可见组织按合规负荷降序（负荷重者靠前）+ 集团均值。 */
+    public record Benchmark(List<BenchmarkRow> rows, long avgLoad) {
+    }
+
+    /**
+     * 跨子公司 benchmark（B37）：以 {@link #orgSummary()} 六域未闭环计数之和为「合规负荷指数」，
+     * 横向对比当前可见组织——排名（负荷重者靠前）、对集团均值偏差、以及通知回执率。
+     *
+     * <b>回执口径（成文）</b>：回执 = 收件人在通知中心对某条提醒点「确认收到」（写入
+     * reminder_dispatch_log.read_by）。台账 reminder_dispatch_log 是权威记录；企微/邮件/短信外推
+     * 只是「多喊一嗓子」，<b>不计入回执</b>。回执率 = 已回执提醒 / 总提醒（全量台账）。
+     * 回执率低 = 提醒已到人却未被确认，需管理层关注（区别于"根本没提醒到"）。
+     *
+     * 隔离：orgSummary 已受 RLS 裁剪至可见组织；回执台账是<b>无 RLS 的内核表</b>，此处用
+     * visible_orgs 会话值<b>显式过滤</b>（与 orgSummary 的组织名单同源）——子公司只见自身
+     * （benchmark 退化为一行），集团/母公司见其可见子树，绝不跨子树。
+     */
+    @Transactional(readOnly = true)
+    public Benchmark benchmark() {
+        List<OrgRow> summary = orgSummary();
+
+        // 回执台账（无 RLS）：按会话 visible_orgs 显式过滤，聚合 总数 / 已回执数（read_by 落人）
+        Map<Long, long[]> ack = new HashMap<>();   // orgId -> [total, acked]
+        @SuppressWarnings("unchecked")
+        List<Object[]> ackRows = em.createNativeQuery(
+                        "SELECT org_id, count(*), count(*) FILTER (WHERE read_by IS NOT NULL) "
+                                + "FROM reminder_dispatch_log "
+                                + "WHERE CAST(org_id AS text) = ANY(string_to_array(current_setting('app.visible_orgs', true), ',')) "
+                                + "GROUP BY org_id")
+                .getResultList();
+        for (Object[] r : ackRows) {
+            ack.put(((Number) r[0]).longValue(),
+                    new long[]{((Number) r[1]).longValue(), ((Number) r[2]).longValue()});
+        }
+
+        // 负荷 = 六域未闭环计数之和（等权，口径与热力矩阵一致）
+        List<long[]> loads = new ArrayList<>();   // [orgId, load]
+        Map<Long, String> nameById = new HashMap<>();
+        long sum = 0;
+        for (OrgRow o : summary) {
+            long load = o.risk() + o.data() + o.vendor() + o.reg() + o.audit() + o.remed();
+            loads.add(new long[]{o.orgId(), load});
+            nameById.put(o.orgId(), o.orgName());
+            sum += load;
+        }
+        long avg = loads.isEmpty() ? 0 : Math.round((double) sum / loads.size());
+
+        // 负荷降序排名
+        loads.sort((a, b) -> Long.compare(b[1], a[1]));
+        List<BenchmarkRow> rows = new ArrayList<>();
+        int rank = 1;
+        for (long[] l : loads) {
+            long orgId = l[0];
+            long load = l[1];
+            long[] a = ack.getOrDefault(orgId, new long[]{0, 0});
+            int pct = a[0] == 0 ? 100 : (int) Math.round(a[1] * 100.0 / a[0]);
+            rows.add(new BenchmarkRow(orgId, nameById.get(orgId), load, rank++, load - avg,
+                    a[0], a[1], pct));
+        }
+        return new Benchmark(rows, avg);
     }
 
     /** 把一条 group by org_id 的计数查询并入累加器的第 idx 列（不可见 org 的行被 RLS 裁掉，天然对齐）。 */

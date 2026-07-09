@@ -33,6 +33,12 @@ public class DashboardController {
         return orgSummaryService.orgSummary();
     }
 
+    /** B37 跨子公司 benchmark：可见组织按合规负荷排名 + 对集团均值偏差 + 通知回执率。 */
+    @GetMapping("/benchmark")
+    public OrgSummaryService.Benchmark benchmark() {
+        return orgSummaryService.benchmark();
+    }
+
     /** 风险等级分布（真值组件）：残余优先、无残余取固有。 */
     @GetMapping("/risk-levels")
     public java.util.Map<String, Long> riskLevels() {
