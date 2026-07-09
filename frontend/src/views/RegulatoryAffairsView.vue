@@ -531,6 +531,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -627,7 +628,7 @@ async function toggleSchedule(s) {
 
 // ===== 七轮 7-6（B4）：三台账生命周期操作（问询答复/处罚整改/重大事件上报确认了结）=====
 async function ledgerAct(base, id, action, label) {
-  if (!window.confirm(`确认执行「${label}」？`)) return
+  if (!await confirm(`确认执行「${label}」？`)) return
   try {
     await api.post('/' + base + '/' + id + '/' + action, {})
     reloadLedgers()

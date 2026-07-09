@@ -132,6 +132,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -175,7 +176,7 @@ async function addLink() {
   } catch (e) { opError.value = e.message } finally { saving.value = false }
 }
 async function removeLink(l) {
-  if (!window.confirm('摘除该举证依据？派生结论会同步回退。')) return
+  if (!await confirm('摘除该举证依据？派生结论会同步回退。')) return
   try { await api.del('/obligations/links/' + l.id); await openLinks(linksTarget.value); await load() }
   catch (e) { opError.value = e.message }
 }

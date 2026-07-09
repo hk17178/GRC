@@ -1176,6 +1176,7 @@ import AppShell from '@/components/AppShell.vue'
 import AssessmentFormFill from '@/components/AssessmentFormFill.vue'
 import AssessmentSignoff from '@/components/AssessmentSignoff.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -1392,7 +1393,7 @@ async function onDocFile(e) {
   } catch (err) { opError.value = err.message }
 }
 async function deleteDoc(d) {
-  if (!window.confirm(`确认删除过程文档「${d.name}」？`)) return
+  if (!await confirm(`确认删除过程文档「${d.name}」？`)) return
   try { await api.del('/assessment-docs/' + d.id); await loadAssessDocs() } catch (e) { opError.value = e.message }
 }
 function exportRtp() { window.open('/api/assessments/' + drillId.value + '/rtp.docx', '_blank') }
@@ -1912,7 +1913,7 @@ const riskLabel = (lv) => 'risk.levelDist.' + (LEVEL_KEY[lv] || 'm')
 const showCancelled = ref(false)
 const visibleTasks = computed(() => liveTasks.value.filter((r) => showCancelled.value || r.status !== 'CANCELLED'))
 async function deleteTask(r) {
-  if (!window.confirm(`确认删除草稿评估「${r.title}」？将级联清理其填写、发现与范围资产。`)) return
+  if (!await confirm(`确认删除草稿评估「${r.title}」？将级联清理其填写、发现与范围资产。`)) return
   try { await api.del('/assessments/' + r.id); liveTasks.value = await api.get('/assessments') }
   catch (e) { loadError.value = e.message }
 }
@@ -1925,7 +1926,7 @@ async function cancelTask(r) {
 
 // ===== 七轮 7-11（B40 P0）：评估生命周期流转（启动/提交复核/通过/驳回）=====
 async function flowAction(r, action, label) {
-  if (!window.confirm(`确认对「${r.title}」执行「${label}」？`)) return
+  if (!await confirm(`确认对「${r.title}」执行「${label}」？`)) return
   try {
     await api.post('/assessments/' + r.id + '/' + action, {})
     liveTasks.value = await api.get('/assessments')
@@ -1945,7 +1946,7 @@ async function rejectTask(r) {
 const reprefillBusy = ref(false)
 const formRefreshKey = ref(0)
 async function doReprefill() {
-  if (!window.confirm('将按当前范围资产与 A-T-V 场景重建 资产清单/威胁脆弱性清单/风险清单 三张系统明细表'
+  if (!await confirm('将按当前范围资产与 A-T-V 场景重建 资产清单/威胁脆弱性清单/风险清单 三张系统明细表'
       + '（覆盖这三张表的现有内容，其余手填字段保留）。继续？')) return
   reprefillBusy.value = true
   try {
@@ -2135,17 +2136,17 @@ async function editAtvRef(base, item) {
   } catch (e) { window.alert(e.message) }
 }
 async function deleteAtvRef(base, item) {
-  if (!window.confirm(`删除「${item.code} ${item.name}」？被风险场景引用的条目会被拒绝。`)) return
+  if (!await confirm(`删除「${item.code} ${item.name}」？被风险场景引用的条目会被拒绝。`)) return
   try { await api.del('/' + base + '/' + item.id); await loadAtv() } catch (e) { window.alert(e.message) }
 }
 async function deleteScenario(s) {
-  if (!window.confirm('删除该风险场景？已派生风险发现的场景会被拒绝（保留溯源）。')) return
+  if (!await confirm('删除该风险场景？已派生风险发现的场景会被拒绝（保留溯源）。')) return
   try { await api.del('/risk-scenarios/' + s.id); await loadAtv() } catch (e) { window.alert(e.message) }
 }
 
 // ===== 六轮 #1 · 模板删除（内置不可删由 v-if 隐藏；被引用后端拒绝并提示走停用）=====
 async function deleteTpl(t) {
-  if (!window.confirm(`确认删除模板「${t.name}」？被评估任务引用的模板将无法删除（请改用停用）。`)) return
+  if (!await confirm(`确认删除模板「${t.name}」？被评估任务引用的模板将无法删除（请改用停用）。`)) return
   try {
     await api.del('/assessment-templates/' + t.id)
     templates.value = await api.get('/assessment-templates')

@@ -38,21 +38,22 @@
           <p v-if="msg" class="msg" :class="msgKind">{{ msg }}</p>
         </div>
 
-        <!-- 中：画布 -->
+        <!-- 中：画布（属性面板作为画布内浮层，点节点/连线即就地展示，像工作流配置那样） -->
         <div class="canvas">
           <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.9 }" fit-view-on-init
                    @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick">
             <Background pattern-color="#d9c2c2" :gap="18" />
             <Controls />
           </VueFlow>
-        </div>
 
-        <!-- 右：属性面板 -->
-        <div class="props">
-          <div class="ph">{{ $t('flow.props') }}</div>
-          <div v-if="!sel" class="phint">{{ $t('flow.selectHint') }}</div>
+          <!-- 未选中：画布内轻提示 -->
+          <div v-if="!sel" class="canvas-hint">{{ $t('flow.selectHint') }}</div>
 
-          <template v-else-if="sel.kind === 'node'">
+          <!-- 属性浮层：仅选中节点/连线时出现，画布右上角就地编辑 -->
+          <div v-else class="props-float">
+            <div class="pf-head"><span class="pf-ttl">{{ $t('flow.props') }}</span><button class="pf-x" @click="clearSel" title="关闭">×</button></div>
+
+          <template v-if="sel.kind === 'node'">
             <div class="fkind">{{ $t('flow.node.' + selNode.data.kind) }}</div>
             <template v-if="selNode.data.kind === 'APPROVAL'">
               <label class="fl">{{ $t('flow.f.name') }}<input v-model="selNode.data.name" @input="touch" /></label>
@@ -90,6 +91,7 @@
             <p class="phint" style="padding:6px 0">{{ $t('flow.condHint') }}</p>
             <button class="btn ghost sm danger" style="margin-top:10px" @click="delEdge">{{ $t('flow.delEdge') }}</button>
           </template>
+          </div>
         </div>
       </div>
 
@@ -325,6 +327,7 @@ function addNode(kind) {
 }
 function onNodeClick(e) { sel.value = { kind: 'node', id: e.node.id } }
 function onEdgeClick(e) { sel.value = { kind: 'edge', id: e.edge.id } }
+function clearSel() { sel.value = null }
 const selNode = computed(() => nodes.value.find(n => n.id === sel.value?.id))
 const selEdge = computed(() => edges.value.find(e => e.id === sel.value?.id))
 function touch() { const n = selNode.value; if (n) n.label = nodeLabel(n.data) }
@@ -372,9 +375,16 @@ loadList()
 .btn.sm { padding: 5px 11px; font-size: 11.5px; }
 .btn.pub { background: linear-gradient(135deg, var(--success), #2f8f5e); }
 .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
-.editor { display: grid; grid-template-columns: 210px 1fr 240px; gap: 12px; height: 600px; }
-.palette, .props { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-1); overflow-y: auto; }
-.canvas { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-1); }
+.editor { display: grid; grid-template-columns: 210px 1fr; gap: 12px; height: 600px; }
+.palette { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-1); overflow-y: auto; }
+.canvas { position: relative; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-1); }
+/* 画布内属性浮层（点节点/连线就地展示） */
+.props-float { position: absolute; top: 12px; right: 12px; width: 250px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md, 10px); box-shadow: var(--shadow-2, 0 10px 30px rgba(0,0,0,0.16)); padding: 12px 14px; z-index: 5; }
+.pf-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pf-ttl { font-size: 12px; font-weight: 700; color: var(--text-1); }
+.pf-x { border: 0; background: none; color: var(--text-3); font-size: 17px; line-height: 1; cursor: pointer; }
+.pf-x:hover { color: var(--danger); }
+.canvas-hint { position: absolute; top: 12px; right: 12px; font-size: 11.5px; color: var(--text-3); background: var(--surface-2, rgba(0,0,0,0.03)); border: 1px solid var(--surface-border); border-radius: 8px; padding: 6px 10px; z-index: 5; pointer-events: none; }
 .ph { font-size: 11px; font-weight: 700; color: var(--text-2); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
 .pnode { display: block; width: 100%; text-align: left; margin-bottom: 7px; padding: 8px 10px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; cursor: pointer; font-weight: 600; }
 .pnode.appr { border-left: 3px solid var(--accent); }

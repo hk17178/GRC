@@ -103,6 +103,9 @@
 
     <!-- A22：全局 AI 合规助手侧滑面板（悬浮按钮唤起，多轮对话 + 反馈）-->
     <AiChatPanel :open="aiPanelOpen" @close="aiPanelOpen = false" />
+
+    <!-- 全局统一确认对话框（替代浏览器原生 confirm）-->
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -113,6 +116,7 @@ import { useRoute, useRouter } from 'vue-router'
 import LangSwitch from '@/components/LangSwitch.vue'
 import ThemeSwitch from '@/components/ThemeSwitch.vue'
 import AiChatPanel from '@/components/AiChatPanel.vue'
+import ConfirmDialog from '@/components/ConfirmDialog.vue'
 import { api } from '@/api/client.js'
 import { authState, canSee, clearUser } from '@/auth.js'
 

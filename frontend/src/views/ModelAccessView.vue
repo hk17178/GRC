@@ -162,6 +162,7 @@ import { reactive, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { canWrite } from '@/auth.js'
 
 const { t } = useI18n()
@@ -255,7 +256,7 @@ async function toggleGov(g) {
   try { await api.put('/ai/governance/' + g.id + '/enabled?enabled=' + (!g.enabled)); await loadGov() } catch (e) { govErr.value = e.message }
 }
 async function delGov(g) {
-  if (!window.confirm(t('aimodel.gov.delConfirm', { t: g.name }))) return
+  if (!await confirm(t('aimodel.gov.delConfirm', { t: g.name }))) return
   try { await api.del('/ai/governance/' + g.id); await loadGov() } catch (e) { govErr.value = e.message }
 }
 function editGov(p) {

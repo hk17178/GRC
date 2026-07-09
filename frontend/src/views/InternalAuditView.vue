@@ -568,6 +568,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -890,7 +891,7 @@ async function toggleRptTpl(t) {
   try { await api.put('/audit-reports/templates/' + t.id + '/enabled?enabled=' + (!t.enabled)); await loadRptTpls() } catch (e) { opErr.value = e.message }
 }
 async function delRptTpl(tpl) {
-  if (!window.confirm(t('intaudit.rptTpl.confirmDel', { name: tpl.name }))) return
+  if (!await confirm(t('intaudit.rptTpl.confirmDel', { name: tpl.name }))) return
   try { await api.del('/audit-reports/templates/' + tpl.id); await loadRptTpls() } catch (e) { opErr.value = e.message }
 }
 async function addRptTpl() {

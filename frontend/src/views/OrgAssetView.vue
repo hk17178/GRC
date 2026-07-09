@@ -688,6 +688,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { canWrite } from '@/auth.js'
 import { exportCsv } from '@/utils/csv.js'
 // 六轮 #3/#4 修复：登记资产/ROPA 弹窗的「所属组织」下拉此前只 import 了 reloadOrgs，
@@ -744,7 +745,7 @@ async function submitOrg() {
   } catch (e) { orgErr.value = e.message } finally { orgSaving.value = false }
 }
 async function delOrg(n) {
-  if (!window.confirm(`确认删除组织「${n.name}」？（仅限无子组织的叶子节点）`)) return
+  if (!await confirm(`确认删除组织「${n.name}」？（仅限无子组织的叶子节点）`)) return
   orgMsg.value = ''; orgError.value = ''
   try {
     await api.del('/orgs/' + n.id)
@@ -1147,7 +1148,7 @@ function mlpsDueSoon(r) {
   return diff <= 30
 }
 async function retireAsset(r) {
-  if (!window.confirm(`确认退役资产「${r.name}」？退役后不再参与新评估的范围选择（留痕保档）。`)) return
+  if (!await confirm(`确认退役资产「${r.name}」？退役后不再参与新评估的范围选择（留痕保档）。`)) return
   try { await api.post('/assets/' + r.id + '/retire', {}); await loadAssets() }
   catch (e) { window.alert(e.message) }
 }

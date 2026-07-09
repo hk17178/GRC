@@ -15,40 +15,23 @@
       </div>
 
       <div class="tabbar">
-        <button :class="{ on: tab === 'scenario' }" @click="tab = 'scenario'">通知场景</button>
         <button :class="{ on: tab === 'rule' }" @click="tab = 'rule'">通知规则</button>
+        <button :class="{ on: tab === 'sceneassy' }" @click="tab = 'sceneassy'; loadScenes()">通知场景</button>
         <button :class="{ on: tab === 'channel' }" @click="tab = 'channel'">通道管理</button>
         <button :class="{ on: tab === 'log' }" @click="tab = 'log'">提醒记录</button>
         <button :class="{ on: tab === 'digest' }" @click="tab = 'digest'; loadDigest()">{{ $t('notify.digest.tab') }}</button>
         <button :class="{ on: tab === 'pref' }" @click="tab = 'pref'; loadPref()">订阅偏好</button>
-        <button :class="{ on: tab === 'sceneassy' }" @click="tab = 'sceneassy'; loadScenes()">场景装配</button>
       </div>
 
-      <!-- 通知场景 -->
-      <div v-show="tab === 'scenario'" class="card">
-        <div class="ch"><h3>企微通知场景库</h3><span class="cnt">{{ scenarios.length }}</span>
-          <span class="sub">触发条件 → 接收角色 → 内容要点 → 通道</span></div>
-        <div class="cb" style="overflow-x:auto;padding-top:0">
-          <table style="min-width:760px">
-            <thead><tr><th>场景</th><th>触发</th><th>接收角色/层级</th><th>内容要点</th><th>通道</th><th>状态</th><th></th></tr></thead>
-            <tbody>
-              <tr v-for="c in scenarios" :key="c.id">
-                <td><b>{{ c.name }}</b></td>
-                <td class="muted">{{ d(c).trigger || '—' }}</td>
-                <td class="muted">{{ d(c).receiver || '—' }}</td>
-                <td class="muted">{{ d(c).contentPoints || '—' }}</td>
-                <td><span class="pill">{{ CH_LABEL[d(c).channel] || d(c).channel || '—' }}</span></td>
-                <td>{{ statusCell(c) }}</td>
-                <td class="ops">{{ '' }}<template v-if="canWrite('notify')">
-                  <button class="mini" @click="toggle(c)">{{ c.enabled ? '停用' : '启用' }}</button>
-                  <button class="mini danger" @click="del(c)">删</button>
-                </template></td>
-              </tr>
-              <tr v-if="!scenarios.length"><td colspan="7" class="emptyrow">暂无通知场景，点「＋ 新建通知场景」。</td></tr>
-            </tbody>
-          </table>
-          <div style="font-size:11px;color:var(--text-3);margin-top:10px">模板变量：{责任人}{任务编号}{对象}{来源发现}{截止}{剩余天数}{链接}，可在内容要点中引用。</div>
-        </div>
+      <!-- 通知中心流水线说明：厘清 规则/场景/通道/回执 的关系 -->
+      <div class="pipe">
+        <span class="pipe-step" :class="{ on: tab === 'rule' }" @click="tab = 'rule'"><b>①通知规则</b><i>什么条件触发告警<br>（数据源+阈值，每15分钟评估）</i></span>
+        <span class="pipe-arrow">→</span>
+        <span class="pipe-step" :class="{ on: tab === 'sceneassy' }" @click="tab = 'sceneassy'; loadScenes()"><b>②通知场景</b><i>触发后通知哪些角色<br>+ 多久未处理就升级</i></span>
+        <span class="pipe-arrow">→</span>
+        <span class="pipe-step" :class="{ on: tab === 'channel' }" @click="tab = 'channel'"><b>③通道</b><i>站内 / 企微 / 邮件 / 短信<br>外推目的地</i></span>
+        <span class="pipe-arrow">→</span>
+        <span class="pipe-step" :class="{ on: tab === 'log' }" @click="tab = 'log'"><b>④提醒记录 · 回执</b><i>谁在何时确认收到<br>闭环追踪</i></span>
       </div>
 
       <!-- D1-8 §九：自定义通知场景（场景库装配 + 升级链 + 不跨子公司） -->
@@ -312,6 +295,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -339,7 +323,7 @@ const condText = (c) => {
   return '命中即报'
 }
 
-const tab = ref('scenario')
+const tab = ref('rule')
 const scenarios = ref([])
 const rules = ref([])
 const channels = ref([])
@@ -470,7 +454,7 @@ async function toggle(c) {
   try { await api.put('/notify/configs/' + c.id + '/enabled?enabled=' + (!c.enabled)); await loadAll() } catch (e) { /* 忽略 */ }
 }
 async function del(c) {
-  if (!window.confirm(`确认删除「${c.name}」？`)) return
+  if (!await confirm(`确认删除「${c.name}」？`)) return
   try { await api.del('/notify/configs/' + c.id); await loadAll() } catch (e) { /* 忽略 */ }
 }
 
@@ -586,4 +570,13 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .sa-lbl { font-size: 12px; color: var(--text-2); font-weight: 600; }
 .sa-esc { font-size: 11.5px; color: var(--text-3); }
 .sa-res { font-size: 12px; font-weight: 600; color: var(--accent-strong); }
+/* 通知中心流水线说明 */
+.pipe { display: flex; align-items: stretch; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+.pipe-step { flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--surface-border); border-radius: 10px; background: var(--surface-2, rgba(0,0,0,0.015)); cursor: pointer; transition: border-color .15s, background .15s; }
+.pipe-step:hover { border-color: var(--accent); }
+.pipe-step.on { border-color: var(--accent-strong); background: var(--accent-tint, rgba(176,58,46,0.06)); }
+.pipe-step b { font-size: 12.5px; color: var(--text-1); }
+.pipe-step i { font-style: normal; font-size: 11px; color: var(--text-3); line-height: 1.5; }
+.pipe-arrow { align-self: center; color: var(--text-3); font-size: 18px; font-weight: 700; }
+@media (max-width: 900px) { .pipe-arrow { display: none; } }
 </style>

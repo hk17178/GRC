@@ -153,6 +153,7 @@ import { ref, reactive, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -233,7 +234,7 @@ async function openChunks(d) {
 
 // 删除文档（连同切块与向量；后端 RLS 保证只能删可见组织的）
 async function delDoc(d) {
-  if (!window.confirm(t('ai.chunks.delConfirm', { t: d.title }))) return
+  if (!await confirm(t('ai.chunks.delConfirm', { t: d.title }))) return
   try { await api.del('/ai/documents/' + d.id); await loadDocs() } catch (e) { opError.value = e.message }
 }
 

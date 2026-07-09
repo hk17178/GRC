@@ -43,7 +43,9 @@
         </div>
         <!-- 采集法规流（#7 信息流样式：按追踪源自动分区）-->
         <div class="card">
-          <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawled.length }}</span><span class="sub">按追踪源自动分区 · 点条目看详情</span></div>
+          <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawlKw ? crawledShown + '/' + crawled.length : crawled.length }}</span><span class="sub">按追踪源分区 · 点条目看详情</span>
+            <div class="feed-search"><input v-model="crawlKw" placeholder="🔍 关键字过滤 标题/文号/机构" /><button v-if="crawlKw" class="feed-clear" @click="crawlKw = ''" title="清除">×</button></div>
+          </div>
           <div class="cb" style="padding-top:0">
             <div v-for="grp in crawledGroups" :key="grp.sourceId" class="feed-group">
               <div class="feed-head">
@@ -52,7 +54,7 @@
                 <span class="cnt">{{ grp.items.length }}</span>
               </div>
               <div class="feed-list">
-                <div v-for="c in grp.items" :key="c.id" class="feed-item clk" @click="openLaw(c)">
+                <div v-for="c in grp.visible" :key="c.id" class="feed-item clk" @click="openLaw(c)">
                   <span class="feed-dot"></span>
                   <span class="feed-title">{{ c.title }}</span>
                   <span class="feed-meta">
@@ -61,9 +63,12 @@
                     <span class="muted">{{ fmtFeedTime(c.fetchedAt) }}</span>
                   </span>
                 </div>
+                <button v-if="grp.collapsedMore > 0" class="feed-more" @click="toggleGroup(grp.sourceId)">展开更多 {{ grp.collapsedMore }} 条 ▾</button>
+                <button v-else-if="crawlExpanded[grp.sourceId] && !crawlKw && grp.items.length > CRAWL_ROWS" class="feed-more" @click="toggleGroup(grp.sourceId)">收起 ▴</button>
               </div>
             </div>
             <div v-if="!crawled.length" class="emptyrow">暂无采集法规，先新增源并「立即抓取」（人行两源已内置）。</div>
+            <div v-else-if="!crawledGroups.length" class="emptyrow">没有匹配「{{ crawlKw }}」的法规。</div>
           </div>
         </div>
       </div>
@@ -415,10 +420,19 @@ async function loadSources() {
 async function loadCrawled() {
   try { crawled.value = await api.get('/crawled-regulations') } catch (e) { crawled.value = [] }
 }
+// 关键字过滤 + 分区默认收起（每区 5 行，超出「展开更多」）
+const crawlKw = ref('')
+const CRAWL_ROWS = 5
+const crawlExpanded = reactive({})   // { [sourceId]: true } 已展开的分区
+function toggleGroup(id) { crawlExpanded[id] = !crawlExpanded[id] }
 // #7 信息流分组：按 sourceId 分区，区头显示追踪源名称与分类；无源信息（历史数据）归"其他来源"
 const crawledGroups = computed(() => {
+  const kw = crawlKw.value.trim().toLowerCase()
+  const match = (c) => !kw || (c.title || '').toLowerCase().includes(kw)
+    || (c.docNo || '').toLowerCase().includes(kw) || (c.issuer || '').toLowerCase().includes(kw)
   const bySrc = new Map()
   for (const c of crawled.value) {
+    if (!match(c)) continue
     const key = c.sourceId || 0
     if (!bySrc.has(key)) bySrc.set(key, [])
     bySrc.get(key).push(c)
@@ -428,11 +442,16 @@ const crawledGroups = computed(() => {
     const src = sources.value.find((s) => s.id === sourceId)
     let category = null
     try { category = src && src.config ? JSON.parse(src.config).category : null } catch (e) { /* 忽略 */ }
-    groups.push({ sourceId, sourceName: src ? src.name : '其他来源', category, items })
+    // 关键字命中时自动展开该区（便于直接看到全部匹配）；否则默认收起前 N 行
+    const showAll = !!kw || crawlExpanded[sourceId]
+    groups.push({ sourceId, sourceName: src ? src.name : '其他来源', category,
+      items, visible: showAll ? items : items.slice(0, CRAWL_ROWS), collapsedMore: showAll ? 0 : Math.max(0, items.length - CRAWL_ROWS) })
   }
   groups.sort((a, b) => (a.sourceName > b.sourceName ? 1 : -1))
   return groups
 })
+// 过滤后可见总数（区头计数用）
+const crawledShown = computed(() => crawledGroups.value.reduce((n, g) => n + g.items.length, 0))
 function fmtFeedTime(t) { return t ? new Date(t).toLocaleString() : '' }
 async function crawlNow(s) {
   crawling.value = s.id; crawlMsg.value = ''
@@ -505,7 +524,14 @@ tbody tr.clk:hover, tbody tr.on { background: var(--accent-tint); }
 .modal-card .fld textarea { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12.5px; font-family: inherit; outline: none; box-sizing: border-box; }
 .ch .sub { font-size: 11.5px; color: var(--text-3); }
 /* 追踪源行 */
-.g-1-1 { grid-template-columns: 1fr 1.2fr; }
+.g-1-1 { grid-template-columns: 1fr 1.2fr; align-items: start; }
+/* 采集流：关键字过滤 + 展开更多 */
+.feed-search { margin-left: auto; position: relative; display: flex; align-items: center; }
+.feed-search input { width: 220px; max-width: 40vw; font-size: 12px; padding: 5px 26px 5px 10px; border: 1px solid var(--surface-border); border-radius: 8px; background: var(--bg); color: var(--text-1); }
+.feed-search input:focus { outline: none; border-color: var(--accent); }
+.feed-clear { position: absolute; right: 6px; border: 0; background: none; color: var(--text-3); font-size: 15px; line-height: 1; cursor: pointer; }
+.feed-more { width: 100%; margin-top: 4px; padding: 6px; border: 1px dashed var(--surface-border); border-radius: 8px; background: none; color: var(--accent-strong); font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.feed-more:hover { background: var(--accent-tint); border-style: solid; }
 .srcrow { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border-subtle); }
 .srcrow:first-child { border-top: 0; }
 .srcrow .srcmeta { flex: 1; min-width: 0; }
