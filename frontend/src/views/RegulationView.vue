@@ -216,12 +216,18 @@
       <div v-if="showSource" class="modal-mask" @click.self="showSource = false">
         <div class="modal-card">
           <h3>新增追踪源</h3>
-          <label class="fld">常见源模板（选后自动填 URL/机构/分类，选择器请按站点微调）
+          <label class="fld">常见源模板（选后自动填 URL/机构/分类）
             <select @change="applyTemplate($event.target.value); $event.target.selectedIndex = 0">
               <option value="">— 从常见追踪源快速填充 —</option>
-              <option v-for="(t, i) in SOURCE_TEMPLATES" :key="i" :value="i">{{ t.name }}</option>
+              <optgroup label="✓ 开箱可用（已核实静态可抓）">
+                <option v-for="x in verifiedTemplates" :key="'v' + x.i" :value="x.i">{{ x.t.name }}</option>
+              </optgroup>
+              <optgroup label="⚙ 需自行确认列表页/选择器（动态站点）">
+                <option v-for="x in unverifiedTemplates" :key="'u' + x.i" :value="x.i">{{ x.t.name }}</option>
+              </optgroup>
             </select>
           </label>
+          <p v-if="templateWarn" class="cerr" style="margin:-6px 0 10px;color:#a87d22">⚠ {{ templateWarn }}</p>
           <label class="fld">源名称<input v-model="sf.name" placeholder="如 全国法规库（示例）" /></label>
           <label class="fld">类型
             <select v-model="sf.sourceType">
@@ -490,30 +496,40 @@ async function removeSource(s) {
 const showSource = ref(false)
 const sourceSaving = ref(false)
 const sourceErr = ref('')
-// #7 常见追踪源模板（官网 URL/机构/分类已填；不同站点列表选择器不同，选后按站点微调 config）
+// #7 常见追踪源模板。诚实分两类：
+//  verified=true —— 站点为服务器端静态 HTML、URL/选择器已核实，开箱可抓；
+//  verified=false —— 站点为 JS 动态渲染或结构多变，jsoup 静态抓取难命中，仅预填机构/分类，
+//                    列表页 URL 与选择器需自行确认（或改用开箱源）。
+const PBC_CFG = '{"listSelector":"font.newslist_style","titleSelector":"a","linkSelector":"a"}'
 const SOURCE_TEMPLATES = [
-  { name: '国家互联网信息办公室（网信办）', url: 'http://www.cac.gov.cn/gsj/index.htm', issuer: '国家互联网信息办公室', category: '网络与数据安全' },
-  { name: '中国证券监督管理委员会', url: 'http://www.csrc.gov.cn/csrc/c101864/zfxxgk_zdgk.shtml', issuer: '中国证监会', category: '证券监管' },
-  { name: '国家金融监督管理总局', url: 'https://www.nfra.gov.cn/cn/view/pages/ItemList.html', issuer: '国家金融监督管理总局', category: '金融监管' },
-  { name: '中国人民银行 · 条法司', url: 'http://www.pbc.gov.cn/tiaofasi/144941/144951/index.html', issuer: '中国人民银行', category: '支付清算', config: '{"listSelector":"font.newslist_style","titleSelector":"a","linkSelector":"a","dateSelector":null}' },
-  { name: '金融标准全文公开系统（人行）', url: 'https://cfstc.pbc.gov.cn/bzgk/', issuer: '全国金融标准化技术委员会', category: '金融标准' },
-  { name: '国家市场监督管理总局', url: 'https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/', issuer: '国家市场监督管理总局', category: '市场监管' },
-  { name: '全国标准信息公共服务平台', url: 'https://std.samr.gov.cn/gb', issuer: '国家标准委', category: '国家标准' },
-  { name: '中央人民政府（国务院）', url: 'https://www.gov.cn/zhengce/', issuer: '国务院', category: '行政法规' }
+  // —— 开箱可用（已核实静态可抓）——
+  { name: '中国人民银行 · 国家法律（条法司）', url: 'http://www.pbc.gov.cn/tiaofasi/144941/144951/index.html', issuer: '中国人民银行', category: '国家法律', verified: true, config: PBC_CFG },
+  { name: '中国人民银行 · 部门规章（条法司）', url: 'http://www.pbc.gov.cn/tiaofasi/144941/144957/index.html', issuer: '中国人民银行', category: '部门规章', verified: true, config: PBC_CFG },
+  { name: '国家网信办 · 政策法规', url: 'https://www.cac.gov.cn/wxzw/zcfg/A093703index_1.htm', issuer: '国家互联网信息办公室', category: '网络与数据安全', verified: true },
+  // —— 需自行确认列表页/选择器（动态渲染或结构多变）——
+  { name: '中国证监会（法规数据库·动态站点）', url: 'https://neris.csrc.gov.cn/falvfagui/', issuer: '中国证监会', category: '证券监管', verified: false },
+  { name: '国家金融监督管理总局', url: 'https://www.nfra.gov.cn/', issuer: '国家金融监督管理总局', category: '金融监管', verified: false },
+  { name: '金融标准全文公开系统（动态站点）', url: 'https://cfstc.pbc.gov.cn/bzgk/', issuer: '全国金融标准化技术委员会', category: '金融标准', verified: false },
+  { name: '国家标准全文公开（动态站点）', url: 'https://openstd.samr.gov.cn/bzgk/gb/', issuer: '国家标准委', category: '国家标准', verified: false },
+  { name: '中央人民政府 · 政策文件（国务院）', url: 'https://www.gov.cn/zhengce/', issuer: '国务院', category: '行政法规', verified: false }
 ]
+const templateWarn = ref('')
+const verifiedTemplates = computed(() => SOURCE_TEMPLATES.map((t, i) => ({ t, i })).filter((x) => x.t.verified))
+const unverifiedTemplates = computed(() => SOURCE_TEMPLATES.map((t, i) => ({ t, i })).filter((x) => !x.t.verified))
 function applyTemplate(idx) {
   const t = SOURCE_TEMPLATES[idx]
   if (!t) return
   sf.name = t.name; sf.sourceType = 'HTTP'; sf.url = t.url
   sf.category = t.category || ''
-  // 模板自带精确选择器则用之；否则只填 issuer——采集走通用兜底（扫全页疑似法规标题链接），
-  // 用户可随后在「选择器配置」里补精确 listSelector 提升准确度。
+  // 模板自带精确选择器则用之；否则只填 issuer——采集走通用兜底（扫全页疑似法规标题链接）
   const base = t.config ? JSON.parse(t.config) : {}
   base.issuer = t.issuer
   sf.config = JSON.stringify(base)
+  templateWarn.value = t.verified ? ''
+    : '该站点为 JS 动态渲染/结构多变，静态抓取可能命中 0 条——请确认列表页 URL 并在「选择器配置」补 listSelector，或改用「人行/网信办」开箱源。'
 }
 const sf = reactive({ name: '', sourceType: 'SAMPLE', url: '', config: '', category: '', keyword: '', orgId: 12 })
-function openSource() { Object.assign(sf, { name: '', sourceType: 'SAMPLE', url: '', config: '', category: '', keyword: '', orgId: 12 }); sourceErr.value = ''; showSource.value = true }
+function openSource() { Object.assign(sf, { name: '', sourceType: 'SAMPLE', url: '', config: '', category: '', keyword: '', orgId: 12 }); sourceErr.value = ''; templateWarn.value = ''; showSource.value = true }
 // 把「分类/关键字」并入 config JSON（保留 HTTP 选择器等已有键）
 function buildSourceConfig() {
   let cfg = {}

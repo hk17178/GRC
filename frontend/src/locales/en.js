@@ -377,7 +377,7 @@ export default {
 
   // ---- topbar ----
   top: {
-    searchPlaceholder: 'Search… (try TLS1.1)',
+    searchPlaceholder: 'Search: policies / risks / regulations / assets / vendors…',
     logout: 'Logout'
   },
 

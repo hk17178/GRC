@@ -377,7 +377,7 @@ export default {
 
   // ---- 顶栏 ----
   top: {
-    searchPlaceholder: '搜索…（试试 TLS1.1）',
+    searchPlaceholder: '全局搜索：制度 / 风险 / 法规 / 资产 / 供应商…',
     logout: '退出'
   },
 
