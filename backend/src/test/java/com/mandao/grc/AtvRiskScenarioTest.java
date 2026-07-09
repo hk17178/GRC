@@ -28,6 +28,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -148,6 +149,44 @@ class AtvRiskScenarioTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");
         assertEquals(4, r.count(), "应有 4 条留痕（资产+威胁+脆弱+场景）");
+    }
+
+    // ---------- B44：漏扫结果导入脆弱性库 ----------
+
+    @Test
+    void b44_漏扫导入_按code去重_脏条目跳过_留痕() {
+        List<AtvService.ScanItem> batch1 = List.of(
+                new AtvService.ScanItem("CVE-2024-1", "OpenSSL 心脏出血", "加密", "TLS 缓冲越界"),
+                new AtvService.ScanItem("CVE-2024-2", "弱口令", "访问控制", "默认口令未改"),
+                new AtvService.ScanItem("", "脏条目", "x", "缺编码"),                 // 脏：无 code → 跳过
+                new AtvService.ScanItem("CVE-2024-3", "  ", "x", "缺名称"));           // 脏：无 name → 跳过
+        AtvService.ScanImportResult r1 = asOrg(ORG_PAY, () -> atvService.importVulnScan(ORG_PAY, batch1, "scanner"));
+        assertEquals(2, r1.imported(), "两条有效条目入库");
+        assertEquals(2, r1.skipped(), "两条脏条目跳过");
+        assertEquals(2, asOrg(ORG_PAY, () -> atvService.listVulnerabilities()).size());
+
+        // 再次导入：重叠 code 去重（不覆盖），仅 1 条新
+        List<AtvService.ScanItem> batch2 = List.of(
+                new AtvService.ScanItem("CVE-2024-1", "改写尝试", "加密", "不应覆盖"),   // 已存在 → 跳过
+                new AtvService.ScanItem("CVE-2024-9", "新漏洞", "补丁", "新增"));         // 新 → 入库
+        AtvService.ScanImportResult r2 = asOrg(ORG_PAY, () -> atvService.importVulnScan(ORG_PAY, batch2, "scanner"));
+        assertEquals(1, r2.imported());
+        assertEquals(1, r2.skipped());
+        assertEquals(3, asOrg(ORG_PAY, () -> atvService.listVulnerabilities()).size(), "共 3 条（去重后无重复）");
+
+        // 留痕：两批各一条 VULN_SCAN_IMPORT（有新增才留痕）
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid());
+        assertEquals(2, r.count(), "两批导入各留痕一条");
+    }
+
+    @Test
+    void b44_导入隔离_org13不见org12导入的脆弱性() {
+        asOrg(ORG_PAY, () -> atvService.importVulnScan(ORG_PAY,
+                List.of(new AtvService.ScanItem("CVE-ISO", "仅支付", "配置", "x")), "scanner"));
+        assertEquals(1, asOrg(ORG_PAY, () -> atvService.listVulnerabilities()).size());
+        assertTrue(asOrg(ORG_CF, () -> atvService.listVulnerabilities()).isEmpty(),
+                "org13 不应看到 org12 导入的脆弱性");
     }
 
     // ---------- 测试辅助 ----------

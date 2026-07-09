@@ -145,6 +145,50 @@ public class AtvService {
         return saved;
     }
 
+    // ===== B44：漏扫结果导入（外部扫描器条目批量并入脆弱性库） =====
+
+    /** 漏扫导入的单条：外部扫描器输出的一个脆弱性条目。 */
+    public record ScanItem(String code, String name, String category, String description) {
+    }
+
+    /** 导入结果：新增数 / 跳过数（已存在或脏条目）/ 新增条目的 code 明细。 */
+    public record ScanImportResult(int imported, int skipped, List<String> importedCodes) {
+    }
+
+    /**
+     * 漏扫结果批量导入脆弱性库（B44）。
+     *
+     * 按 code 去重：库内已存在的 code 跳过（不覆盖已有描述，避免扫描器噪声改写人工维护条目）；
+     * code/name 空的脏条目跳过。仅有真正新增时才留痕一条汇总。逐条判存在用 existsByOrgIdAndCode
+     * （不抛异常，防整批事务标脏）。隔离：orgId 须在可见域内，否则 RLS WITH CHECK 拒绝写入。
+     */
+    @Transactional
+    public ScanImportResult importVulnScan(Long orgId, List<ScanItem> items, String actor) {
+        int imported = 0;
+        int skipped = 0;
+        List<String> importedCodes = new java.util.ArrayList<>();
+        if (items != null) {
+            for (ScanItem it : items) {
+                if (it.code() == null || it.code().isBlank() || it.name() == null || it.name().isBlank()) {
+                    skipped++;   // 脏条目（缺编码/名称）跳过
+                    continue;
+                }
+                if (vulnerabilityRepository.existsByOrgIdAndCode(orgId, it.code())) {
+                    skipped++;   // 去重：已在库
+                    continue;
+                }
+                vulnerabilityRepository.save(new Vulnerability(orgId, it.code(), it.name(), it.category(), it.description()));
+                imported++;
+                importedCodes.add(it.code());
+            }
+        }
+        if (imported > 0) {
+            hashChainService.append(orgId, "VULN_SCAN_IMPORT", actor, "VULN_IMPORT",
+                    "漏扫导入脆弱性 " + imported + " 条（跳过 " + skipped + " 条）");
+        }
+        return new ScanImportResult(imported, skipped, importedCodes);
+    }
+
     // ---------- A-T-V 风险场景 ----------
 
     @Transactional(readOnly = true)

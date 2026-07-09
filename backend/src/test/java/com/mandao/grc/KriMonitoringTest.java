@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -133,6 +134,46 @@ class KriMonitoringTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");
         assertEquals(3, r.count(), "应有 3 条留痕（定义 + 两次测量）");
+    }
+
+    // ---------- B39：KRI 外部推送接口（M2M 摄入） ----------
+
+    @Test
+    void b39_按code批量推送_逐条评定_坏条目独立失败() {
+        asOrg(ORG_PAY, () -> kriService.create(ORG_PAY, "KRI-PUSH1", "高危漏洞数", "个",
+                KriDirection.UPPER_BAD, new BigDecimal("5"), new BigDecimal("10"), "sec", "c"));
+        asOrg(ORG_PAY, () -> kriService.create(ORG_PAY, "KRI-PUSH2", "补丁覆盖率", "%",
+                KriDirection.LOWER_BAD, new BigDecimal("90"), new BigDecimal("80"), "ops", "c"));
+
+        List<KriService.PushItem> items = List.of(
+                new KriService.PushItem("KRI-PUSH1", new BigDecimal("12"), "扫描器A"),   // CRITICAL
+                new KriService.PushItem("KRI-PUSH2", new BigDecimal("95"), "CMDB"),        // NORMAL
+                new KriService.PushItem("KRI-UNKNOWN", new BigDecimal("1"), null),         // 不存在
+                new KriService.PushItem("KRI-PUSH1", null, "缺值"));                        // 缺测量值
+        List<KriService.PushResult> res = asOrg(ORG_PAY, () -> kriService.pushBatch(ORG_PAY, items, "gateway"));
+
+        assertEquals(4, res.size());
+        assertTrue(res.get(0).ok() && "CRITICAL".equals(res.get(0).status()), "越阈值应评 CRITICAL");
+        assertTrue(res.get(1).ok() && "NORMAL".equals(res.get(1).status()));
+        assertFalse(res.get(2).ok(), "未知 code 应失败");
+        assertFalse(res.get(3).ok(), "缺测量值应失败");
+
+        // 回写：KRI-PUSH1 最近状态 CRITICAL（推送复用记录核心，回写最近态）
+        Kri k1 = asOrg(ORG_PAY, () -> kriService.list()).stream()
+                .filter(k -> "KRI-PUSH1".equals(k.getCode())).findFirst().orElseThrow();
+        assertEquals(KriStatus.CRITICAL, k1.getCurrentStatus());
+    }
+
+    @Test
+    void b39_推送隔离_不可写他组织KRI() {
+        Long id = asOrg(ORG_PAY, () -> kriService.create(ORG_PAY, "KRI-ISO", "仅支付", "个",
+                KriDirection.UPPER_BAD, new BigDecimal("1"), new BigDecimal("2"), null, "c").getId());
+        // org13 视角推送 org12 的 KRI → RLS 裁剪不可见 → 失败，绝不跨组织写
+        List<KriService.PushResult> res = asOrg(ORG_CF, () -> kriService.pushBatch(ORG_PAY,
+                List.of(new KriService.PushItem("KRI-ISO", new BigDecimal("5"), null)), "gw"));
+        assertEquals(1, res.size());
+        assertFalse(res.get(0).ok(), "org13 不可见 org12 的 KRI，推送应失败");
+        assertTrue(asOrg(ORG_PAY, () -> kriService.listMeasurements(id)).isEmpty(), "不应写入任何测量");
     }
 
     // ---------- 测试辅助 ----------

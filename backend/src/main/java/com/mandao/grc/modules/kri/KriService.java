@@ -80,7 +80,11 @@ public class KriService {
      */
     @Transactional
     public KriMeasurement record(Long kriId, BigDecimal value, String note, String actor) {
-        Kri kri = get(kriId);
+        return doRecord(get(kriId), value, note, actor);
+    }
+
+    /** 记录核心（供 record 与 B39 批量推送复用，避免二次可见性查询）：评定→落时序→回写最近态→留痕。 */
+    private KriMeasurement doRecord(Kri kri, BigDecimal value, String note, String actor) {
         KriStatus status = kri.evaluate(value);
 
         KriMeasurement m = new KriMeasurement(kri.getOrgId(), kri.getId(), value, status, note);
@@ -95,5 +99,49 @@ public class KriService {
                 "测量 code=" + kri.getCode() + " 值=" + value + " 评定=" + status
                         + (breach ? "（越界触发）" : ""));
         return saved;
+    }
+
+    // ===== B39：KRI 外部推送接口（M2M 摄入） =====
+
+    /** 批量推送的单条：按 KRI code 推送一个测量值。 */
+    public record PushItem(String code, BigDecimal value, String note) {
+    }
+
+    /** 单条推送结果：ok 时带评定状态，否则带错误原因。 */
+    public record PushResult(String code, boolean ok, String status, String error) {
+    }
+
+    /**
+     * 外部监测系统按 code 批量推送 KRI 测量（B39·M2M 摄入）。
+     *
+     * 逐条按 (orgId, code) 解析 KRI 并复用记录核心（评定/落库/回写/留痕）；找不到或缺值的条目
+     * 记为失败但不影响其余（用 Optional 判存在而非抛异常——异常会把整批事务标脏回滚）。
+     * 隔离：orgId 须在调用方可见域内，否则 RLS 裁剪致 findByOrgIdAndCode 为空 → 该条失败，绝不跨组织写。
+     * 注：本接口当前复用会话认证；真正的机器对机器 API-Key 鉴权列入安全评审项。
+     */
+    @Transactional
+    public List<PushResult> pushBatch(Long orgId, List<PushItem> items, String actor) {
+        List<PushResult> out = new java.util.ArrayList<>();
+        if (items == null) {
+            return out;
+        }
+        for (PushItem it : items) {
+            if (it.code() == null || it.code().isBlank()) {
+                out.add(new PushResult(it.code(), false, null, "缺 KRI 编码"));
+                continue;
+            }
+            if (it.value() == null) {
+                out.add(new PushResult(it.code(), false, null, "缺测量值"));
+                continue;
+            }
+            java.util.Optional<Kri> kri = kriRepository.findByOrgIdAndCode(orgId, it.code());
+            if (kri.isEmpty()) {
+                out.add(new PushResult(it.code(), false, null, "KRI 不存在或不可见"));
+                continue;
+            }
+            KriMeasurement m = doRecord(kri.get(), it.value(), it.note(), actor);
+            out.add(new PushResult(it.code(), true, m.getStatus().name(), null));
+        }
+        return out;
     }
 }

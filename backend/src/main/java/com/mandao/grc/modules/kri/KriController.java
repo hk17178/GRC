@@ -64,6 +64,17 @@ public class KriController {
         return service.record(id, req.value(), req.note(), actor(user));
     }
 
+    /**
+     * B39：外部监测系统按 code 批量推送 KRI 测量（M2M 摄入）。逐条独立成败，返回每条结果。
+     * 复用会话认证与 org 隔离（orgId 须在可见域内）；真正的 API-Key 机器鉴权列入安全评审项。
+     */
+    @PostMapping("/push")
+    @RequiresPermission("risk")
+    public List<KriService.PushResult> push(@RequestBody PushRequest req,
+                                            @RequestHeader(value = "X-User", required = false) String user) {
+        return service.pushBatch(req.orgId(), req.items(), actor(user));
+    }
+
     /** actor 占位策略：取 X-User，缺省 anonymous。 */
     private String actor(String user) {
         return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
@@ -77,5 +88,9 @@ public class KriController {
 
     /** 记录测量请求体。 */
     public record RecordRequest(BigDecimal value, String note) {
+    }
+
+    /** B39 批量推送请求体：{orgId, items:[{code,value,note}]}。 */
+    public record PushRequest(Long orgId, List<KriService.PushItem> items) {
     }
 }

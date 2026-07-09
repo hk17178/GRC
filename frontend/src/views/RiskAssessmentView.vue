@@ -587,7 +587,8 @@
             </div>
             <div class="card" style="margin-top:14px">
               <div class="ch"><h3>脆弱性库</h3><span class="cnt">{{ vulns.length }}</span>
-                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" @click="openAtvRef('vuln')">＋</button>
+                <button class="btn ghost sm" style="margin-left:auto" :disabled="!canWrite('risk')" title="从漏扫结果批量导入（按编码去重）" @click="openScanImport">⇪ 漏扫导入</button>
+                <button class="btn ghost sm" style="margin-left:8px" :disabled="!canWrite('risk')" @click="openAtvRef('vuln')">＋</button>
               </div>
               <div class="cb" style="padding-top:0">
                 <div v-for="v2 in vulns" :key="v2.id" class="atv-row"><span class="code">{{ v2.code }}</span>{{ v2.name }}<span class="pill" style="margin-left:auto">{{ v2.category || '—' }}</span>
@@ -620,6 +621,24 @@
           <div class="modal-actions">
             <button class="btn ghost" @click="showPlan = false">取消</button>
             <button class="btn" :disabled="!plf.title || refSaving" @click="submitPlan">确认排期</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- B44 漏扫导入弹窗 -->
+      <div v-if="showScanImport" class="modal-mask" @click.self="showScanImport = false">
+        <div class="modal-card" style="width:600px">
+          <h3>漏扫结果导入 · 脆弱性库</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">每行一条：<code>编码,名称,分类,描述</code>（分类/描述可空）。按编码去重——库内已有的编码跳过，不覆盖人工维护条目。</p>
+          <label class="fld">所属组织<select v-model.number="scanForm.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
+          <label class="fld">粘贴漏扫条目
+            <textarea v-model="scanForm.text" rows="8" style="font-family:monospace;font-size:12px" placeholder="CVE-2024-1234,OpenSSL 越界读,加密,TLS 心跳缓冲越界&#10;WEAK-PWD-01,默认口令未修改,访问控制,"></textarea>
+          </label>
+          <p v-if="scanResult" style="font-size:12px;color:var(--safe)">导入完成：新增 {{ scanResult.imported }} 条，跳过 {{ scanResult.skipped }} 条（已存在或格式不完整）。</p>
+          <p v-if="atvErr" class="cerr">{{ atvErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showScanImport = false">关闭</button>
+            <button class="btn" :disabled="!scanForm.text.trim() || refSaving" @click="submitScanImport">{{ refSaving ? '导入中…' : '导入' }}</button>
           </div>
         </div>
       </div>
@@ -1620,6 +1639,22 @@ async function submitScenario() {
     const a = atvAssets.value.find((x) => x.id === scf.assetId)
     await api.post('/risk-scenarios', { orgId: a ? a.orgId : 12, assetId: scf.assetId, threatId: scf.threatId, vulnerabilityId: scf.vulnerabilityId, likelihood: scf.likelihood, impact: scf.impact, description: scf.description || null })
     showScenario.value = false; await loadAtv()
+  } catch (e) { atvErr.value = e.message } finally { refSaving.value = false }
+}
+// B44 漏扫导入：粘贴 CSV 行 → 解析为条目 → 批量导入（后端按 code 去重）
+const showScanImport = ref(false)
+const scanForm = reactive({ orgId: 12, text: '' })
+const scanResult = ref(null)
+function openScanImport() { Object.assign(scanForm, { orgId: 12, text: '' }); scanResult.value = null; atvErr.value = ''; showScanImport.value = true }
+async function submitScanImport() {
+  refSaving.value = true; atvErr.value = ''; scanResult.value = null
+  try {
+    const items = scanForm.text.split('\n').map((line) => {
+      const [code, name, category, description] = line.split(',').map((x) => (x || '').trim())
+      return { code, name, category: category || null, description: description || null }
+    }).filter((it) => it.code || it.name)
+    scanResult.value = await api.post('/vulnerabilities/import', { orgId: scanForm.orgId, items })
+    await loadAtv()
   } catch (e) { atvErr.value = e.message } finally { refSaving.value = false }
 }
 const atvRefKind = ref(null)

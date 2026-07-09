@@ -71,6 +71,14 @@ public class AtvController {
         return service.createVulnerability(req.orgId(), req.code(), req.name(), req.category(), req.description(), actor(user));
     }
 
+    /** B44：漏扫结果批量导入脆弱性库（按 code 去重）。 */
+    @PostMapping("/vulnerabilities/import")
+    @RequiresPermission("risk")
+    public AtvService.ScanImportResult importVulnScan(@RequestBody ScanImportRequest req,
+                                                      @RequestHeader(value = "X-User", required = false) String user) {
+        return service.importVulnScan(req.orgId(), req.items(), actor(user));
+    }
+
     // ---------- A-T-V 风险场景 ----------
 
     /** 列出风险场景；可按 assetId 过滤。 */
@@ -152,6 +160,10 @@ public class AtvController {
 
     /** 脆弱性登记请求体。 */
     public record VulnerabilityRequest(Long orgId, String code, String name, String category, String description) {
+    }
+
+    /** B44 漏扫导入请求体：{orgId, items:[{code,name,category,description}]}。 */
+    public record ScanImportRequest(Long orgId, List<AtvService.ScanItem> items) {
     }
 
     /** 风险场景登记请求体。 */
