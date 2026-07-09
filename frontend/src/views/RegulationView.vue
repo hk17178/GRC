@@ -4,7 +4,7 @@
     功能真源 = 后端 /api/regulations（库/状态/变更/影响评估）；视觉遵 tokens.css。隔离由后端 RLS。
   -->
   <AppShell>
-    <section class="view view-reg">
+    <section class="view view-reg" style="display:flex;flex-direction:column">
       <div class="phead">
         <div>
           <div class="kqt">{{ $t('reg.tag') }}</div>
@@ -14,8 +14,8 @@
         <button class="btn" :disabled="!canWrite('law')" :title="canWrite('law') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('reg.create.btn') }}</button>
       </div>
 
-      <!-- ===== 法规跟踪爬虫：追踪源采集 + 采集流（权威信息源采集，替代手动登记为主）===== -->
-      <div class="g g-1-1" style="margin-bottom: 14px">
+      <!-- ===== 法规跟踪爬虫：追踪源采集 + 采集流（放在法规库/变更动态之下，order:2）===== -->
+      <div class="g g-1-1" style="order:2">
         <!-- 追踪源 -->
         <div class="card">
           <div class="ch">
@@ -26,16 +26,20 @@
             <div v-for="s in sources" :key="s.id" class="srcrow">
               <span class="st" :class="s.status === 'OK' ? 'ok' : 'over'"><span class="d"></span></span>
               <div class="srcmeta">
-                <div class="snm">{{ s.name }} <span class="pill">{{ s.sourceType }}</span></div>
+                <div class="snm">{{ s.name }} <span class="pill">{{ s.sourceType }}</span><span v-if="!s.enabled" class="pill" style="background:var(--surface-2,rgba(0,0,0,.05));color:var(--text-3)">已停用</span></div>
                 <div class="ssub">
                   频率 {{ s.frequency }} · 累计命中 {{ s.lastHitCount }} ·
                   {{ s.lastFetchedAt ? fmt(s.lastFetchedAt) : '未采集' }}
                   <span v-if="s.lastError" style="color: var(--danger)"> · {{ s.lastError }}</span>
                 </div>
               </div>
-              <button class="btn sm" :disabled="!canWrite('law') || crawling === s.id" @click="crawlNow(s)">
-                {{ crawling === s.id ? '采集中…' : '立即抓取' }}
-              </button>
+              <div class="src-ops">
+                <button class="btn sm" :disabled="!canWrite('law') || crawling === s.id" @click="crawlNow(s)">
+                  {{ crawling === s.id ? '采集中…' : '立即抓取' }}
+                </button>
+                <button v-if="canWrite('law')" class="mini" @click="toggleSource(s)">{{ s.enabled ? '停用' : '启用' }}</button>
+                <button v-if="canWrite('law')" class="mini danger" @click="removeSource(s)">删除</button>
+              </div>
             </div>
             <div v-if="!sources.length" class="hint">暂无追踪源。点「＋ 新增追踪源」——可选内置示例源(SAMPLE)不外联演示采集，或配 HTTP 源抓真实站点。</div>
             <div v-if="crawlMsg" class="ok-msg">{{ crawlMsg }}</div>
@@ -46,7 +50,7 @@
           <div class="ch"><h3>采集到的法规</h3><span class="cnt">{{ crawlKw ? crawledShown + '/' + crawled.length : crawled.length }}</span><span class="sub">按追踪源分区 · 点条目看详情</span>
             <div class="feed-search"><input v-model="crawlKw" placeholder="🔍 关键字过滤 标题/文号/机构" /><button v-if="crawlKw" class="feed-clear" @click="crawlKw = ''" title="清除">×</button></div>
           </div>
-          <div class="cb" style="padding-top:0">
+          <div class="cb" style="padding-top:0;max-height:440px;overflow-y:auto">
             <div v-for="grp in crawledGroups" :key="grp.sourceId" class="feed-group">
               <div class="feed-head">
                 <span class="feed-src">{{ grp.sourceName }}</span>
@@ -73,7 +77,8 @@
         </div>
       </div>
 
-      <div class="g">
+      <!-- 法规库 + 变更动态：提到第一行（order:1），管理内容优先，采集流下沉 -->
+      <div class="g" style="order:1;margin-bottom:14px">
         <!-- 法规库 -->
         <div class="card">
           <div class="ch"><h3>{{ $t('reg.lib') }}</h3><span class="cnt">{{ regulations.length }}</span></div>
@@ -302,6 +307,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
+import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
 const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
@@ -471,6 +477,16 @@ async function crawlNow(s) {
     await loadSources(); await loadCrawled()
   } catch (e) { crawlMsg.value = '采集失败：' + e.message } finally { crawling.value = null }
 }
+// 追踪源管理：启停 / 删除
+async function toggleSource(s) {
+  try { await api.put('/regulation-sources/' + s.id + '/enabled?enabled=' + (!s.enabled), {}); await loadSources() }
+  catch (e) { window.alert(e.message) }
+}
+async function removeSource(s) {
+  if (!await confirm({ title: '删除追踪源', message: `删除追踪源「${s.name}」？其已采集的法规条目保留，仅移除该源配置。`, danger: true })) return
+  try { await api.del('/regulation-sources/' + s.id); await loadSources() }
+  catch (e) { window.alert(e.message) }
+}
 const showSource = ref(false)
 const sourceSaving = ref(false)
 const sourceErr = ref('')
@@ -480,6 +496,7 @@ const SOURCE_TEMPLATES = [
   { name: '中国证券监督管理委员会', url: 'http://www.csrc.gov.cn/csrc/c101864/zfxxgk_zdgk.shtml', issuer: '中国证监会', category: '证券监管' },
   { name: '国家金融监督管理总局', url: 'https://www.nfra.gov.cn/cn/view/pages/ItemList.html', issuer: '国家金融监督管理总局', category: '金融监管' },
   { name: '中国人民银行 · 条法司', url: 'http://www.pbc.gov.cn/tiaofasi/144941/144951/index.html', issuer: '中国人民银行', category: '支付清算', config: '{"listSelector":"font.newslist_style","titleSelector":"a","linkSelector":"a","dateSelector":null}' },
+  { name: '金融标准全文公开系统（人行）', url: 'https://cfstc.pbc.gov.cn/bzgk/', issuer: '全国金融标准化技术委员会', category: '金融标准' },
   { name: '国家市场监督管理总局', url: 'https://www.samr.gov.cn/zw/zfxxgk/fdzdgknr/', issuer: '国家市场监督管理总局', category: '市场监管' },
   { name: '全国标准信息公共服务平台', url: 'https://std.samr.gov.cn/gb', issuer: '国家标准委', category: '国家标准' },
   { name: '中央人民政府（国务院）', url: 'https://www.gov.cn/zhengce/', issuer: '国务院', category: '行政法规' }
@@ -489,8 +506,9 @@ function applyTemplate(idx) {
   if (!t) return
   sf.name = t.name; sf.sourceType = 'HTTP'; sf.url = t.url
   sf.category = t.category || ''
-  // 预填选择器骨架（含 issuer）供微调；模板自带 config 则用之
-  const base = t.config ? JSON.parse(t.config) : { listSelector: '', titleSelector: 'a', linkSelector: 'a' }
+  // 模板自带精确选择器则用之；否则只填 issuer——采集走通用兜底（扫全页疑似法规标题链接），
+  // 用户可随后在「选择器配置」里补精确 listSelector 提升准确度。
+  const base = t.config ? JSON.parse(t.config) : {}
   base.issuer = t.issuer
   sf.config = JSON.stringify(base)
 }
@@ -610,4 +628,6 @@ tbody tr.clk:hover .lawlink { text-decoration: underline; }
 .vd-stale { color: var(--warning); border: 1px dashed var(--warning); background: none; }
 .mini { padding: 3px 9px; font-size: 11px; border: 1px solid var(--surface-border); background: var(--bg); color: var(--text-2); border-radius: 6px; cursor: pointer; }
 .mini:hover { background: var(--accent-tint, var(--accent-weak)); }
+.mini.danger { color: var(--danger); border-color: var(--danger-tint); }
+.src-ops { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 </style>

@@ -44,9 +44,6 @@ public class HttpLawCrawler implements LawCrawler {
         }
         JsonNode cfg = parseConfig(source.getConfig());
         String listSel = text(cfg, "listSelector");
-        if (listSel == null) {
-            throw new IllegalArgumentException("HTTP 源未配置 listSelector");
-        }
         String titleSel = text(cfg, "titleSelector");
         String linkSel = text(cfg, "linkSelector");
         String dateSel = text(cfg, "dateSelector");
@@ -58,6 +55,11 @@ public class HttpLawCrawler implements LawCrawler {
                     .userAgent("Mozilla/5.0 (compatible; GRC-LawTracker/1.0)")
                     .timeout(15000)
                     .get();
+            // 未配置 listSelector（如常见源模板）→ 通用兜底：扫全页 a[href]，按标题特征启发式提取，
+            // 配合源级关键字过滤收窄；用户可随后填精确选择器提升准确度。
+            if (listSel == null) {
+                return genericExtract(doc, issuer, category);
+            }
             Elements items = doc.select(listSel);
             List<CrawledLaw> out = new ArrayList<>();
             for (Element item : items) {
@@ -77,6 +79,51 @@ public class HttpLawCrawler implements LawCrawler {
         } catch (Exception e) {
             throw new RuntimeException("抓取失败：" + e.getMessage(), e);
         }
+    }
+
+    /** 法规标题特征词（含其一 + 长度合适即视为疑似法规标题，滤掉导航/页脚噪声）。 */
+    private static final String[] TITLE_HINTS = {
+            "法", "条例", "办法", "规定", "规则", "通知", "公告", "指南", "指引", "管理",
+            "规范", "标准", "意见", "决定", "批复", "细则", "方案", "制度", "通则", "准则", "令" };
+
+    /**
+     * 通用兜底提取：无 listSelector 时扫全页 a[href]，取"疑似法规标题"的链接（去重）。
+     * 尽力而为——目标是模板源开箱即用产出相关条目，用户可再配精确选择器精修。
+     */
+    public List<CrawledLaw> genericExtract(Document doc, String issuer, String category) {
+        List<CrawledLaw> out = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (Element a : doc.select("a[href]")) {
+            String title = a.text() == null ? "" : a.text().trim();
+            String url = a.absUrl("href");
+            if (!looksLikeLawTitle(title) || url == null || url.isBlank() || !url.startsWith("http")) {
+                continue;
+            }
+            if (!seen.add(url)) {
+                continue;
+            }
+            out.add(new CrawledLaw(url, title, null, issuer, category, null, url, null));
+            if (out.size() >= 100) {
+                break;   // 单次上限，防超大页面
+            }
+        }
+        return out;
+    }
+
+    private boolean looksLikeLawTitle(String title) {
+        if (title == null) {
+            return false;
+        }
+        int len = title.length();
+        if (len < 6 || len > 80) {
+            return false;   // 太短多为导航/按钮，太长多为整段
+        }
+        for (String h : TITLE_HINTS) {
+            if (title.contains(h)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private JsonNode parseConfig(String config) {
