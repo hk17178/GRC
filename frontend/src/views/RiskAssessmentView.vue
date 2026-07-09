@@ -1154,7 +1154,7 @@
           <h3>{{ $t('risk.gate.acceptTitle') }}</h3>
           <p class="muted" style="margin: -6px 0 14px; font-size: 12.5px">{{ acceptTarget && acceptTarget.title }}</p>
           <label class="fld">{{ $t('risk.gate.reason') }}
-            <input v-model="acceptForm.reason" :placeholder="$t('risk.gate.reasonPh')" />
+            <textarea v-model="acceptForm.reason" rows="3" class="mtext" :placeholder="$t('risk.gate.reasonPh')"></textarea>
           </label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">

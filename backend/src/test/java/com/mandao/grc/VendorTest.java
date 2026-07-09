@@ -140,6 +140,28 @@ class VendorTest {
     }
 
     @Test
+    void 评估过程留存_评估依据与原件附件() {
+        Long vid = asOrg(ORG_PAY, () -> vendorService.register(ORG_PAY, "V-DOC", "某数据服务商",
+                "数据处理", null, "关键", "c").getId());
+        // 带评估依据的评估（记录"通过什么评估表单/维度得出结果"）
+        var a = asOrg(ORG_PAY, () -> vendorService.assess(vid, RiskLevel.MID, 75,
+                "总体可控", "ANNUAL", "依据《第三方安全评估表》五维：资质/数据安全/连续性/合规/事件史，各维评分见附件", "assessor"));
+        assertEquals("依据《第三方安全评估表》五维：资质/数据安全/连续性/合规/事件史，各维评分见附件", a.getBasis());
+
+        // 上传评估表单/报告原件 → sha256 固化
+        byte[] doc = "第三方安全评估表\n资质:合格\n数据安全:良好".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var withDoc = asOrg(ORG_PAY, () -> vendorService.uploadAssessmentDoc(a.getId(), "供应商评估表.txt", doc, "assessor"));
+        assertEquals("供应商评估表.txt", withDoc.getDocName());
+        assertTrue(withDoc.getDocSha256() != null && withDoc.getDocSha256().length() == 64, "应 sha256 固化");
+        assertTrue(asOrg(ORG_PAY, () -> vendorService.getAssessmentWithDoc(a.getId())).getDocBytes().length == doc.length);
+
+        // 留痕：登记 + 评估 + 上传原件 = 3 条
+        ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
+        assertTrue(r.valid());
+        assertEquals(3, r.count(), "供应商登记 + 评估 + 上传评估原件 = 3 条留痕");
+    }
+
+    @Test
     void 组织隔离_org12供应商org13看不到() {
         asOrg(ORG_PAY, () -> vendorService.register(ORG_PAY, "V-X", "仅支付可见", "外包", null, "一般", "c"));
         assertEquals(1, asOrg(ORG_PAY, () -> vendorService.list()).size(), "org12 应看到自己的 1 个供应商");

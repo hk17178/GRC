@@ -63,7 +63,8 @@
         </div>
 
         <div class="ai-ask">
-          <input v-model="q" :placeholder="$t('ai.askPh')" :disabled="asking" @keyup.enter="ask" />
+          <textarea v-model="q" rows="3" :placeholder="$t('ai.askPh') + '（Enter 发送，Shift+Enter 换行）'" :disabled="asking"
+                    @keydown.enter.exact.prevent="ask"></textarea>
           <button class="btn" :disabled="!q.trim() || asking" @click="ask">{{ asking ? $t('ai.asking') : $t('ai.ask') }}</button>
         </div>
       </aside>
@@ -149,8 +150,9 @@ function clear() { messages.value = []; q.value = '' }
 </script>
 
 <style scoped>
-.ai-panel-mask { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.28); z-index: 60; display: flex; justify-content: flex-end; }
-.ai-panel { width: 440px; max-width: 94vw; height: 100%; background: var(--surface); border-left: 1px solid var(--surface-border); box-shadow: var(--shadow-2); display: flex; flex-direction: column; }
+/* 左下角浮动对话窗（非全屏遮罩；点窗外关闭）——不再右侧长条 */
+.ai-panel-mask { position: fixed; inset: 0; background: transparent; z-index: 60; display: flex; align-items: flex-end; justify-content: flex-start; }
+.ai-panel { width: 420px; max-width: calc(100vw - 40px); height: 560px; max-height: 76vh; margin: 0 0 84px 20px; background: var(--surface); border: 1px solid var(--surface-border); border-radius: 16px; box-shadow: var(--shadow-2); display: flex; flex-direction: column; overflow: hidden; }
 .ai-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--border-subtle); }
 .ai-head .ttl { display: flex; align-items: center; gap: 10px; }
 .ai-head h3 { font-size: 14.5px; font-weight: 740; font-family: var(--font-display); margin: 0; }
@@ -186,8 +188,9 @@ function clear() { messages.value = []; q.value = '' }
 .fdone { font-size: 10.5px; color: var(--success); font-weight: 600; }
 .fbneg { display: flex; gap: 6px; margin-top: 8px; }
 .fbneg input { flex: 1; height: 30px; padding: 0 9px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 12px; font-family: inherit; outline: none; }
-.ai-ask { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-subtle); }
-.ai-ask input { flex: 1; height: 38px; padding: 0 12px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; outline: none; }
+.ai-ask { display: flex; gap: 8px; padding: 12px 16px; border-top: 1px solid var(--border-subtle); align-items: flex-end; }
+.ai-ask textarea { flex: 1; padding: 8px 12px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; line-height: 1.5; outline: none; resize: vertical; min-height: 62px; max-height: 160px; box-sizing: border-box; }
+.ai-ask textarea:focus { border-color: var(--accent); }
 .btn { display: inline-flex; align-items: center; background: linear-gradient(135deg, var(--accent), var(--accent-strong)); color: #fff; border: 0; border-radius: var(--radius-md); padding: 8px 14px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .btn.sm { padding: 5px 11px; font-size: 11.5px; }
 .btn[disabled] { opacity: 0.55; cursor: not-allowed; }
@@ -195,5 +198,5 @@ function clear() { messages.value = []; q.value = '' }
 .ai-slide-enter-active, .ai-slide-leave-active { transition: opacity 0.18s ease; }
 .ai-slide-enter-active .ai-panel, .ai-slide-leave-active .ai-panel { transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1); }
 .ai-slide-enter-from, .ai-slide-leave-to { opacity: 0; }
-.ai-slide-enter-from .ai-panel, .ai-slide-leave-to .ai-panel { transform: translateX(100%); }
+.ai-slide-enter-from .ai-panel, .ai-slide-leave-to .ai-panel { transform: translateY(24px) scale(0.97); }
 </style>

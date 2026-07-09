@@ -104,6 +104,11 @@
       </div>
 
       <!-- ===== 可编辑大屏栅格（12 列） ===== -->
+      <!-- #6 拖拽缩放实时长宽读数（跟随光标）-->
+      <div v-if="resizeInfo.show" class="resize-badge" :style="{ left: resizeInfo.x + 16 + 'px', top: resizeInfo.y + 16 + 'px' }">
+        跨 <b>{{ resizeInfo.cols }}</b>/12 列 · <b>{{ resizeInfo.w }}</b>×<b>{{ resizeInfo.h }}</b> px
+      </div>
+
       <div class="dgrid" :class="{ editing: editMode }">
         <!-- 子公司 × 风险域 · 热力矩阵（span 6 · 等宽列） -->
         <div v-if="inLayout('heat')" class="card gi" :style="{ '--w': widthOf('heat') }">
@@ -444,14 +449,17 @@ function removeW(id) { layout.value = layout.value.filter((e) => e.id !== id); p
 // ===== 自由缩放：拖拽组件右/下边手柄连续改变 列宽(2~12) =====
 // 12 列响应式栅格，列宽随分辨率自适应；拖拽按"当前栅格列宽"换算成跨列数并即时套用。
 let resizing = null
+// 拖拽时的实时长宽读数（跟随光标显示 跨列数 + 像素长宽；栅格实时重排即所见即所得）
+const resizeInfo = ref({ show: false, cols: 0, w: 0, h: 0, x: 0, y: 0 })
 function startResize(id, e) {
   e.preventDefault(); e.stopPropagation()
   const grid = e.target.closest('.dgrid')
+  const cardEl = e.target.closest('.card')
   if (!grid) return
   const gap = 14
   const gridW = grid.getBoundingClientRect().width
   const colW = (gridW - gap * 11) / 12 + gap   // 每列有效宽（含一个间隙）
-  resizing = { id, startX: e.clientX, startW: widthOf(id), colW }
+  resizing = { id, startX: e.clientX, startW: widthOf(id), colW, cardEl }
   document.body.style.cursor = 'col-resize'
   document.body.style.userSelect = 'none'
   window.addEventListener('mousemove', onResize)
@@ -461,9 +469,16 @@ function onResize(e) {
   if (!resizing) return
   const deltaCols = Math.round((e.clientX - resizing.startX) / resizing.colW)
   setWidth(resizing.id, resizing.startW + deltaCols)
+  // 栅格已即时重排；下一帧读取该组件渲染后的真实长宽，实时反馈给用户
+  requestAnimationFrame(() => {
+    if (!resizing || !resizing.cardEl) return
+    const r = resizing.cardEl.getBoundingClientRect()
+    resizeInfo.value = { show: true, cols: widthOf(resizing.id), w: Math.round(r.width), h: Math.round(r.height), x: e.clientX, y: e.clientY }
+  })
 }
 function endResize() {
   resizing = null
+  resizeInfo.value = { ...resizeInfo.value, show: false }
   document.body.style.cursor = ''
   document.body.style.userSelect = ''
   window.removeEventListener('mousemove', onResize)
@@ -1226,4 +1241,7 @@ loadLiveWidgets()
 .bm td { padding: 7px 8px; text-align: center; border-top: 1px solid var(--border-subtle); }
 .bm-hi { color: var(--danger); font-weight: 700; }
 .bm-lo { color: var(--success); font-weight: 700; }
+/* #6 缩放实时长宽读数 */
+.resize-badge { position: fixed; z-index: 2000; pointer-events: none; background: var(--text-1, #1a1a1a); color: #fff; font-size: 12px; padding: 5px 10px; border-radius: 7px; box-shadow: 0 6px 20px rgba(0,0,0,0.28); white-space: nowrap; }
+.resize-badge b { font-variant-numeric: tabular-nums; }
 </style>

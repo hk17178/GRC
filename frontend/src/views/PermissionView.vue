@@ -14,7 +14,8 @@
 
       <!-- ⑧ 合并：原「权限与审批」+「权限配置」两菜单理顺为本页两个 Tab -->
       <div class="tabbar">
-        <button :class="{ on: tab === 'access' }" @click="tab = 'access'">用户授权 · 职责分离 · 访问复核</button>
+        <button :class="{ on: tab === 'access' }" @click="tab = 'access'">用户授权与职责分离</button>
+        <button :class="{ on: tab === 'uar' }" @click="tab = 'uar'">访问复核 (UAR)</button>
         <button :class="{ on: tab === 'matrix' }" @click="tab = 'matrix'">角色权限矩阵</button>
       </div>
 
@@ -23,7 +24,7 @@
         <RbacMatrix />
       </div>
 
-      <!-- Tab · 用户授权 / 职责分离 / 访问复核（原「权限与审批」）-->
+      <!-- Tab · 用户授权与职责分离（授权 + SoD 规则 + 例外审批 + 存量冲突扫描）-->
       <div v-show="tab === 'access'">
       <!-- SoD 规则（系统参考）-->
       <div class="card">
@@ -90,7 +91,7 @@
                 <select v-model.number="exRuleId"><option v-for="r in SOD_RULES" :key="r.id" :value="r.id">{{ roleName(r.a) }}×{{ roleName(r.b) }}</option></select>
               </label>
             </div>
-            <label class="fld">{{ $t('perm.exReason') }}<input v-model="exReason" :placeholder="$t('perm.exReasonPh')" /></label>
+            <label class="fld">{{ $t('perm.exReason') }}<textarea v-model="exReason" rows="3" class="mtext" :placeholder="$t('perm.exReasonPh')"></textarea></label>
             <button class="btn sm" :disabled="!exReason || busy" @click="requestException">{{ $t('perm.op.requestEx') }}</button>
 
             <table v-if="exceptions.length" style="margin-top: 12px">
@@ -140,7 +141,10 @@
         </div>
       </div>
 
-      <!-- 访问复核（UAR · 周期性权限再认证）-->
+      </div><!-- /tab access -->
+
+      <!-- Tab · 访问复核（UAR · 周期性权限再认证）-->
+      <div v-show="tab === 'uar'">
       <div class="card">
         <div class="ch">
           <h3>{{ $t('perm.uar.title') }}</h3>
@@ -201,7 +205,7 @@
           <p v-if="uarError" class="cerr">{{ uarError }}</p>
         </div>
       </div>
-      </div><!-- /tab access -->
+      </div><!-- /tab uar -->
     </section>
   </AppShell>
 </template>

@@ -38,8 +38,8 @@
           <p v-if="msg" class="msg" :class="msgKind">{{ msg }}</p>
         </div>
 
-        <!-- 中：画布（属性面板作为画布内浮层，点节点/连线即就地展示，像工作流配置那样） -->
-        <div class="canvas">
+        <!-- 中：画布（属性面板紧贴所点节点旁展开，就地编辑） -->
+        <div class="canvas" ref="canvasEl">
           <VueFlow v-model:nodes="nodes" v-model:edges="edges" :default-viewport="{ zoom: 0.9 }" fit-view-on-init
                    @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick">
             <Background pattern-color="#d9c2c2" :gap="18" />
@@ -49,8 +49,8 @@
           <!-- 未选中：画布内轻提示 -->
           <div v-if="!sel" class="canvas-hint">{{ $t('flow.selectHint') }}</div>
 
-          <!-- 属性浮层：仅选中节点/连线时出现，画布右上角就地编辑 -->
-          <div v-else class="props-float">
+          <!-- 属性浮层：紧贴所点节点/连线旁就地编辑 -->
+          <div v-else class="props-float" :style="panelPos">
             <div class="pf-head"><span class="pf-ttl">{{ $t('flow.props') }}</span><button class="pf-x" @click="clearSel" title="关闭">×</button></div>
 
           <template v-if="sel.kind === 'node'">
@@ -325,8 +325,23 @@ function addNode(kind) {
   const data = toData({ type: kind, name: kind === 'APPROVAL' ? '审批' : '', approverRefs: kind === 'APPROVAL' ? ['CHECKER'] : [], outcome: 'APPROVED' })
   nodes.value = [...nodes.value, vfNode(key, data, 200 + Math.random() * 120, 240 + Math.random() * 80)]
 }
-function onNodeClick(e) { sel.value = { kind: 'node', id: e.node.id } }
-function onEdgeClick(e) { sel.value = { kind: 'edge', id: e.edge.id } }
+const canvasEl = ref(null)
+const panelPos = ref({ top: '12px', right: '12px' })   // 缺省右上；点击后贴到元素旁
+const PANEL_W = 250
+// 把属性浮层定位到被点元素（节点/连线）右侧；越界则翻到左侧，纵向夹在画布内
+function placePanelBeside(evt) {
+  const canvas = canvasEl.value
+  const target = evt && (evt.currentTarget || (evt.target && evt.target.closest && evt.target.closest('.vue-flow__node, .vue-flow__edge')))
+  if (!canvas || !target || !target.getBoundingClientRect) { panelPos.value = { top: '12px', right: '12px' }; return }
+  const cr = canvas.getBoundingClientRect()
+  const nr = target.getBoundingClientRect()
+  let left = nr.right - cr.left + 12
+  if (left + PANEL_W > cr.width - 8) left = Math.max(8, nr.left - cr.left - PANEL_W - 12)   // 右侧放不下→翻左侧
+  let top = Math.max(8, Math.min(nr.top - cr.top, cr.height - 260))
+  panelPos.value = { left: left + 'px', top: top + 'px' }
+}
+function onNodeClick(e) { sel.value = { kind: 'node', id: e.node.id }; placePanelBeside(e.event) }
+function onEdgeClick(e) { sel.value = { kind: 'edge', id: e.edge.id }; placePanelBeside(e.event) }
 function clearSel() { sel.value = null }
 const selNode = computed(() => nodes.value.find(n => n.id === sel.value?.id))
 const selEdge = computed(() => edges.value.find(e => e.id === sel.value?.id))
@@ -379,7 +394,7 @@ loadList()
 .palette { background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow-1); overflow-y: auto; }
 .canvas { position: relative; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-1); }
 /* 画布内属性浮层（点节点/连线就地展示） */
-.props-float { position: absolute; top: 12px; right: 12px; width: 250px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md, 10px); box-shadow: var(--shadow-2, 0 10px 30px rgba(0,0,0,0.16)); padding: 12px 14px; z-index: 5; }
+.props-float { position: absolute; width: 250px; max-height: calc(100% - 24px); overflow-y: auto; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-md, 10px); box-shadow: var(--shadow-2, 0 10px 30px rgba(0,0,0,0.16)); padding: 12px 14px; z-index: 5; }
 .pf-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
 .pf-ttl { font-size: 12px; font-weight: 700; color: var(--text-1); }
 .pf-x { border: 0; background: none; color: var(--text-3); font-size: 17px; line-height: 1; cursor: pointer; }

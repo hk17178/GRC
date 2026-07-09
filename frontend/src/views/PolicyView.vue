@@ -202,7 +202,7 @@
         <div class="modal-card">
           <h3>{{ $t('policy.reject.title') }}</h3>
           <p class="muted" style="margin: -6px 0 14px; font-size: 12.5px">{{ rejectTarget && rejectTarget.title }}</p>
-          <label class="fld">{{ $t('policy.reject.reason') }}<input v-model="rejectReason" :placeholder="$t('policy.reject.reasonPh')" /></label>
+          <label class="fld">{{ $t('policy.reject.reason') }}<textarea v-model="rejectReason" rows="3" class="mtext" :placeholder="$t('policy.reject.reasonPh')"></textarea></label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showReject = false">{{ $t('common.cancel') }}</button>

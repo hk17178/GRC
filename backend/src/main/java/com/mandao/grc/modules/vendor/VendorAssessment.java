@@ -59,6 +59,20 @@ public class VendorAssessment {
     @Column(name = "assessed_at", updatable = false)
     private OffsetDateTime assessedAt;
 
+    /** 评估依据：所用评估表单/标准/维度说明（过程可溯）。 */
+    @Column(columnDefinition = "TEXT")
+    private String basis;
+
+    /** 评估表单/报告原件（过程文档留存 + sha256 固化）。 */
+    @Column(name = "doc_name", length = 255)
+    private String docName;
+
+    @Column(name = "doc_sha256", length = 64)
+    private String docSha256;
+
+    @Column(name = "doc_bytes")
+    private byte[] docBytes;
+
     /** JPA 要求的无参构造。 */
     protected VendorAssessment() {
     }
@@ -66,7 +80,14 @@ public class VendorAssessment {
     /** 业务构造：登记一次供应商评估。 */
     public VendorAssessment(Long orgId, Long vendorId, RiskLevel riskLevel, Integer score,
                             String assessor, String conclusion, String assessType) {
+        this(orgId, vendorId, riskLevel, score, assessor, conclusion, assessType, null);
+    }
+
+    /** 业务构造（带评估依据）。 */
+    public VendorAssessment(Long orgId, Long vendorId, RiskLevel riskLevel, Integer score,
+                            String assessor, String conclusion, String assessType, String basis) {
         this.assessType = assessType == null ? "ONBOARDING" : assessType;
+        this.basis = basis;
         // 委托旧构造逻辑：
         init(orgId, vendorId, riskLevel, score, assessor, conclusion);
     }
@@ -97,4 +118,15 @@ public class VendorAssessment {
     public String getAssessor() { return assessor; }
     public String getConclusion() { return conclusion; }
     public OffsetDateTime getAssessedAt() { return assessedAt; }
+    public String getBasis() { return basis; }
+    public String getDocName() { return docName; }
+    public String getDocSha256() { return docSha256; }
+    public byte[] getDocBytes() { return docBytes; }
+
+    /** 挂载评估表单/报告原件（过程文档留存）。 */
+    void attachDocument(String docName, String docSha256, byte[] docBytes) {
+        this.docName = docName;
+        this.docSha256 = docSha256;
+        this.docBytes = docBytes;
+    }
 }

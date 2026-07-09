@@ -57,7 +57,28 @@ public class VendorController {
     public VendorAssessment assess(@PathVariable Long id,
                                    @RequestBody AssessRequest req,
                                    @RequestHeader(value = "X-User", required = false) String user) {
-        return service.assess(id, req.riskLevel(), req.score(), req.conclusion(), actor(user));
+        return service.assess(id, req.riskLevel(), req.score(), req.conclusion(),
+                req.assessType() == null ? "ONBOARDING" : req.assessType(), req.basis(), actor(user));
+    }
+
+    /** 上传某次评估的评估表单/报告原件（过程文档留存）。 */
+    @PostMapping("/assessments/{assessmentId}/document")
+    @RequiresPermission("vendor")
+    public VendorAssessment uploadAssessDoc(@PathVariable Long assessmentId,
+                                            @org.springframework.web.bind.annotation.RequestParam("file")
+                                            org.springframework.web.multipart.MultipartFile file,
+                                            @RequestHeader(value = "X-User", required = false) String user)
+            throws java.io.IOException {
+        return service.uploadAssessmentDoc(assessmentId, file.getOriginalFilename(), file.getBytes(), actor(user));
+    }
+
+    /** 下载某次评估的原件。 */
+    @GetMapping("/assessments/{assessmentId}/document")
+    public org.springframework.http.ResponseEntity<byte[]> downloadAssessDoc(@PathVariable Long assessmentId) {
+        VendorAssessment a = service.getAssessmentWithDoc(assessmentId);
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=\"" + a.getDocName() + "\"")
+                .body(a.getDocBytes());
     }
 
     /** 启用供应商（准入门控：须已评估）。 */
@@ -180,7 +201,8 @@ public class VendorController {
     }
 
     /** 评估请求体。 */
-    public record AssessRequest(RiskLevel riskLevel, Integer score, String conclusion) {
+    public record AssessRequest(RiskLevel riskLevel, Integer score, String conclusion,
+                                String assessType, String basis) {
     }
 
     /** 原因请求体（暂停/终止）。 */

@@ -58,7 +58,7 @@
             <div class="cb" style="overflow-x: auto; padding-top: 0">
               <div v-if="!selectedId" class="hint">{{ $t('vendor.selectHint') }}</div>
               <table v-else style="min-width: 460px">
-                <thead><tr><th>类型</th><th>{{ $t('vendor.ath.risk') }}</th><th>{{ $t('vendor.ath.score') }}</th><th>{{ $t('vendor.ath.assessor') }}</th><th>{{ $t('vendor.ath.concl') }}</th></tr></thead>
+                <thead><tr><th>类型</th><th>{{ $t('vendor.ath.risk') }}</th><th>{{ $t('vendor.ath.score') }}</th><th>{{ $t('vendor.ath.assessor') }}</th><th>{{ $t('vendor.ath.concl') }}</th><th>评估依据 / 过程文档</th></tr></thead>
                 <tbody>
                   <tr v-for="a in assessments" :key="a.id">
                     <td><span class="pill">{{ AT_LABEL[a.assessType] || a.assessType }}</span></td>
@@ -66,8 +66,16 @@
                     <td class="num">{{ a.score == null ? '—' : a.score }}</td>
                     <td>{{ a.assessor }}</td>
                     <td class="desc">{{ a.conclusion }}</td>
+                    <td style="min-width:200px">
+                      <div v-if="a.basis" style="font-size:11.5px;color:var(--text-2);margin-bottom:4px">{{ a.basis }}</div>
+                      <div style="display:flex;align-items:center;gap:6px">
+                        <a v-if="a.docName" class="mini" :href="docUrl(a.id)" target="_blank" :title="'sha256 ' + (a.docSha256||'').slice(0,12)">📎 {{ a.docName }}</a>
+                        <button v-if="canWrite('vendor')" class="mini" @click="pickAssessDoc(a)">{{ a.docName ? '换原件' : '⇪ 上传原件' }}</button>
+                        <span v-if="!a.basis && !a.docName" class="muted" style="font-size:11px">未留存</span>
+                      </div>
+                    </td>
                   </tr>
-                  <tr v-if="!assessments.length"><td colspan="5" class="emptyrow">{{ $t('vendor.assessEmpty') }}</td></tr>
+                  <tr v-if="!assessments.length"><td colspan="6" class="emptyrow">{{ $t('vendor.assessEmpty') }}</td></tr>
                 </tbody>
               </table>
             </div>
@@ -190,7 +198,9 @@
             </select>
           </label>
           <label class="fld">{{ $t('vendor.assess.score') }}<input v-model.number="af.score" type="number" min="0" max="100" /></label>
-          <label class="fld">{{ $t('vendor.assess.concl') }}<input v-model="af.conclusion" /></label>
+          <label class="fld">{{ $t('vendor.assess.concl') }}<textarea v-model="af.conclusion" rows="3" class="mtext"></textarea></label>
+          <label class="fld">评估依据（所用评估表单/标准/维度，过程可溯）<textarea v-model="af.basis" rows="3" class="mtext" placeholder="如 依据《第三方安全评估表》五维评分：资质/数据安全/连续性/合规/事件史"></textarea></label>
+          <p style="font-size:11px;color:var(--text-3);margin:-6px 0 8px">提示：登记后可在评估历史该行「上传原件」附评估表单/报告（sha256 固化留存）。</p>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="showAssess = false">{{ $t('common.cancel') }}</button>
@@ -264,7 +274,7 @@
             </select>
           </label>
           <label class="fld">得分<input v-model.number="rf2.score" type="number" min="0" max="100" /></label>
-          <label class="fld">复评结论<input v-model="rf2.conclusion" /></label>
+          <label class="fld">复评结论<textarea v-model="rf2.conclusion" rows="3" class="mtext"></textarea></label>
           <p v-if="opError" class="cerr">{{ opError }}</p>
           <div class="modal-actions">
             <button class="btn ghost" @click="reassessTarget = null">取消</button>
@@ -334,16 +344,40 @@ async function submitCreate() {
 // 评估
 const showAssess = ref(false)
 const assessTarget = ref(null)
-const af = reactive({ riskLevel: 'MID', score: 70, conclusion: '', assessType: 'ONBOARDING' })
-function openAssess(v) { assessTarget.value = v; Object.assign(af, { riskLevel: 'MID', score: 70, conclusion: '', assessType: 'ONBOARDING' }); opError.value = ''; showAssess.value = true }
+const af = reactive({ riskLevel: 'MID', score: 70, conclusion: '', assessType: 'ONBOARDING', basis: '' })
+function openAssess(v) { assessTarget.value = v; Object.assign(af, { riskLevel: 'MID', score: 70, conclusion: '', assessType: 'ONBOARDING', basis: '' }); opError.value = ''; showAssess.value = true }
 async function submitAssess() {
   saving.value = true; opError.value = ''
   try {
-    await api.post('/vendors/' + assessTarget.value.id + '/assessments', { riskLevel: af.riskLevel, score: af.score, conclusion: af.conclusion, assessType: af.assessType })
+    await api.post('/vendors/' + assessTarget.value.id + '/assessments', { riskLevel: af.riskLevel, score: af.score, conclusion: af.conclusion, assessType: af.assessType, basis: af.basis || null })
     showAssess.value = false
     await loadVendors()
     if (selectedId.value === assessTarget.value.id) await selectVendor({ id: assessTarget.value.id })
   } catch (e) { opError.value = e.message } finally { saving.value = false }
+}
+// #2 评估过程文档：原件下载 URL + 上传（每条评估一份评估表单/报告，sha256 固化）
+function docUrl(assessmentId) { return '/api/vendors/assessments/' + assessmentId + '/document' }
+const assessDocInput = ref(null)
+const assessDocTarget = ref(null)
+function pickAssessDoc(a) {
+  assessDocTarget.value = a
+  if (!assessDocInput.value) {
+    const inp = document.createElement('input')
+    inp.type = 'file'
+    inp.onchange = onAssessDoc
+    assessDocInput.value = inp
+  }
+  assessDocInput.value.value = ''
+  assessDocInput.value.click()
+}
+async function onAssessDoc(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file || !assessDocTarget.value) return
+  try {
+    const fd = new FormData(); fd.append('file', file)
+    await api.upload('/vendors/assessments/' + assessDocTarget.value.id + '/document', fd)
+    if (selectedId.value) await selectVendor({ id: selectedId.value })
+  } catch (err) { window.alert('上传失败：' + err.message) }
 }
 
 // ===== M7 深度 =====

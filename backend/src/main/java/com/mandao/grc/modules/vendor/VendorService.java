@@ -71,21 +71,58 @@ public class VendorService {
     @Transactional
     public VendorAssessment assess(Long vendorId, RiskLevel riskLevel, Integer score,
                                    String conclusion, String actor) {
-        return assess(vendorId, riskLevel, score, conclusion, "ONBOARDING", actor);
+        return assess(vendorId, riskLevel, score, conclusion, "ONBOARDING", null, actor);
     }
 
-    /** 评估供应商（带评估类型：ONBOARDING/ANNUAL/RENEWAL/EVENT，需求 9.3.2 四类评估分类）。 */
+    /** 评估供应商（带评估类型）。 */
     @Transactional
     public VendorAssessment assess(Long vendorId, RiskLevel riskLevel, Integer score,
                                    String conclusion, String assessType, String actor) {
+        return assess(vendorId, riskLevel, score, conclusion, assessType, null, actor);
+    }
+
+    /**
+     * 评估供应商（带评估类型 + 评估依据）。评估依据记录"通过什么评估表单/标准/维度得出结果"，
+     * 与后续可挂载的评估表单原件一起构成可溯的评估过程（需求 9.3.2 + 用户反馈：评估须有过程留存）。
+     */
+    @Transactional
+    public VendorAssessment assess(Long vendorId, RiskLevel riskLevel, Integer score,
+                                   String conclusion, String assessType, String basis, String actor) {
         Vendor v = get(vendorId);
         VendorAssessment saved = assessmentRepository.save(
-                new VendorAssessment(v.getOrgId(), vendorId, riskLevel, score, actor, conclusion, assessType));
+                new VendorAssessment(v.getOrgId(), vendorId, riskLevel, score, actor, conclusion, assessType, basis));
         v.setRiskLevel(riskLevel);
         vendorRepository.save(v);
         hashChainService.append(v.getOrgId(), "VENDOR_ASSESS", actor, "VENDOR:" + vendorId,
-                "供应商评估 风险=" + riskLevel + " 得分=" + score);
+                "供应商评估 风险=" + riskLevel + " 得分=" + score + (basis != null && !basis.isBlank() ? "（附依据）" : ""));
         return saved;
+    }
+
+    /** 上传某次评估的评估表单/报告原件（过程文档留存 + sha256 固化）。 */
+    @Transactional
+    public VendorAssessment uploadAssessmentDoc(Long assessmentId, String filename, byte[] bytes, String actor) {
+        VendorAssessment a = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new IllegalArgumentException("评估记录不存在或不可见：id=" + assessmentId));
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("上传文件为空");
+        }
+        String sha256 = sha256Hex(bytes);
+        a.attachDocument(filename, sha256, bytes);
+        VendorAssessment saved = assessmentRepository.save(a);
+        hashChainService.append(a.getOrgId(), "VENDOR_ASSESS_DOC", actor, "VENDOR:" + a.getVendorId(),
+                "上传供应商评估原件 " + filename + "（sha256=" + sha256.substring(0, 12) + "…）");
+        return saved;
+    }
+
+    /** 下载某次评估的原件。 */
+    @Transactional(readOnly = true)
+    public VendorAssessment getAssessmentWithDoc(Long assessmentId) {
+        VendorAssessment a = assessmentRepository.findById(assessmentId)
+                .orElseThrow(() -> new IllegalArgumentException("评估记录不存在或不可见：id=" + assessmentId));
+        if (a.getDocBytes() == null) {
+            throw new IllegalArgumentException("该评估未上传原件");
+        }
+        return a;
     }
 
     /**
@@ -243,5 +280,19 @@ public class VendorService {
         hashChainService.append(inc.getOrgId(), "VENDOR_INCIDENT_CLOSE", actor, "VENDOR:" + inc.getVendorId(),
                 "外部事件复评闭环：" + inc.getEvent());
         return saved;
+    }
+
+    /** 原件 sha256（十六进制），与制度/证据同款固化口径。 */
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            byte[] d = java.security.MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder sb = new StringBuilder(d.length * 2);
+            for (byte b : d) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16)).append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 不可用", e);
+        }
     }
 }

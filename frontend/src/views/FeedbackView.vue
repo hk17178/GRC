@@ -77,7 +77,7 @@
             <select v-model="cf.type"><option value="SUGGESTION">{{ $t('fb.type.SUGGESTION') }}</option><option value="COMPLAINT">{{ $t('fb.type.COMPLAINT') }}</option><option value="BUG">{{ $t('fb.type.BUG') }}</option><option value="QUESTION">{{ $t('fb.type.QUESTION') }}</option></select>
           </label>
           <label class="fld">{{ $t('fb.th.title') }}<input v-model="cf.title" /></label>
-          <label class="fld">{{ $t('fb.create.content') }}<input v-model="cf.content" /></label>
+          <label class="fld">{{ $t('fb.create.content') }}<textarea v-model="cf.content" rows="5" class="ta"></textarea></label>
           <label class="fld">{{ $t('fb.create.org') }}
             <select v-model.number="cf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
@@ -239,6 +239,7 @@ td.ops { display: flex; gap: 6px; }
 .modal-card h3 { margin: 0 0 16px; font-size: 16px; }
 .modal-card .fld { display: block; font-size: 12.5px; color: var(--text-2); margin-bottom: 12px; }
 .modal-card .fld input, .modal-card .fld select { display: block; width: 100%; height: 38px; margin-top: 5px; padding: 0 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; outline: none; }
+.modal-card .fld .ta { display: block; width: 100%; margin-top: 5px; padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13.5px; font-family: inherit; line-height: 1.6; outline: none; box-sizing: border-box; resize: vertical; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
 /* 出站审批标签 */

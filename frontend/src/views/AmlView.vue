@@ -132,7 +132,7 @@
           <label class="fld">证件号 / 组织机构代码<input v-model="wf.idNumber" placeholder="可空" /></label>
           <label class="fld">国别 / 地区<input v-model="wf.country" placeholder="可空" /></label>
           <label class="fld">名单来源<input v-model="wf.source" placeholder="如 OFAC / 联合国 / 公安部 / 内部" /></label>
-          <label class="fld">列入原因<input v-model="wf.reason" placeholder="可空" /></label>
+          <label class="fld">列入原因<textarea v-model="wf.reason" rows="3" class="mtext" placeholder="可空"></textarea></label>
           <label class="fld">所属组织<select v-model.number="wf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="err" class="cerr">{{ err }}</p>
           <div class="modal-actions"><button class="btn ghost" @click="showWatch = false">取消</button><button class="btn" :disabled="!wf.name || saving" @click="saveWatch">确认登记</button></div>
@@ -148,7 +148,7 @@
           <label class="fld">风险等级
             <select v-model="sf.riskLevel"><option value="LOW">低</option><option value="MID">中</option><option value="HIGH">高</option></select>
           </label>
-          <label class="fld">可疑理由 / 情形<input v-model="sf.reason" placeholder="如 短期大额分拆、与身份不符的资金往来" /></label>
+          <label class="fld">可疑理由 / 情形<textarea v-model="sf.reason" rows="4" class="mtext" placeholder="如 短期大额分拆、与身份不符的资金往来"></textarea></label>
           <label class="fld">可疑交易发生日<input type="date" v-model="sf.occurredDate" /></label>
           <label class="fld">所属组织<select v-model.number="sf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select></label>
           <p v-if="err" class="cerr">{{ err }}</p>
@@ -257,7 +257,6 @@ loadWatch()
 </script>
 
 <style scoped>
-.view { max-width: 1200px; }
 .phead { display: flex; align-items: center; margin-bottom: 14px; gap: 12px; }
 .phead .kqt { font-size: 10.5px; letter-spacing: 1.5px; color: var(--accent); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
 .phead h1 { font-size: 20px; font-weight: 760; font-family: var(--font-display); }

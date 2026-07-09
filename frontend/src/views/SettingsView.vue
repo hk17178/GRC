@@ -40,15 +40,17 @@
         <div class="cb" style="overflow-x: auto; padding-top: 0">
           <table style="min-width: 820px">
             <thead><tr>
-              <th>{{ $t('set.th.key') }}</th><th>{{ $t('set.th.category') }}</th><th>{{ $t('set.th.type') }}</th>
-              <th>{{ $t('set.th.value') }}</th><th>{{ $t('set.th.editable') }}</th><th>{{ $t('set.th.op') }}</th>
+              <th>配置项</th><th>{{ $t('set.th.category') }}</th><th>{{ $t('set.th.value') }}</th>
+              <th>{{ $t('set.th.editable') }}</th><th>{{ $t('set.th.op') }}</th>
             </tr></thead>
             <tbody>
               <tr v-for="s in settings" :key="s.id">
-                <td class="code">{{ s.settingKey }}</td>
-                <td class="muted">{{ s.category || '—' }}</td>
-                <td><span class="pill">{{ s.valueType }}</span></td>
-                <td class="val">{{ s.settingValue }}</td>
+                <td>
+                  <div class="s-name">{{ s.description || humanizeKey(s.settingKey) }}</div>
+                  <div class="s-key"><code>{{ s.settingKey }}</code> <span class="pill">{{ s.valueType }}</span></div>
+                </td>
+                <td><span class="cat-pill">{{ CAT_LABEL[s.category] || s.category || '—' }}</span></td>
+                <td class="val">{{ fmtVal(s) }}</td>
                 <td>
                   <span v-if="s.editable" class="st ok"><span class="d"></span>{{ $t('set.editableYes') }}</span>
                   <span v-else class="st over"><span class="d"></span>🔒 {{ $t('set.locked') }}</span>
@@ -58,7 +60,7 @@
                   <span v-else class="muted" :title="$t('set.lockTip')">{{ $t('set.lockedDash') }}</span>
                 </td>
               </tr>
-              <tr v-if="!settings.length"><td colspan="6" class="emptyrow">{{ loadError || $t('set.empty') }}</td></tr>
+              <tr v-if="!settings.length"><td colspan="5" class="emptyrow">{{ loadError || $t('set.empty') }}</td></tr>
             </tbody>
           </table>
         </div>
@@ -113,6 +115,15 @@ const orgOptions = useOrgs()
 import { canWrite } from '@/auth.js'
 
 const settings = ref([])
+// #5 让键值对更友好：分类中文标签 + 键名兜底人性化 + 布尔/JSON 取值可读化
+const CAT_LABEL = { compliance: '合规留存', security: '安全', risk: '风险', ai: 'AI 接入', branding: '品牌外观',
+  scheduler: '调度', notify: '通知', system: '系统', general: '通用' }
+function humanizeKey(k) { return (k || '').replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) }
+function fmtVal(s) {
+  if (s.valueType === 'BOOL') return s.settingValue === 'true' ? '是（开启）' : '否（关闭）'
+  if (s.valueType === 'JSON') return s.settingValue.length > 60 ? s.settingValue.slice(0, 60) + '…' : s.settingValue
+  return s.settingValue
+}
 const loadError = ref('')
 const saving = ref(false)
 const opError = ref('')
@@ -216,4 +227,9 @@ td.ops { display: flex; gap: 6px; align-items: center; }
 .bgrid .fld input, .bgrid .fld textarea { padding: 8px 11px; border: 1px solid var(--surface-border); border-radius: var(--radius-md); background: var(--bg); color: var(--text-1); font-size: 13px; font-family: inherit; outline: none; box-sizing: border-box; }
 .bacts { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
 .ok-msg { color: var(--success); font-weight: 600; font-size: 12px; }
+/* #5 配置项友好展示 */
+.s-name { font-size: 13px; font-weight: 600; color: var(--text-1); }
+.s-key { margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.s-key code { font-size: 10.5px; color: var(--text-3); }
+.cat-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--accent-weak); color: var(--accent-strong); }
 </style>

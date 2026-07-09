@@ -108,3 +108,24 @@ body.t-gov .top { border-bottom: 2px solid var(--accent); }
    （原型未覆盖，副标题走灰 --text-3、青 Logo 融背景；按主题补浅色/提对比）*/
 body.t-glass .brand span, body.t-emerald .brand span { color: rgba(255,255,255,.66); }
 body.t-glass .brand .logo { background: linear-gradient(145deg, #f3fdfe, #bfe6ea); color: var(--accent-strong); }
+
+/* 通用模态多行输入（长文本：理由/说明/结论/描述/情形）——各视图统一观感
+   用法：<textarea class="mtext" rows="4"> 替代原单行 <input> */
+.mtext {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  padding: 8px 11px;
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md, 10px);
+  background: var(--bg);
+  color: var(--text-1);
+  font-size: 13.5px;
+  font-family: inherit;
+  line-height: 1.65;
+  outline: none;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 76px;
+}
+.mtext:focus { border-color: var(--accent); }
