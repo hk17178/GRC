@@ -291,6 +291,19 @@
           </div>
         </div>
 
+        <!-- B22 加权风险指数条（未闭环风险按有效等级加权；点等级芯片下钻） -->
+        <div v-if="riskIdx" class="card" style="margin-bottom:14px">
+          <div class="cb" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
+            <div>
+              <div style="font-size:24px;font-weight:800;font-family:var(--font-display, inherit)">{{ riskIdx.weightedScore }}</div>
+              <div style="font-size:11px;color:var(--text-3)">加权风险指数 · {{ riskIdx.openCount }} 项未闭环 · 均权 {{ riskIdx.avgWeight }}</div>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap">
+              <button v-for="l in DRILL_LV" :key="l[0]" class="pill" :style="{ cursor:'pointer', background: regFltLevel===l[0] ? l[2] : 'var(--surface-2, rgba(0,0,0,.03))', color: regFltLevel===l[0] ? '#fff' : 'var(--text-2)', border:'1px solid ' + l[2] }" @click="drillLevel(l[0])">{{ l[1] }} {{ riskIdx.byLevel[l[0]] || 0 }}</button>
+            </div>
+          </div>
+        </div>
+
         <!-- 台账（筛选 + 表格；行点击进入来源评估下钻）-->
         <div class="card">
           <div class="ch"><h3>风险登记册</h3><span class="cnt">{{ regFiltered.length }}</span>
@@ -433,6 +446,11 @@
                   <td class="num">{{ ctrlReuse(c.id) }}</td>
                   <td>
                     <span class="st" :class="CTRL_STATUS_CLS[c.status]"><span class="d"></span>{{ $t('risk.controls.cstatus.' + c.status) }}</span>
+                    <div style="margin-top:5px;display:flex;gap:6px;align-items:center;justify-content:center">
+                      <span v-if="ctrlReusable[c.id]" class="pill" style="background:var(--safe-weak);color:var(--safe)" :title="'测试可复用 · 有效至 ' + ctrlReusable[c.id].validUntil">测试可复用</span>
+                      <span v-else class="muted" style="font-size:11px">需测试</span>
+                      <button v-if="canWrite('risk') && c.status === 'ACTIVE'" class="mini-x" title="记录控件有效性测试" @click="openCtrlTest(c)">✎测</button>
+                    </div>
                   </td>
                 </tr>
                 <tr v-if="!controls.length">
@@ -621,6 +639,27 @@
           <div class="modal-actions">
             <button class="btn ghost" @click="showPlan = false">取消</button>
             <button class="btn" :disabled="!plf.title || refSaving" @click="submitPlan">确认排期</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- B20 控件测试记录弹窗 -->
+      <div v-if="showCtrlTest" class="modal-mask" @click.self="showCtrlTest = false">
+        <div class="modal-card">
+          <h3>记录控件测试 · {{ ctlt.controlName }}</h3>
+          <p style="font-size:11.5px;color:var(--text-3);margin:-6px 0 10px">测试结论「有效(EFFECTIVE)且在有效期内」时，新的审计/评估可直接复用而不必重测。</p>
+          <label class="fld">测试类型
+            <select v-model="ctlt.testType"><option value="OPERATING">运行有效性</option><option value="DESIGN">设计有效性</option></select>
+          </label>
+          <label class="fld">测试结论
+            <select v-model="ctlt.result"><option value="EFFECTIVE">有效</option><option value="PARTIAL">部分有效</option><option value="DEFICIENT">缺陷</option></select>
+          </label>
+          <label class="fld">有效期至（复用窗口，可空则不参与复用）<input type="date" v-model="ctlt.validUntil" /></label>
+          <label class="fld">说明<input v-model="ctlt.note" placeholder="测试范围/证据摘要，可空" /></label>
+          <p v-if="ctrlTestErr" class="cerr">{{ ctrlTestErr }}</p>
+          <div class="modal-actions">
+            <button class="btn ghost" @click="showCtrlTest = false">取消</button>
+            <button class="btn" :disabled="refSaving" @click="submitCtrlTest">{{ refSaving ? '提交中…' : '确认记录' }}</button>
           </div>
         </div>
       </div>
@@ -1581,7 +1620,30 @@ async function loadControls() {
       controls.value.map((c) => api.get('/controls/' + c.id + '/mappings').then((m) => [c.id, m]).catch(() => [c.id, []]))
     )
     ctrlMappings.value = Object.fromEntries(entries)
-  } catch (e) { controls.value = []; ctrlMappings.value = {} }
+    // B20：逐控件取当前可复用测试结论（有效且未过期的 EFFECTIVE），无则 null
+    const reuse = await Promise.all(
+      controls.value.map((c) => api.get('/controls/' + c.id + '/reusable-test').then((t) => [c.id, t || null]).catch(() => [c.id, null]))
+    )
+    ctrlReusable.value = Object.fromEntries(reuse)
+  } catch (e) { controls.value = []; ctrlMappings.value = {}; ctrlReusable.value = {} }
+}
+// B20 控件测试复用：可复用结论 + 记录测试弹窗
+const ctrlReusable = ref({})   // {controlId: reusableTest|null}
+const showCtrlTest = ref(false)
+const ctrlTestErr = ref('')
+const ctlt = reactive({ controlId: null, controlName: '', testType: 'OPERATING', result: 'EFFECTIVE', validUntil: '', note: '' })
+function openCtrlTest(c) {
+  Object.assign(ctlt, { controlId: c.id, controlName: c.name, testType: 'OPERATING', result: 'EFFECTIVE', validUntil: '', note: '' })
+  ctrlTestErr.value = ''; showCtrlTest.value = true
+}
+async function submitCtrlTest() {
+  refSaving.value = true; ctrlTestErr.value = ''
+  try {
+    await api.post('/controls/' + ctlt.controlId + '/tests', {
+      testType: ctlt.testType, result: ctlt.result, validUntil: ctlt.validUntil || null, note: ctlt.note || null
+    })
+    showCtrlTest.value = false; await loadControls()
+  } catch (e) { ctrlTestErr.value = e.message } finally { refSaving.value = false }
 }
 async function loadKris() {
   try { kris.value = await api.get('/kris') } catch (e) { kris.value = [] }
@@ -1981,9 +2043,14 @@ const regHigh = computed(() => regRows.value.filter((r) => {
   const lv = r.residualLevel || r.inherentLevel
   return lv === 'HIGH' || lv === 'VERY_HIGH'
 }).length)
+// B22 加权风险指数（未闭环按有效等级加权 + 各等级分布，供下钻）
+const riskIdx = ref(null)
 async function loadRegister() {
   try { regRows.value = await api.get('/risk-findings/register') } catch (e) { regRows.value = [] }
+  try { riskIdx.value = await api.get('/risk-findings/index') } catch (e) { riskIdx.value = null }
 }
+// 点等级芯片 → 用现有等级筛选下钻到该等级的未闭环发现
+function drillLevel(level) { regFltLevel.value = regFltLevel.value === level ? '' : level; regFltStatus.value = '' }
 // 切到登记册标签即刷新（发现在下钻页流转后回来能看到最新状态）
 watch(activeTab, (t) => { if (t === 'register') loadRegister() })
 // 点行跳到来源评估的下钻详情

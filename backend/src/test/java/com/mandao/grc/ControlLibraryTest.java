@@ -27,6 +27,8 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -74,7 +76,7 @@ class ControlLibraryTest {
     void clean() throws Exception {
         try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
              Statement s = owner.createStatement()) {
-            s.executeUpdate("TRUNCATE control_framework_ref, control_item, operation_log RESTART IDENTITY CASCADE");
+            s.executeUpdate("TRUNCATE control_test, control_framework_ref, control_item, operation_log RESTART IDENTITY CASCADE");
         }
     }
 
@@ -130,6 +132,60 @@ class ControlLibraryTest {
         ChainVerifyResult r = asOrg(ORG_PAY, () -> hashChainService.verify(ORG_PAY));
         assertTrue(r.valid(), "留痕后链应校验通过");
         assertEquals(3, r.count(), "应有 3 条留痕（定义 + 映射 + 停用）");
+    }
+
+    // ---------- B20 控件测试复用 ----------
+
+    @Test
+    void b20_有效未过期的EFFECTIVE可复用_失效则不可复用() {
+        Long id = asOrg(ORG_PAY, () -> controlService.create(ORG_PAY, "CTL-T", "访问复核控件",
+                "季度访问复核", "访问控制", "sec", "creator").getId());
+
+        // 未测试 → 无可复用结论
+        assertNull(asOrg(ORG_PAY, () -> controlService.reusableTest(id)), "未测试应无可复用结论");
+
+        // 记一条 EFFECTIVE、有效期 90 天后 → 可复用
+        asOrg(ORG_PAY, () -> controlService.recordTest(id, "OPERATING", "EFFECTIVE",
+                java.time.LocalDate.now().plusDays(90), "季度测试通过", "auditor"));
+        var reuse = asOrg(ORG_PAY, () -> controlService.reusableTest(id));
+        assertNotNull(reuse, "有效且未过期的 EFFECTIVE 应可复用");
+        assertEquals("EFFECTIVE", reuse.getResult());
+        assertEquals("OPERATING", reuse.getTestType());
+
+        // 记一条 DEFICIENT（更晚有效期）→ 不影响复用（复用只认 EFFECTIVE），仍返回那条 EFFECTIVE
+        asOrg(ORG_PAY, () -> controlService.recordTest(id, "DESIGN", "DEFICIENT",
+                java.time.LocalDate.now().plusDays(180), "设计缺陷", "auditor"));
+        assertEquals("EFFECTIVE", asOrg(ORG_PAY, () -> controlService.reusableTest(id)).getResult(),
+                "复用只认 EFFECTIVE，DEFICIENT 不参与");
+        assertEquals(2, asOrg(ORG_PAY, () -> controlService.listTests(id)).size(), "测试历史 2 条");
+    }
+
+    @Test
+    void b20_过期的EFFECTIVE不可复用() {
+        Long id = asOrg(ORG_PAY, () -> controlService.create(ORG_PAY, "CTL-EXP", "过期控件",
+                "x", "加密", null, "creator").getId());
+        // EFFECTIVE 但有效期昨天 → 已过期，不可复用
+        asOrg(ORG_PAY, () -> controlService.recordTest(id, "OPERATING", "EFFECTIVE",
+                java.time.LocalDate.now().minusDays(1), "去年测的", "auditor"));
+        assertNull(asOrg(ORG_PAY, () -> controlService.reusableTest(id)), "过期 EFFECTIVE 不可复用，须重测");
+    }
+
+    @Test
+    void b20_非ACTIVE控件不可测_组织隔离() {
+        Long id = asOrg(ORG_PAY, () -> controlService.create(ORG_PAY, "CTL-R", "R", "x", "日志", null, "creator").getId());
+        asOrg(ORG_PAY, () -> controlService.retire(id, "admin"));
+        // 停用控件不可测试
+        assertThrows(IllegalStateException.class, () -> runAsOrg(ORG_PAY, () ->
+                controlService.recordTest(id, "OPERATING", "EFFECTIVE", java.time.LocalDate.now().plusDays(30), null, "a")));
+
+        // 非法结论被拒
+        Long id2 = asOrg(ORG_PAY, () -> controlService.create(ORG_PAY, "CTL-R2", "R2", "x", "日志", null, "creator").getId());
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->
+                controlService.recordTest(id2, "OPERATING", "GREAT", java.time.LocalDate.now().plusDays(30), null, "a")));
+
+        // 隔离：org13 看不到 org12 控件 → recordTest 不可见即不存在
+        assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_CF, () ->
+                controlService.recordTest(id2, "OPERATING", "EFFECTIVE", java.time.LocalDate.now().plusDays(30), null, "a")));
     }
 
     // ---------- 测试辅助 ----------

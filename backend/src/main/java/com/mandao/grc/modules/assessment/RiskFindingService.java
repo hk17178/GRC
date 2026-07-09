@@ -106,6 +106,71 @@ public class RiskFindingService {
                 .toList();
     }
 
+    // ===== B22 风险指数（加权）+ 下钻 =====
+
+    /** 五级权重：极低1…极高5（加权风险指数用）。 */
+    private static int weightOf(RiskLevel level) {
+        return switch (level) {
+            case VERY_LOW -> 1;
+            case LOW -> 2;
+            case MID -> 3;
+            case HIGH -> 4;
+            case VERY_HIGH -> 5;
+        };
+    }
+
+    /** 有效等级：残余优先，无残余取固有（与合规态势风险分布同口径）。 */
+    private static RiskLevel effectiveLevel(RegisterRow r) {
+        return r.residualLevel() != null ? r.residualLevel() : r.inherentLevel();
+    }
+
+    private static boolean isOpen(RiskFindingStatus s) {
+        return s != RiskFindingStatus.DONE && s != RiskFindingStatus.VERIFIED;
+    }
+
+    /** 加权风险指数结果：未闭环风险按有效等级加权求和 + 计数 + 均权 + 各等级分布（供下钻）。 */
+    public record RiskIndex(int weightedScore, long openCount, double avgWeight,
+                            java.util.Map<String, Long> byLevel) {
+    }
+
+    /**
+     * 加权风险指数（B22）：对当前可见组织范围内<b>未闭环</b>（非 DONE/VERIFIED）的风险发现，
+     * 按有效等级（残余优先）加权（极低1…极高5）求和为「风险指数」，并给出各等级分布支撑下钻。
+     * 指数越高 = 未处置的高等级风险越多；均权 = 指数/条数（反映整体严重度）。
+     */
+    @Transactional(readOnly = true)
+    public RiskIndex riskIndex() {
+        int score = 0;
+        long count = 0;
+        java.util.Map<String, Long> byLevel = new java.util.LinkedHashMap<>();
+        for (RiskLevel l : RiskLevel.values()) {
+            byLevel.put(l.name(), 0L);
+        }
+        for (RegisterRow r : registerRows()) {
+            if (!isOpen(r.status())) {
+                continue;
+            }
+            RiskLevel eff = effectiveLevel(r);
+            if (eff == null) {
+                continue;
+            }
+            score += weightOf(eff);
+            count++;
+            byLevel.merge(eff.name(), 1L, Long::sum);
+        }
+        double avg = count == 0 ? 0 : Math.round((double) score / count * 100.0) / 100.0;
+        return new RiskIndex(score, count, avg, byLevel);
+    }
+
+    /** 下钻（B22）：某有效等级下的未闭环风险发现（登记册行）。 */
+    @Transactional(readOnly = true)
+    public List<RegisterRow> findingsByLevel(RiskLevel level) {
+        return registerRows().stream()
+                .filter(r -> isOpen(r.status()))
+                .filter(r -> effectiveLevel(r) == level)
+                .toList();
+    }
+
     /** 按 id 取风险发现（不可见则视为不存在）。 */
     @Transactional(readOnly = true)
     public RiskFinding get(Long id) {

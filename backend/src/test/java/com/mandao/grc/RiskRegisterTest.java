@@ -66,8 +66,11 @@ class RiskRegisterTest {
     private AssetService assetService;
     @Autowired
     private AssessmentService assessmentService;
+    @Autowired
+    private com.mandao.grc.modules.assessment.RiskFindingService riskFindingService;
 
     private static final long ORG_PAY = 12L;
+    private static final long ORG_CF = 13L;
 
     @BeforeEach
     void clean() throws Exception {
@@ -123,6 +126,43 @@ class RiskRegisterTest {
         asOrg(ORG_PAY, () -> assessmentService.complete(a.getId(), "c"));
         assertThrows(IllegalStateException.class,
                 () -> asOrg(ORG_PAY, () -> assessmentService.addScopeAsset(a.getId(), asset.getId(), "c")));
+    }
+
+    // ---------- B22 加权风险指数 + 下钻 ----------
+
+    @Test
+    void b22_加权风险指数_未闭环按有效等级加权_下钻() {
+        Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "指数评估", "u", "2026", "c"));
+        // f1 极高(5)、f2 高(4)、f3 高但残余降到低(2)、f4 中(3)后关闭→排除
+        asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "f1", RiskLevel.VERY_HIGH, "c"));
+        asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "f2", RiskLevel.HIGH, "c"));
+        Long f3 = asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "f3", RiskLevel.HIGH, "c").getId());
+        asOrg(ORG_PAY, () -> riskFindingService.setResidual(f3, RiskLevel.LOW, "c"));   // 残余优先 → 低(2)
+        Long f4 = asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "f4", RiskLevel.MID, "c").getId());
+        asOrg(ORG_PAY, () -> riskFindingService.close(f4, false, "c"));                 // DONE → 排除
+
+        var idx = asOrg(ORG_PAY, () -> riskFindingService.riskIndex());
+        assertEquals(3, idx.openCount(), "未闭环 3 条（f4 已关闭排除）");
+        assertEquals(5 + 4 + 2, idx.weightedScore(), "极高5+高4+低2=11");
+        assertEquals(3.67, idx.avgWeight(), 0.01, "均权 11/3");
+        assertEquals(1L, idx.byLevel().get("VERY_HIGH"));
+        assertEquals(1L, idx.byLevel().get("HIGH"));
+        assertEquals(1L, idx.byLevel().get("LOW"), "f3 按残余等级归到低");
+        assertEquals(0L, idx.byLevel().get("MID"), "f4 已关闭不计");
+
+        // 下钻：高等级下钻命中 f2（f3 已降级到低，不在高）
+        var high = asOrg(ORG_PAY, () -> riskFindingService.findingsByLevel(RiskLevel.HIGH));
+        assertEquals(1, high.size());
+        assertEquals("f2", high.get(0).title());
+    }
+
+    @Test
+    void b22_风险指数组织隔离() {
+        Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "隔离评估", "u", "2026", "c"));
+        asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "仅支付", RiskLevel.VERY_HIGH, "c"));
+        // org13 视角：RLS 裁剪 → 指数为 0
+        assertEquals(0, asOrg(ORG_CF, () -> riskFindingService.riskIndex()).openCount(), "org13 不得计入 org12 风险");
+        assertEquals(1, asOrg(ORG_PAY, () -> riskFindingService.riskIndex()).openCount());
     }
 
     /** 建一个测试资产。 */

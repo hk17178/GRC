@@ -43,6 +43,18 @@ public class RiskFindingController {
         return service.registerRows();
     }
 
+    /** B22 加权风险指数：未闭环风险按有效等级加权求和 + 各等级分布（供下钻）。 */
+    @GetMapping("/index")
+    public RiskFindingService.RiskIndex riskIndex() {
+        return service.riskIndex();
+    }
+
+    /** B22 下钻：某有效等级下的未闭环风险发现。 */
+    @GetMapping("/by-level")
+    public List<RiskFindingService.RegisterRow> byLevel(@RequestParam RiskLevel level) {
+        return service.findingsByLevel(level);
+    }
+
     /** 日常风险直登（八轮 8-11/C11）：事件/漏洞/审计来源的风险不挂评估，直接入登记册。 */
     @PostMapping("/direct")
     @RequiresPermission("risk")

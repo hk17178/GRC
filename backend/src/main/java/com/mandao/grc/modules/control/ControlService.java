@@ -4,7 +4,9 @@ import com.mandao.grc.modules.audit.HashChainService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 统一控件库业务服务（M2 统一控件库）。
@@ -20,15 +22,21 @@ import java.util.List;
 @Service
 public class ControlService {
 
+    private static final Set<String> TEST_TYPES = Set.of("DESIGN", "OPERATING");
+    private static final Set<String> TEST_RESULTS = Set.of("EFFECTIVE", "DEFICIENT", "PARTIAL");
+
     private final ControlRepository controlRepository;
     private final ControlFrameworkRefRepository refRepository;
+    private final ControlTestRepository testRepository;
     private final HashChainService hashChainService;
 
     public ControlService(ControlRepository controlRepository,
                           ControlFrameworkRefRepository refRepository,
+                          ControlTestRepository testRepository,
                           HashChainService hashChainService) {
         this.controlRepository = controlRepository;
         this.refRepository = refRepository;
+        this.testRepository = testRepository;
         this.hashChainService = hashChainService;
     }
 
@@ -84,6 +92,52 @@ public class ControlService {
         hashChainService.append(control.getOrgId(), "CONTROL_MAP", actor, "CONTROL:" + controlId,
                 "映射到框架 " + framework + " 条款 " + clause);
         return saved;
+    }
+
+    // ===== B20 控件测试复用 =====
+
+    /**
+     * 记录一次控件有效性测试（DESIGN/OPERATING × EFFECTIVE/DEFICIENT/PARTIAL），带有效期。
+     * 仅 ACTIVE 控件可测；结论落台账 + 留痕。有效期用于后续「复用」窗口判定。
+     */
+    @Transactional
+    public ControlTest recordTest(Long controlId, String testType, String result,
+                                  LocalDate validUntil, String note, String actor) {
+        Control control = get(controlId);
+        if (control.getStatus() != ControlStatus.ACTIVE) {
+            throw new IllegalStateException("仅启用(ACTIVE)控制项可测试，当前状态：" + control.getStatus());
+        }
+        if (testType == null || !TEST_TYPES.contains(testType)) {
+            throw new IllegalArgumentException("测试类型仅允许 DESIGN/OPERATING：" + testType);
+        }
+        if (result == null || !TEST_RESULTS.contains(result)) {
+            throw new IllegalArgumentException("测试结论仅允许 EFFECTIVE/DEFICIENT/PARTIAL：" + result);
+        }
+        ControlTest saved = testRepository.save(
+                new ControlTest(control.getOrgId(), controlId, testType, result, actor, validUntil, note));
+        hashChainService.append(control.getOrgId(), "CONTROL_TEST", actor, "CONTROL:" + controlId,
+                "控件测试 " + testType + " 结论=" + result + " 有效至=" + validUntil);
+        return saved;
+    }
+
+    /** 某控件的测试历史（最新在前）。 */
+    @Transactional(readOnly = true)
+    public List<ControlTest> listTests(Long controlId) {
+        get(controlId); // 触发可见性校验
+        return testRepository.findByControlIdOrderByIdDesc(controlId);
+    }
+
+    /**
+     * 复用查询（B20 核心）：返回该控件「有效（EFFECTIVE）且未过期（valid_until ≥ 今天）」的可复用测试结论，
+     * 取有效期最远者；无则 null。新的审计/评估据此判定：命中即可复用结论不必重测，未命中则须重新测试。
+     */
+    @Transactional(readOnly = true)
+    public ControlTest reusableTest(Long controlId) {
+        get(controlId);
+        return testRepository
+                .findFirstByControlIdAndResultAndValidUntilGreaterThanEqualOrderByValidUntilDesc(
+                        controlId, "EFFECTIVE", LocalDate.now())
+                .orElse(null);
     }
 
     /** 停用控制项：ACTIVE → RETIRED（保留历史，不再新引用）。 */

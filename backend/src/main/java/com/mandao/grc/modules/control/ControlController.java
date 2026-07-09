@@ -71,6 +71,33 @@ public class ControlController {
         return service.retire(id, actor(user));
     }
 
+    // ===== B20 控件测试复用 =====
+
+    /** 某控件的测试历史。 */
+    @GetMapping("/{id}/tests")
+    public List<ControlTest> tests(@PathVariable Long id) {
+        return service.listTests(id);
+    }
+
+    /** 该控件当前可复用的有效测试结论（无则返回空）。 */
+    @GetMapping("/{id}/reusable-test")
+    public ControlTest reusableTest(@PathVariable Long id) {
+        return service.reusableTest(id);
+    }
+
+    /** 记录一次控件有效性测试。 */
+    @PostMapping("/{id}/tests")
+    @RequiresPermission("risk")
+    public ControlTest recordTest(@PathVariable Long id, @RequestBody RecordTestRequest req,
+                                  @RequestHeader(value = "X-User", required = false) String user) {
+        return service.recordTest(id, req.testType(), req.result(), req.validUntil(), req.note(), actor(user));
+    }
+
+    /** 控件测试请求体：validUntil 为 ISO 日期（yyyy-MM-dd），可空。 */
+    public record RecordTestRequest(String testType, String result,
+                                    java.time.LocalDate validUntil, String note) {
+    }
+
     /** actor 占位策略：取 X-User，缺省 anonymous。 */
     private String actor(String user) {
         return com.mandao.grc.common.auth.ActorResolver.resolve(user); // 七轮 7-4：登录态优先，消除 anonymous 归因
