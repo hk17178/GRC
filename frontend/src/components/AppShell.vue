@@ -188,6 +188,7 @@ const ROUTE_BY_KEY = {
   law: 'law',
   regaffairs: 'regaffairs',
   obligation: 'obligation',
+  aml: 'aml',
   policy: 'policy',
   ai: 'ai',
   vendor: 'vendor',
@@ -237,6 +238,7 @@ const menu = computed(() => [
       { key: 'law' },
       { key: 'regaffairs' },
       { key: 'obligation' },
+      { key: 'aml' },
       { key: 'policy' },
       { key: 'ai' },
       { key: 'vendor' }

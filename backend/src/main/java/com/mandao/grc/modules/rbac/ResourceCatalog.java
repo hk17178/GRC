@@ -30,6 +30,7 @@ public final class ResourceCatalog {
             new Def("law", "法规跟踪", "MENU", null, 6),
             new Def("regaffairs", "监管事项", "MENU", null, 7),
             new Def("obligation", "合规清单", "MENU", null, 8),
+            new Def("aml", "反洗钱", "MENU", null, 21), // AML：名单管理+STR报送+义务/自评引用
             new Def("policy", "制度发布", "MENU", null, 9),
             new Def("ai", "AI智能问答", "MENU", null, 10),
             new Def("vendor", "第三方供应商", "MENU", null, 11),

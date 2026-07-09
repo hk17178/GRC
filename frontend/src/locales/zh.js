@@ -361,6 +361,7 @@ export default {
     law: '法规跟踪',
     regaffairs: '监管事项',
     obligation: '合规清单',
+    aml: '反洗钱',
     policy: '制度体系',
     ai: 'AI 智能问答',
     vendor: '第三方供应商',

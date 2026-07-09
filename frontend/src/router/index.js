@@ -20,6 +20,7 @@ import NotifyView from '@/views/NotifyView.vue'
 import RegulationView from '@/views/RegulationView.vue'
 import VendorView from '@/views/VendorView.vue'
 import ObligationView from '@/views/ObligationView.vue'
+import AmlView from '@/views/AmlView.vue'
 import FeedbackView from '@/views/FeedbackView.vue'
 import SettingsView from '@/views/SettingsView.vue'
 import PolicyView from '@/views/PolicyView.vue'
@@ -128,6 +129,13 @@ const routes = [
     name: 'obligation',
     component: ObligationView,
     meta: { title: '合规清单', navKey: 'obligation' }
+  },
+  {
+    // 反洗钱 AML：名单管理 + 筛查 + 可疑交易报告(STR)
+    path: '/aml',
+    name: 'aml',
+    component: AmlView,
+    meta: { title: '反洗钱', navKey: 'aml' }
   },
   {
     // 制度发布：制度全生命周期 + 审批两步化（M1）

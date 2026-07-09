@@ -361,6 +361,7 @@ export default {
     law: 'Regulation Tracking',
     regaffairs: 'Regulatory Affairs',
     obligation: 'Obligations',
+    aml: 'AML',
     policy: 'Policy System',
     ai: 'AI Assistant',
     vendor: 'Third-party Vendors',
