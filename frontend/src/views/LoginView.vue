@@ -386,7 +386,8 @@ async function onSubmit() {
     loginError.value = e.body && e.body.message
       ? e.body.message
       : (e.status === 401 ? t('login.badCred') : t('login.loginFail') + e.message)
-    refreshCaptcha()
+    // 口令/账号错误时【不刷新验证码】——验证码已通过校验，无谓刷新只会逼用户反复重读重填，
+    // 且本验证码为前端校验（无防爆破作用），保留即可，用户只需改口令重试。
   } finally {
     submitting.value = false
   }
