@@ -98,6 +98,19 @@ class RegulationCrawlTest {
     }
 
     @Test
+    void 关键字过滤_仅采纳命中条目() {
+        // 源配 keyword=反洗钱 → 5 条示例中仅「支付机构反洗钱和反恐怖融资管理办法」命中入库
+        RegulationSource src = asOrg(ORG_PAY, () ->
+                service.addSource(ORG_PAY, "反洗钱专项源", SourceType.SAMPLE, null, "{\"keyword\":\"反洗钱\"}", "DAILY", "c"));
+        RegulationCrawlService.CrawlResult r = asOrg(ORG_PAY, () -> service.crawl(src.getId(), "c"));
+        assertEquals(1, r.hit(), "关键字过滤后命中 1 条");
+        assertEquals(1, r.added());
+        var rows = asOrg(ORG_PAY, () -> service.listCrawled());
+        assertEquals(1, rows.size());
+        assertTrue(rows.get(0).getTitle().contains("反洗钱"), "入库的应是命中关键字的条目");
+    }
+
+    @Test
     void 组织隔离_org12源与采集org13不可见() {
         RegulationSource src = asOrg(ORG_PAY, () ->
                 service.addSource(ORG_PAY, "源X", SourceType.SAMPLE, null, null, "DAILY", "c"));

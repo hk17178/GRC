@@ -44,12 +44,22 @@ public class PolicyController {
         return service.get(id);
     }
 
-    /** 新建草稿制度。 */
+    /** 新建草稿制度（本地导入时可携解析出的版本/生效日期）。 */
     @PostMapping
     @RequiresPermission("policy.create")
     public Policy create(@RequestBody CreatePolicyRequest req,
                          @RequestHeader(value = "X-User", required = false) String user) {
-        return service.create(req.orgId(), req.code(), req.title(), req.content(), actor(user));
+        return service.create(req.orgId(), req.code(), req.title(), req.content(),
+                req.version(), req.effectiveDate(), actor(user));
+    }
+
+    /** #2 本地导入解析：上传 .docx 自动识别 标题/编号/版本/生效日期（不落库，供预填建档表单）。 */
+    @PostMapping("/parse-doc")
+    @RequiresPermission("policy.create")
+    public PolicyService.ParsedDoc parseDoc(@org.springframework.web.bind.annotation.RequestParam("file")
+                                            org.springframework.web.multipart.MultipartFile file)
+            throws java.io.IOException {
+        return service.parseImport(file.getOriginalFilename(), file.getBytes());
     }
 
     /** 提交评审：DRAFT → REVIEW。 */
@@ -172,7 +182,8 @@ public class PolicyController {
     }
 
     /** 新建制度请求体。 */
-    public record CreatePolicyRequest(Long orgId, String code, String title, String content) {
+    public record CreatePolicyRequest(Long orgId, String code, String title, String content,
+                                      Integer version, java.time.LocalDate effectiveDate) {
     }
 
     /** 驳回请求体（原因可选）。 */

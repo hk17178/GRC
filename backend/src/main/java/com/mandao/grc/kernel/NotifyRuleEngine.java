@@ -92,6 +92,8 @@ public class NotifyRuleEngine {
                     case "ASSESSMENT_STALLED" -> scanAssessmentStalled(ruleId, template, today, days, collector);
                     case "REG_NEW" -> scanRegNew(ruleId, template, today, Math.max(days, 1), collector);
                     case "KRI_BREACH" -> scanKriBreach(ruleId, template, collector);
+                    case "ASSESSMENT_UPCOMING" -> scanAssessmentUpcoming(ruleId, template, today, Math.max(days, 1), collector);
+                    case "AUDIT_PLAN_UPCOMING" -> scanAuditUpcoming(ruleId, template, today, Math.max(days, 1), collector);
                     default -> 0; // 未知数据源：跳过（旧格式或手工误配），不让单条脏规则拖垮整轮
                 };
             } catch (RuntimeException | com.fasterxml.jackson.core.JacksonException e) {
@@ -179,6 +181,62 @@ public class NotifyRuleEngine {
                     : "本次新增 " + total + " 条法规：" + preview + suffix;
             n += dispatch("REG_CRAWLED_BATCH", e.getKey(), "RULE_REG_NEW",
                     today.toString(), e.getKey(), digest, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 风险评估临近开始：start_date 在未来 windowDays 天内且尚未启动（DRAFT）。变量：{标题} {剩余天数} {开始日}。 */
+    private int scanAssessmentUpcoming(long ruleId, String template, LocalDate today, int windowDays,
+                                       List<AlertPushService.Alert> collector) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT id, org_id, title, start_date, (start_date - CAST(:today AS date)) AS remain "
+                                + "FROM assessment "
+                                + "WHERE status = 'DRAFT' AND start_date IS NOT NULL "
+                                + "AND start_date >= CAST(:today AS date) "
+                                + "AND start_date <= CAST(:today AS date) + :win")
+                .setParameter("today", today.toString())
+                .setParameter("win", windowDays)
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            String startDate = String.valueOf(r[3]);
+            String msg = template
+                    .replace("{标题}", nullSafe((String) r[2]))
+                    .replace("{剩余天数}", String.valueOf(((Number) r[4]).intValue()))
+                    .replace("{开始日}", startDate);
+            // threshold_key 用开始日：改期才重新提醒，同一计划同一开始日只提醒一次
+            n += dispatch("ASSESSMENT", ((Number) r[0]).longValue(), "RULE_ASSESSMENT_UPCOMING",
+                    startDate, ((Number) r[1]).longValue(), msg, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 审计计划临近开始：plan_start_date 在未来 windowDays 天内且状态 PLANNED（含内/外审）。变量：{标题} {类型} {剩余天数} {开始日}。 */
+    private int scanAuditUpcoming(long ruleId, String template, LocalDate today, int windowDays,
+                                  List<AlertPushService.Alert> collector) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT id, org_id, title, audit_type, plan_start_date, "
+                                + "(plan_start_date - CAST(:today AS date)) AS remain "
+                                + "FROM audit_plan "
+                                + "WHERE status = 'PLANNED' AND plan_start_date IS NOT NULL "
+                                + "AND plan_start_date >= CAST(:today AS date) "
+                                + "AND plan_start_date <= CAST(:today AS date) + :win")
+                .setParameter("today", today.toString())
+                .setParameter("win", windowDays)
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            String typeCn = "INTERNAL".equals(r[3]) ? "内部审计" : "外部审计";
+            String startDate = String.valueOf(r[4]);
+            String msg = template
+                    .replace("{标题}", nullSafe((String) r[2]))
+                    .replace("{类型}", typeCn)
+                    .replace("{剩余天数}", String.valueOf(((Number) r[5]).intValue()))
+                    .replace("{开始日}", startDate);
+            n += dispatch("AUDIT_PLAN", ((Number) r[0]).longValue(), "RULE_AUDIT_UPCOMING",
+                    startDate, ((Number) r[1]).longValue(), msg, ruleId, collector);
         }
         return n;
     }

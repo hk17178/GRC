@@ -94,10 +94,107 @@ public class PolicyService {
      */
     @Transactional
     public Policy create(Long orgId, String code, String title, String content, String actor) {
+        return create(orgId, code, title, content, null, null, actor);
+    }
+
+    /** 新建草稿（本地导入可携解析出的版本/生效日期）。 */
+    @Transactional
+    public Policy create(Long orgId, String code, String title, String content,
+                         Integer version, java.time.LocalDate effectiveDate, String actor) {
         Policy policy = new Policy(orgId, code, title, content);
+        policy.initImportMeta(version, effectiveDate);
         Policy saved = policyRepository.save(policy);
-        appendLog(saved, "POLICY_CREATE", actor, "新建制度草稿 code=" + code);
+        appendLog(saved, "POLICY_CREATE", actor, "新建制度草稿 code=" + code
+                + (version != null ? " v" + version : "") + (effectiveDate != null ? " 生效=" + effectiveDate : ""));
         return saved;
+    }
+
+    /** 本地导入解析结果（不落库，供前端预填建档表单）。 */
+    public record ParsedDoc(String code, String title, Integer version,
+                            java.time.LocalDate effectiveDate, String content) {
+    }
+
+    // 元数据抽取正则（尽力而为，解析不出的字段留空由用户在预填表单补全）
+    private static final java.util.regex.Pattern P_CODE = java.util.regex.Pattern.compile(
+            "(?:编号|文号|制度编号)\\s*[:：]\\s*([\\w\\-/.（）()]+)");
+    private static final java.util.regex.Pattern P_VER = java.util.regex.Pattern.compile(
+            "(?:版本号|版本|Version|Ver)\\s*[:：]?\\s*[Vv]?\\s*(\\d{1,3})(?:\\.\\d+)?");
+    private static final java.util.regex.Pattern P_VER_CN = java.util.regex.Pattern.compile("第\\s*(\\d{1,3})\\s*版");
+    private static final java.util.regex.Pattern P_DATE = java.util.regex.Pattern.compile(
+            "(?:生效日期|施行日期|生效时间|自)\\s*[:：]?\\s*(\\d{4})\\s*[-/年.]\\s*(\\d{1,2})\\s*[-/月.]\\s*(\\d{1,2})");
+    // 标题行前导编号：如 "MD-2026-001 数据安全管理办法" / "Q/GDW 1-2026 xxx"
+    private static final java.util.regex.Pattern P_LEAD_CODE = java.util.regex.Pattern.compile(
+            "^([A-Za-z][A-Za-z0-9]*(?:[\\-/][A-Za-z0-9]+)+|[A-Za-z0-9]+-\\d{2,})\\s+(\\S.*)$");
+
+    /**
+     * 本地导入解析（#2）：读 .docx 全文，尽力识别 标题/编号/版本/生效日期，返回供前端预填建档表单（不落库）。
+     * 解析不出的字段留空——本方法只做"自动填"，最终以用户确认为准。
+     */
+    public ParsedDoc parseImport(String filename, byte[] bytes) {
+        if (filename == null || !filename.toLowerCase().endsWith(".docx")) {
+            throw new IllegalArgumentException("仅支持 .docx 制度文件（Word 2007+ 格式）");
+        }
+        if (bytes == null || bytes.length == 0) {
+            throw new IllegalArgumentException("上传文件为空");
+        }
+        String text;
+        try (var doc = new org.apache.poi.xwpf.usermodel.XWPFDocument(new java.io.ByteArrayInputStream(bytes));
+             var extractor = new org.apache.poi.xwpf.extractor.XWPFWordExtractor(doc)) {
+            text = extractor.getText();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("docx 解析失败，请确认文件未损坏：" + e.getMessage());
+        }
+        if (text == null || text.isBlank()) {
+            throw new IllegalArgumentException("文档未提取到任何文本内容，请确认不是纯图片扫描件");
+        }
+
+        String code = null;
+        String title = null;
+        // 1) 显式「编号：」
+        java.util.regex.Matcher mc = P_CODE.matcher(text);
+        if (mc.find()) {
+            code = mc.group(1).trim();
+        }
+        // 2) 标题 = 首个"实义行"（跳过纯元数据行）；若该行前导是编号 token，拆出编号
+        for (String raw : text.split("\\r?\\n")) {
+            String line = raw.strip();
+            if (line.isEmpty() || line.matches("^(编号|文号|制度编号|版本号?|Version|生效日期|施行日期|生效时间|发布日期|发布单位|密级)\\s*[:：].*")) {
+                continue;
+            }
+            java.util.regex.Matcher ml = P_LEAD_CODE.matcher(line);
+            if (ml.matches()) {
+                if (code == null) {
+                    code = ml.group(1).trim();
+                }
+                title = ml.group(2).trim();
+            } else {
+                title = line;
+            }
+            break;
+        }
+        // 3) 版本
+        Integer version = null;
+        java.util.regex.Matcher mv = P_VER.matcher(text);
+        if (mv.find()) {
+            version = Integer.valueOf(mv.group(1));
+        } else {
+            java.util.regex.Matcher mvc = P_VER_CN.matcher(text);
+            if (mvc.find()) {
+                version = Integer.valueOf(mvc.group(1));
+            }
+        }
+        // 4) 生效日期
+        java.time.LocalDate eff = null;
+        java.util.regex.Matcher md = P_DATE.matcher(text);
+        if (md.find()) {
+            try {
+                eff = java.time.LocalDate.of(Integer.parseInt(md.group(1)),
+                        Integer.parseInt(md.group(2)), Integer.parseInt(md.group(3)));
+            } catch (RuntimeException ignore) {
+                // 非法日期忽略
+            }
+        }
+        return new ParsedDoc(code, title, version, eff, text.strip());
     }
 
     /**

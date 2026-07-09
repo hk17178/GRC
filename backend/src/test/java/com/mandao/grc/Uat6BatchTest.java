@@ -429,6 +429,72 @@ class Uat6BatchTest {
     }
 
     @Test
+    void 通知规则_临近开始_评估与审计计划() throws Exception {
+        // 造：DRAFT 评估 start_date=今+3；PLANNED 内审计划 plan_start_date=今+3；两条 RULE 配置（窗口 7 天）
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("DELETE FROM notify_config WHERE org_id = 12 AND name LIKE '临近%'");
+            s.executeUpdate("INSERT INTO assessment(org_id, title, status, start_date) "
+                    + "VALUES (12, '年度等保自评', 'DRAFT', current_date + 3)");
+            s.executeUpdate("INSERT INTO audit_plan(org_id, title, plan_start_date, status, audit_type) "
+                    + "VALUES (12, '支付内审', current_date + 3, 'PLANNED', 'INTERNAL')");
+            s.executeUpdate("INSERT INTO notify_config(org_id, kind, name, detail, enabled) VALUES "
+                    + "(12, 'RULE', '临近评估', '{\"source\":\"ASSESSMENT_UPCOMING\",\"days\":7,"
+                    + "\"template\":\"评估「{标题}」将于 {开始日} 开始（剩 {剩余天数} 天）\"}', true)");
+            s.executeUpdate("INSERT INTO notify_config(org_id, kind, name, detail, enabled) VALUES "
+                    + "(12, 'RULE', '临近审计', '{\"source\":\"AUDIT_PLAN_UPCOMING\",\"days\":7,"
+                    + "\"template\":\"{类型}计划「{标题}」将于 {开始日} 开始（剩 {剩余天数} 天）\"}', true)");
+        }
+
+        notifyRuleEngine.runOnce(LocalDate.now());
+
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT event_type, message FROM reminder_dispatch_log "
+                     + "WHERE event_type IN ('RULE_ASSESSMENT_UPCOMING','RULE_AUDIT_UPCOMING') AND org_id = 12 ORDER BY event_type")) {
+            java.util.Map<String, String> got = new java.util.HashMap<>();
+            while (rs.next()) {
+                got.put(rs.getString(1), rs.getString(2));
+            }
+            assertTrue(got.containsKey("RULE_ASSESSMENT_UPCOMING"), "应产出评估临近开始提醒");
+            assertTrue(got.get("RULE_ASSESSMENT_UPCOMING").contains("年度等保自评"), "评估提醒渲染标题");
+            assertTrue(got.get("RULE_ASSESSMENT_UPCOMING").contains("剩 3 天"), "评估提醒渲染剩余天数");
+            assertTrue(got.containsKey("RULE_AUDIT_UPCOMING"), "应产出审计计划临近开始提醒");
+            assertTrue(got.get("RULE_AUDIT_UPCOMING").contains("内部审计"), "审计提醒渲染类型");
+        }
+        // 幂等
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*) FROM reminder_dispatch_log "
+                     + "WHERE event_type IN ('RULE_ASSESSMENT_UPCOMING','RULE_AUDIT_UPCOMING') AND org_id = 12")) {
+            rs.next();
+            assertEquals(2, rs.getInt(1), "同计划同开始日重复评估不重复提醒");
+        }
+    }
+
+    @Test
+    void b_制度本地导入_解析标题编号版本生效日期() throws Exception {
+        byte[] docx = buildPolicyDocx(List.of(
+                "MD-2026-001 数据安全管理办法",
+                "版本：V2",
+                "生效日期：2026-07-01",
+                "第一条 为规范数据处理活动，保障数据安全，制定本办法。"));
+        var parsed = asOrg(ORG_PAY, () -> policyService.parseImport("数据安全管理办法.docx", docx));
+        assertEquals("MD-2026-001", parsed.code(), "应识别前导编号");
+        assertEquals("数据安全管理办法", parsed.title(), "应从标题行拆出名称");
+        assertEquals(2, parsed.version(), "应识别版本 V2");
+        assertEquals(LocalDate.of(2026, 7, 1), parsed.effectiveDate(), "应识别生效日期");
+        assertTrue(parsed.content().contains("为规范数据处理活动"), "应保留全文");
+
+        // 用解析结果建档：版本/生效日期落库
+        var policy = asOrg(ORG_PAY, () -> policyService.create(ORG_PAY, parsed.code(), parsed.title(),
+                parsed.content(), parsed.version(), parsed.effectiveDate(), "c"));
+        assertEquals(2, policy.getVersion());
+        assertEquals(LocalDate.of(2026, 7, 1), policy.getEffectiveDate());
+    }
+
+    @Test
     void 风险登记册_跨评估聚合携来源标题() {
         Assessment a = asOrg(ORG_PAY, () -> assessmentService.create(ORG_PAY, "登记册来源评估", "u", "2026", "c"));
         asOrg(ORG_PAY, () -> riskFindingService.createFinding(ORG_PAY, a.getId(), "登记册测试风险",
@@ -445,6 +511,17 @@ class Uat6BatchTest {
     private static byte[] buildDocx(String text) throws Exception {
         try (XWPFDocument doc = new XWPFDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             doc.createParagraph().createRun().setText(text);
+            doc.write(out);
+            return out.toByteArray();
+        }
+    }
+
+    /** 构造一份多段落 docx（每个元素一段），用于制度导入解析测试。 */
+    private static byte[] buildPolicyDocx(List<String> paragraphs) throws Exception {
+        try (XWPFDocument doc = new XWPFDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            for (String p : paragraphs) {
+                doc.createParagraph().createRun().setText(p);
+            }
             doc.write(out);
             return out.toByteArray();
         }

@@ -84,6 +84,12 @@ public class RegulationCrawlService {
         int hit = 0;
         try {
             List<CrawledLaw> laws = crawler.fetch(s);
+            // 源级关键字过滤（config.keyword，逗号/顿号/空格分隔）：只采纳标题/摘要/机构命中任一关键字的条目，
+            // 让用户只跟踪关心类别的法规（命中数即过滤后的相关条数）。
+            List<String> keywords = parseKeywords(s.getConfig());
+            if (!keywords.isEmpty()) {
+                laws = laws.stream().filter(l -> matchesKeyword(l, keywords)).toList();
+            }
             hit = laws.size();
             for (CrawledLaw law : laws) {
                 if (law.dedupKey() == null || law.dedupKey().isBlank()) {
@@ -122,6 +128,45 @@ public class RegulationCrawlService {
     private RegulationSource getSource(Long id) {
         return sourceRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("追踪源不存在或不可见：id=" + id));
+    }
+
+    private static final com.fasterxml.jackson.databind.ObjectMapper CFG_MAPPER =
+            new com.fasterxml.jackson.databind.ObjectMapper();
+
+    /** 从源 config JSON 取 keyword 字段并按 逗号/顿号/空格 拆为关键字列表（小写）。无则空。 */
+    private List<String> parseKeywords(String config) {
+        if (config == null || config.isBlank()) {
+            return List.of();
+        }
+        try {
+            var node = CFG_MAPPER.readTree(config).path("keyword");
+            String kw = node.isMissingNode() ? "" : node.asText("");
+            if (kw.isBlank()) {
+                return List.of();
+            }
+            List<String> out = new java.util.ArrayList<>();
+            for (String t : kw.split("[,，、\\s]+")) {
+                if (!t.isBlank()) {
+                    out.add(t.trim().toLowerCase());
+                }
+            }
+            return out;
+        } catch (com.fasterxml.jackson.core.JacksonException e) {
+            return List.of();   // 坏 config 不阻断采集
+        }
+    }
+
+    /** 标题/摘要/发布机构命中任一关键字（不区分大小写）即采纳。 */
+    private boolean matchesKeyword(CrawledLaw law, List<String> keywords) {
+        String hay = ((law.title() == null ? "" : law.title()) + " "
+                + (law.summary() == null ? "" : law.summary()) + " "
+                + (law.issuer() == null ? "" : law.issuer())).toLowerCase();
+        for (String k : keywords) {
+            if (hay.contains(k)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 抓取结果（B25：附源当前连续未抓到次数与源标识，供调度器判定失效告警）。 */

@@ -181,6 +181,16 @@ public class Policy {
         this.owner = owner;
     }
 
+    /** 导入建档：用解析出的版本/生效日期初始化（草稿态，二者可空则保持默认）。 */
+    void initImportMeta(Integer version, java.time.LocalDate effectiveDate) {
+        if (version != null && version >= 1) {
+            this.version = version;
+        }
+        if (effectiveDate != null) {
+            this.effectiveDate = effectiveDate;
+        }
+    }
+
     /** 修订：换入新标题/正文并把版本号 +1（旧版快照由 Service 先行存档）。 */
     void reviseTo(String title, String content) {
         this.title = title;

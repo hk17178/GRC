@@ -218,10 +218,14 @@
               <option value="HTTP">HTTP 抓取（配 URL + 选择器）</option>
             </select>
           </label>
+          <label class="fld">分类（分区标签）<input v-model="sf.category" placeholder="如 支付清算 / 数据安全 / 反洗钱" /></label>
+          <label class="fld">关键字过滤（可空；逗号/顿号分隔，只采纳标题命中的条目）
+            <input v-model="sf.keyword" placeholder="如 反洗钱、备付金、数据安全" />
+          </label>
           <template v-if="sf.sourceType === 'HTTP'">
             <label class="fld">列表页 URL<input v-model="sf.url" placeholder="https://…" /></label>
-            <label class="fld">选择器配置 (JSON)
-              <textarea v-model="sf.config" rows="3" placeholder='{"listSelector":".list li","titleSelector":"a","linkSelector":"a","issuer":"中国人民银行","category":"支付清算"}'></textarea>
+            <label class="fld">选择器配置 (JSON，可空)
+              <textarea v-model="sf.config" rows="3" placeholder='{"listSelector":".list li","titleSelector":"a","linkSelector":"a","issuer":"中国人民银行"}'></textarea>
             </label>
           </template>
           <label class="fld">所属组织
@@ -464,14 +468,22 @@ async function crawlNow(s) {
 const showSource = ref(false)
 const sourceSaving = ref(false)
 const sourceErr = ref('')
-const sf = reactive({ name: '', sourceType: 'SAMPLE', url: '', config: '', orgId: 12 })
-function openSource() { Object.assign(sf, { name: '', sourceType: 'SAMPLE', url: '', config: '', orgId: 12 }); sourceErr.value = ''; showSource.value = true }
+const sf = reactive({ name: '', sourceType: 'SAMPLE', url: '', config: '', category: '', keyword: '', orgId: 12 })
+function openSource() { Object.assign(sf, { name: '', sourceType: 'SAMPLE', url: '', config: '', category: '', keyword: '', orgId: 12 }); sourceErr.value = ''; showSource.value = true }
+// 把「分类/关键字」并入 config JSON（保留 HTTP 选择器等已有键）
+function buildSourceConfig() {
+  let cfg = {}
+  if (sf.config && sf.config.trim()) { try { cfg = JSON.parse(sf.config) } catch (e) { throw new Error('选择器配置不是合法 JSON') } }
+  if (sf.category && sf.category.trim()) cfg.category = sf.category.trim(); else delete cfg.category
+  if (sf.keyword && sf.keyword.trim()) cfg.keyword = sf.keyword.trim(); else delete cfg.keyword
+  return Object.keys(cfg).length ? JSON.stringify(cfg) : null
+}
 async function submitSource() {
   sourceSaving.value = true; sourceErr.value = ''
   try {
     await api.post('/regulation-sources', {
       orgId: sf.orgId, name: sf.name, sourceType: sf.sourceType,
-      url: sf.url || null, config: sf.config || null, frequency: 'DAILY'
+      url: sf.url || null, config: buildSourceConfig(), frequency: 'DAILY'
     })
     showSource.value = false; await loadSources()
   } catch (e) { sourceErr.value = e.message } finally { sourceSaving.value = false }

@@ -9,7 +9,9 @@
       <div class="phead">
         <div><div class="kqt">{{ $t('policy.tag') }}</div><h1>{{ $t('policy.title') }}</h1></div>
         <div class="sp"></div>
+        <button class="btn ghost" :disabled="!canWrite('policy.create') || importing" :title="canWrite('policy.create') ? '本地 .docx 导入，自动识别 标题/编号/版本/生效日期' : $t('common.noPerm')" @click="pickImport">{{ importing ? '解析中…' : '⇪ 本地导入' }}</button>
         <button class="btn" :disabled="!canWrite('policy.create')" :title="canWrite('policy.create') ? '' : $t('common.noPerm')" @click="openCreate">{{ $t('policy.create.btn') }}</button>
+        <input ref="importFile" type="file" accept=".docx" style="display:none" @change="onImportFile" />
       </div>
 
       <!-- M1 深度：KPI 四卡（真实统计）-->
@@ -175,10 +177,15 @@
       <!-- 新建制度弹窗 -->
       <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
         <div class="modal-card">
-          <h3>{{ $t('policy.create.btn') }}</h3>
+          <h3>{{ cf.imported ? '本地导入建档（请核对自动识别结果）' : $t('policy.create.btn') }}</h3>
+          <p v-if="cf.imported" style="font-size:11.5px;color:var(--safe);margin:-6px 0 10px">✓ 已从「{{ cf.imported }}」自动识别以下信息，可修改后保存。</p>
           <label class="fld">{{ $t('policy.th.code') }}<input v-model="cf.code" placeholder="POL-KYC-001" /></label>
           <label class="fld">{{ $t('policy.th.title') }}<input v-model="cf.title" /></label>
-          <label class="fld">{{ $t('policy.create.content') }}<input v-model="cf.content" /></label>
+          <div style="display:flex;gap:10px">
+            <label class="fld" style="flex:1">版本<input v-model.number="cf.version" type="number" min="1" placeholder="1" /></label>
+            <label class="fld" style="flex:1">生效日期<input v-model="cf.effectiveDate" type="date" /></label>
+          </div>
+          <label class="fld">{{ $t('policy.create.content') }}<input v-model="cf.content" :placeholder="cf.imported ? '（已提取全文，导入后可在详情查看）' : ''" /></label>
           <label class="fld">{{ $t('policy.create.org') }}
             <select v-model.number="cf.orgId"><option v-for="o in orgOptions" :key="o.id" :value="o.id">{{ orgLabel(o) }}</option></select>
           </label>
@@ -327,12 +334,33 @@ async function act(p, op) {
 
 // 新建
 const showCreate = ref(false)
-const cf = reactive({ code: '', title: '', content: '', orgId: 12 })
-function openCreate() { Object.assign(cf, { code: '', title: '', content: '', orgId: 12 }); opError.value = ''; showCreate.value = true }
+const cf = reactive({ code: '', title: '', content: '', version: null, effectiveDate: '', orgId: 12, imported: '' })
+function openCreate() { Object.assign(cf, { code: '', title: '', content: '', version: null, effectiveDate: '', orgId: 12, imported: '' }); opError.value = ''; showCreate.value = true }
 async function submitCreate() {
   saving.value = true; opError.value = ''
-  try { await api.post('/policies', { orgId: cf.orgId, code: cf.code, title: cf.title, content: cf.content }); showCreate.value = false; await load() }
-  catch (e) { opError.value = e.message } finally { saving.value = false }
+  try {
+    await api.post('/policies', { orgId: cf.orgId, code: cf.code, title: cf.title, content: cf.content, version: cf.version || null, effectiveDate: cf.effectiveDate || null })
+    showCreate.value = false; await load()
+  } catch (e) { opError.value = e.message } finally { saving.value = false }
+}
+
+// #2 本地导入：上传 .docx → 后端解析 标题/编号/版本/生效日期 → 预填建档表单
+const importFile = ref(null)
+const importing = ref(false)
+function pickImport() { if (importFile.value) { importFile.value.value = ''; importFile.value.click() } }
+async function onImportFile(e) {
+  const file = e.target.files && e.target.files[0]
+  if (!file) return
+  importing.value = true; opError.value = ''
+  try {
+    const fd = new FormData(); fd.append('file', file)
+    const p = await api.upload('/policies/parse-doc', fd)
+    Object.assign(cf, {
+      code: p.code || '', title: p.title || '', content: p.content || '',
+      version: p.version || null, effectiveDate: p.effectiveDate || '', orgId: 12, imported: file.name
+    })
+    showCreate.value = true
+  } catch (err) { window.alert('导入解析失败：' + err.message) } finally { importing.value = false }
 }
 
 // 驳回（带原因）

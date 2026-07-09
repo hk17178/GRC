@@ -267,10 +267,8 @@
               <input v-model.number="f.days" type="number" min="1" />
             </label>
             <label class="fld">通道<select v-model="f.channel"><option value="INBOX">站内通知</option><option value="EMAIL">邮件</option><option value="WECOM">企微</option></select></label>
-            <label class="fld">内容模板（变量用花括号引用）
-              <textarea v-model="f.template" rows="3" style="display:block;width:100%;margin-top:5px;padding:8px 11px;border:1px solid var(--surface-border);border-radius:var(--radius-md);background:var(--bg);color:var(--text-1);font-size:13px;font-family:inherit;line-height:1.6;outline:none;box-sizing:border-box"></textarea>
-            </label>
-            <div style="font-size:11px;color:var(--text-3);margin:-6px 0 12px">可用变量：{{ SRC[f.source] ? SRC[f.source].vars : '' }}</div>
+            <label class="fld">内容模板（可加粗/配色/字号/对齐，用「插入变量」引用 {变量}，右上「预览」查看效果）</label>
+            <RichTemplateEditor v-model="f.template" :vars="SRC[f.source] ? SRC[f.source].vars : ''" style="margin-bottom:12px" />
           </template>
           <template v-else>
             <label class="fld">类型<select v-model="f.type"><option value="EMAIL">邮件</option><option value="SMS">短信</option><option value="WECOM">企微</option></select></label>
@@ -294,6 +292,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import AppShell from '@/components/AppShell.vue'
+import RichTemplateEditor from '@/components/RichTemplateEditor.vue'
 import { api } from '@/api/client.js'
 import { confirm } from '@/composables/confirm'
 import { useOrgs, orgLabel } from '@/orgs.js'
@@ -313,7 +312,11 @@ const SRC = {
   REG_NEW: { label: '法规新采集', desc: '追踪源新采集条目', needDays: true, condLabel: '采集窗口（近 N 天）', vars: '{标题} {发布机构}',
     tpl: '追踪源新采集法规「{标题}」（{发布机构}），请评估适用性。' },
   KRI_BREACH: { label: 'KRI 触阈', desc: '指标触及预警/严重阈值', needDays: false, condLabel: '', vars: '{指标} {数值} {单位} {级别}',
-    tpl: '关键风险指标「{指标}」最新值 {数值}{单位} 触及【{级别}】阈值，请核查。' }
+    tpl: '关键风险指标「{指标}」最新值 {数值}{单位} 触及【{级别}】阈值，请核查。' },
+  ASSESSMENT_UPCOMING: { label: '评估临近开始', desc: '风险评估计划将开始', needDays: true, condLabel: '提前提醒（天）', vars: '{标题} {剩余天数} {开始日}',
+    tpl: '风险评估「{标题}」将于 {开始日} 开始（还剩 {剩余天数} 天），请做好准备。' },
+  AUDIT_PLAN_UPCOMING: { label: '审计计划临近开始', desc: '内/外审计划将开始', needDays: true, condLabel: '提前提醒（天）', vars: '{标题} {类型} {剩余天数} {开始日}',
+    tpl: '{类型}计划「{标题}」将于 {开始日} 开始（还剩 {剩余天数} 天），请相关单位配合。' }
 }
 const condText = (c) => {
   const dd = d(c)
