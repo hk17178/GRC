@@ -9,7 +9,9 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -42,5 +44,23 @@ class HttpLawCrawlerTest {
                 "应带上源的机构/分类");
         assertTrue(out.stream().noneMatch(c -> c.title().equals("首页") || c.title().contains("更多")),
                 "导航噪声不应入选");
+    }
+
+    @Test
+    void h2_ssrf_内网与元数据与非http被拒_公网通过() {
+        // 字面量 IP，getAllByName 直接解析不走 DNS，故本用例无网络依赖
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("http://169.254.169.254/latest/meta-data/"), "云元数据地址应拒");
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("http://127.0.0.1:8080/api"), "回环应拒");
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("http://192.168.1.1/"), "内网 192.168 应拒");
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("http://10.0.0.5/"), "内网 10/8 应拒");
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("file:///etc/passwd"), "非 http(s) 应拒");
+        assertThrows(IllegalArgumentException.class,
+                () -> crawler.assertPublicHttpUrl("ftp://8.8.8.8/"), "非 http(s) 应拒");
+        assertDoesNotThrow(() -> crawler.assertPublicHttpUrl("http://1.1.1.1/list"), "公网 IP 应通过");
     }
 }

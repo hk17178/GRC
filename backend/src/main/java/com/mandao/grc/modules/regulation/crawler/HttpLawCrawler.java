@@ -8,6 +8,9 @@ import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Component;
 
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +45,7 @@ public class HttpLawCrawler implements LawCrawler {
         if (source.getUrl() == null || source.getUrl().isBlank()) {
             throw new IllegalArgumentException("HTTP 源未配置 url");
         }
+        assertPublicHttpUrl(source.getUrl());   // 安全评审 H-2：抓取前挡内网/元数据 SSRF
         JsonNode cfg = parseConfig(source.getConfig());
         String listSel = text(cfg, "listSelector");
         String titleSel = text(cfg, "titleSelector");
@@ -124,6 +128,39 @@ public class HttpLawCrawler implements LawCrawler {
             }
         }
         return false;
+    }
+
+    /**
+     * 安全评审 H-2：抓取任意配置 URL 前做 SSRF 校验——仅允许 http/https，且主机解析出的每个地址
+     * 都不得为回环/内网/链路本地(含云元数据 169.254.169.254)/通配/组播地址，防运营或攻击者把追踪源
+     * 指向内网服务或元数据端点探测、外泄内网响应。（DNS 重绑定 TOCTOU 与 IPv6 ULA 覆盖为后续加固项。）
+     */
+    public void assertPublicHttpUrl(String url) {
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("追踪源 URL 非法：" + url);
+        }
+        String scheme = uri.getScheme();
+        if (scheme == null || !(scheme.equalsIgnoreCase("http") || scheme.equalsIgnoreCase("https"))) {
+            throw new IllegalArgumentException("追踪源仅允许 http/https：" + url);
+        }
+        String host = uri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IllegalArgumentException("追踪源 URL 缺少主机名：" + url);
+        }
+        try {
+            for (InetAddress addr : InetAddress.getAllByName(host)) {
+                if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()
+                        || addr.isAnyLocalAddress() || addr.isMulticastAddress()) {
+                    throw new IllegalArgumentException("SSRF 防护：追踪源 " + host + " 解析到内网/保留地址 "
+                            + addr.getHostAddress() + "，已拒绝抓取");
+                }
+            }
+        } catch (UnknownHostException e) {
+            throw new IllegalArgumentException("追踪源主机无法解析：" + host);
+        }
     }
 
     private JsonNode parseConfig(String config) {

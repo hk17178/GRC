@@ -341,9 +341,13 @@ const logoStyle = computed(() =>
     : {}
 )
 
-// 标题 / 标语：后端 → localStorage 覆盖项（按语言取 zh/en）→ i18n 默认，换行符转 <br>
+// 标题 / 标语：后端 → localStorage 覆盖项（按语言取 zh/en）→ i18n 默认。
+// 安全评审 H-8：品牌字段经 v-html 渲染在认证前登录页，必须先转义再仅放行 <br>，否则构成存储型 XSS。
 function nl2br(s) {
-  return s.replace(/\n/g, '<br>')
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')  // 先转义全部 HTML
+    .replace(/&lt;br\s*\/?&gt;/gi, '<br>')                               // 仅放行管理员显式输入的 <br>
+    .replace(/\n/g, '<br>')                                             // 换行符转 <br>
 }
 const loginTitle = computed(() => {
   const en = locale.value === 'en'
@@ -358,8 +362,11 @@ const loginSlogan = computed(() => {
   return v ? nl2br(v) : t('login.slogan')
 })
 
-// 忘记密码链接
-const forgotUrl = computed(() => brand.value.forgotUrl || localStorage.getItem('grc-forgot-url') || '')
+// 忘记密码链接。安全评审 M-13：href 仅允许 http(s)，挡 javascript:/data: 等协议注入 XSS。
+const forgotUrl = computed(() => {
+  const raw = (brand.value.forgotUrl || localStorage.getItem('grc-forgot-url') || '').trim()
+  return /^https?:\/\//i.test(raw) ? raw : ''
+})
 
 // 登录提交：调真实后端 /api/auth/login（增强③ R1）。
 // 成功→后端置 httpOnly Cookie，前端记录用户并进仪表盘；失败→提示。

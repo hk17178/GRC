@@ -26,7 +26,33 @@ public class BpmnCompiler {
     public record Compiled(String processKey, String bpmnXml) {
     }
 
+    /**
+     * 安全评审 H-7：节点 key / 审批人 ref / 升级目标 ref 会被直接拼进 BPMN 的 XML id 与 flowable:assignee
+     * 等属性、以及 JUEL 变量名后缀（approveCount_&lt;key&gt;）。必须限定为安全标识字符集，否则恶意 key/ref
+     * 可越出属性注入任意 BPMN（含 flowable:class 委托）达成服务端代码执行。合法 BPMN 标识本就要求如此。
+     */
+    private static final java.util.regex.Pattern SAFE_REF =
+            java.util.regex.Pattern.compile("^[A-Za-z0-9_.:\\-]{1,64}$");
+
+    private static void assertSafeRef(String s, String what) {
+        if (s == null || !SAFE_REF.matcher(s).matches()) {
+            throw new FlowValidationException(what + "含非法字符（仅允许 字母/数字/_.:- 且长度 1-64）：" + s);
+        }
+    }
+
     public Compiled compile(ApprovalFlow flow, FlowGraph g) {
+        // 先做标识安全校验（H-7）：任何节点 key / 审批人 / 升级目标 ref 越界即拒编译
+        for (FlowGraph.FlowNode n : g.nodes()) {
+            assertSafeRef(n.key(), "节点标识");
+            if (n.type() == NodeType.APPROVAL) {
+                for (String r : (n.approverRefs() == null ? List.<String>of() : n.approverRefs())) {
+                    assertSafeRef(r, "审批人标识");
+                }
+                if (n.escalateTo() != null && n.escalateTo().ref() != null && !n.escalateTo().ref().isBlank()) {
+                    assertSafeRef(n.escalateTo().ref(), "升级目标标识");
+                }
+            }
+        }
         String pkey = "approvalFlow" + flow.getId();
         Map<String, FlowGraph.FlowNode> byKey = new HashMap<>();
         String startKey = null;
