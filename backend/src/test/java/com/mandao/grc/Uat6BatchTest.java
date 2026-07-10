@@ -271,6 +271,106 @@ class Uat6BatchTest {
         }
     }
 
+    // ---------- D 批：通知中心四类新数据源（REG_CHANGE / ACCOUNT_LOCKED / UAR_OVERDUE / COMPLIANCE_DIGEST）----------
+
+    @Test
+    void d1_法规变更影响预警_渲染变更类型与制度数_幂等() throws Exception {
+        Regulation reg = asOrg(ORG_PAY, () -> regulationService.create(ORG_PAY, "REG-D1", "个人信息保护法",
+                "全国人大", "数据安全", LocalDate.of(2026, 1, 1), "摘要", "c"));
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO regulation_policy_map(org_id, regulation_id, policy_id, clause) "
+                    + "VALUES (12, " + reg.getId() + ", 1, '§41')");
+        }
+        asOrg(ORG_PAY, () -> regulationService.recordChange(reg.getId(), ChangeType.AMENDED,
+                LocalDate.now(), "新增跨境数据流动条款", "c"));
+
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*), min(message) FROM reminder_dispatch_log "
+                     + "WHERE event_type = 'RULE_REG_CHANGE'")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "一条法规变更应产一条影响预警");
+            String msg = rs.getString(2);
+            assertTrue(msg.contains("个人信息保护法"), "应渲染 {标题}：" + msg);
+            assertTrue(msg.contains("修订"), "应渲染中文 {变更类型}：" + msg);
+            assertTrue(msg.contains("1 项关联制度"), "应渲染 {制度数}=1：" + msg);
+        }
+        // 幂等：同一变更再评估不重复告警
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*) FROM reminder_dispatch_log WHERE event_type = 'RULE_REG_CHANGE'")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "重复评估幂等");
+        }
+    }
+
+    @Test
+    void d3_账号锁定告警_渲染账号() throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("UPDATE app_user SET locked_until = now() + interval '15 minutes' WHERE username = 'group_admin'");
+        }
+        try {
+            notifyRuleEngine.runOnce(LocalDate.now());
+            try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+                 Statement s = owner.createStatement();
+                 ResultSet rs = s.executeQuery("SELECT count(*) FROM reminder_dispatch_log "
+                         + "WHERE event_type = 'RULE_ACCOUNT_LOCKED' AND message LIKE '%group_admin%'")) {
+                rs.next();
+                assertEquals(1, rs.getInt(1), "锁定账号应产一条 {账号} 告警");
+            }
+        } finally {
+            try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+                 Statement s = owner.createStatement()) {
+                s.executeUpdate("UPDATE app_user SET locked_until = NULL WHERE username = 'group_admin'");
+            }
+        }
+    }
+
+    @Test
+    void d3_访问复核超期提醒_渲染周期与审阅人() throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("DELETE FROM access_review WHERE org_id IN (12, 13)");
+            s.executeUpdate("INSERT INTO access_review(org_id, period, status, reviewer, created_at) "
+                    + "VALUES (12, '2026Q1', 'OPEN', '李四', now() - interval '30 days')");
+        }
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*), min(message) FROM reminder_dispatch_log "
+                     + "WHERE event_type = 'RULE_UAR_OVERDUE' AND org_id = 12")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "超期 UAR 应产一条提醒");
+            String msg = rs.getString(2);
+            assertTrue(msg.contains("2026Q1"), "应渲染 {周期}：" + msg);
+            assertTrue(msg.contains("李四"), "应渲染 {审阅人}：" + msg);
+        }
+    }
+
+    @Test
+    void d4_周期合规简报_汇总需重评制度数() throws Exception {
+        Regulation reg = asOrg(ORG_PAY, () -> regulationService.create(ORG_PAY, "REG-D4", "反洗钱法",
+                "全国人大", "反洗钱", LocalDate.of(2026, 1, 1), "摘要", "c"));
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("INSERT INTO regulation_policy_map(org_id, regulation_id, policy_id, clause, assess_stale) "
+                    + "VALUES (12, " + reg.getId() + ", 1, '§1', TRUE)");
+        }
+        notifyRuleEngine.runOnce(LocalDate.now());
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement();
+             ResultSet rs = s.executeQuery("SELECT count(*), min(message) FROM reminder_dispatch_log "
+                     + "WHERE event_type = 'RULE_COMPLIANCE_DIGEST' AND org_id = 12")) {
+            rs.next();
+            assertEquals(1, rs.getInt(1), "org12 应产一条周报（同周去重）");
+            assertTrue(rs.getString(2).contains("需重评制度 1 项"), "应渲染需重评数：" + rs.getString(2));
+        }
+    }
+
     // ---------- D1-8 §九 接线二：内核消费场景 + 升级链运行器 ----------
 
     @Test

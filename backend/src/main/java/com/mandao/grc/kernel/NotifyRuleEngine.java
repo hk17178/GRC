@@ -91,10 +91,16 @@ public class NotifyRuleEngine {
                     case "REMEDIATION_OVERDUE" -> scanRemediationOverdue(ruleId, template, today, collector);
                     case "ASSESSMENT_STALLED" -> scanAssessmentStalled(ruleId, template, today, days, collector);
                     case "REG_NEW" -> scanRegNew(ruleId, template, today, Math.max(days, 1), collector);
+                    case "REG_CHANGE" -> scanRegChange(ruleId, template, today, Math.max(days, 1), collector);
                     case "KRI_BREACH" -> scanKriBreach(ruleId, template, collector);
                     case "ASSESSMENT_UPCOMING" -> scanAssessmentUpcoming(ruleId, template, today, Math.max(days, 1), collector);
                     case "AUDIT_PLAN_UPCOMING" -> scanAuditUpcoming(ruleId, template, today, Math.max(days, 1), collector);
+                    case "ACCOUNT_LOCKED" -> scanAccountLocked(ruleId, template, today, collector);
+                    case "UAR_OVERDUE" -> scanUarOverdue(ruleId, template, today, Math.max(days, 7), collector);
+                    case "COMPLIANCE_DIGEST" -> scanComplianceDigest(ruleId, template, today, collector);
                     default -> 0; // 未知数据源：跳过（旧格式或手工误配），不让单条脏规则拖垮整轮
+                    // 注：制度复审/资质证书/监管报送/等保测评 等到期提醒由 ExpiryScanService 系统级统一产出，
+                    //     不在此重复扫描以免双发（详见通知中心「已内置到期提醒」说明）。
                 };
             } catch (RuntimeException | com.fasterxml.jackson.core.JacksonException e) {
                 log.warn("notify-rule {} evaluate failed: {}", ruleId, e.getMessage());
@@ -261,6 +267,132 @@ public class NotifyRuleEngine {
                     .replace("{级别}", level);
             n += dispatch("KRI_MEASUREMENT", ((Number) r[0]).longValue(), "RULE_KRI_BREACH",
                     "rule=" + ruleId, ((Number) r[1]).longValue(), msg, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 法规变更影响预警（D1）：近 windowDays 天登记的法规变更，提示关联制度需重评。
+     *  变量：{标题} {变更类型} {制度数} {说明}。变更登记时 RegulationService 已把关联映射置需重评。 */
+    private int scanRegChange(long ruleId, String template, LocalDate today, int windowDays,
+                              List<AlertPushService.Alert> collector) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT c.id, c.org_id, r.title, c.change_type, c.description, "
+                                + "(SELECT COUNT(*) FROM regulation_policy_map m WHERE m.regulation_id = c.regulation_id) AS maps "
+                                + "FROM regulation_change c JOIN regulation r ON r.id = c.regulation_id "
+                                + "WHERE COALESCE(c.change_date, CAST(c.created_at AS date)) > CAST(:today AS date) - :win "
+                                + "ORDER BY c.org_id, c.id DESC")
+                .setParameter("today", today.toString())
+                .setParameter("win", windowDays)
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            int maps = ((Number) r[5]).intValue();
+            String msg = template
+                    .replace("{标题}", nullSafe((String) r[2]))
+                    .replace("{变更类型}", changeTypeCn((String) r[3]))
+                    .replace("{制度数}", String.valueOf(maps))
+                    .replace("{说明}", nullSafe((String) r[4]));
+            n += dispatch("REGULATION_CHANGE", ((Number) r[0]).longValue(), "RULE_REG_CHANGE",
+                    "rule=" + ruleId, ((Number) r[1]).longValue(), msg, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 变更类型中文化（ENACTED/AMENDED/ABOLISHED）。 */
+    private static String changeTypeCn(String t) {
+        if (t == null) {
+            return "变更";
+        }
+        return switch (t) {
+            case "ENACTED" -> "新订";
+            case "AMENDED" -> "修订";
+            case "ABOLISHED" -> "废止";
+            default -> t;
+        };
+    }
+
+    /** 账号锁定（D3）：当前处于锁定期（locked_until 在未来）的账号。变量：{账号} {解锁时间}。
+     *  app_user 为平台级账号表（无 org 锚点），统一归集团(org 1)派发，供安全管理员感知。 */
+    private int scanAccountLocked(long ruleId, String template, LocalDate today,
+                                  List<AlertPushService.Alert> collector) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT id, username, locked_until FROM app_user "
+                                + "WHERE locked_until IS NOT NULL AND locked_until > now()")
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            String until = r[2] == null ? "—" : r[2].toString();
+            String msg = template
+                    .replace("{账号}", nullSafe((String) r[1]))
+                    .replace("{解锁时间}", until);
+            // threshold_key 含本次解锁时间 → 同一次锁定只提醒一次；再次触发锁定（新 locked_until）会再提醒
+            n += dispatch("APP_USER", ((Number) r[0]).longValue(), "RULE_ACCOUNT_LOCKED",
+                    "lock=" + until, 1L, msg, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 访问复核超期（D3）：OPEN 的 UAR 距创建已超过 days 天仍未完成。变量：{周期} {超期天数} {审阅人}。 */
+    private int scanUarOverdue(long ruleId, String template, LocalDate today, int days,
+                              List<AlertPushService.Alert> collector) {
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT id, org_id, period, reviewer, "
+                                + "(CAST(:today AS date) - CAST(created_at AS date)) AS age "
+                                + "FROM access_review "
+                                + "WHERE status = 'OPEN' AND CAST(created_at AS date) <= CAST(:today AS date) - :days")
+                .setParameter("today", today.toString())
+                .setParameter("days", days)
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            int age = ((Number) r[4]).intValue();
+            String msg = template
+                    .replace("{周期}", nullSafe((String) r[2]))
+                    .replace("{超期天数}", String.valueOf(age))
+                    .replace("{审阅人}", nullSafe((String) r[3]));
+            n += dispatch("ACCESS_REVIEW", ((Number) r[0]).longValue(), "RULE_UAR_OVERDUE",
+                    "rule=" + ruleId, ((Number) r[1]).longValue(), msg, ruleId, collector);
+        }
+        return n;
+    }
+
+    /** 周期性合规简报（D4）：把每组织的 整改逾期 / KRI 严重 / 待复审制度 汇总为一条摘要，
+     *  按 ISO 周去重（同周一条）；三项全 0 的组织不打扰。变量：{整改逾期} {KRI严重} {待复审制度} {周}。 */
+    private int scanComplianceDigest(long ruleId, String template, LocalDate today,
+                                     List<AlertPushService.Alert> collector) {
+        java.time.temporal.WeekFields wf = java.time.temporal.WeekFields.ISO;
+        String isoWeek = today.get(wf.weekBasedYear()) + "-W"
+                + String.format("%02d", today.get(wf.weekOfWeekBasedYear()));
+        @SuppressWarnings("unchecked")
+        List<Object[]> rows = em.createNativeQuery(
+                        "SELECT o.id, "
+                                + "(SELECT COUNT(*) FROM remediation_order x WHERE x.org_id = o.id "
+                                + "   AND x.status IN ('PENDING','IN_PROGRESS') AND x.due_date < CAST(:today AS date)) AS overdue, "
+                                + "(SELECT COUNT(*) FROM (SELECT DISTINCT ON (kri_id) status, org_id FROM kri_measurement "
+                                + "   ORDER BY kri_id, measured_at DESC, id DESC) k WHERE k.org_id = o.id AND k.status = 'CRITICAL') AS kri, "
+                                + "(SELECT COUNT(*) FROM regulation_policy_map m WHERE m.org_id = o.id AND m.assess_stale = TRUE) AS reassess "
+                                + "FROM org o")
+                .setParameter("today", today.toString())
+                .getResultList();
+        int n = 0;
+        for (Object[] r : rows) {
+            long orgId = ((Number) r[0]).longValue();
+            int overdue = ((Number) r[1]).intValue();
+            int kri = ((Number) r[2]).intValue();
+            int reassess = ((Number) r[3]).intValue();
+            if (overdue == 0 && kri == 0 && reassess == 0) {
+                continue; // 无异常项的组织不打扰
+            }
+            String msg = template
+                    .replace("{整改逾期}", String.valueOf(overdue))
+                    .replace("{KRI严重}", String.valueOf(kri))
+                    .replace("{待复审制度}", String.valueOf(reassess))
+                    .replace("{周}", isoWeek);
+            n += dispatch("COMPLIANCE_DIGEST", orgId, "RULE_COMPLIANCE_DIGEST",
+                    isoWeek, orgId, msg, ruleId, collector);
         }
         return n;
     }

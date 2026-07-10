@@ -87,7 +87,10 @@
           <!-- 试装配 -->
           <div class="sa-resolve">
             <span class="sa-lbl">试装配</span>
-            <input v-model="assy.eventType" placeholder="事件类型(如 RULE_REMEDIATION_OVERDUE)" style="width:260px" />
+            <select v-model="assy.eventType" style="width:280px">
+              <option value="">选择要试装配的事件类型…</option>
+              <option v-for="et in EVENT_TYPES" :key="et.v" :value="et.v">{{ et.t }}</option>
+            </select>
             <button class="btn ghost sm" @click="tryAssemble">装配</button>
             <span v-if="assyResult" class="sa-res">{{ assyResult }}</span>
           </div>
@@ -125,6 +128,9 @@
           </table>
           <div style="font-size:11px;color:var(--text-3);margin-top:10px">
             引擎由调度内核每 15 分钟自动评估一轮；同一对象同一规则只告警一次（幂等台账）。触发结果见「提醒记录」。
+          </div>
+          <div class="builtin-note">
+            <b>已内置的到期提醒</b>（系统每日自动运行，无需在此建规则）：制度周期复审、资质证书到期、监管报送截止、等保测评到期、义务/证据留存到期——均在到期前 30/7/0 天自动提醒并进「提醒记录」；如需外推到邮件/企微/短信，去「通知场景」为对应事件配置通道即可。
           </div>
         </div>
       </div>
@@ -316,15 +322,41 @@ const SRC = {
   ASSESSMENT_UPCOMING: { label: '评估临近开始', desc: '风险评估计划将开始', needDays: true, condLabel: '提前提醒（天）', vars: '{标题} {剩余天数} {开始日}',
     tpl: '风险评估「{标题}」将于 {开始日} 开始（还剩 {剩余天数} 天），请做好准备。' },
   AUDIT_PLAN_UPCOMING: { label: '审计计划临近开始', desc: '内/外审计划将开始', needDays: true, condLabel: '提前提醒（天）', vars: '{标题} {类型} {剩余天数} {开始日}',
-    tpl: '{类型}计划「{标题}」将于 {开始日} 开始（还剩 {剩余天数} 天），请相关单位配合。' }
+    tpl: '{类型}计划「{标题}」将于 {开始日} 开始（还剩 {剩余天数} 天），请相关单位配合。' },
+  // D 批新增四类数据源（与后端 NotifyRuleEngine 对齐）
+  REG_CHANGE: { label: '法规变更影响', desc: '已跟踪法规发生变更，关联制度需重评', needDays: true, condLabel: '变更窗口（近 N 天）', vars: '{标题} {变更类型} {制度数} {说明}',
+    tpl: '法规「{标题}」发生{变更类型}，{制度数} 项关联制度需重评，请及时复核符合度。' },
+  ACCOUNT_LOCKED: { label: '账号锁定', desc: '账号因连续登录失败被锁定', needDays: false, condLabel: '', vars: '{账号} {解锁时间}',
+    tpl: '账号「{账号}」因连续登录失败已被锁定（解锁时间 {解锁时间}），请安全管理员核查是否异常。' },
+  UAR_OVERDUE: { label: '访问复核超期', desc: '权限访问复核（UAR）超期未完成', needDays: true, condLabel: '超期超过（天）', vars: '{周期} {超期天数} {审阅人}',
+    tpl: '{周期} 访问复核已超期 {超期天数} 天未完成（审阅人 {审阅人}），请尽快复核处置。' },
+  COMPLIANCE_DIGEST: { label: '周期合规简报', desc: '每周把逾期/KRI/需重评汇总为一条（同周一条）', needDays: false, condLabel: '', vars: '{整改逾期} {KRI严重} {待复审制度} {周}',
+    tpl: '【{周} 合规简报】整改逾期 {整改逾期} 项、KRI 严重 {KRI严重} 项、需重评制度 {待复审制度} 项，请关注处理。' }
 }
 const condText = (c) => {
   const dd = d(c)
   if (!SRC[dd.source]) return '—'
   if (dd.source === 'ASSESSMENT_STALLED') return '滞留 > ' + (dd.days || 0) + ' 天'
   if (dd.source === 'REG_NEW') return '近 ' + (dd.days || 1) + ' 天采集'
+  if (dd.source === 'REG_CHANGE') return '近 ' + (dd.days || 1) + ' 天变更'
+  if (dd.source === 'UAR_OVERDUE') return '超期 > ' + (dd.days || 7) + ' 天'
+  if (dd.source === 'COMPLIANCE_DIGEST') return '每周汇总一条'
   return '命中即报'
 }
+// 试装配事件类型下拉（与后端 dispatch 的 event_type 对齐；末项为系统内置到期事件示例）
+const EVENT_TYPES = [
+  { v: 'RULE_REMEDIATION_OVERDUE', t: '整改逾期' },
+  { v: 'RULE_ASSESSMENT_STALLED', t: '评估复核滞留' },
+  { v: 'RULE_ASSESSMENT_UPCOMING', t: '评估临近开始' },
+  { v: 'RULE_AUDIT_UPCOMING', t: '审计计划临近' },
+  { v: 'RULE_REG_NEW', t: '法规新采集' },
+  { v: 'RULE_REG_CHANGE', t: '法规变更影响' },
+  { v: 'RULE_KRI_BREACH', t: 'KRI 触阈' },
+  { v: 'RULE_ACCOUNT_LOCKED', t: '账号锁定' },
+  { v: 'RULE_UAR_OVERDUE', t: '访问复核超期' },
+  { v: 'RULE_COMPLIANCE_DIGEST', t: '周期合规简报' },
+  { v: 'POLICY_REVIEW_DUE', t: '制度复审到期（系统内置）' }
+]
 
 const tab = ref('rule')
 const scenarios = ref([])
@@ -543,6 +575,8 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .mini:hover { background: var(--accent-tint); }
 .mini.danger:hover { color: var(--danger); border-color: var(--danger); }
 .emptyrow { text-align: center; color: var(--text-2); padding: 18px 0; }
+.builtin-note { margin-top: 10px; font-size: 11.5px; line-height: 1.6; color: var(--text-2); padding: 10px 12px; background: var(--accent-weak); border: 1px dashed var(--surface-border); border-radius: var(--radius-md); }
+.builtin-note b { color: var(--accent-strong); }
 .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,0.32); display: flex; align-items: center; justify-content: center; z-index: 50; }
 .modal-card { width: 440px; max-width: 92vw; background: var(--surface); border: 1px solid var(--surface-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-2); padding: 22px 24px; }
 .modal-card h3 { margin: 0 0 16px; font-size: 16px; }
@@ -568,7 +602,7 @@ tbody td { padding: 9px 12px; border-top: 1px solid var(--border-subtle); font-s
 .sa-add { margin-top: 12px; padding: 12px; background: var(--bg); border-radius: var(--radius-md); }
 .sa-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
 .sa-row:last-child { margin-bottom: 0; }
-.sa-add input, .sa-add select, .sa-resolve input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
+.sa-add input, .sa-add select, .sa-resolve input, .sa-resolve select { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
 .sa-resolve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 10px 12px; background: var(--bg); border-radius: var(--radius-md); }
 .sa-lbl { font-size: 12px; color: var(--text-2); font-weight: 600; }
 .sa-esc { font-size: 11.5px; color: var(--text-3); }
