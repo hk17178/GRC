@@ -1,7 +1,5 @@
 package com.mandao.grc.modules.ai;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.encrypt.Encryptors;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
@@ -16,16 +14,17 @@ import org.springframework.stereotype.Component;
 @Component
 public class ConfigCrypto {
 
-    private static final Logger log = LoggerFactory.getLogger(ConfigCrypto.class);
     private static final String DEV_DEFAULT = "grc-dev-config-secret-change-me";
     /** 固定盐（hex）。AES-CBC 用随机 IV 保证同明文不同密文，盐用于 KDF。 */
     private static final String SALT = "1a2b3c4d5e6f7081";
 
     private final TextEncryptor encryptor;
 
-    public ConfigCrypto(@Value("${grc.config.secret:" + DEV_DEFAULT + "}") String secret) {
-        if (DEV_DEFAULT.equals(secret)) {
-            log.warn("GRC_CONFIG_SECRET 未配置，使用开发默认主密钥加密 AI 密钥——【上线必须配置强随机 GRC_CONFIG_SECRET】");
+    public ConfigCrypto(@Value("${grc.config.secret:}") String secret) {
+        // fail-fast（安全评审 M-12）：主密钥缺失/为开发默认一律拒绝启动，避免 AI 密钥以可预测密钥落库等同明文
+        if (secret == null || secret.isBlank() || DEV_DEFAULT.equals(secret)) {
+            throw new IllegalStateException(
+                    "GRC_CONFIG_SECRET 未配置或为开发默认值——请设置强随机 GRC_CONFIG_SECRET 后再启动");
         }
         this.encryptor = Encryptors.text(secret, SALT);
     }

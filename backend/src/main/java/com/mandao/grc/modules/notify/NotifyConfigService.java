@@ -13,9 +13,10 @@ import java.util.List;
 @Service
 public class NotifyConfigService {
 
-    /** A25：通知规则支持的数据源（与 NotifyRuleEngine 的 switch 分支一致）。 */
+    /** A25：通知规则支持的数据源（须与 NotifyRuleEngine.runOnce 的 switch 分支逐一对齐，否则 UI 可选却存不进）。 */
     private static final java.util.Set<String> RULE_SOURCES = java.util.Set.of(
-            "REMEDIATION_OVERDUE", "ASSESSMENT_STALLED", "REG_NEW", "KRI_BREACH");
+            "REMEDIATION_OVERDUE", "ASSESSMENT_STALLED", "REG_NEW", "REG_CHANGE", "KRI_BREACH",
+            "ASSESSMENT_UPCOMING", "AUDIT_PLAN_UPCOMING", "ACCOUNT_LOCKED", "UAR_OVERDUE", "COMPLIANCE_DIGEST");
 
     private static final com.fasterxml.jackson.databind.ObjectMapper MAPPER =
             new com.fasterxml.jackson.databind.ObjectMapper();

@@ -22,17 +22,20 @@ public class JwtService {
     private final SecretKey key;
     private final long ttlMillis;
 
-    public JwtService(@Value("${grc.auth.jwt.secret:dev-only-secret-change-me-please-32bytes!!}") String secret,
+    /** 曾经的硬编码开发默认值——显式拒绝，防误配为可预测密钥被伪造令牌（安全评审 H-9）。 */
+    private static final String KNOWN_INSECURE_DEFAULT = "dev-only-secret-change-me-please-32bytes!!";
+
+    public JwtService(@Value("${grc.auth.jwt.secret:}") String secret,
                       @Value("${grc.auth.jwt.ttl-hours:12}") long ttlHours) {
-        // HS256 需 ≥256bit 密钥；不足则补齐避免启动失败（生产务必配足够长的密钥）
+        // fail-fast：密钥缺失/为已知默认/过短一律拒绝启动，不再补齐弱密钥（HS256 需 ≥256bit）
+        if (secret == null || secret.isBlank() || KNOWN_INSECURE_DEFAULT.equals(secret)) {
+            throw new IllegalStateException(
+                    "JWT 签名密钥未配置或为已知默认值——请设置强随机 GRC_JWT_SECRET（≥32 字节）后再启动");
+        }
         byte[] raw = secret.getBytes(StandardCharsets.UTF_8);
         if (raw.length < 32) {
-            byte[] padded = new byte[32];
-            System.arraycopy(raw, 0, padded, 0, raw.length);
-            for (int i = raw.length; i < 32; i++) {
-                padded[i] = (byte) ('0' + (i % 9));
-            }
-            raw = padded;
+            throw new IllegalStateException(
+                    "JWT 签名密钥过短，须 ≥32 字节（256bit），当前 " + raw.length + " 字节");
         }
         this.key = Keys.hmacShaKeyFor(raw);
         this.ttlMillis = ttlHours * 3600_000L;

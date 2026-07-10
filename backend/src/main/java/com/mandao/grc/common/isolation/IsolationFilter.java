@@ -32,15 +32,15 @@ public class IsolationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
 
     /**
-     * X-User 头回退开关（七轮 7-3 / 评估报告 A1-P0）：
-     * 开发/联调依赖 X-User 免登录冒烟；生产必须关闭（否则未认证请求可冒充任意用户）。
-     * 生产部署 checklist：grc.auth.header-fallback.enabled=false（环境变量 GRC_AUTH_HEADERFALLBACK_ENABLED=false）。
+     * X-User 头回退开关（安全评审 C-1）：<b>默认关闭（secure-by-default）</b>。
+     * 开启后未认证请求可用 X-User 头冒充任意用户——仅供开发/联调/测试免登录冒烟，生产切勿开启。
+     * 开发/测试如需：显式 grc.auth.header-fallback.enabled=true（测试在 src/test/resources/application.properties 已开）。
      */
     private final boolean headerFallbackEnabled;
 
     public IsolationFilter(VisibleOrgsService visibleOrgsService, JwtService jwtService,
                            @org.springframework.beans.factory.annotation.Value(
-                                   "${grc.auth.header-fallback.enabled:true}") boolean headerFallbackEnabled) {
+                                   "${grc.auth.header-fallback.enabled:false}") boolean headerFallbackEnabled) {
         this.visibleOrgsService = visibleOrgsService;
         this.jwtService = jwtService;
         this.headerFallbackEnabled = headerFallbackEnabled;

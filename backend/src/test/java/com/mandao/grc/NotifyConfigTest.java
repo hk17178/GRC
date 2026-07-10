@@ -108,6 +108,19 @@ class NotifyConfigTest {
     }
 
     @Test
+    void d批新数据源规则可创建_白名单已与引擎对齐() {
+        // 安全评审后修复：RULE_SOURCES 白名单曾只含 4 源，UI 提供的 6 个新源保存被拒。现须全部接受。
+        String[] newSources = {"REG_CHANGE", "ACCOUNT_LOCKED", "UAR_OVERDUE", "COMPLIANCE_DIGEST",
+                "ASSESSMENT_UPCOMING", "AUDIT_PLAN_UPCOMING"};
+        for (String src : newSources) {
+            asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.RULE, "规则-" + src,
+                    "{\"source\":\"" + src + "\",\"template\":\"测试模板 {周}\"}"));
+        }
+        assertEquals(newSources.length, asOrg(ORG_PAY, () -> service.listByKind(NotifyConfig.RULE)).size(),
+                "六个新数据源规则均应被 RULE_SOURCES 接受");
+    }
+
+    @Test
     void 组织隔离_org12配置org13不可见() {
         asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.SCENARIO, "X", "{}"));
         assertEquals(1, asOrg(ORG_PAY, () -> service.listByKind(NotifyConfig.SCENARIO)).size());
