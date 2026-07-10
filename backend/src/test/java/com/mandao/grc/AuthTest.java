@@ -15,6 +15,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -95,6 +96,15 @@ class AuthTest {
     void 错误口令_401() throws Exception {
         HttpResponse<String> login = post("/api/auth/login", "{\"username\":\"group_admin\",\"password\":\"wrong\"}");
         assertEquals(401, login.statusCode());
+    }
+
+    @Test
+    void p0_2_未认证业务端点401_公开端点放行() throws Exception {
+        // 全局认证前置：未认证访问业务端点一律 401（不再进业务、不再靠 RLS 兜底）
+        assertEquals(401, get("/api/settings").statusCode(), "未认证 /api/settings 应被网关 401");
+        assertEquals(401, get("/api/policies").statusCode(), "未认证 /api/policies 应被网关 401");
+        // 登录前必达的公开端点：品牌读取放行（非 401）
+        assertNotEquals(401, get("/api/branding").statusCode(), "GET /api/branding 应公开可读");
     }
 
     @Test

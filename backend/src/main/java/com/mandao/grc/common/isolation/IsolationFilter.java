@@ -61,6 +61,14 @@ public class IsolationFilter extends OncePerRequestFilter {
         if (username == null && headerFallbackEnabled) {
             username = request.getHeader("X-User"); // 开发/测试回退（生产关闭）
         }
+        // 全局认证前置（安全评审 P0-2）：未认证的 /api 业务请求（登录/登出/品牌读取等公开端点除外）
+        // 一律 401，不再进入业务——堵住「读端点漏挂注解 + 底表无 RLS」被匿名越权/跨租户读取的整片攻击面。
+        if ((username == null || username.isBlank()) && requiresAuth(request)) {
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":\"UNAUTHENTICATED\",\"message\":\"未登录或会话已过期\"}");
+            return;
+        }
         try {
             if (username != null && !username.isBlank()) {
                 CurrentUserContext.set(username);
@@ -71,6 +79,26 @@ public class IsolationFilter extends OncePerRequestFilter {
             IsolationContext.clear();
             CurrentUserContext.clear();
         }
+    }
+
+    /**
+     * 该请求是否要求已认证。仅拦截 /api 业务端点；放行认证前必达的公开端点：
+     * 登录、登出、以及登录页读取的品牌信息(GET /api/branding)。其余 /api 一律需认证。
+     * 非 /api（actuator 健康探针、静态资源等）不在此约束。
+     */
+    private boolean requiresAuth(HttpServletRequest request) {
+        String p = request.getRequestURI();
+        if (p == null || !p.startsWith("/api/")) {
+            return false;
+        }
+        String method = request.getMethod();
+        if (("/api/auth/login".equals(p) || "/api/auth/logout".equals(p)) && "POST".equalsIgnoreCase(method)) {
+            return false;   // 登录/登出公开
+        }
+        if ("/api/branding".equals(p) && "GET".equalsIgnoreCase(method)) {
+            return false;   // 登录页品牌读取公开（PUT 写入仍需认证）
+        }
+        return true;
     }
 
     /** 从 Cookie 取 JWT 令牌。 */
