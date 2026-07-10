@@ -98,11 +98,11 @@
       <!-- D1-8 H-06：流程绑定（条件分流 + 版本快照固化） -->
       <div class="pb-card">
         <div class="pb-head">
-          <h3>流程绑定 · 条件分流（H-06）</h3>
-          <span class="pb-sub">按单据上下文把「{{ bizType }}」分流到不同流程定义；发起时固化 key+version，后续改绑定不影响在途单据。跨组织绑定永不命中（RLS）。</span>
+          <h3>按条件分流到不同审批流程</h3>
+          <span class="pb-sub">给「{{ $t('flow.biz.' + bizType) }}」按单据情况分流：满足某条件的单据走指定审批流程，都不满足则走兜底流程。发起时会锁定当时的流程版本，之后改规则不影响在途单据；不同公司主体的规则互不干扰。</span>
         </div>
         <table class="pb-tbl">
-          <thead><tr><th>优先级</th><th>名称</th><th>条件</th><th>流程 key</th><th>版本</th><th>状态</th><th></th></tr></thead>
+          <thead><tr><th>优先级</th><th>规则名称</th><th>触发条件</th><th>走哪个审批流程</th><th>版本</th><th>状态</th><th></th></tr></thead>
           <tbody>
             <tr v-for="b in bindings" :key="b.id">
               <td style="text-align:center">{{ b.seq }}</td>
@@ -117,22 +117,33 @@
           </tbody>
         </table>
         <div class="pb-add">
-          <input v-model="nb.name" placeholder="绑定名" style="width:120px" />
-          <span class="pb-lbl">条件</span>
-          <input v-model="nb.field" placeholder="字段(留空=兜底)" style="width:110px" />
-          <select v-model="nb.op" style="width:70px"><option value="eq">=</option><option value="ne">≠</option><option value="in">in</option><option value="gt">&gt;</option><option value="gte">≥</option><option value="lt">&lt;</option><option value="lte">≤</option></select>
-          <input v-model="nb.value" placeholder="值" style="width:90px" />
-          <span class="pb-lbl">→</span>
-          <input v-model="nb.processDefKey" placeholder="流程 key" style="width:120px" />
-          <input v-model.number="nb.processVersion" type="number" min="1" placeholder="版本" style="width:60px" />
-          <input v-model.number="nb.seq" type="number" min="0" placeholder="优先级" style="width:70px" />
-          <button class="btn sm" :disabled="!nb.name || !nb.processDefKey" @click="addBinding">＋ 新增</button>
+          <div class="pb-row">
+            <label class="pb-f">这条规则叫什么<input v-model="nb.name" placeholder="如 大额支付走三级审批" /></label>
+          </div>
+          <div class="pb-row">
+            <span class="pb-lbl">当单据满足</span>
+            <input v-model="nb.field" placeholder="看单据的哪一项（留空=所有单据）" style="width:190px" />
+            <select v-model="nb.op" style="width:110px"><option v-for="o in OP_OPTIONS" :key="o.v" :value="o.v">{{ o.t }}</option></select>
+            <input v-model="nb.value" placeholder="等于/满足什么" style="width:130px" />
+          </div>
+          <div class="pb-row">
+            <span class="pb-lbl">就走这个审批流程</span>
+            <select v-if="publishedFlows.length" @change="nb.processDefKey = $event.target.value" style="width:190px">
+              <option value="">— 从已发布流程选择 —</option>
+              <option v-for="f in publishedFlows" :key="f.id" :value="f.bpmnKey">{{ f.name }}（v{{ f.version }}）</option>
+            </select>
+            <input v-model="nb.processDefKey" placeholder="流程标识（可从左侧下拉选）" style="width:170px" />
+            <label class="pb-mini">版本<input v-model.number="nb.processVersion" type="number" min="1" style="width:56px" /></label>
+            <label class="pb-mini">优先级<input v-model.number="nb.seq" type="number" min="0" style="width:64px" /></label>
+            <button class="btn sm" :disabled="!nb.name || !nb.processDefKey" @click="addBinding">＋ 新增规则</button>
+          </div>
+          <p class="pb-hint">「看单据的哪一项」= 单据发起时携带的属性（如金额、密级、风险等级）；留空表示这条规则对所有单据生效（兜底）。「优先级」数字越小越先匹配。</p>
         </div>
         <div class="pb-resolve">
-          <span class="pb-lbl">试解析</span>
-          <input v-model="rb.field" placeholder="上下文字段" style="width:110px" />
-          <input v-model="rb.value" placeholder="值" style="width:90px" />
-          <button class="btn ghost sm" @click="tryResolve">解析</button>
+          <span class="pb-lbl">模拟试算</span>
+          <input v-model="rb.field" placeholder="单据的哪一项" style="width:130px" />
+          <input v-model="rb.value" placeholder="它的值" style="width:110px" />
+          <button class="btn ghost sm" @click="tryResolve">看会走哪个流程</button>
           <span v-if="resolveResult" class="pb-res">{{ resolveResult }}</span>
         </div>
         <p v-if="pbMsg" class="msg" :class="pbMsgKind">{{ pbMsg }}</p>
@@ -185,11 +196,19 @@ const resolveResult = ref('')
 const pbMsg = ref('')
 const pbMsgKind = ref('ok')
 function setPbMsg(t, k) { pbMsg.value = t; pbMsgKind.value = k || 'ok' }
+// 运算符人话化（下拉与表格展示统一走这套；提交仍用 eq/ne/… 原码，不改后端契约）
+const OP_OPTIONS = [
+  { v: 'eq', t: '等于' }, { v: 'ne', t: '不等于' }, { v: 'in', t: '是其中之一' },
+  { v: 'gt', t: '大于' }, { v: 'gte', t: '大于等于' }, { v: 'lt', t: '小于' }, { v: 'lte', t: '小于等于' }
+]
+const OP_LABEL = Object.fromEntries(OP_OPTIONS.map((o) => [o.v, o.t]))
+// 已发布（ACTIVE 且有部署 key）的本业务类型流程——供「走哪个审批流程」下拉直选
+const publishedFlows = computed(() => (flows.value || []).filter((f) => f.status === 'ACTIVE' && f.bpmnKey))
 function condText(cond) {
   try {
     const preds = (JSON.parse(cond || '{}').predicates) || []
-    if (!preds.length) return '兜底（无条件）'
-    return preds.map((p) => `${p.field} ${p.op} ${JSON.stringify(p.value)}`).join(' AND ')
+    if (!preds.length) return '所有单据（兜底）'
+    return preds.map((p) => `${p.field} ${OP_LABEL[p.op] || p.op} ${Array.isArray(p.value) ? p.value.join(' / ') : p.value}`).join(' 且 ')
   } catch (e) { return cond }
 }
 async function loadBindings() {
@@ -428,8 +447,15 @@ loadList()
 .pb-pill.on { background: var(--accent-tint, rgba(40,90,180,.12)); color: var(--accent-strong); }
 .pb-add, .pb-resolve { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; background: var(--bg); border-radius: var(--radius-md); margin-bottom: 8px; }
 .pb-add input, .pb-add select, .pb-resolve input { height: 30px; padding: 0 8px; border: 1px solid var(--surface-border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-1); font-size: 12px; font-family: inherit; }
-.pb-lbl { font-size: 12px; color: var(--text-2); }
+.pb-lbl { font-size: 12px; color: var(--text-2); min-width: 92px; font-weight: 600; }
 .pb-res { font-size: 12px; font-weight: 600; color: var(--accent-strong); }
+/* ④ 条件分流表单：多行分步、人话标签 */
+.pb-add { flex-direction: column; align-items: stretch; gap: 10px; }
+.pb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pb-f { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.pb-f input { width: 260px; }
+.pb-mini { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--text-2); }
+.pb-hint { width: 100%; font-size: 11px; color: var(--text-3); line-height: 1.55; margin: 2px 0 0; }
 </style>
 
 <style>

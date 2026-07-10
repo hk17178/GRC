@@ -35,37 +35,41 @@
         </div>
       </div>
 
-      <div class="card">
-        <div class="ch"><h3>{{ $t('set.list') }}</h3><span class="cnt">{{ settings.length }}</span></div>
-        <div class="cb" style="overflow-x: auto; padding-top: 0">
-          <table style="min-width: 820px">
-            <thead><tr>
-              <th>配置项</th><th>{{ $t('set.th.category') }}</th><th>{{ $t('set.th.value') }}</th>
-              <th>{{ $t('set.th.editable') }}</th><th>{{ $t('set.th.op') }}</th>
-            </tr></thead>
-            <tbody>
-              <tr v-for="s in settings" :key="s.id">
-                <td>
-                  <div class="s-name">{{ s.description || humanizeKey(s.settingKey) }}</div>
-                  <div class="s-key"><code>{{ s.settingKey }}</code> <span class="pill">{{ s.valueType }}</span></div>
-                </td>
-                <td><span class="cat-pill">{{ CAT_LABEL[s.category] || s.category || '—' }}</span></td>
-                <td class="val">{{ fmtVal(s) }}</td>
-                <td>
-                  <span v-if="s.editable" class="st ok"><span class="d"></span>{{ $t('set.editableYes') }}</span>
-                  <span v-else class="st over"><span class="d"></span>🔒 {{ $t('set.locked') }}</span>
-                </td>
-                <td class="ops">
-                  <button v-if="s.editable" class="btn ghost sm" @click="openEdit(s)">{{ $t('set.op.edit') }}</button>
-                  <span v-else class="muted" :title="$t('set.lockTip')">{{ $t('set.lockedDash') }}</span>
-                </td>
-              </tr>
-              <tr v-if="!settings.length"><td colspan="5" class="emptyrow">{{ loadError || $t('set.empty') }}</td></tr>
-            </tbody>
-          </table>
+      <!-- 可改配置：按分类分组的紧凑卡片（不再是横铺满屏的稀疏宽表）-->
+      <div class="groups">
+        <div v-for="g in editableGroups" :key="g.cat" class="card grp">
+          <div class="ch"><h3>{{ g.label }}</h3><span class="cnt">{{ g.items.length }}</span></div>
+          <div class="cb glist">
+            <div v-for="s in g.items" :key="s.id" class="srow">
+              <div class="si">
+                <div class="s-name">{{ s.description || humanizeKey(s.settingKey) }}</div>
+                <div class="s-key"><code>{{ s.settingKey }}</code> <span class="pill">{{ s.valueType }}</span></div>
+              </div>
+              <div class="sv" :title="fmtVal(s)">{{ fmtVal(s) }}</div>
+              <button class="btn ghost sm" :disabled="!canWrite('settings')" :title="canWrite('settings') ? '' : $t('common.noPerm')" @click="openEdit(s)">{{ $t('set.op.edit') }}</button>
+            </div>
+          </div>
         </div>
-        <p v-if="opError" class="cerr" style="padding: 0 18px 12px">{{ opError }}</p>
+        <div v-if="!editableGroups.length && !lockedSettings.length" class="card">
+          <div class="cb"><p class="muted" style="text-align:center;padding:12px">{{ loadError || $t('set.empty') }}</p></div>
+        </div>
       </div>
+
+      <!-- 系统基线参数（只读·合规固化）：实装但按监管/一致性要求锁定，单独成区并用大白话解释 -->
+      <div v-if="lockedSettings.length" class="card baseline">
+        <div class="ch"><h3>🔒 系统基线参数</h3><span class="sub">只读 · 合规固化，不开放运行期修改（调整走版本升级）</span></div>
+        <div class="cb">
+          <div v-for="s in lockedSettings" :key="s.id" class="brow">
+            <div class="bl">
+              <div class="s-name">{{ s.description || humanizeKey(s.settingKey) }}</div>
+              <div class="bnote">{{ LOCK_NOTE[s.settingKey] || '' }}</div>
+              <div class="s-key"><code>{{ s.settingKey }}</code></div>
+            </div>
+            <div class="bval">{{ fmtLockedVal(s) }}</div>
+          </div>
+        </div>
+      </div>
+      <p v-if="opError" class="cerr" style="padding: 10px 2px 0">{{ opError }}</p>
 
       <!-- 定义配置 -->
       <div v-if="showCreate" class="modal-mask" @click.self="showCreate = false">
@@ -107,7 +111,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import AppShell from '@/components/AppShell.vue'
 import { api } from '@/api/client.js'
 import { useOrgs, orgLabel } from '@/orgs.js'
@@ -123,6 +127,39 @@ function fmtVal(s) {
   if (s.valueType === 'BOOL') return s.settingValue === 'true' ? '是（开启）' : '否（关闭）'
   if (s.valueType === 'JSON') return s.settingValue.length > 60 ? s.settingValue.slice(0, 60) + '…' : s.settingValue
   return s.settingValue
+}
+// 分类展示顺序（未列出的排最后）
+const CAT_ORDER = ['security', 'compliance', 'risk', 'notify', 'scheduler', 'ai', 'branding', 'system', 'general']
+// 可改配置按分类分组（只读锁定项单独成区，不混进来）
+const editableGroups = computed(() => {
+  const byCat = {}
+  for (const s of settings.value) {
+    if (!s.editable) continue
+    const c = s.category || 'general'
+    ;(byCat[c] = byCat[c] || []).push(s)
+  }
+  const rank = (c) => { const i = CAT_ORDER.indexOf(c); return i < 0 ? 99 : i }
+  return Object.keys(byCat).sort((a, b) => rank(a) - rank(b))
+    .map((c) => ({ cat: c, label: CAT_LABEL[c] || c, items: byCat[c] }))
+})
+const lockedSettings = computed(() => settings.value.filter((s) => !s.editable))
+// 锁定项的大白话说明（为何存在、为何锁定）——避免用户以为是坏掉的灰控件
+const LOCK_NOTE = {
+  'hashchain.algo': '操作留痕哈希链所用的摘要算法，是防篡改证据链的根基。全平台统一，系统固定、不开放运行期修改。',
+  'retention.operation-log.years': '操作留痕（谁、何时、改了什么）至少保存的年限。支付机构监管口径不低于 5 年，系统固定、不开放运行期修改。',
+  'retention.evidence.years': '上传证据原件至少保存的年限，与操作留痕同口径。系统固定、不开放运行期修改。',
+  'risk.matrix.bands': '风险打分（可能性 × 影响 的乘积）落到五个等级的分界线，全平台统一用这一套。改动需走版本升级，运行期不开放。'
+}
+// 锁定项取值的可读化：年限带单位、风险档位 JSON 转「≤4 极低 · …」
+function fmtLockedVal(s) {
+  if (s.settingKey === 'risk.matrix.bands') {
+    try {
+      const L = { VERY_LOW: '极低', LOW: '低', MID: '中', HIGH: '高', VERY_HIGH: '极高' }
+      return JSON.parse(s.settingValue).map((b) => `≤${b.max} ${L[b.level] || b.level}`).join(' · ')
+    } catch { return s.settingValue }
+  }
+  if (s.settingKey.endsWith('.years')) return s.settingValue + ' 年'
+  return fmtVal(s)
 }
 const loadError = ref('')
 const saving = ref(false)
@@ -232,4 +269,20 @@ td.ops { display: flex; gap: 6px; align-items: center; }
 .s-key { margin-top: 3px; display: flex; align-items: center; gap: 6px; }
 .s-key code { font-size: 10.5px; color: var(--text-3); }
 .cat-pill { display: inline-block; padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--accent-weak); color: var(--accent-strong); }
+/* ①② 分组卡片布局：宽屏多列，不再横铺满屏的稀疏宽表 */
+.groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 14px; align-items: start; }
+.grp .cb.glist { padding: 4px 16px 10px; }
+.srow { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--border-subtle); }
+.srow:first-child { border-top: 0; }
+.srow .si { flex: 1; min-width: 0; }
+.srow .sv { font-family: var(--font-mono, monospace); font-size: 12px; color: var(--text-1); max-width: 34%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.srow .btn.sm { flex-shrink: 0; }
+/* 系统基线参数（只读·合规固化） */
+.baseline { margin-top: 16px; background: linear-gradient(180deg, var(--accent-weak), var(--surface) 60%); }
+.baseline .ch .sub { font-size: 11px; color: var(--text-3); margin-left: 4px; }
+.brow { display: flex; align-items: flex-start; gap: 18px; padding: 13px 0; border-top: 1px dashed var(--border-subtle); }
+.brow:first-child { border-top: 0; }
+.brow .bl { flex: 1; min-width: 0; }
+.brow .bnote { font-size: 12px; color: var(--text-2); margin: 4px 0 5px; line-height: 1.55; }
+.brow .bval { font-family: var(--font-mono, monospace); font-size: 12.5px; font-weight: 700; color: var(--accent-strong); text-align: right; max-width: 44%; line-height: 1.5; }
 </style>
