@@ -33,6 +33,7 @@ public class PolicyController {
 
     /** 列出当前主体可见组织范围内的制度（七轮 7-8：投影不带原件字节 + 分页护栏，保持数组响应形状）。 */
     @GetMapping
+    @RequiresPermission("policy")
     public List<PolicySummary> list(@org.springframework.web.bind.annotation.RequestParam(required = false) Integer page,
                                     @org.springframework.web.bind.annotation.RequestParam(required = false) Integer size) {
         return service.listSummaries(page, size);
@@ -40,6 +41,7 @@ public class PolicyController {
 
     /** 取单个制度（不可见则视为不存在）。 */
     @GetMapping("/{id}")
+    @RequiresPermission("policy")
     public Policy get(@PathVariable Long id) {
         return service.get(id);
     }
@@ -124,6 +126,7 @@ public class PolicyController {
 
     /** 版本历史（新→旧）。 */
     @GetMapping("/{id}/versions")
+    @RequiresPermission("policy")
     public List<PolicyVersion> versions(@PathVariable Long id) {
         return service.versions(id);
     }
@@ -141,6 +144,7 @@ public class PolicyController {
 
     /** 下载制度原件（六轮 #6）。 */
     @GetMapping("/{id}/document")
+    @RequiresPermission("policy")
     public org.springframework.http.ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
         Policy p = service.getWithDocument(id);
         String fn = java.net.URLEncoder.encode(p.getDocName() == null ? "policy.docx" : p.getDocName(),
@@ -162,12 +166,14 @@ public class PolicyController {
 
     /** 引用关系（outgoing=本制度引用了谁 / incoming=谁引用了本制度）。 */
     @GetMapping("/{id}/refs")
+    @RequiresPermission("policy")
     public java.util.Map<String, List<PolicyRef>> refs(@PathVariable Long id) {
         return service.refs(id);
     }
 
     /** 签署确认明细。 */
     @GetMapping("/{id}/signoffs")
+    @RequiresPermission("policy")
     public List<PolicySignoff> signoffs(@PathVariable Long id) {
         return service.signoffs(id);
     }

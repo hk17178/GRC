@@ -30,18 +30,21 @@ public class KpiDefController {
 
     /** 列出某对象类型的 KPI 定义。 */
     @GetMapping
+    @RequiresPermission("org")
     public List<KpiDef> list(@RequestParam String objectType) {
         return service.list(objectType);
     }
 
     /** 求值已登记 KPI，返回 {id,name,value,unit}（value 为 null 表示不可计算）。 */
     @GetMapping("/{id}/value")
+    @RequiresPermission("org")
     public KpiDefService.KpiResult value(@PathVariable Long id) {
         return service.evaluate(id);
     }
 
     /** 预览临时公式（不落库，供构建器即时查看）。 */
     @PostMapping("/preview")
+    @RequiresPermission("org")
     public KpiDefService.KpiResult preview(@RequestBody PreviewRequest req) {
         return service.preview(req.objectType(), req.name(), req.formula(), req.unit());
     }

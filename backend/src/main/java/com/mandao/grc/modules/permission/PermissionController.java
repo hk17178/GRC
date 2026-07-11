@@ -33,6 +33,7 @@ public class PermissionController {
 
     /** 列出某 org 下某 user 的全部授权行（含已回收）。 */
     @GetMapping("/user-roles")
+    @RequiresPermission("perm")
     public List<UserRoleOrg> listUserRoles(@RequestParam Long orgId, @RequestParam Long userId) {
         return service.listUserRoles(orgId, userId);
     }

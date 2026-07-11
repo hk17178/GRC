@@ -29,6 +29,7 @@ public class AuditReportController {
 
     /** 按计划取报告（无则 null——前端据此显示「生成报告草稿」）。 */
     @GetMapping
+    @RequiresPermission("extaudit")
     public AuditReport byPlan(@RequestParam Long planId) {
         return service.byPlan(planId);
     }
@@ -45,6 +46,7 @@ public class AuditReportController {
 
     /** 报告模板清单。 */
     @GetMapping("/templates")
+    @RequiresPermission("extaudit")
     public java.util.List<AuditReportTemplate> listTemplates() {
         return service.listTemplates();
     }
@@ -119,6 +121,7 @@ public class AuditReportController {
 
     /** 报告导出 .docx（V52 文书套打）。 */
     @GetMapping("/{id}/docx")
+    @RequiresPermission("extaudit")
     public org.springframework.http.ResponseEntity<byte[]> reportDocx(@PathVariable Long id) {
         byte[] body = service.buildReportDocx(id);
         return org.springframework.http.ResponseEntity.ok()

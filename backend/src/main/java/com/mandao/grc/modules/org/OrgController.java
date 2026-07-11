@@ -33,11 +33,13 @@ public class OrgController {
 
     /** 返回某根组织下的子树（默认根 id=1 集团，返回全树）。 */
     @GetMapping("/tree/{rootId}")
+    @RequiresPermission("org")
     public List<OrgNode> tree(@PathVariable Long rootId) {
         return service.listTree(rootId);
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("org")
     public OrgNode get(@PathVariable Long id) {
         return service.get(id);
     }

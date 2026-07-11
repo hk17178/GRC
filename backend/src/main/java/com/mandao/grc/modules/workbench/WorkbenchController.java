@@ -1,6 +1,7 @@
 package com.mandao.grc.modules.workbench;
 
 import com.mandao.grc.common.auth.CurrentUserContext;
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,12 +30,14 @@ public class WorkbenchController {
 
     /** 我的待办（可见范围内待处理工作的统一聚合）。 */
     @GetMapping("/todos")
+    @RequiresPermission("todo")
     public List<TodoItem> todos() {
         return service.todos();
     }
 
     /** 我的审批待办（按登录人角色匹配的待处理审批任务）。 */
     @GetMapping("/my-approvals")
+    @RequiresPermission("todo")
     public List<MyApprovalItem> myApprovals() {
         return service.myApprovals();
     }
@@ -78,6 +81,7 @@ public class WorkbenchController {
 
     /** 通知中心（调度内核派发的提醒，新→旧；同对象同事件合并降噪）。 */
     @GetMapping("/notifications")
+    @RequiresPermission("notify")
     public List<NotificationView> notifications(@RequestParam(required = false) Integer limit) {
         return service.notifications(limit);
     }
@@ -93,6 +97,7 @@ public class WorkbenchController {
 
     /** 定期简报：近 N 天提醒按事件类型聚合（总数/未回执数），默认 7 天。 */
     @GetMapping("/digest")
+    @RequiresPermission("notify")
     public List<WorkbenchService.DigestRow> digest(@RequestParam(required = false) Integer days) {
         return service.digest(days);
     }
@@ -101,6 +106,7 @@ public class WorkbenchController {
 
     /** 读当前登录人静音的通知分类。 */
     @GetMapping("/notify-preference")
+    @RequiresPermission("notify")
     public List<String> getNotifyPreference() {
         return service.getMutedCategories();
     }

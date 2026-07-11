@@ -33,24 +33,28 @@ public class RiskFindingController {
 
     /** 列出某评估下的风险发现。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<RiskFinding> listByAssessment(@RequestParam Long assessmentId) {
         return service.listByAssessment(assessmentId);
     }
 
     /** 组织级风险登记册（六轮 #2/#5）：跨评估聚合全部风险发现，携来源评估标题。 */
     @GetMapping("/register")
+    @RequiresPermission("risk")
     public List<RiskFindingService.RegisterRow> register() {
         return service.registerRows();
     }
 
     /** B22 加权风险指数：未闭环风险按有效等级加权求和 + 各等级分布（供下钻）。 */
     @GetMapping("/index")
+    @RequiresPermission("risk")
     public RiskFindingService.RiskIndex riskIndex() {
         return service.riskIndex();
     }
 
     /** B22 下钻：某有效等级下的未闭环风险发现。 */
     @GetMapping("/by-level")
+    @RequiresPermission("risk")
     public List<RiskFindingService.RegisterRow> byLevel(@RequestParam RiskLevel level) {
         return service.findingsByLevel(level);
     }
@@ -69,6 +73,7 @@ public class RiskFindingController {
 
     /** 取单个风险发现。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public RiskFinding get(@PathVariable Long id) {
         return service.get(id);
     }

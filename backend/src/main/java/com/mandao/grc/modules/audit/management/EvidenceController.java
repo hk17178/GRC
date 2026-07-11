@@ -34,6 +34,7 @@ public class EvidenceController {
 
     /** 证据列表（可按 planId/findingId/remediationId 过滤）。 */
     @GetMapping("/evidence")
+    @RequiresPermission("extaudit")
     public List<EvidenceSummary> list(@RequestParam(required = false) Long planId,
                                @RequestParam(required = false) Long findingId,
                                @RequestParam(required = false) Long remediationId,
@@ -72,6 +73,7 @@ public class EvidenceController {
 
     /** 下载证据原文件。 */
     @GetMapping("/evidence/{id}/download")
+    @RequiresPermission("extaudit")
     public ResponseEntity<byte[]> download(@PathVariable Long id) {
         Evidence e = service.get(id);
         String fn = e.getFileName() == null ? ("evidence-" + id) : e.getFileName();
@@ -84,12 +86,14 @@ public class EvidenceController {
 
     /** 反向取证：指纹校验 + 关联对象回溯。 */
     @GetMapping("/evidence/{id}/verify")
+    @RequiresPermission("extaudit")
     public EvidenceService.VerifyResult verify(@PathVariable Long id) {
         return service.verify(id);
     }
 
     /** 卷宗导出（.docx）：计划信息 + 发现清单 + 整改台账 + 证据指纹清单。 */
     @GetMapping("/audit-plans/{id}/dossier")
+    @RequiresPermission("extaudit")
     public ResponseEntity<byte[]> dossier(@PathVariable Long id) {
         byte[] body = service.buildDossier(id);
         return ResponseEntity.ok()
@@ -103,6 +107,7 @@ public class EvidenceController {
      * 架构治理包 B31：改流式写响应体——StreamingResponseBody 直写，证据字节逐个单取，不在内存组装整包。
      */
     @GetMapping("/audit-plans/{id}/dossier.zip")
+    @RequiresPermission("extaudit")
     public ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> dossierZip(
             @PathVariable Long id) {
         org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody body =

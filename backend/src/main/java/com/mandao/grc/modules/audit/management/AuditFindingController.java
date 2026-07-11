@@ -32,6 +32,7 @@ public class AuditFindingController {
 
     /** 列出某审计计划下的发现。 */
     @GetMapping
+    @RequiresPermission("extaudit")
     public List<AuditFinding> listByPlan(@RequestParam(required = false) Long auditPlanId,
                                           @RequestParam(required = false) AuditType type) {
         // 二选一：按计划查（内审页逐计划视图）或按类型跨计划查（外审页汇总视图）
@@ -46,6 +47,7 @@ public class AuditFindingController {
 
     /** 取单个审计发现。 */
     @GetMapping("/{id}")
+    @RequiresPermission("extaudit")
     public AuditFinding get(@PathVariable Long id) {
         return service.get(id);
     }

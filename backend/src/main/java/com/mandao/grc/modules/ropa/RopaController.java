@@ -28,11 +28,13 @@ public class RopaController {
     }
 
     @GetMapping
+    @RequiresPermission("org")
     public List<Ropa> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("org")
     public Ropa get(@PathVariable Long id) {
         return service.get(id);
     }

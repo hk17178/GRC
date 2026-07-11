@@ -45,6 +45,7 @@ public class AiController {
 
     /** 列出可见知识源文档。 */
     @GetMapping("/documents")
+    @RequiresPermission("ai")
     public List<KbDocument> listDocuments() {
         return kb.list();
     }
@@ -58,6 +59,7 @@ public class AiController {
 
     /** 某文档的切块。 */
     @GetMapping("/documents/{id}/chunks")
+    @RequiresPermission("ai")
     public List<KbChunk> chunks(@PathVariable Long id) {
         return kb.chunks(id);
     }
@@ -73,6 +75,7 @@ public class AiController {
 
     /** 列出治理条目：kind=MODEL_WHITELIST / PROMPT_TEMPLATE。 */
     @GetMapping("/governance")
+    @RequiresPermission("ai")
     public List<AiGovernance> listGovernance(@RequestParam String kind) {
         return governanceService.listByKind(kind);
     }
@@ -156,6 +159,7 @@ public class AiController {
 
     /** 当前 AI 配置状态（提供方/模型/嵌入维度），供「模型接入」页展示。 */
     @GetMapping("/status")
+    @RequiresPermission("aimodel")
     public AiStatus status() {
         return new AiStatus(qa.provider(), qa.model(), embedding.dim(), "local".equals(qa.provider()));
     }

@@ -34,12 +34,14 @@ public class ApprovalFlowController {
 
     /** 列出审批流（可按业务类型过滤）。 */
     @GetMapping
+    @RequiresPermission("approvalflow")
     public List<ApprovalFlow> list(@RequestParam(required = false) ApprovalBizType bizType) {
         return service.list(bizType);
     }
 
     /** 取单个审批流（含画布图）。 */
     @GetMapping("/{id}")
+    @RequiresPermission("approvalflow")
     public ApprovalFlow get(@PathVariable Long id) {
         return service.get(id);
     }

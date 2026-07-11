@@ -31,12 +31,14 @@ public class AccessReviewController {
 
     /** 取单个审阅。 */
     @GetMapping("/{id}")
+    @RequiresPermission("perm")
     public AccessReview get(@PathVariable Long id) {
         return service.get(id);
     }
 
     /** 列出某审阅下的审阅项。 */
     @GetMapping("/{id}/items")
+    @RequiresPermission("perm")
     public List<AccessReviewItem> items(@PathVariable Long id) {
         return service.listItems(id);
     }

@@ -30,6 +30,7 @@ public class AtvController {
     // ---------- 威胁库 ----------
 
     @GetMapping("/threats")
+    @RequiresPermission("risk")
     public List<Threat> listThreats() {
         return service.listThreats();
     }
@@ -60,6 +61,7 @@ public class AtvController {
     }
 
     @GetMapping("/vulnerabilities")
+    @RequiresPermission("risk")
     public List<Vulnerability> listVulnerabilities() {
         return service.listVulnerabilities();
     }
@@ -111,11 +113,13 @@ public class AtvController {
     }
 
     @GetMapping("/risk-scenarios")
+    @RequiresPermission("risk")
     public List<RiskScenario> listScenarios(@RequestParam(required = false) Long assetId) {
         return assetId == null ? service.listScenarios() : service.listScenariosByAsset(assetId);
     }
 
     @GetMapping("/risk-scenarios/{id}")
+    @RequiresPermission("risk")
     public RiskScenario getScenario(@PathVariable Long id) {
         return service.getScenario(id);
     }

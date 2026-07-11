@@ -29,11 +29,13 @@ public class SystemSettingController {
 
     /** 列出配置项；可按分组过滤。 */
     @GetMapping
+    @RequiresPermission("settings")
     public List<SystemSetting> list(@RequestParam(required = false) String category) {
         return category == null ? service.list() : service.listByCategory(category);
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("settings")
     public SystemSetting get(@PathVariable Long id) {
         return service.get(id);
     }

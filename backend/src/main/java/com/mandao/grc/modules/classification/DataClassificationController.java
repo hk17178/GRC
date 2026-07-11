@@ -30,6 +30,7 @@ public class DataClassificationController {
 
     /** 当前登录者的数据密级。 */
     @GetMapping("/my-clearance")
+    @RequiresPermission("org")
     public Map<String, Object> myClearance() {
         DataLevel level = service.clearanceOf(CurrentUserContext.get());
         return Map.of(

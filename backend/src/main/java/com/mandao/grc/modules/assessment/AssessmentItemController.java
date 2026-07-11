@@ -29,12 +29,14 @@ public class AssessmentItemController {
 
     /** 列出某评估的评估项。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<AssessmentItem> listByAssessment(@RequestParam Long assessmentId) {
         return service.listByAssessment(assessmentId);
     }
 
     /** 取单个评估项。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public AssessmentItem get(@PathVariable Long id) {
         return service.get(id);
     }

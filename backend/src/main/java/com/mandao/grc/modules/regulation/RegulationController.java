@@ -28,16 +28,19 @@ public class RegulationController {
     }
 
     @GetMapping
+    @RequiresPermission("law")
     public List<Regulation> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("law")
     public Regulation get(@PathVariable Long id) {
         return service.get(id);
     }
 
     @GetMapping("/{id}/changes")
+    @RequiresPermission("law")
     public List<RegulationChange> changes(@PathVariable Long id) {
         return service.listChanges(id);
     }
@@ -102,6 +105,7 @@ public class RegulationController {
 
     /** 某法规命中的制度映射。 */
     @GetMapping("/{id}/policy-maps")
+    @RequiresPermission("law")
     public List<RegulationPolicyMap> listMaps(@PathVariable Long id) {
         return service.listMaps(id);
     }

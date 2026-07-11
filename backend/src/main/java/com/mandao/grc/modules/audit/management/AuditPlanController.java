@@ -33,12 +33,14 @@ public class AuditPlanController {
 
     /** 列出可见范围内的审计计划；可按 type 过滤（INTERNAL/EXTERNAL/REGULATORY）分内外审视图。 */
     @GetMapping
+    @RequiresPermission("extaudit")
     public List<AuditPlan> list(@RequestParam(required = false) AuditType type) {
         return service.listByType(type);
     }
 
     /** 取单个审计计划。 */
     @GetMapping("/{id}")
+    @RequiresPermission("extaudit")
     public AuditPlan get(@PathVariable Long id) {
         return service.get(id);
     }
@@ -131,6 +133,7 @@ public class AuditPlanController {
 
     /** 计划的审计程序/底稿清单。 */
     @GetMapping("/{id}/procedures")
+    @RequiresPermission("extaudit")
     public List<AuditProcedure> listProcedures(@PathVariable Long id) {
         return service.listProcedures(id);
     }

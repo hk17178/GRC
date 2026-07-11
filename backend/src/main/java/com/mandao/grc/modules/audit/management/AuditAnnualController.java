@@ -31,6 +31,7 @@ public class AuditAnnualController {
 
     /** 年度计划清单（新年度在前）。 */
     @GetMapping("/audit-annual")
+    @RequiresPermission("extaudit")
     public List<AuditAnnualPlan> list() {
         return service.list();
     }
@@ -45,6 +46,7 @@ public class AuditAnnualController {
 
     /** 年度计划的对象清单（风险排序在前）。 */
     @GetMapping("/audit-annual/{id}/items")
+    @RequiresPermission("extaudit")
     public List<AuditAnnualItem> items(@PathVariable Long id) {
         return service.listItems(id);
     }
@@ -86,6 +88,7 @@ public class AuditAnnualController {
 
     /** 审计通知书导出 .docx（V52 文书套打）。 */
     @GetMapping("/audit-plans/{planId}/notice.docx")
+    @RequiresPermission("extaudit")
     public ResponseEntity<byte[]> noticeDocx(@PathVariable Long planId) {
         byte[] body = reportService.buildNoticeDocx(planId);
         return ResponseEntity.ok()

@@ -29,6 +29,7 @@ public class CertificateController {
     }
 
     @GetMapping
+    @RequiresPermission("extaudit")
     public List<Certificate> list() {
         return service.list();
     }

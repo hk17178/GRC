@@ -37,6 +37,7 @@ public class AssessmentDocController {
 
     /** 评估的过程文档清单。 */
     @GetMapping("/assessments/{id}/docs")
+    @RequiresPermission("risk")
     public List<AssessmentDoc> listDocs(@PathVariable Long id) {
         return service.listDocs(id);
     }
@@ -58,6 +59,7 @@ public class AssessmentDocController {
 
     /** 下载过程文档原件。 */
     @GetMapping("/assessment-docs/{docId}/download")
+    @RequiresPermission("risk")
     public ResponseEntity<byte[]> download(@PathVariable Long docId) {
         AssessmentDoc d = service.getDoc(docId);
         if (d.getData() == null) {
@@ -83,6 +85,7 @@ public class AssessmentDocController {
 
     /** 评估的处置计划条目清单（按发现）。 */
     @GetMapping("/assessments/{id}/treatments")
+    @RequiresPermission("risk")
     public List<RiskTreatment> listTreatments(@PathVariable Long id) {
         return service.listTreatments(id);
     }
@@ -99,6 +102,7 @@ public class AssessmentDocController {
 
     /** RTP 汇总导出（.docx，ISO 27001 处置计划文档）。 */
     @GetMapping("/assessments/{id}/rtp.docx")
+    @RequiresPermission("risk")
     public ResponseEntity<byte[]> rtpDocx(@PathVariable Long id) {
         byte[] body = service.buildRtpDocx(id);
         return ResponseEntity.ok()

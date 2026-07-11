@@ -30,6 +30,7 @@ public class RemediationController {
 
     /** 列出某审计发现的整改工单。 */
     @GetMapping
+    @RequiresPermission("extaudit")
     public List<RemediationOrder> listByFinding(@RequestParam(required = false) Long findingId,
                                                 @RequestParam(required = false) AuditType type) {
         // 二选一：按发现查或按审计类型跨发现汇总查
@@ -44,6 +45,7 @@ public class RemediationController {
 
     /** 取单个整改工单。 */
     @GetMapping("/{id}")
+    @RequiresPermission("extaudit")
     public RemediationOrder get(@PathVariable Long id) {
         return service.get(id);
     }

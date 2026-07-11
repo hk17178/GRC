@@ -49,6 +49,7 @@ public class AssessmentFormController {
 
     /** 列出某模板的全部表单版本。 */
     @GetMapping("/assessment-templates/{id}/forms")
+    @RequiresPermission("risk")
     public List<FormVersionView> listForms(@PathVariable Long id) {
         return service.listForms(id).stream()
                 .map(f -> FormVersionView.meta(f))
@@ -57,6 +58,7 @@ public class AssessmentFormController {
 
     /** 取某表单版本的解析 schema（模板中心完整样式预览用）。 */
     @GetMapping("/assessment-templates/forms/{formId}/schema")
+    @RequiresPermission("risk")
     public FormVersionView formSchema(@PathVariable Long formId) {
         TemplateForm form = service.getForm(formId);
         return FormVersionView.of(form, service.schemaOf(form));
@@ -64,6 +66,7 @@ public class AssessmentFormController {
 
     /** 下载某表单版本的 .docx 原件（R4 模板中心：模板预览/取回官方模板）。 */
     @GetMapping("/assessment-templates/forms/{formId}/docx")
+    @RequiresPermission("risk")
     public ResponseEntity<byte[]> downloadFormDocx(@PathVariable Long formId) {
         TemplateForm form = service.getForm(formId);
         if (form.getDocx() == null) {
@@ -85,6 +88,7 @@ public class AssessmentFormController {
 
     /** 取某评估的填写界面（schema + answers）。 */
     @GetMapping("/assessments/{id}/form")
+    @RequiresPermission("risk")
     public AssessmentFormService.AssessmentFormView assessmentForm(@PathVariable Long id) {
         return service.getAssessmentForm(id);
     }
@@ -107,6 +111,7 @@ public class AssessmentFormController {
 
     /** 导出回填后的报告 Word（.docx，格式同上传的官方模板）。 */
     @GetMapping("/assessments/{id}/report.docx")
+    @RequiresPermission("risk")
     public ResponseEntity<byte[]> reportDocx(@PathVariable Long id) {
         byte[] body = service.buildReportDocx(id);
         return download(body, "risk-assessment-" + id + ".docx",
@@ -115,6 +120,7 @@ public class AssessmentFormController {
 
     /** 导出回填后的报告 PDF（LibreOffice 转，可直接交审计）。 */
     @GetMapping("/assessments/{id}/report.pdf")
+    @RequiresPermission("risk")
     public ResponseEntity<byte[]> reportPdf(@PathVariable Long id) {
         byte[] body = service.buildReportPdf(id);
         return download(body, "risk-assessment-" + id + ".pdf", "application/pdf");

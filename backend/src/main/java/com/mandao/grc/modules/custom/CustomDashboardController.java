@@ -29,18 +29,21 @@ public class CustomDashboardController {
 
     /** 列出看板定义。 */
     @GetMapping
+    @RequiresPermission("org")
     public List<DashboardDef> list() {
         return service.list();
     }
 
     /** 渲染已登记看板（逐组件解析数据）。 */
     @GetMapping("/{id}/render")
+    @RequiresPermission("org")
     public CustomDashboardService.DashboardRender render(@PathVariable Long id) {
         return service.render(id);
     }
 
     /** 预览临时布局（不落库）。 */
     @PostMapping("/preview")
+    @RequiresPermission("org")
     public CustomDashboardService.DashboardRender preview(@RequestBody PreviewRequest req) {
         return service.preview(req.name(), req.layout());
     }

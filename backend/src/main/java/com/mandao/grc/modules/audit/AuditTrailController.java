@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.audit;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -24,6 +25,7 @@ public class AuditTrailController {
 
     /** 查询操作留痕（可选按 对象/动作/操作人 过滤；新→旧）。 */
     @GetMapping
+    @RequiresPermission("board")
     public List<OperationLogView> query(@RequestParam(required = false) String entity,
                                         @RequestParam(required = false) String action,
                                         @RequestParam(required = false) String actor,
@@ -33,6 +35,7 @@ public class AuditTrailController {
 
     /** 校验某 org 整条链的完整性（防篡改）。 */
     @GetMapping("/verify")
+    @RequiresPermission("board")
     public ChainVerifyResult verify(@RequestParam Long orgId) {
         return service.verify(orgId);
     }

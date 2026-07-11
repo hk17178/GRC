@@ -29,18 +29,21 @@ public class ControlController {
 
     /** 列出当前主体可见组织范围内的控制项。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<Control> list() {
         return service.list();
     }
 
     /** 取单个控制项（不可见则视为不存在）。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public Control get(@PathVariable Long id) {
         return service.get(id);
     }
 
     /** 列出某控制项的框架映射。 */
     @GetMapping("/{id}/mappings")
+    @RequiresPermission("risk")
     public List<ControlFrameworkRef> mappings(@PathVariable Long id) {
         return service.listMappings(id);
     }
@@ -75,12 +78,14 @@ public class ControlController {
 
     /** 某控件的测试历史。 */
     @GetMapping("/{id}/tests")
+    @RequiresPermission("risk")
     public List<ControlTest> tests(@PathVariable Long id) {
         return service.listTests(id);
     }
 
     /** 该控件当前可复用的有效测试结论（无则返回空）。 */
     @GetMapping("/{id}/reusable-test")
+    @RequiresPermission("risk")
     public ControlTest reusableTest(@PathVariable Long id) {
         return service.reusableTest(id);
     }

@@ -30,11 +30,13 @@ public class RegFilingController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<RegFiling> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("regaffairs")
     public RegFiling get(@PathVariable Long id) {
         return service.get(id);
     }

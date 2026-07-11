@@ -30,6 +30,7 @@ public class RegFilingScheduleController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<RegFilingSchedule> list() {
         return service.list();
     }

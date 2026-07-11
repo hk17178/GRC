@@ -30,24 +30,28 @@ public class RbacAdminController {
 
     /** 角色列表。 */
     @GetMapping("/roles")
+    @RequiresPermission("rbacconfig")
     public List<Map<String, Object>> roles() {
         return service.listRoles();
     }
 
     /** 用户列表（供"用户授权"选人）。 */
     @GetMapping("/users")
+    @RequiresPermission("rbacconfig")
     public List<Map<String, Object>> users() {
         return service.listUsers();
     }
 
     /** 资源目录（菜单+动作，矩阵的行）。 */
     @GetMapping("/resources")
+    @RequiresPermission("rbacconfig")
     public List<Resource> resources() {
         return resourceRepo.findAllByOrderBySortAsc();
     }
 
     /** 某角色的权限矩阵。 */
     @GetMapping("/roles/{id}/permissions")
+    @RequiresPermission("rbacconfig")
     public Map<String, String> rolePermissions(@PathVariable Long id) {
         return service.rolePermissions(id);
     }

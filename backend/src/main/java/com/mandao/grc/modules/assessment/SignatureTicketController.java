@@ -36,6 +36,7 @@ public class SignatureTicketController {
 
     /** 桌面：轮询取回手机签名（SIGNED → 返回 dataURL 并作废令牌）。 */
     @GetMapping("/assessments/{id}/sign-ticket/{token}")
+    @RequiresPermission("risk")
     public SignatureTicketService.FetchResult fetch(@PathVariable Long id, @PathVariable String token) {
         return service.fetchSignature(id, token);
     }

@@ -31,6 +31,7 @@ public class RegulationSourceController {
 
     /** 追踪源列表。 */
     @GetMapping("/regulation-sources")
+    @RequiresPermission("law")
     public List<RegulationSource> listSources() {
         return service.listSources();
     }
@@ -67,12 +68,14 @@ public class RegulationSourceController {
 
     /** 某源的采集法规。 */
     @GetMapping("/regulation-sources/{id}/items")
+    @RequiresPermission("law")
     public List<RegulationCrawled> itemsOf(@PathVariable Long id) {
         return service.listCrawledBySource(id);
     }
 
     /** 全部采集法规（采集流）。 */
     @GetMapping("/crawled-regulations")
+    @RequiresPermission("law")
     public List<RegulationCrawled> allCrawled() {
         return service.listCrawled();
     }

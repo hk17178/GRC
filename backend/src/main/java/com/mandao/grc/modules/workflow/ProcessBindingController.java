@@ -31,6 +31,7 @@ public class ProcessBindingController {
 
     /** 列出某对象类型的流程绑定。 */
     @GetMapping
+    @RequiresPermission("approvalflow")
     public List<ProcessBinding> list(@RequestParam String objectType) {
         return service.list(objectType);
     }

@@ -35,6 +35,7 @@ public class AssetController {
      * ?filter=pi / crossBorder / chd / mlps，或 ?classification=PUBLIC|INTERNAL|SENSITIVE。
      */
     @GetMapping
+    @RequiresPermission("org")
     public List<Asset> list(@RequestParam(required = false) String filter,
                             @RequestParam(required = false) AssetClassification classification) {
         if (classification != null) {
@@ -53,6 +54,7 @@ public class AssetController {
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("org")
     public Asset get(@PathVariable Long id) {
         return service.get(id);
     }

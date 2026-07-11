@@ -28,23 +28,27 @@ public class ObligationController {
     }
 
     @GetMapping
+    @RequiresPermission("obligation")
     public List<Obligation> list() {
         return service.list();
     }
 
     /** 带派生满足状态的列表（八轮 8-3：状态由举证链派生只读）。 */
     @GetMapping("/derived")
+    @RequiresPermission("obligation")
     public List<ObligationService.ObligationRow> listDerived() {
         return service.listWithDerived();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("obligation")
     public Obligation get(@PathVariable Long id) {
         return service.get(id);
     }
 
     /** 义务举证链明细（依据弹层）。 */
     @GetMapping("/{id}/links")
+    @RequiresPermission("obligation")
     public List<ObligationLink> links(@PathVariable Long id) {
         return service.links(id);
     }

@@ -27,11 +27,13 @@ public class FeedbackController {
     }
 
     @GetMapping
+    @RequiresPermission("feedback")
     public List<Feedback> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("feedback")
     public Feedback get(@PathVariable Long id) {
         return service.get(id);
     }

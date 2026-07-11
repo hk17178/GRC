@@ -52,6 +52,7 @@ public class NotifyConfigController {
 
     /** 按 kind（SCENARIO/RULE/CHANNEL）列出配置。 */
     @GetMapping
+    @RequiresPermission("notify")
     public List<NotifyConfig> list(@RequestParam String kind) {
         return service.listByKind(kind);
     }

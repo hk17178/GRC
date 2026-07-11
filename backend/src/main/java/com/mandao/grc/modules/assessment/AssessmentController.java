@@ -36,12 +36,14 @@ public class AssessmentController {
 
     /** 列出当前主体可见组织范围内的评估。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<Assessment> list() {
         return service.list();
     }
 
     /** 取单个评估（不可见则视为不存在）。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public Assessment get(@PathVariable Long id) {
         return service.get(id);
     }
@@ -125,6 +127,7 @@ public class AssessmentController {
 
     /** 查看签批手写签名图（存证核验）。 */
     @GetMapping("/{id}/signature")
+    @RequiresPermission("risk")
     public org.springframework.http.ResponseEntity<byte[]> signature(@PathVariable Long id) {
         Assessment a = service.get(id);
         if (a.getMgmtSignature() == null) {
@@ -193,6 +196,7 @@ public class AssessmentController {
 
     /** 范围资产清单（携资产名/类型）。 */
     @GetMapping("/{id}/assets")
+    @RequiresPermission("risk")
     public List<AssessmentService.ScopeAssetView> listScopeAssets(@PathVariable Long id) {
         return service.listScopeAssets(id);
     }

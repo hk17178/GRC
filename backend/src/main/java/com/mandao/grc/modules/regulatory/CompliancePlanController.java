@@ -28,16 +28,19 @@ public class CompliancePlanController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<CompliancePlan> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("regaffairs")
     public CompliancePlan get(@PathVariable Long id) {
         return service.get(id);
     }
 
     @GetMapping("/{id}/items")
+    @RequiresPermission("regaffairs")
     public List<CompliancePlanItem> items(@PathVariable Long id) {
         return service.listItems(id);
     }

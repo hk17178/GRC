@@ -1,5 +1,6 @@
 package com.mandao.grc.modules.search;
 
+import com.mandao.grc.modules.rbac.RequiresPermission;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -23,6 +24,7 @@ public class SearchController {
     }
 
     @GetMapping
+    @RequiresPermission("dashboard")
     public List<SearchService.SearchHit> search(@RequestParam String q) {
         return service.search(q);
     }

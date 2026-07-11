@@ -30,18 +30,21 @@ public class KriController {
 
     /** 列出当前主体可见组织范围内的 KRI。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<Kri> list() {
         return service.list();
     }
 
     /** 取单个 KRI（不可见则视为不存在）。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public Kri get(@PathVariable Long id) {
         return service.get(id);
     }
 
     /** 列出某 KRI 的测量历史（最新在前）。 */
     @GetMapping("/{id}/measurements")
+    @RequiresPermission("risk")
     public List<KriMeasurement> measurements(@PathVariable Long id) {
         return service.listMeasurements(id);
     }

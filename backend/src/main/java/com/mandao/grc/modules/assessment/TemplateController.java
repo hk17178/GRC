@@ -30,18 +30,21 @@ public class TemplateController {
 
     /** 列出当前主体可见组织范围内的模板。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<AssessmentTemplate> list() {
         return service.list();
     }
 
     /** 取单个模板。 */
     @GetMapping("/{id}")
+    @RequiresPermission("risk")
     public AssessmentTemplate get(@PathVariable Long id) {
         return service.get(id);
     }
 
     /** 按序列出某模板的检查项。 */
     @GetMapping("/{id}/items")
+    @RequiresPermission("risk")
     public List<AssessmentTemplateItem> items(@PathVariable Long id) {
         return service.listItems(id);
     }

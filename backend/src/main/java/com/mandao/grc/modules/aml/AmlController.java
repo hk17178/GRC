@@ -32,6 +32,7 @@ public class AmlController {
     // ---- 名单管理 ----
 
     @GetMapping("/watchlist")
+    @RequiresPermission("aml")
     public List<AmlWatchlist> watchlist() {
         return service.listWatchlist();
     }
@@ -60,6 +61,7 @@ public class AmlController {
     // ---- 可疑交易报告 STR ----
 
     @GetMapping("/str-reports")
+    @RequiresPermission("aml")
     public List<StrReport> strReports() {
         return service.listStr();
     }

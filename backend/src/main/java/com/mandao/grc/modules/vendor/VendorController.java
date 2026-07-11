@@ -29,16 +29,19 @@ public class VendorController {
     }
 
     @GetMapping
+    @RequiresPermission("vendor")
     public List<Vendor> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("vendor")
     public Vendor get(@PathVariable Long id) {
         return service.get(id);
     }
 
     @GetMapping("/{id}/assessments")
+    @RequiresPermission("vendor")
     public List<VendorAssessment> assessments(@PathVariable Long id) {
         return service.listAssessments(id);
     }
@@ -74,6 +77,7 @@ public class VendorController {
 
     /** 下载某次评估的原件。 */
     @GetMapping("/assessments/{assessmentId}/document")
+    @RequiresPermission("vendor")
     public org.springframework.http.ResponseEntity<byte[]> downloadAssessDoc(@PathVariable Long assessmentId) {
         VendorAssessment a = service.getAssessmentWithDoc(assessmentId);
         return org.springframework.http.ResponseEntity.ok()
@@ -129,12 +133,14 @@ public class VendorController {
 
     /** 某供应商 SLA 项。 */
     @GetMapping("/{id}/sla")
+    @RequiresPermission("vendor")
     public List<VendorSla> listSla(@PathVariable Long id) {
         return service.listSla(id);
     }
 
     /** 全部 SLA（SLA 跟踪页）。 */
     @GetMapping("/sla")
+    @RequiresPermission("vendor")
     public List<VendorSla> listAllSla() {
         return service.listAllSla();
     }
@@ -158,6 +164,7 @@ public class VendorController {
 
     /** 全部外部事件。 */
     @GetMapping("/incidents")
+    @RequiresPermission("vendor")
     public List<VendorIncident> listIncidents() {
         return service.listIncidents();
     }

@@ -29,11 +29,13 @@ public class MajorIncidentController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<MajorIncidentReport> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("regaffairs")
     public MajorIncidentReport get(@PathVariable Long id) {
         return service.get(id);
     }

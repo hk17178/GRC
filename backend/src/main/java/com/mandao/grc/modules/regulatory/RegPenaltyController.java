@@ -30,11 +30,13 @@ public class RegPenaltyController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<RegPenalty> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("regaffairs")
     public RegPenalty get(@PathVariable Long id) {
         return service.get(id);
     }

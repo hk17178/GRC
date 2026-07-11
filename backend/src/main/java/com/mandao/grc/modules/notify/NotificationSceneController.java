@@ -29,24 +29,28 @@ public class NotificationSceneController {
 
     /** 场景库（设计态，全局可装配的场景种类）。 */
     @GetMapping("/defs")
+    @RequiresPermission("notify")
     public List<NotifSceneDef> defs() {
         return service.listDefs();
     }
 
     /** 本组织已装配的运行态场景。 */
     @GetMapping
+    @RequiresPermission("notify")
     public List<NotificationScene> list() {
         return service.listScenes();
     }
 
     /** 某场景的升级链。 */
     @GetMapping("/{id}/escalations")
+    @RequiresPermission("notify")
     public List<NotificationEscalation> escalations(@PathVariable Long id) {
         return service.escalationsOf(id);
     }
 
     /** 试装配：给定事件类型，看本组织哪些场景触发、通知谁、如何升级（M10 消费同此结果）。 */
     @PostMapping("/assemble")
+    @RequiresPermission("notify")
     public List<NotificationSceneService.AssembledScene> assemble(@RequestBody AssembleRequest req) {
         return service.assemble(req.eventType());
     }

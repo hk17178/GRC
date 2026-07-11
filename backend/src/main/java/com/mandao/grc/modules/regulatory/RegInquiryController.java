@@ -29,11 +29,13 @@ public class RegInquiryController {
     }
 
     @GetMapping
+    @RequiresPermission("regaffairs")
     public List<RegInquiry> list() {
         return service.list();
     }
 
     @GetMapping("/{id}")
+    @RequiresPermission("regaffairs")
     public RegInquiry get(@PathVariable Long id) {
         return service.get(id);
     }

@@ -30,6 +30,7 @@ public class AssessmentPlanController {
 
     /** 计划清单（按计划日期升序）。 */
     @GetMapping
+    @RequiresPermission("risk")
     public List<AssessmentPlan> list() {
         return service.list();
     }

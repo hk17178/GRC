@@ -30,12 +30,14 @@ public class CustomFieldController {
 
     /** 列出某对象类型的字段定义（含停用，供配置页）。 */
     @GetMapping
+    @RequiresPermission("org")
     public List<CustomFieldDef> list(@RequestParam String objectType) {
         return service.list(objectType);
     }
 
     /** 列出某对象类型的启用字段（供宿主表单动态渲染）。 */
     @GetMapping("/active")
+    @RequiresPermission("org")
     public List<CustomFieldDef> listActive(@RequestParam String objectType) {
         return service.listActive(objectType);
     }
