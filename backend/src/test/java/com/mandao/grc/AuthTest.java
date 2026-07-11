@@ -99,6 +99,19 @@ class AuthTest {
     }
 
     @Test
+    void m15_登出即吊销既发令牌() throws Exception {
+        HttpResponse<String> login = post("/api/auth/login",
+                "{\"username\":\"group_admin\",\"password\":\"demo1234\"}");
+        assertEquals(200, login.statusCode());
+        String cookie = login.headers().firstValue("set-cookie").orElse("").split(";", 2)[0];
+        assertEquals(200, get("/api/auth/me", "Cookie", cookie).statusCode(), "登出前令牌有效");
+
+        assertEquals(200, post("/api/auth/logout", "{}", "Cookie", cookie).statusCode());
+        // 同一旧 cookie 现应因 token_epoch 提升而失效（M-15 服务端会话吊销）
+        assertEquals(401, get("/api/auth/me", "Cookie", cookie).statusCode(), "登出后旧令牌应失效");
+    }
+
+    @Test
     void m14_须改密令牌_业务被拦_改密后解除() throws Exception {
         String origHash;
         try (java.sql.Connection c = java.sql.DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");

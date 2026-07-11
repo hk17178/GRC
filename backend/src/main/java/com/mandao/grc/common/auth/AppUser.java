@@ -60,6 +60,10 @@ public class AppUser {
     @Column(name = "must_change_password", nullable = false)
     private boolean mustChangePassword = false;
 
+    /** 会话版本号（M-15）：登出/改密/踢下线时 +1，使此前签发的令牌 ep 不匹配而失效。 */
+    @Column(name = "token_epoch", nullable = false)
+    private int tokenEpoch = 0;
+
     protected AppUser() {
     }
 
@@ -75,6 +79,7 @@ public class AppUser {
     public int getFailedAttempts() { return failedAttempts; }
     public java.time.OffsetDateTime getLockedUntil() { return lockedUntil; }
     public boolean isMustChangePassword() { return mustChangePassword; }
+    public int getTokenEpoch() { return tokenEpoch; }
 
     // ---- 安全加固包：登录服务专用变更（包内可见）----
     void recordLoginFailure(int lockThreshold, int lockMinutes) {
@@ -93,5 +98,11 @@ public class AppUser {
     void changePassword(String newHash) {
         this.passwordHash = newHash;
         this.mustChangePassword = false;
+        this.tokenEpoch++;   // M-15：改密使既有会话（旧令牌）失效
+    }
+
+    /** 令牌纪元 +1，吊销该用户全部既发 JWT（登出/踢下线，M-15）。 */
+    void bumpTokenEpoch() {
+        this.tokenEpoch++;
     }
 }

@@ -62,6 +62,13 @@ public class IsolationFilter extends OncePerRequestFilter {
         if (username == null && headerFallbackEnabled) {
             username = request.getHeader("X-User"); // 开发/测试回退（生产关闭）
         }
+        // 会话吊销（安全评审 M-15）：JWT 的 ep 与用户当前 token_epoch 不符即令牌已被登出/改密吊销，
+        // 视为未认证（历史无 ep 声明的令牌 ep=-1，跳过校验，随过期自然收敛）。
+        int tokenEp = jwtService.tokenEpoch(token);
+        if (username != null && !username.isBlank() && tokenEp >= 0
+                && tokenEp != visibleOrgsService.currentTokenEpoch(username)) {
+            username = null;
+        }
         // 全局认证前置（安全评审 P0-2）：未认证的 /api 业务请求（登录/登出/品牌读取等公开端点除外）
         // 一律 401，不再进入业务——堵住「读端点漏挂注解 + 底表无 RLS」被匿名越权/跨租户读取的整片攻击面。
         if ((username == null || username.isBlank()) && requiresAuth(request)) {

@@ -97,7 +97,8 @@ public class AuthController {
         userRepo.save(user);
         audit(username, true, "OK", ip);
 
-        String token = jwtService.issue(user.getId(), user.getUsername(), user.isMustChangePassword());
+        String token = jwtService.issue(user.getId(), user.getUsername(), user.isMustChangePassword(),
+                user.getTokenEpoch());
         resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(token, jwtService.cookieMaxAgeSeconds()).toString());
         return ResponseEntity.ok(userInfo(user));
     }
@@ -105,6 +106,14 @@ public class AuthController {
     /** 登出：清除 Cookie。 */
     @PostMapping("/logout")
     public ResponseEntity<?> logout(HttpServletResponse resp) {
+        // M-15：登出即吊销该用户全部既发令牌（bump token_epoch），不再"登出后旧 JWT 仍有效 12h"
+        String username = CurrentUserContext.get();
+        if (username != null) {
+            userRepo.findByUsername(username).ifPresent(u -> {
+                u.bumpTokenEpoch();
+                userRepo.save(u);
+            });
+        }
         resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie("", 0).toString());
         return ResponseEntity.ok(Map.of("ok", true));
     }
@@ -142,10 +151,10 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("code", "WEAK_PASSWORD",
                     "message", "新口令须至少 10 位、含大写/小写/数字/符号中至少三类，且不得为常见弱口令或与旧口令相同"));
         }
-        user.changePassword(passwordEncoder.encode(np));
+        user.changePassword(passwordEncoder.encode(np));   // 内部 bump token_epoch（M-15：使旧会话失效）
         userRepo.save(user);
-        // M-14：改密后重签发 mc=false 令牌，解除首登强制改密限制
-        String token = jwtService.issue(user.getId(), user.getUsername(), false);
+        // M-14/M-15：改密后重签发 mc=false + 新 epoch 令牌，解除首登限制并顶掉旧令牌
+        String token = jwtService.issue(user.getId(), user.getUsername(), false, user.getTokenEpoch());
         resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(token, jwtService.cookieMaxAgeSeconds()).toString());
         audit(username, true, "PWD_CHANGED", clientIp(httpReq));
         return ResponseEntity.ok(Map.of("ok", true));

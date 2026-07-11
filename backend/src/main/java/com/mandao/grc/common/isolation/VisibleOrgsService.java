@@ -51,4 +51,14 @@ public class VisibleOrgsService {
         }
         return List.of(orgId);
     }
+
+    /** 用户当前会话纪元 token_epoch（M-15）；用户不存在返回 -1。 */
+    @Transactional(readOnly = true)
+    @SuppressWarnings("unchecked")
+    public int currentTokenEpoch(String username) {
+        List<Object> r = em.createNativeQuery("SELECT token_epoch FROM app_user WHERE username = :n")
+                .setParameter("n", username)
+                .getResultList();
+        return r.isEmpty() ? -1 : ((Number) r.get(0)).intValue();
+    }
 }
