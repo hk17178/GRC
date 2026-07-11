@@ -52,6 +52,10 @@ grc:
       secret: ${GRC_JWT_SECRET:}
       ttl-hours: 12
 
+  # 操作留痕哈希链 HMAC 密钥（安全评审 H-1）。仅环境注入，未配置留空 → HashChainService 启动 fail-fast。
+  hashchain:
+    secret: ${GRC_HASHCHAIN_SECRET:}
+
   # AI 接入（CR-004 · RAG）。默认全本地离线，不出网、不需密钥；生产按需切换。
   ai:
     # 生成端 LLM 提供方：

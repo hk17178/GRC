@@ -47,6 +47,27 @@ public final class HashChain {
         }
     }
 
+    /**
+     * 计算 HMAC-SHA256 并以小写十六进制返回（64 字符）。安全评审 H-1：
+     * 无密钥的裸 SHA-256 任何能直连库写入者都可自行重算整条链；改用 keyed-HMAC 后，
+     * 不掌握密钥（GRC_HASHCHAIN_SECRET，仅环境注入）者无法伪造出与内容一致的 curr_hash。
+     */
+    public static String hmacSha256Hex(String key, String input) {
+        try {
+            javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new javax.crypto.spec.SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+            byte[] digest = mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder(64);
+            for (byte b : digest) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16));
+                sb.append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (java.security.NoSuchAlgorithmException | java.security.InvalidKeyException e) {
+            throw new IllegalStateException("HMAC-SHA256 计算失败", e);
+        }
+    }
+
     /** 转义分隔符，消除字段歧义；null 统一视为空串。 */
     private static String esc(String s) {
         if (s == null) {
