@@ -3,6 +3,7 @@ package com.mandao.grc;
 import com.mandao.grc.common.auth.JwtService;
 import com.mandao.grc.common.net.IpEgressGuard;
 import com.mandao.grc.modules.ai.ConfigCrypto;
+import com.mandao.grc.modules.custom.ArithmeticEvaluator;
 import com.mandao.grc.modules.workflow.BpmnCompiler;
 import com.mandao.grc.modules.workflow.FlowGraph;
 import com.mandao.grc.modules.workflow.FlowValidationException;
@@ -65,5 +66,15 @@ class SecurityHardeningTest {
         for (String ip : new String[]{"1.1.1.1", "8.8.8.8", "93.184.216.34"}) {
             assertFalse(IpEgressGuard.isBlocked(InetAddress.getByName(ip)), ip + " 公网应放行");
         }
+    }
+
+    @Test
+    void kpi求值器_超深嵌套_拒绝而非栈溢出() {
+        // L-12：深层嵌套括号应被深度上限拦下抛 IllegalArgumentException，而非 StackOverflowError
+        String deep = "(".repeat(500) + "1" + ")".repeat(500);
+        assertThrows(IllegalArgumentException.class,
+                () -> ArithmeticEvaluator.eval(deep, java.util.Map.of()), "超深嵌套应被拒");
+        // 正常浅表达式仍可求值
+        assertDoesNotThrow(() -> ArithmeticEvaluator.eval("(1 + 2) * 3", java.util.Map.of()));
     }
 }

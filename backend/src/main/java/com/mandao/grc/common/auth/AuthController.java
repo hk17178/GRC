@@ -47,14 +47,19 @@ public class AuthController {
     /** 生产 HTTPS 环境置 true（B17：Cookie Secure 配置化，不再只靠人工清单）。 */
     private final boolean cookieSecure;
 
+    /** L-10：是否信任 X-Forwarded-For（仅当部署在可信反向代理之后才置 true，否则该头可被客户端伪造）。 */
+    private final boolean trustForwarded;
+
     public AuthController(AppUserRepository userRepo, PasswordEncoder passwordEncoder, JwtService jwtService,
                           LoginAuditRepository loginAuditRepo,
-                          @Value("${grc.auth.cookie-secure:false}") boolean cookieSecure) {
+                          @Value("${grc.auth.cookie-secure:false}") boolean cookieSecure,
+                          @Value("${grc.auth.trust-forwarded-header:false}") boolean trustForwarded) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.loginAuditRepo = loginAuditRepo;
         this.cookieSecure = cookieSecure;
+        this.trustForwarded = trustForwarded;
     }
 
     /** 登录：锁定检查 → 校验口令（失败累计/锁定） → 签发 JWT 置 httpOnly Cookie；全程审计。 */
@@ -176,9 +181,15 @@ public class AuthController {
         }
     }
 
-    private static String clientIp(HttpServletRequest req) {
-        String xff = req.getHeader("X-Forwarded-For");
-        return xff != null && !xff.isBlank() ? xff.split(",")[0].trim() : req.getRemoteAddr();
+    private String clientIp(HttpServletRequest req) {
+        // L-10：X-Forwarded-For 可被客户端伪造；默认取 TCP 对端地址，仅可信反代后（配置开启）才取 XFF 首跳
+        if (trustForwarded) {
+            String xff = req.getHeader("X-Forwarded-For");
+            if (xff != null && !xff.isBlank()) {
+                return xff.split(",")[0].trim();
+            }
+        }
+        return req.getRemoteAddr();
     }
 
     private Map<String, Object> userInfo(AppUser u) {

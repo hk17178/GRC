@@ -64,6 +64,9 @@ public class KriController {
     public KriMeasurement record(@PathVariable Long id,
                                  @RequestBody RecordRequest req,
                                  @RequestHeader(value = "X-User", required = false) String user) {
+        if (req == null || req.value() == null) {   // L-1：测量值空值校验，防 NPE/500
+            throw new IllegalArgumentException("测量值不能为空");
+        }
         return service.record(id, req.value(), req.note(), actor(user));
     }
 

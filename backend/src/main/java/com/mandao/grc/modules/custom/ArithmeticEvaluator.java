@@ -16,9 +16,13 @@ import java.util.Map;
  */
 public final class ArithmeticEvaluator {
 
+    /** 递归下降深度上限（L-12）：防超深嵌套括号/一元号致 StackOverflowError。 */
+    private static final int MAX_DEPTH = 64;
+
     private final String src;
     private final Map<String, Double> vars;
     private int pos;
+    private int depth;
 
     private ArithmeticEvaluator(String src, Map<String, Double> vars) {
         this.src = src;
@@ -40,12 +44,19 @@ public final class ArithmeticEvaluator {
     }
 
     private double parseExpr() {
-        double v = parseTerm();
-        while (true) {
-            skipWs();
-            if (peek() == '+') { pos++; v += parseTerm(); }
-            else if (peek() == '-') { pos++; v -= parseTerm(); }
-            else { return v; }
+        if (++depth > MAX_DEPTH) {   // L-12：嵌套过深即拒，防栈溢出
+            throw new IllegalArgumentException("KPI 公式嵌套过深（>" + MAX_DEPTH + " 层）");
+        }
+        try {
+            double v = parseTerm();
+            while (true) {
+                skipWs();
+                if (peek() == '+') { pos++; v += parseTerm(); }
+                else if (peek() == '-') { pos++; v -= parseTerm(); }
+                else { return v; }
+            }
+        } finally {
+            depth--;
         }
     }
 
