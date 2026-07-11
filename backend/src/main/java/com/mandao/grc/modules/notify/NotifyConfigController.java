@@ -42,8 +42,9 @@ public class NotifyConfigController {
         return java.util.Map.of("produced", produced, "pushed", pushed);
     }
 
-    /** 通道外推发送留痕（八轮 8-1：最近 N 条成功/失败记录）。 */
+    /** 通道外推发送留痕（八轮 8-1：最近 N 条成功/失败记录）。含 webhook 目标与消息，门控 notify 且按可见组织过滤。 */
     @GetMapping("/send-logs")
+    @RequiresPermission("notify")
     public java.util.List<java.util.Map<String, Object>> sendLogs(
             @RequestParam(required = false, defaultValue = "100") int limit) {
         return alertPushService.recentLogs(limit);

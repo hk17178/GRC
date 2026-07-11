@@ -55,6 +55,8 @@ class NotifyConfigTest {
 
     @Autowired
     private NotifyConfigService service;
+    @Autowired
+    private com.mandao.grc.kernel.AlertPushService alertPushService;
 
     private static final long ORG_PAY = 12L;
     private static final long ORG_CF = 13L;
@@ -125,6 +127,24 @@ class NotifyConfigTest {
         asOrg(ORG_PAY, () -> service.create(ORG_PAY, NotifyConfig.SCENARIO, "X", "{}"));
         assertEquals(1, asOrg(ORG_PAY, () -> service.listByKind(NotifyConfig.SCENARIO)).size());
         assertTrue(asOrg(ORG_CF, () -> service.listByKind(NotifyConfig.SCENARIO)).isEmpty(), "org13 不应看到 org12 的场景");
+    }
+
+    @Test
+    void h3_发送留痕按可见组织隔离_不跨租户() throws Exception {
+        try (Connection owner = DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             Statement s = owner.createStatement()) {
+            s.executeUpdate("DELETE FROM notify_send_log WHERE org_id IN (12, 13)");
+            s.executeUpdate("INSERT INTO notify_send_log(org_id, channel_type, target, message, success) VALUES "
+                    + "(12, 'WECOM', 'http://a', 'org12留痕', true), "
+                    + "(13, 'WECOM', 'http://b', 'org13留痕', true)");
+        }
+        var r12 = asOrg(ORG_PAY, () -> alertPushService.recentLogs(100));
+        assertTrue(r12.stream().allMatch(m -> ((Number) m.get("orgId")).longValue() == 12L),
+                "org12 只应看到本组织发送留痕");
+        assertTrue(r12.stream().anyMatch(m -> "org12留痕".equals(m.get("message"))), "应看到本组织留痕");
+        assertTrue(r12.stream().noneMatch(m -> "org13留痕".equals(m.get("message"))), "不得看到 org13 留痕（H-3 跨租户泄露）");
+        // 无可见域上下文 → 空（不泄露）
+        assertTrue(alertPushService.recentLogs(100).isEmpty(), "无隔离上下文应返回空");
     }
 
     private <T> T asOrg(long orgId, Supplier<T> action) {

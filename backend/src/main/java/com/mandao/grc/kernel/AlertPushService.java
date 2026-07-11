@@ -176,14 +176,26 @@ public class AlertPushService {
         }
     }
 
-    /** 发送留痕查询（通知中心「发送留痕」区，最近 limit 条）。 */
+    /**
+     * 发送留痕查询（通知中心「发送留痕」区，最近 limit 条）。
+     * 安全评审 H-3：notify_send_log 为内核写入的日志表（加 RLS 会破坏内核 INSERT 的 WITH CHECK，
+     * 与 reminder_dispatch_log 同口径），故此处按当前主体可见组织显式过滤，杜绝跨租户读取告警内容。
+     * 无可见域（未认证/上下文缺失）返回空。
+     */
     @Transactional(readOnly = true)
     public List<Map<String, Object>> recentLogs(int limit) {
+        List<Long> orgs = com.mandao.grc.common.isolation.IsolationContext.get();
+        if (orgs == null || orgs.isEmpty()) {
+            return new ArrayList<>();
+        }
+        String orgCsv = orgs.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(","));
         @SuppressWarnings("unchecked")
         List<Object[]> rows = em.createNativeQuery(
                         "SELECT id, org_id, channel_type, target, message, success, error, "
                                 + "CAST(EXTRACT(EPOCH FROM created_at) * 1000 AS bigint) "
-                                + "FROM notify_send_log ORDER BY id DESC LIMIT " + Math.min(Math.max(limit, 1), 200))
+                                + "FROM notify_send_log WHERE org_id = ANY(CAST(string_to_array(:orgs, ',') AS bigint[])) "
+                                + "ORDER BY id DESC LIMIT " + Math.min(Math.max(limit, 1), 200))
+                .setParameter("orgs", orgCsv)
                 .getResultList();
         List<Map<String, Object>> out = new ArrayList<>();
         for (Object[] r : rows) {
