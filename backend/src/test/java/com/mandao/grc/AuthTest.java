@@ -105,6 +105,9 @@ class AuthTest {
         assertEquals(401, get("/api/policies").statusCode(), "未认证 /api/policies 应被网关 401");
         // 登录前必达的公开端点：品牌读取放行（非 401）
         assertNotEquals(401, get("/api/branding").statusCode(), "GET /api/branding 应公开可读");
+        // 复核残留：编码路径 /%61pi/... 不得绕过网关泄露数据（requiresAuth 已先解码再匹配）
+        int enc = get("/%61pi/settings").statusCode();
+        assertNotEquals(200, enc, "编码路径 /%61pi/settings 未认证不得返回数据（实际 " + enc + "）");
     }
 
     @Test

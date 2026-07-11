@@ -88,7 +88,22 @@ public class IsolationFilter extends OncePerRequestFilter {
      */
     private boolean requiresAuth(HttpServletRequest request) {
         String p = request.getRequestURI();
-        if (p == null || !p.startsWith("/api/")) {
+        if (p == null) {
+            return false;
+        }
+        // 复核残留：getRequestURI 为未解码原始 URI，/%61pi 等编码路径会被 Spring 解码后路由到 /api，
+        // 若在此按原文匹配将漏判。故先解码 + 归一（去 matrix 参数、折叠多斜杠）再匹配；解码异常一律按需认证（fail-secure）。
+        try {
+            p = java.net.URLDecoder.decode(p, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (RuntimeException e) {
+            return true;
+        }
+        int semi = p.indexOf(';');
+        if (semi >= 0) {
+            p = p.substring(0, semi);
+        }
+        p = p.replaceAll("/{2,}", "/");
+        if (!p.startsWith("/api/")) {
             return false;
         }
         String method = request.getMethod();

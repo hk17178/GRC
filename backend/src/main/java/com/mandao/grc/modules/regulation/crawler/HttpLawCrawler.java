@@ -55,10 +55,7 @@ public class HttpLawCrawler implements LawCrawler {
         String category = text(cfg, "category");
 
         try {
-            Document doc = Jsoup.connect(source.getUrl())
-                    .userAgent("Mozilla/5.0 (compatible; GRC-LawTracker/1.0)")
-                    .timeout(15000)
-                    .get();
+            Document doc = fetchWithGuardedRedirects(source.getUrl());
             // 未配置 listSelector（如常见源模板）→ 通用兜底：扫全页 a[href]，按标题特征启发式提取，
             // 配合源级关键字过滤收窄；用户可随后填精确选择器提升准确度。
             if (listSel == null) {
@@ -128,6 +125,38 @@ public class HttpLawCrawler implements LawCrawler {
             }
         }
         return false;
+    }
+
+    /**
+     * 逐跳校验的抓取（安全评审 H-2 复核残留：修复"跟随重定向不复检"旁路）。
+     * 禁用 jsoup 自动重定向，手动跟随，并对每一跳目标（含每个 302 Location）重跑 SSRF 校验——
+     * 杜绝"公网源 302 → 内网/元数据地址"绕过前置校验。最多 5 跳，防重定向环。
+     */
+    private Document fetchWithGuardedRedirects(String startUrl) throws java.io.IOException {
+        String current = startUrl;
+        for (int hop = 0; hop < 5; hop++) {
+            assertPublicHttpUrl(current);   // 每一跳目标都校验（含首跳与各重定向目标）
+            org.jsoup.Connection.Response resp = Jsoup.connect(current)
+                    .userAgent("Mozilla/5.0 (compatible; GRC-LawTracker/1.0)")
+                    .timeout(15000)
+                    .followRedirects(false)
+                    .ignoreHttpErrors(true)
+                    .execute();
+            int sc = resp.statusCode();
+            if (sc >= 300 && sc < 400) {
+                String loc = resp.header("Location");
+                if (loc == null || loc.isBlank()) {
+                    throw new IllegalStateException("重定向响应缺少 Location");
+                }
+                current = new java.net.URL(resp.url(), loc).toString();   // 解析相对/绝对 Location
+                continue;
+            }
+            if (sc >= 400) {
+                throw new IllegalStateException("抓取返回 HTTP " + sc);
+            }
+            return resp.parse();
+        }
+        throw new IllegalStateException("重定向层数过多（>5），疑似重定向环，已终止");
     }
 
     /**
