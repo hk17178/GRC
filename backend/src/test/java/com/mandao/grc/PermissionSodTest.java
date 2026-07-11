@@ -128,6 +128,24 @@ class PermissionSodTest {
     // ---------- 授予角色 ----------
 
     @Test
+    void h5_非超管授权人不得授予超管角色_纵向提权防护() throws Exception {
+        long superRoleId;
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             java.sql.Statement s = c.createStatement()) {
+            s.executeUpdate("INSERT INTO role (code, name, superadmin) VALUES ('h5_super', 'H5超管测试', true)");
+            try (java.sql.ResultSet rs = s.executeQuery("SELECT id FROM role WHERE code = 'h5_super'")) {
+                rs.next();
+                superRoleId = rs.getLong(1);
+            }
+        }
+        final long srid = superRoleId;
+        // 非超管授权人授予「超管」角色 → 拒（防 perm 管理员自授超管纵向提权）
+        assertThrows(IllegalStateException.class, () -> asOrg(ORG_PAY, () ->
+                        permissionService.grantRole(ORG_PAY, USER_PAY, srid, "not_a_superadmin")),
+                "非超管授权人不得授予超管角色");
+    }
+
+    @Test
     void 授予角色成功() {
         UserRoleOrg uro = asOrg(ORG_PAY, () ->
                 permissionService.grantRole(ORG_PAY, USER_PAY, ROLE_MAKER, "admin"));

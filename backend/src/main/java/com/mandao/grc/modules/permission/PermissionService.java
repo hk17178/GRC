@@ -78,6 +78,10 @@ public class PermissionService {
      */
     @Transactional
     public UserRoleOrg grantRole(Long orgId, Long userId, Long roleId, String grantedBy) {
+        // 0) H-5 纵向提权防护：非超管授权人不得授予「超管」角色，杜绝仅有 perm 权限者自授超管。
+        if (isSuperadminRole(roleId) && !isSuperadminActor(grantedBy)) {
+            throw new IllegalStateException("仅超级管理员可授予超级管理员角色（纵向提权防护）");
+        }
         // 1) SoD 红线校验（BLOCK 阻断 / DETECT 放行并登记冲突）
         enforceSod(orgId, userId, roleId, grantedBy);
 
@@ -225,6 +229,30 @@ public class PermissionService {
      *
      * @param actor 授权人（用于 DETECT 冲突留痕的 actor）
      */
+    /** 目标角色是否为超管角色（role.superadmin）。 */
+    private boolean isSuperadminRole(Long roleId) {
+        if (roleId == null) {
+            return false;
+        }
+        Object v = em.createNativeQuery("SELECT superadmin FROM role WHERE id = :id")
+                .setParameter("id", roleId).getResultStream().findFirst().orElse(null);
+        return Boolean.TRUE.equals(v);
+    }
+
+    /** 授权人是否持有超管角色（H-5：唯有超管可授出超管）。 */
+    private boolean isSuperadminActor(String actor) {
+        if (actor == null || actor.isBlank()) {
+            return false;
+        }
+        Number n = (Number) em.createNativeQuery(
+                        "SELECT count(*) FROM app_user u "
+                                + "JOIN user_role_org uro ON uro.user_id = u.id AND uro.active = true "
+                                + "JOIN role r ON r.id = uro.role_id "
+                                + "WHERE u.username = :n AND r.superadmin = true")
+                .setParameter("n", actor).getSingleResult();
+        return n.longValue() > 0;
+    }
+
     private void enforceSod(Long orgId, Long userId, Long roleId, String actor) {
         List<SodRule> rules = sodRuleRepository.findByRoleAIdOrRoleBId(roleId, roleId);
         if (rules.isEmpty()) {
