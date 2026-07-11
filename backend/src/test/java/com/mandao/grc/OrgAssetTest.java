@@ -485,6 +485,19 @@ class OrgAssetTest {
     }
 
     @Test
+    void h10_报表分组维度含敏感字段_无密级用户脱敏() {
+        seedSensitiveAsset();
+        // 按敏感字段 ext.id_no 分组 → cf_user(INTERNAL) 报表输出须经 B30 门控脱敏，不得明文泄露
+        String def = "{\"groupBy\":[\"ext.id_no\"],\"measures\":[{\"agg\":\"count\"}]}";
+        var rows = asUser(ORG_CF, "cf_user", () -> customReportService.preview("ASSET", def));
+        assertFalse(rows.isEmpty(), "应有分组结果");
+        assertTrue(rows.stream().noneMatch(r -> "110101199001011234".equals(r.get("ext.id_no"))),
+                "报表分组维度中的敏感字段不得对无密级用户明文泄露（H-10/M-18）");
+        assertTrue(rows.stream().anyMatch(r -> "110101********1234".equals(r.get("ext.id_no"))),
+                "应见脱敏后的身份证号");
+    }
+
+    @Test
     void b12v3_越权维度_越权度量_非数值sum均拒绝() {
         // 越权维度 org_id
         assertThrows(IllegalArgumentException.class, () -> runAsOrg(ORG_PAY, () ->

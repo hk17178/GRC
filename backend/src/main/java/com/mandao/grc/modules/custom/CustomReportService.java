@@ -3,6 +3,7 @@ package com.mandao.grc.modules.custom;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mandao.grc.modules.audit.HashChainService;
+import com.mandao.grc.modules.classification.DataClassificationService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
@@ -39,12 +40,15 @@ public class CustomReportService {
     private final CustomReportDefRepository repository;
     private final ObjectColumnCatalog catalog;
     private final HashChainService hashChainService;
+    private final DataClassificationService classificationService;
 
     public CustomReportService(CustomReportDefRepository repository, ObjectColumnCatalog catalog,
-                               HashChainService hashChainService) {
+                               HashChainService hashChainService,
+                               DataClassificationService classificationService) {
         this.repository = repository;
         this.catalog = catalog;
         this.hashChainService = hashChainService;
+        this.classificationService = classificationService;
     }
 
     @Transactional(readOnly = true)
@@ -72,15 +76,16 @@ public class CustomReportService {
         return saved;
     }
 
-    /** 执行报表（按 id）：编译为参数化聚合查询并返回行（RLS 裁剪，行数封顶）。 */
-    @Transactional(readOnly = true)
+    /** 执行报表（按 id）：编译为参数化聚合查询并返回行（RLS 裁剪，行数封顶）。
+     *  非只读事务：输出经 B30 门控，命中敏感字段会写敏感访问留痕（H-10/M-18）。 */
+    @Transactional
     public List<Map<String, Object>> execute(Long id) {
         CustomReportDef r = get(id);
         return runQuery(r.getObjectType(), r.getDefinition());
     }
 
-    /** 预览临时定义（不落库，供构建器即时查看）。 */
-    @Transactional(readOnly = true)
+    /** 预览临时定义（不落库，供构建器即时查看）。非只读事务：B30 门控命中敏感字段会写留痕。 */
+    @Transactional
     public List<Map<String, Object>> preview(String objectType, String definition) {
         return runQuery(objectType, definition);
     }
@@ -115,7 +120,10 @@ public class CustomReportService {
             }
             out.add(m);
         }
-        return out;
+        // 安全评审 H-10/M-18：报表输出统一过 B30 密级门控（与自定义视图同一 choke point），
+        // 分组维度中的敏感字段值对无密级凭据者脱敏，并写敏感访问留痕。
+        return classificationService.screen(objectType, c.columnKeys, out,
+                com.mandao.grc.common.auth.CurrentUserContext.get());
     }
 
     private record Compiled(Query query, List<String> columnKeys) {
