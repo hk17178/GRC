@@ -1,6 +1,7 @@
 package com.mandao.grc;
 
 import com.mandao.grc.common.auth.JwtService;
+import com.mandao.grc.common.net.IpEgressGuard;
 import com.mandao.grc.modules.ai.ConfigCrypto;
 import com.mandao.grc.modules.workflow.BpmnCompiler;
 import com.mandao.grc.modules.workflow.FlowGraph;
@@ -10,8 +11,12 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
+import java.net.InetAddress;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * 安全加固单测（纯构造·无 Spring 上下文·无容器，秒级）。
@@ -49,5 +54,16 @@ class SecurityHardeningTest {
         // 校验先于对 flow 的解引用，故可传 null flow
         assertThrows(FlowValidationException.class, () -> new BpmnCompiler().compile(null, g),
                 "含引号/越界字符的节点标识应被拒绝编译");
+    }
+
+    @Test
+    void ipEgressGuard_内网与保留段阻断_公网放行() throws Exception {
+        for (String ip : new String[]{"127.0.0.1", "192.168.1.1", "10.0.0.1", "172.16.0.1",
+                "169.254.169.254", "100.64.0.1", "198.18.0.1", "fd00::1"}) {
+            assertTrue(IpEgressGuard.isBlocked(InetAddress.getByName(ip)), ip + " 应被判为不可出站");
+        }
+        for (String ip : new String[]{"1.1.1.1", "8.8.8.8", "93.184.216.34"}) {
+            assertFalse(IpEgressGuard.isBlocked(InetAddress.getByName(ip)), ip + " 公网应放行");
+        }
     }
 }

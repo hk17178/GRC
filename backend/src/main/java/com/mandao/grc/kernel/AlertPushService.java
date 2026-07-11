@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestClient;
 
-import java.net.InetAddress;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
@@ -153,11 +152,8 @@ public class AlertPushService {
             throw new IllegalStateException("webhook 主机不在白名单：" + host
                     + "（grc.notify.webhook-allowlist 可配置追加）");
         }
-        for (InetAddress addr : InetAddress.getAllByName(host)) {
-            if (addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress()) {
-                throw new IllegalStateException("SSRF 防护：webhook 主机解析到内网地址，已拒绝");
-            }
-        }
+        // 统一出站守卫（L-2/L-6）：补齐 anyLocal/组播 + IPv6 ULA/CGNAT/benchmarking 保留段
+        com.mandao.grc.common.net.IpEgressGuard.assertPublicHost(host);
     }
 
     /** 发送留痕落库（短事务）。 */

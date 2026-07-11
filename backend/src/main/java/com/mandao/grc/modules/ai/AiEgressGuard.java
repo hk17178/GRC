@@ -7,9 +7,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-import java.net.InetAddress;
 import java.net.URI;
-import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -82,16 +80,7 @@ public class AiEgressGuard {
             throw new IllegalStateException("AI 出站主机不在白名单：" + host
                     + "（可经 grc.ai.outbound.allowlist 配置追加，需安全评审）");
         }
-        try {
-            for (InetAddress addr : InetAddress.getAllByName(host)) {
-                if (addr.isLoopbackAddress() || addr.isSiteLocalAddress()
-                        || addr.isLinkLocalAddress() || addr.isAnyLocalAddress()) {
-                    throw new IllegalStateException("SSRF 防护：AI 出站主机 " + host
-                            + " 解析到内网/回环地址 " + addr.getHostAddress() + "，已拒绝外呼");
-                }
-            }
-        } catch (UnknownHostException e) {
-            throw new IllegalStateException("AI 出站主机无法解析：" + host);
-        }
+        // 统一出站守卫（L-2/L-6）：解析后逐地址判内网/保留段（含 IPv6 ULA/CGNAT/benchmarking）
+        com.mandao.grc.common.net.IpEgressGuard.assertPublicHost(host);
     }
 }
