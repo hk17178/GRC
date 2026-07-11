@@ -57,7 +57,8 @@ public class IsolationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
-        String username = jwtService.verifyUsername(tokenFromCookie(request));
+        String token = tokenFromCookie(request);
+        String username = jwtService.verifyUsername(token);
         if (username == null && headerFallbackEnabled) {
             username = request.getHeader("X-User"); // 开发/测试回退（生产关闭）
         }
@@ -67,6 +68,14 @@ public class IsolationFilter extends OncePerRequestFilter {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
             response.getWriter().write("{\"code\":\"UNAUTHENTICATED\",\"message\":\"未登录或会话已过期\"}");
+            return;
+        }
+        // 首登强制改密后端硬拦（安全评审 M-14）：持"须改密"令牌者除 改密/登出/取当前用户/品牌 外一律 403，
+        // 杜绝绕过前端直连业务 API 而不改初始口令。改密成功会重签发 mc=false 令牌解除限制。
+        if (username != null && !username.isBlank() && jwtService.isMustChange(token) && mustChangeRestricted(request)) {
+            response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":\"MUST_CHANGE_PASSWORD\",\"message\":\"首次登录须先修改口令\"}");
             return;
         }
         try {
@@ -114,6 +123,29 @@ public class IsolationFilter extends OncePerRequestFilter {
             return false;   // 登录页品牌读取公开（PUT 写入仍需认证）
         }
         return true;
+    }
+
+    /** 首登改密期间受限：除 改密/登出/取当前用户/品牌 外的 /api 一律拦下（M-14）。路径先解码归一，同 requiresAuth。 */
+    private boolean mustChangeRestricted(HttpServletRequest request) {
+        String p = request.getRequestURI();
+        if (p == null) {
+            return false;
+        }
+        try {
+            p = java.net.URLDecoder.decode(p, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (RuntimeException e) {
+            return true;
+        }
+        int semi = p.indexOf(';');
+        if (semi >= 0) {
+            p = p.substring(0, semi);
+        }
+        p = p.replaceAll("/{2,}", "/");
+        if (!p.startsWith("/api/")) {
+            return false;
+        }
+        return !("/api/auth/change-password".equals(p) || "/api/auth/logout".equals(p)
+                || "/api/auth/me".equals(p) || "/api/branding".equals(p));
     }
 
     /** 从 Cookie 取 JWT 令牌。 */

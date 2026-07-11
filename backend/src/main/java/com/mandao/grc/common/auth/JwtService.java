@@ -41,12 +41,13 @@ public class JwtService {
         this.ttlMillis = ttlHours * 3600_000L;
     }
 
-    /** 签发令牌。注意：时间戳由调用上下文驱动（new Date() 在生产容器内可用）。 */
-    public String issue(Long userId, String username) {
+    /** 签发令牌。mustChange=true 时带 mc 声明，供网关强制首登改密（安全评审 M-14）。 */
+    public String issue(Long userId, String username, boolean mustChange) {
         long now = System.currentTimeMillis();
         return Jwts.builder()
                 .subject(username)
                 .claim("uid", userId)
+                .claim("mc", mustChange)
                 .issuedAt(new Date(now))
                 .expiration(new Date(now + ttlMillis))
                 .signWith(key)
@@ -63,6 +64,19 @@ public class JwtService {
             return c.getSubject();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /** 令牌是否带"须改密"标记（M-14）；无效/过期/无该声明均返回 false。 */
+    public boolean isMustChange(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        try {
+            Claims c = Jwts.parser().verifyWith(key).build().parseSignedClaims(token).getPayload();
+            return Boolean.TRUE.equals(c.get("mc", Boolean.class));
+        } catch (Exception e) {
+            return false;
         }
     }
 

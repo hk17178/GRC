@@ -92,7 +92,7 @@ public class AuthController {
         userRepo.save(user);
         audit(username, true, "OK", ip);
 
-        String token = jwtService.issue(user.getId(), user.getUsername());
+        String token = jwtService.issue(user.getId(), user.getUsername(), user.isMustChangePassword());
         resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(token, jwtService.cookieMaxAgeSeconds()).toString());
         return ResponseEntity.ok(userInfo(user));
     }
@@ -121,7 +121,8 @@ public class AuthController {
      * 规则：须已登录；旧口令必须正确；新口令 ≥8 位且不得为演示口令/与旧口令相同。
      */
     @PostMapping("/change-password")
-    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req, HttpServletRequest httpReq) {
+    public ResponseEntity<?> changePassword(@RequestBody ChangePasswordRequest req, HttpServletRequest httpReq,
+                                            HttpServletResponse resp) {
         String username = CurrentUserContext.get();
         if (username == null) {
             return ResponseEntity.status(401).body(Map.of("code", "UNAUTHENTICATED", "message", "未登录"));
@@ -132,14 +133,33 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("code", "AUTH_FAILED", "message", "原口令错误"));
         }
         String np = req.newPassword() == null ? "" : req.newPassword();
-        if (np.length() < 8 || "demo1234".equals(np) || np.equals(req.oldPassword())) {
+        if (isWeakPassword(np, req.oldPassword())) {   // L-11
             return ResponseEntity.badRequest().body(Map.of("code", "WEAK_PASSWORD",
-                    "message", "新口令须至少 8 位，且不得为演示口令或与旧口令相同"));
+                    "message", "新口令须至少 10 位、含大写/小写/数字/符号中至少三类，且不得为常见弱口令或与旧口令相同"));
         }
         user.changePassword(passwordEncoder.encode(np));
         userRepo.save(user);
+        // M-14：改密后重签发 mc=false 令牌，解除首登强制改密限制
+        String token = jwtService.issue(user.getId(), user.getUsername(), false);
+        resp.addHeader(HttpHeaders.SET_COOKIE, buildCookie(token, jwtService.cookieMaxAgeSeconds()).toString());
         audit(username, true, "PWD_CHANGED", clientIp(httpReq));
         return ResponseEntity.ok(Map.of("ok", true));
+    }
+
+    /** L-11：口令强度——≥10 位、含大写/小写/数字/符号至少三类、非常见弱口令、不与旧口令相同。 */
+    private static final java.util.Set<String> WEAK_BLOCKLIST = java.util.Set.of(
+            "demo1234", "password", "12345678", "admin123", "qwerty123", "abcd1234", "password1", "1234567890");
+
+    private static boolean isWeakPassword(String np, String old) {
+        if (np == null || np.length() < 10 || np.equals(old) || WEAK_BLOCKLIST.contains(np.toLowerCase())) {
+            return true;
+        }
+        int classes = 0;
+        if (np.matches(".*[a-z].*")) classes++;
+        if (np.matches(".*[A-Z].*")) classes++;
+        if (np.matches(".*\\d.*")) classes++;
+        if (np.matches(".*[^a-zA-Z0-9].*")) classes++;
+        return classes < 3;
     }
 
     private ResponseCookie buildCookie(String token, long maxAge) {

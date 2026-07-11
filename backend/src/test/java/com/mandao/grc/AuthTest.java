@@ -99,6 +99,44 @@ class AuthTest {
     }
 
     @Test
+    void m14_须改密令牌_业务被拦_改密后解除() throws Exception {
+        String origHash;
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+             java.sql.Statement s = c.createStatement()) {
+            try (java.sql.ResultSet rs = s.executeQuery(
+                    "SELECT password_hash FROM app_user WHERE username = 'group_admin'")) {
+                rs.next();
+                origHash = rs.getString(1);
+            }
+            s.executeUpdate("UPDATE app_user SET must_change_password = true WHERE username = 'group_admin'");
+        }
+        try {
+            HttpResponse<String> login = post("/api/auth/login",
+                    "{\"username\":\"group_admin\",\"password\":\"demo1234\"}");
+            assertEquals(200, login.statusCode());
+            String cookie = login.headers().firstValue("set-cookie").orElse("").split(";", 2)[0];
+
+            assertEquals(200, get("/api/auth/me", "Cookie", cookie).statusCode(), "me 应放行");
+            HttpResponse<String> blocked = get("/api/settings", "Cookie", cookie);
+            assertEquals(403, blocked.statusCode(), "须改密令牌访问业务端点应 403");
+            assertTrue(blocked.body().contains("MUST_CHANGE_PASSWORD"), "应为须改密拦截：" + blocked.body());
+
+            HttpResponse<String> chg = post("/api/auth/change-password",
+                    "{\"oldPassword\":\"demo1234\",\"newPassword\":\"StrongP@ss99x\"}", "Cookie", cookie);
+            assertEquals(200, chg.statusCode(), "改密应成功");
+            String newCookie = chg.headers().firstValue("set-cookie").orElse("").split(";", 2)[0];
+            assertNotEquals(403, get("/api/settings", "Cookie", newCookie).statusCode(),
+                    "改密后 mc 限制应解除（超管可读）");
+        } finally {
+            try (java.sql.Connection c = java.sql.DriverManager.getConnection(PG.getJdbcUrl(), "grc_owner", "owner_pw");
+                 java.sql.Statement s = c.createStatement()) {
+                s.executeUpdate("UPDATE app_user SET password_hash = '" + origHash
+                        + "', must_change_password = false WHERE username = 'group_admin'");
+            }
+        }
+    }
+
+    @Test
     void p0_2_未认证业务端点401_公开端点放行() throws Exception {
         // 全局认证前置：未认证访问业务端点一律 401（不再进业务、不再靠 RLS 兜底）
         assertEquals(401, get("/api/settings").statusCode(), "未认证 /api/settings 应被网关 401");
