@@ -43,6 +43,7 @@ public class AuthController {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginAuditRepository loginAuditRepo;
+    private final LoginRateLimiter loginRateLimiter;
 
     /** 生产 HTTPS 环境置 true（B17：Cookie Secure 配置化，不再只靠人工清单）。 */
     private final boolean cookieSecure;
@@ -51,13 +52,14 @@ public class AuthController {
     private final boolean trustForwarded;
 
     public AuthController(AppUserRepository userRepo, PasswordEncoder passwordEncoder, JwtService jwtService,
-                          LoginAuditRepository loginAuditRepo,
+                          LoginAuditRepository loginAuditRepo, LoginRateLimiter loginRateLimiter,
                           @Value("${grc.auth.cookie-secure:false}") boolean cookieSecure,
                           @Value("${grc.auth.trust-forwarded-header:false}") boolean trustForwarded) {
         this.userRepo = userRepo;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.loginAuditRepo = loginAuditRepo;
+        this.loginRateLimiter = loginRateLimiter;
         this.cookieSecure = cookieSecure;
         this.trustForwarded = trustForwarded;
     }
@@ -68,6 +70,12 @@ public class AuthController {
                                    HttpServletResponse resp) {
         String username = req.username() == null ? "" : req.username().trim();
         String ip = clientIp(httpReq);
+        // M-16：按来源 IP 限速，挡分散账号爆破并缓解账号锁定 DoS
+        if (!loginRateLimiter.allow(ip)) {
+            audit(username, false, "RATE_LIMITED", ip);
+            return ResponseEntity.status(429).body(Map.of("code", "RATE_LIMITED",
+                    "message", "登录尝试过于频繁，请稍后再试"));
+        }
         AppUser user = userRepo.findByUsername(username).orElse(null);
 
         // 锁定检查先于口令校验：锁定期内即便口令正确也拒绝（防持续爆破）
@@ -96,6 +104,7 @@ public class AuthController {
         user.recordLoginSuccess();
         userRepo.save(user);
         audit(username, true, "OK", ip);
+        loginRateLimiter.reset(ip);   // M-16：登录成功清零该 IP 计数
 
         String token = jwtService.issue(user.getId(), user.getUsername(), user.isMustChangePassword(),
                 user.getTokenEpoch());

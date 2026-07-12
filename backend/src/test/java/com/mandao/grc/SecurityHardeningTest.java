@@ -1,6 +1,7 @@
 package com.mandao.grc;
 
 import com.mandao.grc.common.auth.JwtService;
+import com.mandao.grc.common.auth.LoginRateLimiter;
 import com.mandao.grc.common.net.IpEgressGuard;
 import com.mandao.grc.modules.ai.ConfigCrypto;
 import com.mandao.grc.modules.custom.ArithmeticEvaluator;
@@ -76,5 +77,17 @@ class SecurityHardeningTest {
                 () -> ArithmeticEvaluator.eval(deep, java.util.Map.of()), "超深嵌套应被拒");
         // 正常浅表达式仍可求值
         assertDoesNotThrow(() -> ArithmeticEvaluator.eval("(1 + 2) * 3", java.util.Map.of()));
+    }
+
+    @Test
+    void 登录限速_超窗口上限即拒_成功清零() {
+        LoginRateLimiter rl = new LoginRateLimiter(3, 300);
+        assertTrue(rl.allow("1.2.3.4"));
+        assertTrue(rl.allow("1.2.3.4"));
+        assertTrue(rl.allow("1.2.3.4"));
+        assertFalse(rl.allow("1.2.3.4"), "第 4 次应被限速拒绝");
+        assertTrue(rl.allow("5.6.7.8"), "另一 IP 不受影响");
+        rl.reset("1.2.3.4");
+        assertTrue(rl.allow("1.2.3.4"), "成功清零后可再尝试");
     }
 }
