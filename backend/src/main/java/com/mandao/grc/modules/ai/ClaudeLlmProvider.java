@@ -86,7 +86,9 @@ public class ClaudeLlmProvider implements LlmProvider {
             }
             return "（Claude 返回为空）";
         } catch (Exception e) {
-            return "调用 Claude 失败：" + e.getMessage();
+            // L-7：异常详情只入服务端日志，不回传前端
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("Claude 调用失败: {}", e.toString());
+            return "调用 Claude 失败：服务暂时不可用，请稍后重试或联系管理员";
         }
     }
 

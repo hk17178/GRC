@@ -87,7 +87,9 @@ public class OpenAiCompatibleLlmProvider implements LlmProvider {
             }
             return "（模型返回为空）";
         } catch (Exception e) {
-            return "调用大模型失败：" + e.getMessage();
+            // L-7：异常详情（含 baseUrl/内网 IP/栈）只入服务端日志，不回传前端
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("大模型(OpenAI兼容)调用失败: {}", e.toString());
+            return "调用大模型失败：服务暂时不可用，请稍后重试或联系管理员";
         }
     }
 

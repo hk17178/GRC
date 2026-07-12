@@ -32,6 +32,14 @@ public class RemediationService {
         this.evidenceRepository = evidenceRepository;
     }
 
+    /** 账号库（M-3：职责分离比对需把 actor 解析到登录账号的用户名/显示名，setter 注入不搅动构造）。 */
+    private com.mandao.grc.common.auth.AppUserRepository appUserRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    void wireAppUserRepository(com.mandao.grc.common.auth.AppUserRepository appUserRepository) {
+        this.appUserRepository = appUserRepository;
+    }
+
     public RemediationService(RemediationOrderRepository orderRepository,
                               AuditFindingService findingService,
                               HashChainService hashChainService) {
@@ -107,11 +115,33 @@ public class RemediationService {
     public RemediationOrder verify(Long id, String actor) {
         RemediationOrder o = get(id);
         requireStatus(o, RemediationStatus.SUBMITTED, "验证");
-        if (actor != null && actor.equals(o.getAssignee())) {
-            throw new IllegalStateException("职责分离：整改责任人（" + actor + "）不得自行验证自己的整改，请由下达人或独立验证人执行");
+        if (isSameParty(actor, o.getAssignee())) {   // M-3：规范化 + 显示名比对，防命名不一致绕过
+            throw new IllegalStateException("职责分离：整改责任人不得自行验证自己的整改，请由下达人或独立验证人执行");
         }
         o.verify(actor);
         return saveAndLog(o, "REMEDIATION_VERIFY", actor, "验证通过");
+    }
+
+    /**
+     * M-3：判定验证人是否即整改责任人。规范化(trim/忽略大小写)比对 actor 与 assignee，
+     * 并把 actor 解析到其登录账号的 用户名/显示名 一并比对——堵住"assignee 存显示名、actor 是用户名"
+     * 或大小写/空白不一致导致的自验自改绕过。
+     */
+    private boolean isSameParty(String actor, String assignee) {
+        if (actor == null || assignee == null || assignee.isBlank()) {
+            return false;
+        }
+        String a = assignee.trim();
+        if (a.equalsIgnoreCase(actor.trim())) {
+            return true;
+        }
+        if (appUserRepository != null) {
+            com.mandao.grc.common.auth.AppUser u = appUserRepository.findByUsername(actor.trim()).orElse(null);
+            if (u != null && u.getDisplayName() != null && a.equalsIgnoreCase(u.getDisplayName().trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** 验证不通过：SUBMITTED → IN_PROGRESS（退回返工）。 */
