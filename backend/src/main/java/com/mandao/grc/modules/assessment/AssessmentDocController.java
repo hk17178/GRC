@@ -42,6 +42,11 @@ public class AssessmentDocController {
         return service.listDocs(id);
     }
 
+    /** L-5：上传大小上限与允许扩展名白名单。 */
+    private static final long MAX_UPLOAD_BYTES = 25L * 1024 * 1024;   // 25MB
+    private static final java.util.Set<String> ALLOWED_UPLOAD_EXTS = java.util.Set.of(
+            ".docx", ".doc", ".pdf", ".xlsx", ".xls", ".png", ".jpg", ".jpeg");
+
     /** 上传过程文档（multipart；docType=PLAN/INTERVIEW/REPORT/RTP/ACCEPTANCE/OTHER）。 */
     @PostMapping("/assessments/{id}/docs")
     @RequiresPermission("risk")
@@ -52,6 +57,16 @@ public class AssessmentDocController {
                                 @RequestHeader(value = "X-User", required = false) String user) throws IOException {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("未收到文档文件");
+        }
+        // L-5：上传显式校验大小 + 扩展名白名单，防任意二进制入库
+        if (file.getSize() > MAX_UPLOAD_BYTES) {
+            throw new IllegalArgumentException("文件过大，上限 " + (MAX_UPLOAD_BYTES / 1024 / 1024) + " MB");
+        }
+        String orig = file.getOriginalFilename() == null ? "" : file.getOriginalFilename().toLowerCase();
+        int dot = orig.lastIndexOf('.');
+        String ext = dot >= 0 ? orig.substring(dot) : "";
+        if (!ALLOWED_UPLOAD_EXTS.contains(ext)) {
+            throw new IllegalArgumentException("不支持的文件类型（允许：" + String.join(" ", ALLOWED_UPLOAD_EXTS) + "）");
         }
         return service.upload(id, docType, name, file.getOriginalFilename(), file.getContentType(),
                 file.getBytes(), actorOf(user));
@@ -68,6 +83,7 @@ public class AssessmentDocController {
         String fn = d.getFileName() == null ? ("doc-" + docId) : d.getFileName();
         return ResponseEntity.ok()
                 .header("Content-Type", d.getContentType() == null ? "application/octet-stream" : d.getContentType())
+                .header("X-Content-Type-Options", "nosniff")   // L-4：禁 MIME 嗅探，防用户可控 content-type 被浏览器渲染
                 .header("Content-Disposition", "attachment; filename*=UTF-8''"
                         + URLEncoder.encode(fn, StandardCharsets.UTF_8).replace("+", "%20"))
                 .body(d.getData());
